@@ -1,7 +1,7 @@
 """Мок LLM-шлюза (workers/mock/mock_llm_server.py) — пригодность для vision.
 
 Зачем тест: мок разбирал content сообщения как СТРОКУ, а у vision-каналов
-(nj639/nj640/nj646) content — СПИСОК частей ([{"type": "text"}, {"type":
+(prl639/prl640/prl646) content — СПИСОК частей ([{"type": "text"}, {"type":
 "image_url"}]). На `hash(list)` мок падал с TypeError, клиент получал
 «Server disconnected without sending a response», и ЛЮБОЙ прогон фото в
 песочнице заканчивался ошибкой канала — то есть отлаживать фото-конвейер
@@ -49,7 +49,7 @@ def test_plain_string_content_still_works():
 def test_reply_queue_serves_answers_in_order(tmp_path, monkeypatch):
     """MOCK_LLM_REPLY_FILES — очередь ответов (двухпроходные каналы).
 
-    nj646.label ходит к модели дважды: строки этикетки, потом состав из них.
+    prl646.label ходит к модели дважды: строки этикетки, потом состав из них.
     С одним REPLY_FILE обе просьбы получали один и тот же ответ, и такой прогон
     в песочнице было не проверить.
     """

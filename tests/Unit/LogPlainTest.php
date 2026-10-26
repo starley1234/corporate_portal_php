@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
  * Повод (03.10.2026): прогон «фото этикетки» падал на приёмке результат с 500,
  * а на сайте не оставалось ни одной записи о том, что приёмка вообще была.
  * Разбираться пришлось перепиской и догадками. Лог должен лежать в одном
- * предсказуемом файле (application/logs/n2j-site.log), читаться глазами и
+ * предсказуемом файле (application/logs/prl-site.log), читаться глазами и
  * ротироваться, чтобы не вырасти бесконечно.
  */
 /** Считающий писатель: проверяет, что событие доходит и до общего лога сайта. */
@@ -34,7 +34,7 @@ class LogPlainTest extends TestCase {
 
     protected function setUp(): void
     {
-        $this->_dir = sys_get_temp_dir().'/n2j-log-'.bin2hex(random_bytes(6));
+        $this->_dir = sys_get_temp_dir().'/prl-log-'.bin2hex(random_bytes(6));
 
         if ( ! is_dir($this->_dir))
         {
@@ -61,7 +61,7 @@ class LogPlainTest extends TestCase {
             'time'       => 1780000000,
             'level'      => $level,
             'body'       => $message,
-            'file'       => '/srv/n2j/application/classes/Controller.php',
+            'file'       => '/srv/prl/application/classes/Controller.php',
             'line'       => 42,
             'additional' => $context,
         ]]);
@@ -73,12 +73,12 @@ class LogPlainTest extends TestCase {
     {
         $writer = new Log_Plain;
 
-        $this->assertSame(APPPATH.'logs'.DIRECTORY_SEPARATOR.'n2j-site.log', $writer->file());
+        $this->assertSame(APPPATH.'logs'.DIRECTORY_SEPARATOR.'prl-site.log', $writer->file());
     }
 
     public function test_one_line_per_event_flat_and_greppable()
     {
-        $file = $this->_dir.'/n2j-site.log';
+        $file = $this->_dir.'/prl-site.log';
 
         $this->_log($file, 'label: результат прогона 51 принят', Log::INFO, ['run' => 51]);
 
@@ -95,7 +95,7 @@ class LogPlainTest extends TestCase {
 
     public function test_rotation_keeps_old_file_and_drops_oldest()
     {
-        $file = $this->_dir.'/n2j-site.log';
+        $file = $this->_dir.'/prl-site.log';
 
         // Малый лимит: 1 КБ на файл, 2 архива — ротация наступает быстро
         $writer = new Log_Plain($file, 1024, 2, Log::DEBUG);
@@ -113,7 +113,7 @@ class LogPlainTest extends TestCase {
 
     public function test_level_filter_skips_below_threshold()
     {
-        $file = $this->_dir.'/n2j-site.log';
+        $file = $this->_dir.'/prl-site.log';
 
         $writer = new Log_Plain($file, 1048576, 3, Log::ERROR);
 
@@ -128,7 +128,7 @@ class LogPlainTest extends TestCase {
 
     public function test_exception_trace_is_written_line_by_line()
     {
-        $file = $this->_dir.'/n2j-site.log';
+        $file = $this->_dir.'/prl-site.log';
 
         $context = ['run' => 51, 'exception' => new RuntimeException('jsonb дважды закавычен')];
 
@@ -147,7 +147,7 @@ class LogPlainTest extends TestCase {
         // исключении (Log::$write_on_add = FALSE). Значит Log_Plain::event()
         // обязан писать сам — иначе события обычного запроса исчезают, и
         // разбор инцидента снова идёт вслепую.
-        $file = $this->_dir.'/n2j-site.log';
+        $file = $this->_dir.'/prl-site.log';
         $writer = new Log_Plain($file, 1048576, 3, Log::DEBUG);
 
         Kohana::$log->attach($writer);
@@ -193,7 +193,7 @@ class LogPlainTest extends TestCase {
         // Каталога application/logs/ в свежем дереве может не быть (он в
         // .gitignore, его создаёт bin/setup.sh) — писатель обязан создать его
         // сам, иначе на новом сервере лога не будет.
-        $file = $this->_dir.'/nested/deeper/n2j-site.log';
+        $file = $this->_dir.'/nested/deeper/prl-site.log';
 
         $this->_log($file, 'первая запись на чистом сервере');
 
@@ -207,7 +207,7 @@ class LogPlainTest extends TestCase {
         $blocker = $this->_dir.'/not-a-dir';
         file_put_contents($blocker, 'я файл, а не каталог');
 
-        $writer = new Log_Plain($blocker.'/n2j-site.log', 1048576, 3, Log::DEBUG);
+        $writer = new Log_Plain($blocker.'/prl-site.log', 1048576, 3, Log::DEBUG);
         $writer->write([['time' => time(), 'level' => Log::ERROR, 'body' => 'ошибка без места']]);
 
         $this->assertTrue(TRUE, 'исключение не выброшено');
@@ -215,7 +215,7 @@ class LogPlainTest extends TestCase {
 
     public function test_empty_and_broken_messages_are_ignored()
     {
-        $file = $this->_dir.'/n2j-site.log';
+        $file = $this->_dir.'/prl-site.log';
 
         $writer = new Log_Plain($file, 1048576, 3, Log::DEBUG);
         $writer->write([]);

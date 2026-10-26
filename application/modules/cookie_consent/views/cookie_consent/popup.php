@@ -16,7 +16,7 @@
         </span>
 
         <div class="min-w-0 text-xs leading-relaxed text-gray-600 dark:text-gray-300">
-            <p class="font-semibold text-gray-900 dark:text-white">N2J.ru использует cookie</p>
+            <p class="font-semibold text-gray-900 dark:text-white">PRL.ru использует cookie</p>
             <p class="mt-1">
                 Продолжая пользоваться сайтом, вы соглашаетесь на обработку cookie, IP-адреса
                 и данных браузера — для аутентификации, аналитики и работы сервисов.
@@ -30,7 +30,7 @@
 
     <div class="mt-3 flex justify-end">
         <button type="button" id="cookie-consent-close"
-                class="n2j-btn-cta n2j-btn-sm">
+                class="prl-btn-cta prl-btn-sm">
             <i class="fas fa-check"></i>Понятно
         </button>
     </div>

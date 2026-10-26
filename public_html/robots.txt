@@ -1,24 +1,2 @@
 User-agent: *
-Allow: /
-Disallow: /nj
-Disallow: /auth
-Disallow: /dashboard
-Disallow: /tasks
-Disallow: /prefs
-Disallow: /migrate_pg
-Disallow: /update
-Disallow: /erp118
-Disallow: /erp208
-Disallow: /cron
-Disallow: /orgs/admin
-Disallow: /nj593/admin
-Disallow: /nj595
-Disallow: /*?flash=
-# JSON-выдача поиска: роботам нечего тут индексировать, а каждый заход —
-# девять запросов по базе. Страница /search при этом НЕ закрыта намеренно:
-# она отвечает 410 Gone, и робот должен это увидеть, чтобы выкинуть URL.
-Disallow: /search/api
-
-Clean-param: utm_source&utm_medium&utm_campaign&flash
-
-Sitemap: https://n2j.ru/sitemap.xml
+Disallow: /

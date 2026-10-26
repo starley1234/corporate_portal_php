@@ -3,7 +3,7 @@
 /**
  * Точка переопределения логина (приложение, не frozen-модуль).
  *
- * nj599_account: после верных логина/пароля, если у пользователя включена
+ * prl599_account: после верных логина/пароля, если у пользователя включена
  * двухфакторка (TOTP), завершаем парольный этап и показываем /auth/2fa —
  * ввод одноразового кода из приложения-аутентификатора. Без 2FA — как
  * раньше, плюс запись в журнал входов и регистрация активной сессии.
@@ -16,7 +16,7 @@
  * попадает обратно на страницу, где увидел замочек «Сервис для
  * зарегистрированных». Referer остаётся запасным путём.
  */
-class Controller_Auth extends Controller_Erp100_Auth {
+class Controller_Auth extends Controller_Prl100_Auth {
 
     /**
      * Нормализация цели возврата: принимаем только локальный путь — без
@@ -38,6 +38,11 @@ class Controller_Auth extends Controller_Erp100_Auth {
         }
 
         return $value[0] === '/' ? $value : '/'.$value;
+    }
+
+    public function action_register()
+    {
+        throw HTTP_Exception::factory(404, 'Учётные записи создаёт администратор');
     }
 
     public function action_login()
@@ -64,6 +69,7 @@ class Controller_Auth extends Controller_Erp100_Auth {
         {
             $referrer = $this->request->referrer();
 
+            $referrer = self::return_redirect($referrer);
             if ($referrer && strpos($referrer, 'auth/login') === false)
             {
                 Session::instance()->set('login_redirect', $referrer);
@@ -72,6 +78,10 @@ class Controller_Auth extends Controller_Erp100_Auth {
 
         if ($this->request->method() === Request::POST)
         {
+            if (! Security::check((string) $this->request->post('csrf')))
+            {
+                throw HTTP_Exception::factory(403, 'Сессия формы устарела');
+            }
             if (Auth::instance()->login($this->request->post('username'), $this->request->post('password'), (bool)$this->request->post('remember')))
             {
                 $user = Auth::instance()->get_user();
@@ -80,12 +90,12 @@ class Controller_Auth extends Controller_Erp100_Auth {
                     Auth::instance()->logout();
                     $errors[] = 'Пожалуйста, подтвердите ваш email.';
                 }
-                elseif (Service_Nj599_Account::totp_enabled((int) $user->id))
+                elseif (Service_Prl599_Account::totp_enabled((int) $user->id))
                 {
-                    // --- nj599: двухфакторка включена — второй шаг ---
+                    // --- prl599: двухфакторка включена — второй шаг ---
                     Auth::instance()->logout();
 
-                    Session::instance()->set('nj599_pending', [
+                    Session::instance()->set('prl599_pending', [
                         'uid'      => (int) $user->id,
                         'remember' => (bool) $this->request->post('remember'),
                         'redirect' => (string) Session::instance()->get('login_redirect', '/'),
@@ -97,14 +107,14 @@ class Controller_Auth extends Controller_Erp100_Auth {
                 }
                 else
                 {
-                    // --- nj599: журнал входа + регистрация активной сессии ---
+                    // --- prl599: журнал входа + регистрация активной сессии ---
                     try
                     {
-                        Service_Nj599_Account::after_login((int) $user->id, 'password');
+                        Service_Prl599_Account::after_login((int) $user->id, 'password');
                     }
                     catch (Throwable $e)
                     {
-                        Kohana::$log->add(Log::WARNING, 'nj599: after_login: :e', [':e' => $e->getMessage()]);
+                        Kohana::$log->add(Log::WARNING, 'prl599: after_login: :e', [':e' => $e->getMessage()]);
                     }
 
                     $redirect_url = Session::instance()->get_once('login_redirect', '/');
@@ -126,7 +136,7 @@ class Controller_Auth extends Controller_Erp100_Auth {
     }
 
     /**
-     * nj599: второй шаг входа — одноразовый код TOTP (6 цифр) из приложения.
+     * prl599: второй шаг входа — одноразовый код TOTP (6 цифр) из приложения.
      * Пейлоад живёт 10 минут в сессии, не более 5 попыток.
      */
     public function action_2fa()
@@ -137,12 +147,12 @@ class Controller_Auth extends Controller_Erp100_Auth {
         }
 
         $session = Session::instance();
-        $pending = $session->get('nj599_pending');
+        $pending = $session->get('prl599_pending');
 
         if ( ! is_array($pending) OR empty($pending['uid'])
             OR (time() - (int) Arr::get($pending, 'ts', 0)) > 600)
         {
-            $session->delete('nj599_pending');
+            $session->delete('prl599_pending');
             throw HTTP_Exception::factory(302)->location('/auth/login');
         }
 
@@ -150,16 +160,20 @@ class Controller_Auth extends Controller_Erp100_Auth {
 
         if ($this->request->method() === Request::POST)
         {
+            if (! Security::check((string) $this->request->post('csrf')))
+            {
+                throw HTTP_Exception::factory(403, 'Сессия формы устарела');
+            }
             if ((int) Arr::get($pending, 'tries', 0) >= 5)
             {
-                $session->delete('nj599_pending');
+                $session->delete('prl599_pending');
                 throw HTTP_Exception::factory(302)->location('/auth/login');
             }
 
             $pending['ts'] = time();
 
-            if (Service_Nj599_Account::totp_verify(
-                    (string) Arr::get(Service_Nj599_Account::totp_row((int) $pending['uid']) ?: [], 'secret'),
+            if (Service_Prl599_Account::totp_verify(
+                    (string) Arr::get(Service_Prl599_Account::totp_row((int) $pending['uid']) ?: [], 'secret'),
                     (string) $this->request->post('code')))
             {
                 $user = ORM::factory('User', (int) $pending['uid']);
@@ -167,15 +181,15 @@ class Controller_Auth extends Controller_Erp100_Auth {
                 if ($user->loaded())
                 {
                     Auth::instance()->force_login($user);
-                    $session->delete('nj599_pending');
+                    $session->delete('prl599_pending');
 
                     try
                     {
-                        Service_Nj599_Account::after_login((int) $user->id, '2fa');
+                        Service_Prl599_Account::after_login((int) $user->id, '2fa');
                     }
                     catch (Throwable $e)
                     {
-                        Kohana::$log->add(Log::WARNING, 'nj599: after_login: :e', [':e' => $e->getMessage()]);
+                        Kohana::$log->add(Log::WARNING, 'prl599: after_login: :e', [':e' => $e->getMessage()]);
                     }
 
                     throw HTTP_Exception::factory(302)->location((string) Arr::get($pending, 'redirect', '/'));
@@ -183,7 +197,7 @@ class Controller_Auth extends Controller_Erp100_Auth {
             }
 
             $pending['tries'] = (int) Arr::get($pending, 'tries', 0) + 1;
-            $session->set('nj599_pending', $pending);
+            $session->set('prl599_pending', $pending);
             $errors[] = 'Код не подошёл — введите актуальный из приложения-аутентификатора.';
         }
 

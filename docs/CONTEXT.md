@@ -33,7 +33,7 @@
 | Что читалось | Было | Стало |
 |---|---|---|
 | корневой `AGENTS.md` | 43 КБ целиком (~13 000 токенов) | тот же файл, но нужный раздел берётся по индексу |
-| памятка крупного модуля (`nj643_cad`) | 33 КБ (~10 000 токенов) | 36 КБ с индексом, но читается карточка (7,5 КБ) и 1–2 раздела |
+| памятка крупного модуля (`prl643_cad`) | 33 КБ (~10 000 токенов) | 36 КБ с индексом, но читается карточка (7,5 КБ) и 1–2 раздела |
 | все модульные документы (124 файла) | 490 КБ | те же файлы; читаются по разделам, целиком — никогда |
 
 Читать 490 КБ не нужно и никогда не нужно было: задача почти всегда живёт
@@ -58,13 +58,13 @@
 ### Шаг 1. Карточка модуля
 
 ```bash
-python3 .tools/context_pack.py pack nj643_cad --write
-# → .context/nj643_cad.md (в git не хранится), ~4–8 КБ
+python3 .tools/context_pack.py pack prl643_cad --write
+# → .context/prl643_cad.md (в git не хранится), ~4–8 КБ
 ```
 
 Что внутри (всё — из файлов модуля, без пересказа кода):
 
-* назначение, адрес, группа, статус — из манифеста `config/nj_module.php`;
+* назначение, адрес, группа, статус — из манифеста `config/prl_module.php`;
 * «Состояние работ» — раздел памятки модуля (на чём остановились);
 * таблицы — из `migrations_pg/`; каналы очереди, расписание, чистки, поиск —
   из манифеста;
@@ -84,8 +84,8 @@ python3 .tools/context_pack.py pack nj643_cad --write
 ### Шаг 2. Раздел, а не файл
 
 ```bash
-python3 .tools/context_pack.py section "Правила" --module nj643_cad
-python3 .tools/context_pack.py section "Очередь|Воркер" --module nj120_jobs
+python3 .tools/context_pack.py section "Правила" --module prl643_cad
+python3 .tools/context_pack.py section "Очередь|Воркер" --module prl120_jobs
 python3 .tools/context_pack.py section "Чек-лист" --path AGENTS.md
 ```
 
@@ -98,8 +98,8 @@ python3 .tools/context_pack.py section "Чек-лист" --path AGENTS.md
 обновить индекс:
 
 ```bash
-python3 .tools/context_pack.py index application/modules/nj643_cad/AGENTS.md          # показать
-python3 .tools/context_pack.py index application/modules/nj643_cad/AGENTS.md --write  # обновить в файле
+python3 .tools/context_pack.py index application/modules/prl643_cad/AGENTS.md          # показать
+python3 .tools/context_pack.py index application/modules/prl643_cad/AGENTS.md --write  # обновить в файле
 ```
 
 ### Шаг 3. Работа и запись обратно
@@ -184,7 +184,7 @@ python3 .tools/doc_budget_lint.py                          # бюджет док
 - Готовность: рабочий (что уже работает).
 - Сделано: 30.09 — живой ряд на /cad, авто-остановка зависших.
 - В работе: разбор `geometry/verify` при пустом ответе движка.
-- Следующий шаг: прогнать `nj643_cad_stand.php` после правки `check_code`.
+- Следующий шаг: прогнать `prl643_cad_stand.php` после правки `check_code`.
 - Долг: см. раздел «Куда развивать» (читать целиком не нужно).
 ```
 
@@ -280,7 +280,7 @@ python3 .tools/doc_budget_lint.py                          # бюджет док
 контекста:
 
 ```
-Модуль: nj501_vat (или «новый модуль: …»)
+Модуль: prl501_vat (или «новый модуль: …»)
 Задача: что должно стать иначе, словами владельца
 Где видно: /vat, /vat/api/calc (страница, кнопка, кнопка API)
 Проверка: чем владелец убедится — команда, страница, кейс
@@ -315,7 +315,7 @@ python3 .tools/doc_budget_lint.py                          # бюджет док
 Направления развития и набор простых модулей — в **`docs/PLAN-2026-10-01.md`**
 (§2 — полный каталог идей: что уже сделано, 12 модулей в трёх волнах, резерв
 и отклонённое; §4 — витрина: карта сайта и счётчик; §6 — деньги: рубли на
-`/nj120/usage` и тарифы).
+`/prl120/usage` и тарифы).
 Ближайшая задача по модулю берётся из `make backlog`; принципы нового
 простого модуля — §3 плана.
 
@@ -328,6 +328,6 @@ python3 .tools/doc_budget_lint.py                          # бюджет док
 * `docs/templates/module-AGENTS.md` — шаблон памятки (с «Состоянием работ»).
 * Памятка больше 40 КБ делится: `AGENTS.md` — карта (что где, правила по
   строке), `JOURNAL.md` — хронология по датам, `RULES.md` — полный текст
-  правил с разбором случаев (пример: nj667_graph3d, nj676_mcphub). Читать
+  правил с разбором случаев (пример: prl667_graph3d, prl676_mcphub). Читать
   спутники по разделам: `context_pack.py section "<заголовок>" --path <файл>`.
 * `docs/AGENT-LESSONS.md` — журнал уроков; читать по разделам, не целиком.

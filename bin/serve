@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# N2J — dev-сервер на встроенном PHP (без nginx).
+# PRL — dev-сервер на встроенном PHP (без nginx).
 #
 #   PORT=8080 bin/serve
 #
@@ -13,9 +13,9 @@ PORT="${PORT:-8080}"
 
 # shellcheck source=bin/_env.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_env.sh"
-n2j_load_env "$ROOT/.env"
+prl_load_env "$ROOT/.env"
 
-PHP_BIN="$(n2j_php_bin)" || true
+PHP_BIN="$(prl_php_bin)" || true
 if [[ -z "$PHP_BIN" ]]; then
     echo "ERROR: PHP не найден. Разворачивание: bash bin/restore-env.sh" >&2
     exit 1

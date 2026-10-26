@@ -1,7 +1,7 @@
 [project]
-name = "n2j-workers"
+name = "prl-workers"
 version = "0.1.0"
-description = "Асинхронные python-воркеры платформы N2J (очередь nj120_jobs)"
+description = "Асинхронные python-воркеры платформы PRL (очередь prl120_jobs)"
 requires-python = ">=3.11"
 dependencies = [
     "asyncpg>=0.29",
@@ -9,11 +9,11 @@ dependencies = [
 ]
 
 [project.scripts]
-n2j-worker = "n2j_workers.__main__:main"
+prl-worker = "prl_workers.__main__:main"
 
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["n2j_workers*"]
+include = ["prl_workers*"]

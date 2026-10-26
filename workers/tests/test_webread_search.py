@@ -4,7 +4,7 @@
 (библиотека) молча отдавал пустоту, а конвейер считал, что спроса нет. Проверяем
 резервный канал — разбор HTML-выдачи DuckDuckGo (обычной и lite).
 """
-import n2j_workers.webread as webread
+import prl_workers.webread as webread
 
 
 HTML_LAYOUT = """

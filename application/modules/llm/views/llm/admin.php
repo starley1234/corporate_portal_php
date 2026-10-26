@@ -1,3 +1,5 @@
+<?php defined('SYSPATH') or die('No direct script access.'); $llm_flash = Session::instance()->get_once('llm_flash'); ?>
+<?php if ($llm_flash): ?><p class="prl-flash"><?= HTML::chars($llm_flash['message']) ?></p><?php endif; ?>
 <link rel="stylesheet" type="text/css" href="/assets/vendor/datatables/css/jquery.dataTables.min.css">
 <?php /* Обычный CSS: @apply в браузере не работает (с 28.09.2026 Tailwind собирается заранее). */ ?>
 <?php /* design-audit: allow style — тёмная тема DataTables: разметку рисует библиотека */ ?>
@@ -21,11 +23,11 @@
     .dark table.dataTable thead th { border-bottom: 1px solid #374151 !important; }
 </style>
 
-<div class="n2j-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
-    <div class="n2j-panel overflow-hidden">
+<div class="prl-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
+    <div class="prl-panel overflow-hidden">
         <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-                <h2 class="n2j-h2">Локальный провайдер (LM Studio)</h2>
+                <h2 class="prl-h2">Локальный провайдер (LM Studio)</h2>
                 <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Управление моделями и мониторинг состояния API</p>
             </div>
             <div class="flex items-center space-x-2">
@@ -48,7 +50,7 @@
                 </div>
             <?php else: ?>
                 <div class="overflow-x-auto">
-                    <table id="modelsTable" class="n2j-table border-collapse">
+                    <table id="modelsTable" class="prl-table border-collapse">
                         <thead>
                             <tr class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
                                 <th class="px-4 py-3">Модель</th>
@@ -59,7 +61,7 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                            <?php if (isset($status_data['models']) && !empty($status_data['models'])): 
+                            <?php if (isset($status_data['models']) && !empty($status_data['models'])):
                                 $models = $status_data['models'];
                             ?>
                                 <?php foreach ($models as $model): ?>
@@ -70,12 +72,12 @@
                                                     <i class="fas <?php echo ($model['type'] === 'embedding') ? 'fa-font' : 'fa-robot'; ?> <?php echo !empty($model['loaded_instances']) ? 'text-emerald-500' : 'text-blue-500'; ?> mr-3"></i>
                                                     <span class="font-medium text-gray-900 dark:text-white"><?php echo HTML::chars($model['display_name'] ?? $model['key']); ?></span>
                                                     <?php if (!empty($model['loaded_instances'])): ?>
-                                                        <span data-llm-loaded class="n2j-badge n2j-badge-ok ml-2 uppercase tracking-wide">Loaded</span>
+                                                        <span data-llm-loaded class="prl-badge prl-badge-ok ml-2 uppercase tracking-wide">Loaded</span>
                                                     <?php endif; ?>
                                                 </div>
                                                 <div class="flex items-center mt-1 ml-7 group">
                                                     <span class="text-xs text-gray-400 truncate max-w-[200px]"><?php echo HTML::chars($model['key']); ?></span>
-                                                    <button onclick="copyToClipboard('<?php echo HTML::chars($model['key']); ?>', this)" class="n2j-btn-icon ml-2" title="Копировать ID">
+                                                    <button onclick="copyToClipboard('<?php echo HTML::chars($model['key']); ?>', this)" class="prl-btn-icon ml-2" title="Копировать ID">
                                                         <i class="far fa-copy text-[10px]"></i>
                                                     </button>
                                                 </div>
@@ -110,15 +112,15 @@
                                         </td>
                                         <td class="px-4 py-4 text-right">
                                             <?php if (!empty($model['loaded_instances'])): ?>
-                                                <button 
+                                                <button
                                                    onclick="unloadModel('<?php echo HTML::chars($model['key']); ?>', '<?php echo md5($model['key']); ?>')"
-                                                   class="unload-btn n2j-btn-danger n2j-btn-sm">
+                                                   class="unload-btn prl-btn-danger prl-btn-sm">
                                                     <i class="fas fa-eject mr-1.5"></i> <span>Выгрузить</span>
                                                 </button>
                                             <?php else: ?>
-                                                <button 
+                                                <button
                                                    onclick="loadModel('<?php echo HTML::chars($model['key']); ?>', '<?php echo md5($model['key']); ?>')"
-                                                   class="load-btn n2j-btn-secondary n2j-btn-sm">
+                                                   class="load-btn prl-btn-secondary prl-btn-sm">
                                                     <i class="fas fa-download mr-1.5"></i> <span>Загрузить</span>
                                                 </button>
                                             <?php endif; ?>
@@ -131,7 +133,7 @@
                 </div>
             <?php endif; ?>
         </div>
-        
+
         <div class="p-6 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
             <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center">
                 <i class="fas fa-info-circle text-blue-500 mr-2"></i> Справка по интеграции
@@ -172,23 +174,23 @@ $(document).ready(function() {
 });
 
 function copyToClipboard(text, btn) {
-    N2J.copyText(text).then(() => {
+    PRL.copyText(text).then(() => {
         const icon = btn.querySelector('i');
         icon.classList.remove('far', 'fa-copy');
         icon.classList.add('fas', 'fa-check', 'text-emerald-500');
-        
-        N2J.toast('ID модели скопирован');
+
+        PRL.toast('ID модели скопирован');
 
         setTimeout(() => {
             icon.classList.remove('fas', 'fa-check', 'text-emerald-500');
             icon.classList.add('far', 'fa-copy');
         }, 2000);
-    }, () => N2J.toast('Не удалось скопировать'));
+    }, () => PRL.toast('Не удалось скопировать'));
 }
 
 function unloadModel(modelKey, rowId) {
     // окно эталона v6 вместо window.confirm
-    N2J.confirm({ title: 'Выгрузить модель?', message: 'Выгрузить модель {subject} из памяти?', subject: modelKey, ok: 'Выгрузить', tone: 'process' })
+    PRL.confirm({ title: 'Выгрузить модель?', message: 'Выгрузить модель {subject} из памяти?', subject: modelKey, ok: 'Выгрузить', tone: 'process' })
         .then(function (yes) { if (yes) { unloadModelNow(modelKey, rowId); } });
 }
 
@@ -200,14 +202,16 @@ function unloadModelNow(modelKey, rowId) {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Выгрузка...';
 
-    fetch('<?php echo Route::url("default", ["controller" => "llm_admin", "action" => "unload"]); ?>?model=' + encodeURIComponent(modelKey), {
+    fetch('<?php echo Route::url("default", ["controller" => "llm_admin", "action" => "unload"]); ?>', {
+        method: 'POST',
+        body: new URLSearchParams({model: modelKey, csrf: <?php echo json_encode(Security::token()); ?>}),
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
             const actionCell = btn.parentElement;
-            actionCell.innerHTML = '<button onclick="loadModel(\'' + modelKey + '\', \'' + rowId + '\')" class="load-btn n2j-btn-secondary n2j-btn-sm"><i class="fas fa-download mr-1.5"></i> <span>Загрузить</span></button>';
+            actionCell.innerHTML = '<button onclick="loadModel(\'' + modelKey + '\', \'' + rowId + '\')" class="load-btn prl-btn-secondary prl-btn-sm"><i class="fas fa-download mr-1.5"></i> <span>Загрузить</span></button>';
             row.classList.remove('bg-emerald-50/30', 'dark:bg-emerald-900/10');
             const icon = row.querySelector('.fa-robot, .fa-font');
             if (icon) {
@@ -217,16 +221,16 @@ function unloadModelNow(modelKey, rowId) {
             const badge = row.querySelector('[data-llm-loaded]');
             if (badge) badge.remove();
 
-            N2J.toast('Модель выгружена', 0, 'ok');
+            PRL.toast('Модель выгружена', 0, 'ok');
         } else {
-            N2J.toast('Ошибка: ' + (data.message || 'Неизвестная ошибка'), 0, 'err');
+            PRL.toast('Ошибка: ' + (data.message || 'Неизвестная ошибка'), 0, 'err');
             btn.disabled = false;
             btn.innerHTML = originalContent;
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        N2J.toast('Не удалось отправить запрос — проверьте сеть', 0, 'err');
+        PRL.toast('Не удалось отправить запрос — проверьте сеть', 0, 'err');
         btn.disabled = false;
         btn.innerHTML = originalContent;
     });
@@ -234,7 +238,7 @@ function unloadModelNow(modelKey, rowId) {
 
 function loadModel(modelKey, rowId) {
     // окно эталона v6 вместо window.confirm
-    N2J.confirm({ title: 'Загрузить модель?', message: 'Загрузить модель {subject} в память?', subject: modelKey, ok: 'Загрузить', tone: 'process' })
+    PRL.confirm({ title: 'Загрузить модель?', message: 'Загрузить модель {subject} в память?', subject: modelKey, ok: 'Загрузить', tone: 'process' })
         .then(function (yes) { if (yes) { loadModelNow(modelKey, rowId); } });
 }
 
@@ -246,14 +250,16 @@ function loadModelNow(modelKey, rowId) {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Загрузка...';
 
-    fetch('<?php echo Route::url("default", ["controller" => "llm_admin", "action" => "load"]); ?>?model=' + encodeURIComponent(modelKey), {
+    fetch('<?php echo Route::url("default", ["controller" => "llm_admin", "action" => "load"]); ?>', {
+        method: 'POST',
+        body: new URLSearchParams({model: modelKey, csrf: <?php echo json_encode(Security::token()); ?>}),
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
             const actionCell = btn.parentElement;
-            actionCell.innerHTML = '<button onclick="unloadModel(\'' + modelKey + '\', \'' + rowId + '\')" class="unload-btn n2j-btn-danger n2j-btn-sm"><i class="fas fa-eject mr-1.5"></i> <span>Выгрузить</span></button>';
+            actionCell.innerHTML = '<button onclick="unloadModel(\'' + modelKey + '\', \'' + rowId + '\')" class="unload-btn prl-btn-danger prl-btn-sm"><i class="fas fa-eject mr-1.5"></i> <span>Выгрузить</span></button>';
             row.classList.add('bg-emerald-50/30', 'dark:bg-emerald-900/10');
             const icon = row.querySelector('.fa-robot, .fa-font');
             if (icon) {
@@ -262,19 +268,19 @@ function loadModelNow(modelKey, rowId) {
             }
             const nameSpan = row.querySelector('.font-medium');
             if (nameSpan) {
-                nameSpan.insertAdjacentHTML('afterend', '<span data-llm-loaded class="n2j-badge n2j-badge-ok ml-2 uppercase tracking-wide">Loaded</span>');
+                nameSpan.insertAdjacentHTML('afterend', '<span data-llm-loaded class="prl-badge prl-badge-ok ml-2 uppercase tracking-wide">Loaded</span>');
             }
 
-            N2J.toast('Модель загружена', 0, 'ok');
+            PRL.toast('Модель загружена', 0, 'ok');
         } else {
-            N2J.toast('Ошибка: ' + (data.message || 'Неизвестная ошибка'), 0, 'err');
+            PRL.toast('Ошибка: ' + (data.message || 'Неизвестная ошибка'), 0, 'err');
             btn.disabled = false;
             btn.innerHTML = originalContent;
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        N2J.toast('Не удалось отправить запрос — проверьте сеть', 0, 'err');
+        PRL.toast('Не удалось отправить запрос — проверьте сеть', 0, 'err');
         btn.disabled = false;
         btn.innerHTML = originalContent;
     });

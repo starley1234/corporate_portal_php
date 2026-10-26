@@ -1,28 +1,17 @@
-<?php defined('SYSPATH') OR die('No direct access allowed.');
-
-/**
- * Доверенные хосты для URL::base() (защита от Host-header инъекций).
- *
- * Прод: только боевые домены. В development добавляем локальные адреса и
- * домены превью-песочниц (*.e2b.app), иначе dev-сервер на 127.0.0.1:8080
- * отвечает «Untrusted host» на любую страницу с canonical/OG-ссылкой.
- */
-$hosts = [
-	'.*\.local',
-	'n2j.ru',
-	'www.n2j.ru',
-];
-
+<?php defined('SYSPATH') or die('No direct access allowed.');
+$host = parse_url((string) (getenv('APP_URL') ?: 'http://localhost:8080'), PHP_URL_HOST);
+$hosts = $host ? [preg_quote($host, '~').'(:\d+)?'] : [];
+// Только явно заданные внутренние DNS-имена; не regex и не wildcard.
+foreach (explode(',', (string) getenv('APP_INTERNAL_HOSTS')) as $internal)
+{
+    $internal = trim($internal);
+    if (preg_match('/^[a-zA-Z0-9][a-zA-Z0-9.-]*$/D', $internal))
+    {
+        $hosts[] = preg_quote($internal, '~').'(:\d+)?';
+    }
+}
 if (Kohana::$environment === Kohana::DEVELOPMENT)
 {
-	$hosts = array_merge($hosts, [
-		'localhost(:\d+)?',
-		'127\.0\.0\.1(:\d+)?',
-		'\[::1\](:\d+)?',
-		'.*\.e2b\.app(:\d+)?',
-	]);
+    $hosts = array_merge($hosts, ['localhost(:\d+)?', '127\.0\.0\.1(:\d+)?', '.*\.e2b\.app(:\d+)?']);
 }
-
-return array(
-	'trusted_hosts' => $hosts,
-);
+return ['trusted_hosts' => $hosts];

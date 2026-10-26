@@ -36,7 +36,7 @@ class HTTP_Exception_401 extends Kohana_HTTP_Exception_403
             ->body(json_encode([
                 'ok'      => FALSE,
                 'error'   => 'auth',
-                'message' => 'Сервис работает только по бесплатному аккаунту — войдите и повторите.',
+                'message' => 'Требуется вход в корпоративный портал.',
                 'login'   => $login,
             ], JSON_UNESCAPED_UNICODE));
     }

@@ -1,7 +1,7 @@
 <?php defined('SYSPATH') or die('No direct script access.'); ?>
 
-<?php /* Профиль — каркас эталона v6: шапка, вкладки .n2j-seg, карточка без градиентов */ ?>
-<div class="n2j-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
+<?php /* Профиль — каркас эталона v6: шапка, вкладки .prl-seg, карточка без градиентов */ ?>
+<div class="prl-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
     <?php echo View::factory('partials/page_header', [
         'crumbs'  => [['Кабинет', '/dashboard'], ['Профиль']],
         'title'   => 'Профиль',
@@ -9,18 +9,18 @@
     ]); ?>
 
     <div class="mt-6 max-w-4xl space-y-5">
-    <nav class="n2j-seg max-w-md" aria-label="Разделы профиля">
-        <span class="n2j-seg-item is-active flex-1 text-center" aria-current="page">Профиль и данные</span>
-        <a href="/account/security" class="n2j-seg-item flex-1 text-center">Безопасность</a>
+    <nav class="prl-seg max-w-md" aria-label="Разделы профиля">
+        <span class="prl-seg-item is-active flex-1 text-center" aria-current="page">Профиль и данные</span>
+        <a href="/account/security" class="prl-seg-item flex-1 text-center">Безопасность</a>
     </nav>
-    <div class="n2j-card">
+    <div class="prl-card">
         <div>
             <div class="mb-8 flex items-center gap-4">
                 <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-600 text-2xl font-bold text-white">
                     <?php echo HTML::chars(strtoupper(substr($user->username, 0, 1))); ?>
                 </div>
                 <div class="min-w-0">
-                    <h2 class="n2j-h2 truncate"><?php echo HTML::chars($user->username); ?></h2>
+                    <h2 class="prl-h2 truncate"><?php echo HTML::chars($user->username); ?></h2>
                     <p class="truncate text-gray-500 dark:text-gray-400"><?php echo HTML::chars($user->email); ?></p>
                 </div>
             </div>
@@ -31,7 +31,7 @@
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-700 pb-2">
                         Информация об аккаунте
                     </h3>
-                    
+
                     <div class="flex items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
                         <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 mr-4">
                             <i class="fas fa-calendar-alt"></i>
@@ -66,7 +66,7 @@
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-700 pb-2">
                         Безопасность
                     </h3>
-                    
+
                     <div class="flex items-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
                         <div class="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 mr-4">
                             <i class="fas fa-clock"></i>

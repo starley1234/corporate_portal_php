@@ -9,7 +9,7 @@
  * чтобы у сервиса для зарегистрированных был один узнаваемый вид, а не
  * строчка «войдите» в углу карточки.
  *
- * Кнопка одна и главная (дизайн v6: главное действие — .n2j-btn-cta, emerald;
+ * Кнопка одна и главная (дизайн v6: главное действие — .prl-btn-cta, emerald;
  * на экране ОДНА ключевая кнопка): вход и регистрация живут на одной странице
  * /auth/login (там же ссылка на /auth/register), поэтому вторая кнопка не нужна.
  * Возврат после входа — `?return_url=`, его читает Controller_Auth.
@@ -95,7 +95,7 @@ $aw_pad = $aw_compact ? 'p-4' : 'p-4 sm:p-5';
 
     <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
         <a href="<?php echo HTML::chars($aw_login); ?>"
-           class="n2j-btn-cta w-full sm:w-auto">
+           class="prl-btn-cta w-full sm:w-auto">
             <i class="fas fa-right-to-bracket" aria-hidden="true"></i><span><?php echo HTML::chars($aw_cta); ?></span>
         </a>
         <span class="text-center text-xs text-gray-500 sm:text-left dark:text-gray-400">Регистрация — там же, занимает минуту</span>

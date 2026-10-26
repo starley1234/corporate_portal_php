@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# N2J — часто используемые команды разработки
+# PRL — часто используемые команды разработки
 #
 #   make help        — список команд
 #   make restore     — развернуть среду с нуля (PHP + PostgreSQL + конфиги + миграции)
@@ -10,7 +10,7 @@
 #   make test        — phpunit
 #   make lint        — проверка синтаксиса PHP
 #   make doctor      — диагностика окружения
-#   make new-module id=401 slug=tasks name="Задачи"
+#   make new-module id=300 slug=employee name="Личный кабинет сотрудника"
 # ---------------------------------------------------------------------------
 
 -include .env
@@ -101,7 +101,7 @@ fresh: ## ПЕРЕСОЗДАТЬ схему БД с нуля (drop schema public
 # --- Качество кода ----------------------------------------------------------
 
 lint: ## проверка синтаксиса всех PHP-файлов
-	$(CONSOLE) dev:lint
+	find application system modules public_html -name '*.php' -print0 | xargs -0 -n1 php -l
 
 backup: ## резервная копия: дамп БД + архив файловых хранилищ
 	bash bin/backup.sh
@@ -123,15 +123,15 @@ test-coverage: ## тесты с покрытием (нужен xdebug/pcov)
 
 # --- Новые модули -----------------------------------------------------------
 
-new-module: ## создать модуль nj401_tasks: make new-module id=401 slug=tasks name="Задачи"
+new-module: ## создать модуль prl300_employee: make new-module id=300 slug=employee name="Личный кабинет сотрудника"
 	$(CONSOLE) module:scaffold --id=$(id) --slug=$(slug) --name="$(name)"
 
 # --- Экономная разработка по модулям (docs/CONTEXT.md) ----------------------
 
-brief: ## контекст-пак модуля для агента: make brief m=nj643_cad (→ .context/<модуль>.md)
+brief: ## контекст-пак модуля для агента: make brief m=prl120_jobs (→ .context/<модуль>.md)
 	python3 .tools/context_pack.py pack $(m) --write
 
-backlog: ## что осталось открытым в модулях: make backlog [m=nj643_cad]
+backlog: ## что осталось открытым в модулях: make backlog [m=prl120_jobs]
 	python3 .tools/context_pack.py backlog $(if $(m),--module $(m),)
 
 doc-index: ## обновить индекс разделов в документе: make doc-index f=AGENTS.md
@@ -142,13 +142,13 @@ doc-index: ## обновить индекс разделов в документ
 composer: ## установить зависимости (локально, если есть composer)
 	cd $(CURDIR) && composer install --no-interaction --no-progress
 
-# --- Python-воркеры (workers/, очередь nj120_jobs) ---------------------------
+# --- Python-воркеры (workers/, очередь prl120_jobs) ---------------------------
 
 worker-install: ## поставить зависимости python-воркеров
 	cd workers && python3 -m pip install -r requirements.txt
 
 worker: ## запустить воркеры локально (каналы: WORKER_CHANNELS=... make worker)
-	cd workers && python3 -m n2j_workers
+	cd workers && python3 -m prl_workers
 
 up-worker: ## поднять воркеры в docker (профиль workers)
 	$(DOCKER) --profile workers up -d worker
@@ -167,3 +167,10 @@ up-tools: ## поднять инструменты (adminer :8081, mailpit :8025
 
 stack: ## полный стек: ядро + инструменты + воркеры
 	$(DOCKER) --profile tools --profile workers up -d
+
+.PHONY: check maintain
+check: ## проверить контракты основы портала без PHP/БД
+	python3 .tools/portal_check.py
+
+maintain: ## один проход обслуживания очереди и доставки уведомлений
+	$(CONSOLE) portal:maintain

@@ -10,11 +10,11 @@
 # `context_pack.py section "<часть заголовка>" --module <модуль>`.
 # ----------------------------------------------------------------------------
 
-# AGENTS.md — njXXX_slug
+# AGENTS.md — prlXXX_slug
 
 > Памятка агенту. Правила платформы — в корневом AGENTS.md; здесь — только
 > специфика модуля. Обновлять при каждом существенном изменении.
-> Вход в модуль для агента — контекст-пак: `make brief m=njXXX_slug`
+> Вход в модуль для агента — контекст-пак: `make brief m=prlXXX_slug`
 > (протокол: docs/CONTEXT.md).
 
 ## Назначение
@@ -30,28 +30,28 @@
 ## Ключевые классы
 | Класс | Роль |
 |---|---|
-| `Service_NjXXX_Foo` | бизнес-логика (единственная дверь в модуль) |
-| `Controller_NjXXX_Foo` | страницы |
-| `Controller_NjXXX_Api` | JSON API |
+| `Service_PrlXXX_Foo` | бизнес-логика (единственная дверь в модуль) |
+| `Controller_PrlXXX_Foo` | страницы |
+| `Controller_PrlXXX_Api` | JSON API |
 
 ## Таблицы (полное владение)
-- `nj_XXX_*` — назначение, ключевые колонки, статусы.
+- `prl_XXX_*` — назначение, ключевые колонки, статусы.
 
 ## Маршруты и API
-- `GET /njXXX/...` — ...
-- `POST /njXXX/api/...` — (auth: login / token / admin)
+- `GET /prlXXX/...` — ...
+- `POST /prlXXX/api/...` — (auth: login / token / admin)
 
 ## События
-- Публикует: `njXXX.*`
+- Публикует: `prlXXX.*`
 - Слушает: ...
 
 ## Очередь (если используется)
-- Каналы: `...` (постановка: `Service_Nj120_JobQueue::push`)
-- Обработчик: `workers/n2j_workers/handlers/...`
-- Манифест: `'worker' => ['channels' => [...]]` в `config/nj_module.php`
+- Каналы: `...` (постановка: `Service_Prl120_JobQueue::push`)
+- Обработчик: `workers/prl_workers/handlers/...`
+- Манифест: `'worker' => ['channels' => [...]]` в `config/prl_module.php`
 
 ## Env
-- `NJXXX_...` — назначение (дописать в хвост `.env.example`).
+- `PRLXXX_...` — назначение (дописать в хвост `.env.example`).
 
 ## Зависимости
 - От модулей: (через какие сервисы)

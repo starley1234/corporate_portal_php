@@ -1,4 +1,4 @@
-# Разворачивание N2J в закрытой песочнице — пошагово (по опыту 21–22.09.2026)
+# Разворачивание PRL в закрытой песочнице — пошагово (по опыту 21–22.09.2026)
 
 > Цель: следующий агент развернул среду за минуты, а не за квест.
 > Проверено на Debian 12 (bookworm), gcc 12, python 3.11. Сеть песочницы:
@@ -11,23 +11,23 @@
 
 ```bash
 bash bin/setup-sandbox.sh --serve      # соберёт всё и поднимет сайт :8080
-bash bin/test                          # 36/36 дымовые+юнит (мини-раннер)
+bash bin/test                          # 41/41 дымовые+юнит (мини-раннер)
 ```
 
 Скрипт идемпотентен: повторный запуск пересобирает только недостающее.
-Префикс установки `/tmp/n2j-opt` — **переживает между сессиями только пока
+Префикс установки `/tmp/prl-opt` — **переживает между сессиями только пока
 жив песочница**; после пересоздания песочницы запусти скрипт снова.
 
 Что получится в итоге:
 
 | Компонент | Как | Проверка |
 |---|---|---|
-| PHP 8.4 CLI | собран из исходников в `/tmp/n2j-opt/php`, симлинк `/usr/local/bin/php` | `php -v` |
-| PostgreSQL 16.2 | PyPI-пакет pgserver, данные `~/.n2j/pgdata`, порт 5432 | `psql -h 127.0.0.1 -U n2j -d n2j -c 'select 1'` |
-| Схема БД | `bin/console db:migrate` (50 миграций) | `bin/console db:migrate --status` |
-| Админ | `bin/console auth:user --email=admin@n2j.ru --password=admin123 --username=admin --admin` | вход `/auth/login` |
-| Сайт | `PORT=8080 bash bin/serve` (0.0.0.0 — виден в превью) | `curl -I localhost:8080/vat` |
-| Тесты | `bash bin/test` (fallback на tests/mini_runner.php — без composer) | 36/36 |
+| PHP 8.4 CLI | собран из исходников в `/tmp/prl-opt/php`, симлинк `/usr/local/bin/php` | `php -v` |
+| PostgreSQL 16.2 | PyPI-пакет pgserver, данные `~/.prl/pgdata`, порт 5432 | `psql -h 127.0.0.1 -U prl -d prl -c 'select 1'` |
+| Схема БД | `bin/console db:migrate` (25 миграций) | `bin/console db:migrate --status` |
+| Админ | `bin/console auth:user --email="$ADMIN_EMAIL" --password="$ADMIN_PASSWORD" --username=admin --admin` | вход `/auth/login` |
+| Сайт | `PORT=8080 bash bin/serve` (0.0.0.0 — виден в превью) | `curl -I localhost:8080/auth/login` |
+| Тесты | `bash bin/test` (fallback на tests/mini_runner.php — без composer) | 41/41 |
 
 ---
 
@@ -56,7 +56,7 @@ curl -s -o /dev/null -w "%{http_code}\n" https://repo.packagist.org  # 000 (не
 ## 2. Цепочка сборки (если руками) и грабли каждой ступени
 
 Порядок строгий: `re2c → m4 → autoconf → bison → pkgconf → zlib → openssl →
-libxml2 → curl → php`. Все — `--prefix=/tmp/n2j-opt`, статические (.a).
+libxml2 → curl → php`. Все — `--prefix=/tmp/prl-opt`, статические (.a).
 
 1. **m4 1.4.18** (из tar-mirror): 2 патча под glibc ≥2.28:
    - `lib/c-stack.c`: `#elif HAVE_LIBSIGSEGV && SIGSTKSZ < 16384` → `#elif 0`
@@ -75,7 +75,7 @@ libxml2 → curl → php`. Все — `--prefix=/tmp/n2j-opt`, статичес�
    dom/xml/simplexml/xmlwriter/xmlreader, curl, openssl, zlib, opcache,
    session/ctype/tokenizer/filter/fileinfo/calendar/bcmath/sockets/pcntl/phar/iconv.
    - **Грабля:** заголовки OpenSSL не попадают в INCLUDES Makefile → добавить
-     `-I/tmp/n2j-opt/include` в `CPPFLAGS` и пересобрать.
+     `-I/tmp/prl-opt/include` в `CPPFLAGS` и пересобрать.
 6. **php.ini**: `zend_extension=opcache.so` (именно zend_, не extension),
    cafile `/etc/ssl/certs/ca-certificates.crt`, дата Europe/Moscow.
 
@@ -87,7 +87,7 @@ libxml2 → curl → php`. Все — `--prefix=/tmp/n2j-opt`, статичес�
 
 ```bash
 bash bin/setup.sh                    # .env (СО СЕКРЕТАМИ и токенами!) + vendor-заглушка
-bin/console db:migrate               # 50 миграций на чистой БД
+bin/console db:migrate               # 25 миграций на чистой БД
 bin/console auth:user --email=... --password=... --username=admin --admin
 PORT=8080 bash bin/serve             # dev-сервер (PHP built-in + bin/router.php)
 bash bin/test                        # мини-раннер тестов
@@ -106,27 +106,27 @@ bash bin/test                        # мини-раннер тестов
 
 ```bash
 pip install asyncpg httpx            # базовые; LLM-каналы требуют остальное из workers/requirements.txt
-cd workers && WORKER_PG_DSN="postgresql://n2j:n2j@127.0.0.1:5432/n2j" \
-  WORKER_QUEUE_MODE=pg WORKER_CHANNELS=echo python3 -m n2j_workers
+cd workers && WORKER_PG_DSN="postgresql://prl:prl@127.0.0.1:5432/prl" \
+  WORKER_QUEUE_MODE=pg WORKER_CHANNELS=echo python3 -m prl_workers
 ```
 
-Проверка сквозняка: `php -r '...(bootstrap)... Service_Nj120_JobQueue::push("echo",["hello"=>"world"]);'`
-→ воркер логирует «Задача N [echo] выполнена», в `nj_120_jobs.result` — ответ.
+Проверка сквозняка: `php -r '...(bootstrap)... Service_Prl120_JobQueue::push("echo",["hello"=>"world"]);'`
+→ воркер логирует «Задача N [echo] выполнена», в `prl_120_jobs.result` — ответ.
 
 Для LLM/эмбеддингов без GPU в проекте есть моки:
 `workers/mock/mock_llm_server.py` (:1234) и `mock_embed_server.py` (:1235) —
 подними их и направь `TOOLFORGE_API_URL`/`EMBEDDING_API_URL` на localhost.
 Мок отвечает детерминированно и умеет три режима: `MOCK_LLM_REPLY_FILE`
 (один ответ на всё), `MOCK_LLM_REPLY_FILES="a.json,b.json"` (очередь: у
-nj646.label это проход строк и проход состава) и
+prl646.label это проход строк и проход состава) и
 `MOCK_LLM_ROUTES="/tmp/study.json=справочник по ингредиентам;/tmp/compose.json=редактор состава"`
 — ответ по подсказке в промпте. Третий нужен, когда в одном моке живут разные
-каналы (`nj646.label` + `nj646.study`): очередь файлов общая, и запрос изучения
+каналы (`prl646.label` + `prl646.study`): очередь файлов общая, и запрос изучения
 получил бы файл, заготовленный для фото. В файле-шаблоне `%NAME%` заменяется
 названием вещества из промпта («Вещество: …»).
 
 **`php -S` не перечитывает `.env`:** значения попадают в `getenv()` при первом
-запросе и живут до перезапуска `bin/serve`. Правки лимитов (`NJ646_…` и других)
+запросе и живут до перезапуска `bin/serve`. Правки лимитов (`PRL646_…` и других)
 проверяйте после перезапуска сервера — иначе легко принять кэш за баг.
 
 ### Логи контура (что прислать при разборе инцидента)
@@ -135,15 +135,15 @@ nj646.label это проход строк и проход состава) и
 целиком, в отличие от PHP-логов Kohana:
 
 ```bash
-tail -f application/logs/n2j-site.log      # сайт: приёмка результата воркера,
+tail -f application/logs/prl-site.log      # сайт: приёмка результата воркера,
                                            # 403/404/500, постановка фото в очередь
-tail -f workers/logs/n2j-worker.log        # воркер: задачи, сбои модели,
+tail -f workers/logs/prl-worker.log        # воркер: задачи, сбои модели,
                                            # ответы сайта («HTTP 500: приёмка упала: …»)
 ```
 
 Проверка, что лог доходит до файла: `curl -s localhost:8080/label` → в логе сайта
 появляется запись `label: фото принято…`, а после прогона — `label: результат
-прогона N принят`. Настройки — `N2J_LOG_*` в `.env` сайта и `WORKER_LOG_*`
+прогона N принят`. Настройки — `PRL_LOG_*` в `.env` сайта и `WORKER_LOG_*`
 в `workers/.env`, оба файла перечислены в `workers/.env.example`/`.env.example`.
 
 ---
@@ -151,10 +151,10 @@ tail -f workers/logs/n2j-worker.log        # воркер: задачи, сбо�
 ## 5. Чек-лист «среда готова»
 
 - [ ] `php -v` → 8.4.x, `php -m` содержит pgsql, pdo_pgsql, mbstring, dom, curl, openssl, Zend OPcache
-- [ ] `psql -h 127.0.0.1 -U n2j -d n2j -c 'select 1'` — без пароля не спросит (trust из pgserver)
+- [ ] `psql -h 127.0.0.1 -U prl -d prl -c 'select 1'` — без пароля не спросит (trust из pgserver)
 - [ ] `bin/console db:migrate --status` → «применено N, новых нет»
-- [ ] `curl -s localhost:8080/vat` → 200; `/nj501/api/calc` POST → JSON ok
-- [ ] `bash bin/test` → 36/36
+- [ ] `curl -s localhost:8080/auth/login` → 200; `/search/api` гостю → 401 JSON
+- [ ] `bash bin/test` → 41/41
 - [ ] вход админа на /auth/login работает (email_confirmed=1 у сид-админа)
 - [ ] воркер echo отработал задачу из очереди
 
@@ -165,10 +165,10 @@ tail -f workers/logs/n2j-worker.log        # воркер: задачи, сбо�
 | `Untrusted host` 500 | хост не в `config/url.php` | добавить в dev-блок (уже есть для localhost/e2b) |
 | `Call to undefined pg_pconnect()` | PHP без ext/pgsql | пересобрать с `--with-pgsql=$PG_PREFIX` |
 | `Please enable the Minion module` | shadowing-копия класса или модуль не в bootstrap | проверить `application/classes/Minion/` нет лишних копий |
-| `db:migrate` пишет «ОШИБКА» | см. лог deploy/`bin/console db:migrate` на месте | свежая БД ловит порядок миграций: erp208 ДО nj120 — не менять |
-| воркер не забирает задачи | DSN/QUEUE_MODE | `WORKER_QUEUE_MODE=pg WORKER_PG_DSN=...`; таблица nj_120_jobs |
+| `db:migrate` пишет «ОШИБКА» | см. лог deploy/`bin/console db:migrate` на месте | свежая БД ловит порядок миграций: prl208 ДО prl120 — не менять |
+| воркер не забирает задачи | DSN/QUEUE_MODE | `WORKER_QUEUE_MODE=pg WORKER_PG_DSN=...`; таблица prl_120_jobs |
 | worker POST на сайт → 401 | токены в .env сайта и workers/.env разные | совмещать WORKER_API_TOKEN (см. §3) |
-| `make fresh` / чистая БД | порядок модулей в bootstrap = порядок миграций | erp208_events раньше nj120_jobs |
+| `make fresh` / чистая БД | порядок модулей в bootstrap = порядок миграций | prl208_events раньше prl120_jobs |
 | PG умирает сразу после setup-скрипта | `pgserver.get_server()` по умолчанию `cleanup_mode='stop'` → atexit-остановка при выходе python | всегда `get_server(pgdata, cleanup_mode=None)` (уже в setup-sandbox.sh/restore-env.sh) |
 | PG жив, но TCP 5432 «connection refused» | `ensure_postgres_running()` pgserver слушает только unix-сокет (`-h ''`) | стартовать через `pg_ctl -o "-h 127.0.0.1 -p 5432 -k /tmp"` (см. pg_start-блок в setup-sandbox.sh); скрипт сам перезапускает сокетный инстанс |
-| задача nj120 навсегда `processing` | старый баг asyncpg: лишний параметр в SQL `fail()` (IndeterminateDatatypeError) — починен 22.09 | обновить `workers/n2j_workers/queue.py`; разлипить: `UPDATE nj_120_jobs SET status='pending', claimed_by=NULL WHERE status='processing'` после стопа воркера |
+| задача prl120 навсегда `processing` | старый баг asyncpg: лишний параметр в SQL `fail()` (IndeterminateDatatypeError) — починен 22.09 | обновить `workers/prl_workers/queue.py`; разлипить: `UPDATE prl_120_jobs SET status='pending', claimed_by=NULL WHERE status='processing'` после стопа воркера |

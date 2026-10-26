@@ -2,12 +2,12 @@
 
 return array
 (
-	
+
 	/*
 	'default_' => [
         'type'       => 'PostgreSQL',
         'connection' => [
-            'dsn'        => 'pgsql:host=77.233.222.216;port=5432;dbname=erp_server',
+            'dsn'        => 'pgsql:host=77.233.222.216;port=5432;dbname=prl_server',
             'username'   => 'username',
             'password'   => 'password',
             'persistent' => TRUE,
@@ -22,7 +22,7 @@ return array
     ],
 	*/
 
-    
+
 
 
 

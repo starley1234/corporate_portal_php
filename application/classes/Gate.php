@@ -31,11 +31,6 @@ class Gate
      */
     public static function worker_request()
     {
-        if (class_exists('Vision'))
-        {
-            return Vision::worker_token_ok();
-        }
-
         $token = (string) ($_SERVER['HTTP_X_WORKER_TOKEN'] ?? '');
         $want  = (string) getenv('WORKER_API_TOKEN');
 
@@ -54,10 +49,10 @@ class Gate
 
         return in_array($action, [
             'worker_result',    // приём результата прогона
-            'worker_upload',    // приём файла картинки (nj641)
+            'worker_upload',    // приём файла картинки (prl641)
             'worker_token',     // служебная проверка токена
             'photo_file',       // кадр прогона для воркера (vision-сервисы)
-            'cron_poll',        // пинок расписания тик-источников (nj639/nj640)
+            'cron_poll',        // пинок расписания тик-источников (prl639/prl640)
             'webhook',          // внешний триггер датчика/ПЛК
         ], TRUE);
     }

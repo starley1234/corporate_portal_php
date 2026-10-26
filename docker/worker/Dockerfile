@@ -1,5 +1,5 @@
 # =============================================================================
-# Python 3.12 — асинхронные воркеры N2J (папка workers/)
+# Python 3.12 — асинхронные воркеры PRL (папка workers/)
 # Запуск: docker compose --profile workers up -d
 # =============================================================================
 
@@ -19,4 +19,4 @@ COPY workers/ /app/workers/
 
 # По умолчанию поднимаем воркер (каналы задаёт WORKER_CHANNELS)
 WORKDIR /app/workers
-CMD ["python", "-m", "n2j_workers"]
+CMD ["python", "-m", "prl_workers"]

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# N2J — ЕДИНСТВЕННЫЙ путь обновления сервера из git.
+# PRL — ЕДИНСТВЕННЫЙ путь обновления сервера из git.
 #
 #   bash bin/deploy.sh                 # разовая проверка + обновление
 #   bash bin/deploy.sh --migrate       # + проверить/применить миграции
@@ -8,7 +8,7 @@
 #   bash bin/deploy.sh --rollback <sha>  # откат на конкретный коммит
 #   bash bin/deploy.sh --status          # что сейчас: ветка, коммит, миграции
 #
-# Запускаться по кнопке в админке (/nj100/update) или по токен-ссылке
+# Запускаться по кнопке в админке (/prl100/update) или по токен-ссылке
 # (/update/kick/<SITE_UPDATE_TOKEN>) вместо крона каждую минуту: так GitHub
 # не «пытается» каждые 60 секунд. systemd-таймер можно отключить.
 # Безопасен для повторного запуска: flock не даёт двум копиям пересечься.
@@ -16,11 +16,11 @@
 # Корневой update.sh — тонкая обёртка над этим скриптом (второго пути нет:
 # раньше он тянул git сам и НЕ применял миграции, отсюда «схема отстала»).
 #
-# Переменные окружения (задаются в /etc/default/n2j-deploy):
+# Переменные окружения (задаются в /etc/default/prl-deploy):
 #   DEPLOY_BRANCH=<ветка>          ветка для слежения; если не задана — берётся
 #                                  та, на которой сервер уже стоит. Имя ветки
 #                                  НЕ хранится в репозитории (см. AGENTS.md §0).
-#   DEPLOY_LOG=/var/log/n2j-deploy.log
+#   DEPLOY_LOG=/var/log/prl-deploy.log
 #   DEPLOY_WEB_USER=www-data       владелец записываемых каталогов
 #   DEPLOY_AUTO_MIGRATE=0          1 = после pull запускать db:migrate
 #   DEPLOY_MODULE_STORAGE=…        список хранилищ модулей вне public_html
@@ -36,8 +36,8 @@ source "$ROOT/bin/_storage_permissions.sh"
 # Ветка берётся из окружения, иначе — та, на которой сервер уже стоит.
 # В репозитории имя ветки не хранится: прод настраивается на месте.
 BRANCH="${DEPLOY_BRANCH:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)}"
-LOG_FILE="${DEPLOY_LOG:-/var/log/n2j-deploy.log}"
-LOCK="/tmp/n2j-deploy.lock"
+LOG_FILE="${DEPLOY_LOG:-/var/log/prl-deploy.log}"
+LOCK="/tmp/prl-deploy.lock"
 
 FORCE_MIGRATE=0
 ROLLBACK_TO=""
@@ -75,8 +75,8 @@ mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
 # Ветку обязаны знать: либо DEPLOY_BRANCH, либо сервер стоит на нормальной ветке
 # (не в detached HEAD). Молча тянуть «какую-нибудь» нельзя.
 if [ -z "$BRANCH" ] || [ "$BRANCH" = "HEAD" ]; then
-    log "ветка не определена: задайте DEPLOY_BRANCH в /etc/default/n2j-deploy"
-    echo "deploy: ветка не определена — задайте DEPLOY_BRANCH в /etc/default/n2j-deploy" >&2
+    log "ветка не определена: задайте DEPLOY_BRANCH в /etc/default/prl-deploy"
+    echo "deploy: ветка не определена — задайте DEPLOY_BRANCH в /etc/default/prl-deploy" >&2
     exit 1
 fi
 
@@ -137,17 +137,17 @@ apply_state() { # apply_state <git-ref>
     fi
 
     # Runtime/session/cache и хранилища модулей содержат непубличные данные
-    # (в т.ч. временные фото VLM и превью NJ651). Всё дерево получает режим
+    # (в т.ч. временные фото VLM и превью PRL651). Всё дерево получает режим
     # 0700/0600 и владельца веб-процесса, а не world-writable права.
-    storage_owner="$(n2j_storage_owner)"
+    storage_owner="$(prl_storage_owner)"
     for d in application/logs application/cache application/sessions \
-             ${DEPLOY_MODULE_STORAGE:-storage/nj580 storage/nj590 storage/nj651 storage/nj669 storage/nj670}; do
+             ${DEPLOY_MODULE_STORAGE:-storage}; do
         case "$d" in
             /*) p="$d" ;;
             *)  p="$ROOT/$d" ;;
         esac
 
-        if ! n2j_secure_private_tree "$p" "$storage_owner"; then
+        if ! prl_secure_private_tree "$p" "$storage_owner"; then
             log "приватные права хранилища не применены: $p"
             return 1
         fi
@@ -164,7 +164,7 @@ apply_state() { # apply_state <git-ref>
     # из-под www-data (пинок) systemctl недоступен, это не ошибка:
     # fpm-пул обновит код через сброс opcache в контроллере пинка
     if [ "$(id -u)" = "0" ]; then
-        systemctl restart n2j-worker 2>/dev/null || true
+        systemctl restart prl-worker 2>/dev/null || true
         systemctl reload php8.4-fpm 2>/dev/null || systemctl reload php-fpm 2>/dev/null || true
     fi
 }
