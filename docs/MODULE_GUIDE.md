@@ -8,32 +8,32 @@
 сначала обновите план, не занимайте ID существующего модуля.
 
 ```bash
-make new-module id=300 slug=employee name="Личный кабинет сотрудника"
+make new-module id=301 slug=onboarding name="Онбординг-трек"
 ```
 
 Scaffold не перезаписывает каталоги и не принимает занятый/зарезервированный
 другому slug ID. Создаёт:
 
 ```
-prl300_employee/
+prl301_onboarding/
   AGENTS.md
   init.php
   config/prl_module.php
-  config/prl300_employee.php
-  migrations_pg/pgMigration_Prl_300_001_Initial.php
-  classes/Controller/Prl300/Page.php
-  classes/Service/Prl300/Module.php
-  views/prl300_employee/index.php
+  config/prl301_onboarding.php
+  migrations_pg/pgMigration_Prl_301_001_Initial.php
+  classes/Controller/Prl301/Page.php
+  classes/Service/Prl301/Module.php
+  views/prl301_onboarding/index.php
 ```
 
-Каркас закрыт: нужен вход и право `prl300.view`, которое пока не выдано;
+Каркас закрыт: нужен вход и право `prl301.view`, которое пока не выдано;
 admin имеет полный доступ по базовому контракту. Миграция намеренно пустая,
 публичного API/CRUD и кнопки в каталоге нет. Это не готовый сервис.
 
 ## 2. Реализуйте вертикальный MVP
 
 1. Опишите владельца данных и интеграционный источник истины.
-2. Создайте `prl_300_*` идемпотентной миграцией. Определите индексы, ссылки,
+2. Создайте `prl_301_*` идемпотентной миграцией. Определите индексы, ссылки,
    retention, down/восстановление и ограничения персональных данных.
 3. Реализуйте сервисные методы с object policy/оргконтекстом и валидацией.
    Никакого массового `values($_POST)` и доступа к чужим таблицам.
@@ -55,15 +55,15 @@ admin имеет полный доступ по базовому контрак�
 
 ```php
 return [
-    'id' => 300,
-    'slug' => 'prl300_employee',
-    'title' => 'Личный кабинет сотрудника',
-    'href' => '/employee',
+    'id' => 301,
+    'slug' => 'prl301_onboarding',
+    'title' => 'Онбординг-трек',
+    'href' => '/onboarding',
     'group' => 'HR и развитие персонала',
     'audience' => 'auth',
     'status' => 'stable',
     'icon' => 'fas fa-user',
-    'short' => 'Профиль и данные сотрудника',
+    'short' => 'Адаптация новых сотрудников',
 ];
 ```
 

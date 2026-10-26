@@ -11,7 +11,7 @@
 
 ```bash
 bash bin/setup-sandbox.sh --serve      # соберёт всё и поднимет сайт :8080
-bash bin/test                          # 41/41 дымовые+юнит (мини-раннер)
+bash bin/test                          # 46/46 дымовые+юнит (мини-раннер)
 ```
 
 Скрипт идемпотентен: повторный запуск пересобирает только недостающее.
@@ -24,10 +24,10 @@ bash bin/test                          # 41/41 дымовые+юнит (мини
 |---|---|---|
 | PHP 8.4 CLI | собран из исходников в `/tmp/prl-opt/php`, симлинк `/usr/local/bin/php` | `php -v` |
 | PostgreSQL 16.2 | PyPI-пакет pgserver, данные `~/.prl/pgdata`, порт 5432 | `psql -h 127.0.0.1 -U prl -d prl -c 'select 1'` |
-| Схема БД | `bin/console db:migrate` (25 миграций) | `bin/console db:migrate --status` |
+| Схема БД | `bin/console db:migrate` (26 миграций) | `bin/console db:migrate --status` |
 | Админ | `bin/console auth:user --email="$ADMIN_EMAIL" --password="$ADMIN_PASSWORD" --username=admin --admin` | вход `/auth/login` |
 | Сайт | `PORT=8080 bash bin/serve` (0.0.0.0 — виден в превью) | `curl -I localhost:8080/auth/login` |
-| Тесты | `bash bin/test` (fallback на tests/mini_runner.php — без composer) | 41/41 |
+| Тесты | `bash bin/test` (fallback на tests/mini_runner.php — без composer) | 46/46 |
 
 ---
 
@@ -87,7 +87,7 @@ libxml2 → curl → php`. Все — `--prefix=/tmp/prl-opt`, статичес�
 
 ```bash
 bash bin/setup.sh                    # .env (СО СЕКРЕТАМИ и токенами!) + vendor-заглушка
-bin/console db:migrate               # 25 миграций на чистой БД
+bin/console db:migrate               # 26 миграций на чистой БД
 bin/console auth:user --email=... --password=... --username=admin --admin
 PORT=8080 bash bin/serve             # dev-сервер (PHP built-in + bin/router.php)
 bash bin/test                        # мини-раннер тестов
@@ -154,7 +154,7 @@ tail -f workers/logs/prl-worker.log        # воркер: задачи, сбо�
 - [ ] `psql -h 127.0.0.1 -U prl -d prl -c 'select 1'` — без пароля не спросит (trust из pgserver)
 - [ ] `bin/console db:migrate --status` → «применено N, новых нет»
 - [ ] `curl -s localhost:8080/auth/login` → 200; `/search/api` гостю → 401 JSON
-- [ ] `bash bin/test` → 41/41
+- [ ] `bash bin/test` → 46/46
 - [ ] вход админа на /auth/login работает (email_confirmed=1 у сид-админа)
 - [ ] воркер echo отработал задачу из очереди
 

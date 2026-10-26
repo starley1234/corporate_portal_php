@@ -72,12 +72,40 @@ class Controller_Prl100_Errors extends Controller_Prl100_Base {
         {
             try
             {
+                // Health-источники не обязаны иметь все три временные колонки:
+                // COALESCE(finished_at, ...) в PostgreSQL падает ещё на этапе
+                // разбора, если первой колонки нет. Выбираем существующую.
+                $column_rows = $db->query(Database::SELECT,
+                    'SELECT column_name FROM information_schema.columns
+                     WHERE table_schema = current_schema()
+                       AND table_name = '.$db->quote($table)."
+                       AND column_name IN ('finished_at', 'updated_at', 'created_at')", FALSE)->as_array();
+                $available = [];
+
+                foreach ($column_rows as $column_row)
+                {
+                    $column_row = (array) $column_row;
+                    $available[(string) $column_row['column_name']] = TRUE;
+                }
+
+                $ts_expr = 'NULL::timestamptz';
+
+                foreach (['finished_at', 'updated_at', 'created_at'] as $candidate)
+                {
+                    if (isset($available[$candidate]))
+                    {
+                        $ts_expr = '"'.$candidate.'"';
+                        break;
+                    }
+                }
+
+                $quoted_table = '"'.str_replace('"', '""', $table).'"';
                 $rows = $db->query(Database::SELECT,
                     "SELECT {$code_expr} AS code, status, error,
-                            COALESCE(finished_at, updated_at, created_at) AS ts
-                     FROM {$table}
+                            {$ts_expr} AS ts
+                     FROM {$quoted_table}
                      WHERE error IS NOT NULL AND error <> ''
-                     ORDER BY ts DESC LIMIT ".self::LIMIT_DB, FALSE)->as_array();
+                     ORDER BY ts DESC NULLS LAST LIMIT ".self::LIMIT_DB, FALSE)->as_array();
 
                 foreach ($rows as $r)
                 {

@@ -21,6 +21,7 @@ return [
     'prl115_semantic' => APPPATH.'modules/prl115_semantic',
     'prl212_file_storage' => APPPATH.'modules/prl212_file_storage',
     'prl218_module_manager' => APPPATH.'modules/prl218_module_manager',
+    'prl300_employee' => APPPATH.'modules/prl300_employee',
     'prl560_knowledge' => APPPATH.'modules/prl560_knowledge',
     'prl595_useradmin' => APPPATH.'modules/prl595_useradmin',
     'prl597_notifications' => APPPATH.'modules/prl597_notifications',

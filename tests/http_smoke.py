@@ -36,10 +36,12 @@ request('/', 302)
 login = request('/auth/login', 200)
 request('/auth/register', 404)
 request('/prl100_auth/register', 404)
-for path in ['/search/api?q=test', '/prl110/api/catalog', '/prl597/api/unread']:
+for path in ['/search/api?q=test', '/prl110/api/catalog', '/prl597/api/unread', '/employee/api/me', '/employee/api/directory']:
     json.loads(request(path, 401))
 request('/prl120/api/stats', 403)
 request('/services', 403)
+request('/employee', 403)
+request('/prl300/admin', 403)
 request('/about', 200)
 request('/privacy', 200)
 request('/terms', 200)
@@ -54,10 +56,13 @@ password = os.environ.get('ADMIN_PASSWORD', '')
 if not password:
     raise RuntimeError('ADMIN_PASSWORD is required for authenticated smoke; load local .env')
 request('/auth/login?return_url=%2F', 302, {'username': username, 'password': password, 'csrf': token[1]})
-for path in ['/', '/services', '/dashboard', '/admin', '/prl595/admin', '/account/security', '/prl597', '/prl597/admin', '/prl560', '/prl115', '/tasks', '/prl120/monitor', '/prl120/workers', '/migrate_pg', '/llm_admin', '/prl218']:
+for path in ['/', '/services', '/dashboard', '/admin', '/prl595/admin', '/account/security', '/prl597', '/prl597/admin', '/prl560', '/prl115', '/tasks', '/prl120/monitor', '/prl120/workers', '/migrate_pg', '/llm_admin', '/prl218', '/prl100/errors', '/employee', '/employee/directory', '/prl300/admin', '/prl300/admin/employees', '/prl300/admin/employee/0', '/prl300/admin/import', '/prl300/admin/import_template']:
     request(path, 200)
 request('/llm_admin/load', 405)
 request('/llm_admin/unload', 403, {'model': 'test'})
 json.loads(request('/search/api?q=test', 200))
 json.loads(request('/prl110/api/catalog', 200))
+json.loads(request('/employee/api/me', 404))  # seed-администратор намеренно не сопоставлен с сотрудником
+json.loads(request('/employee/api/directory', 200))
+json.loads(request('/employee/api/colleague/2147483647', 404))
 print(f'HTTP smoke passed: {count} requests')

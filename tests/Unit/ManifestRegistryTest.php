@@ -30,19 +30,29 @@ class ManifestRegistryTest extends TestCase {
         }
     }
 
-    public function test_fifty_services_are_planned_not_registered(): void
+    public function test_fifty_services_match_registration_status(): void
     {
         $services = [];
+        $active = [];
         foreach ((array) Kohana::$config->load('portal')->get('domains') as $domain)
         {
             foreach ($domain['services'] as $service)
             {
                 $services[] = $service['module'];
-                $this->assertSame('planned', $service['status']);
-                $this->assertArrayNotHasKey($service['module'], Kohana::modules());
+                $this->assertContains($service['status'], ['planned', 'active']);
+                if ($service['status'] === 'active')
+                {
+                    $active[] = $service['module'];
+                    $this->assertArrayHasKey($service['module'], Kohana::modules());
+                }
+                else
+                {
+                    $this->assertArrayNotHasKey($service['module'], Kohana::modules());
+                }
             }
         }
         $this->assertCount(50, array_unique($services));
+        $this->assertSame(['prl300_employee'], $active);
     }
 
     public function test_acl_is_deny_by_default(): void
@@ -50,7 +60,13 @@ class ManifestRegistryTest extends TestCase {
         $this->assertFalse(ACL::check([], 'portal.access'));
         $this->assertTrue(ACL::check(['login'], 'portal.access'));
         $this->assertFalse(ACL::check(['login'], 'prl595.users.admin'));
-        $this->assertFalse(ACL::check(['login'], 'prl300.view'));
+        $this->assertTrue(ACL::check(['login'], 'prl300.view'));
+        $this->assertTrue(ACL::check(['login'], 'prl300.directory'));
+        $this->assertFalse(ACL::check(['login'], 'prl300.admin.view'));
+        $this->assertFalse(ACL::check(['login'], 'prl300.manage'));
+        $this->assertTrue(ACL::check(['hr_viewer'], 'prl300.admin.view'));
+        $this->assertFalse(ACL::check(['hr_viewer'], 'prl300.import'));
+        $this->assertTrue(ACL::check(['hr_admin'], 'prl300.identity'));
         $this->assertTrue(ACL::check(['admin'], 'prl300.view'));
     }
 

@@ -23,12 +23,19 @@ check(registry.index("'prl208_events'") < registry.index("'prl120_jobs'"), 'Ши
 check("config/modules.php" in (ROOT / 'application/bootstrap.php').read_text(), 'Bootstrap обходит реестр')
 
 plan = (ROOT / 'application/config/portal.php').read_text()
-planned = re.findall(r"'module' => '(prl\d+_[a-z_]+)'", plan)
+plan_entries = re.findall(r"'module' => '(prl\d+_[a-z_]+)',\s*'title' => '[^']+',\s*'status' => '(planned|active)'", plan)
+planned = [name for name, _status in plan_entries]
+active_services = [name for name, status in plan_entries if status == 'active']
 check(len(planned) == 50, 'План должен содержать 50 сервисов')
 check(len(set(planned)) == 50, 'Дубли в плане')
 check(len({re.search(r'\d+', name)[0] for name in planned}) == 50, 'Дубли ID в плане')
-check(plan.count("'status' => 'planned'") == 50, 'План не должен объявлять сервисы реализованными')
-check(all(not (ROOT / 'application/modules' / name).exists() for name in planned), 'План ошибочно подключён как бизнес-каркасы')
+for name, status in plan_entries:
+    exists = (ROOT / 'application/modules' / name).exists()
+    registered_service = f"'{name}' =>" in registry
+    if status == 'active':
+        check(exists and registered_service, f'Активный сервис не реализован/не подключён: {name}')
+    else:
+        check(not exists and not registered_service, f'Planned-сервис ошибочно подключён: {name}')
 
 old_prefix = re.compile(r'(?<![a-zA-Z0-9])(?:n2j|nj(?=[0-9_X])|erp(?=[0-9_X]))', re.I)
 for folder in ['application', 'workers', 'bin', 'tests']:
@@ -78,4 +85,4 @@ check('portal:maintain' in (ROOT / 'docs/WORKERS.md').read_text(), 'Не опи�
 if errors:
     print('\n'.join('FAIL: ' + item for item in errors))
     sys.exit(1)
-print(f'PRL contracts OK: {len(registered)} registered modules, {len(classes)} PHP classes, 50 planned services, 4 worker channels')
+print(f'PRL contracts OK: {len(registered)} registered modules, {len(classes)} PHP classes, {len(active_services)} active + {50 - len(active_services)} planned services, 4 worker channels')

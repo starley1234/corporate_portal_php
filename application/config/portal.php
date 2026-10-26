@@ -2,7 +2,7 @@
 // План, а не список подключённых модулей. Не создаёт маршрутов/таблиц/прав.
 return ['domains' => [
     'hr' => ['title' => 'HR и развитие персонала', 'services' => [
-        ['module' => 'prl300_employee', 'title' => 'Личный кабинет сотрудника', 'status' => 'planned'],
+        ['module' => 'prl300_employee', 'title' => 'Личный кабинет сотрудника', 'status' => 'active'],
         ['module' => 'prl301_onboarding', 'title' => 'Онбординг-трек', 'status' => 'planned'],
         ['module' => 'prl302_career', 'title' => 'Карьерный трек', 'status' => 'planned'],
         ['module' => 'prl303_performance', 'title' => 'Управление эффективностью', 'status' => 'planned'],
