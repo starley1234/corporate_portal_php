@@ -1,0 +1,42 @@
+# --- Локальные конфиги и секреты (генерируются: bash bin/setup.sh) ---------
+/.env
+/.env.*
+!/\.env.example
+
+# --- Изменяемые каталоги ---------------------------------------------------
+/application/logs/
+/application/cache/
+/application/sessions/
+/public_html/uploads/
+/public_html/avatar/
+/public_html/img/
+/public_html/assets/libs
+/public_html/storage
+/storage
+
+# --- Зависимости и сборка --------------------------------------------------
+/vendor
+node_modules/
+/composer.lock
+/build
+/error_log
+composer.phar
+
+# --- Производные артефакты разработки ---------------------------------------
+/.context/
+
+# --- Тесты -------------------------------------------------------------------
+/.phpunit.result.cache
+
+# --- Python-воркеры ----------------------------------------------------------
+workers/.env
+workers/.venv/
+# Логи воркеров: плоский ротируемый файл, который владелец присылает при
+# разборе инцидента (workers/logs/n2j-worker.log, см. workers/README.md).
+workers/logs/
+workers/**/__pycache__/
+*.pyc
+workers/openscad-renderer/.env
+workers/openscad-renderer/bin/openscad
+workers/openscad-renderer/libraries/
+workers/libraries/

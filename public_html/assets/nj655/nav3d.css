@@ -1,0 +1,40 @@
+/* NJ-655: полноэкранное 3D-пространство без стандартного HTML-каркаса сайта. */
+html.nj655-html,
+body.nj655-body { width: 100%; min-width: 320px; min-height: 100%; margin: 0; overflow: hidden; background: #030712; }
+body.nj655-body { color: #e5e7eb; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+.nj655-orbit { position: relative; width: 100vw; height: 100svh; overflow: hidden; background: #030712; }
+.nj655-orbit__stage { position: absolute; inset: 0; touch-action: none; cursor: grab; outline: 0; }
+.nj655-orbit__stage:active { cursor: grabbing; }
+.nj655-orbit__stage:focus-visible { outline: 3px solid rgb(147 197 253 / .58); outline-offset: -3px; }
+.nj655-orbit__stage canvas { display: block; width: 100%; height: 100%; }
+.nj655-orbit__loading { position: absolute; top: 50%; left: 50%; display: inline-flex; align-items: center; gap: .65rem; transform: translate(-50%, -50%); color: #dbeafe; font-size: .8rem; font-weight: 800; letter-spacing: .04em; white-space: nowrap; }
+.nj655-orbit__tooltip { position: absolute; z-index: 4; max-width: 15rem; pointer-events: none; border: 1px solid rgb(147 197 253 / .35); border-radius: 8px; padding: .42rem .58rem; color: #ecfdf5; background: rgb(3 7 18 / .88); box-shadow: 0 12px 32px rgb(3 7 18 / .56); font-size: .75rem; font-weight: 800; opacity: 0; transition: opacity .12s; }
+.nj655-orbit__tooltip.is-visible { opacity: 1; }
+.nj655-orbit__panel { position: absolute; z-index: 5; right: clamp(.75rem, 2vw, 2rem); bottom: clamp(.75rem, 2vw, 2rem); width: min(22rem, calc(100vw - 1.5rem)); border: 1px solid rgb(147 197 253 / .34); border-radius: 12px; padding: 1rem; color: #e5e7eb; background: rgb(3 7 18 / .8); box-shadow: 0 20px 60px rgb(3 7 18 / .56); backdrop-filter: blur(18px); }
+.nj655-orbit__panel[hidden] { display: none; }
+.nj655-orbit__close { position: absolute; top: .4rem; right: .5rem; display: inline-grid; width: 2rem; height: 2rem; place-items: center; border: 0; border-radius: 6px; color: #9ca3af; background: transparent; font-size: 1.35rem; line-height: 1; }
+.nj655-orbit__close:hover { color: white; background: rgb(156 163 175 / .14); }
+.nj655-orbit__close:focus-visible,
+.nj655-orbit__open:focus-visible { outline: 3px solid rgb(147 197 253 / .5); outline-offset: 2px; }
+.nj655-orbit__kind { display: inline-flex; border: 1px solid rgb(147 197 253 / .25); border-radius: 9999px; padding: .18rem .45rem; color: #bfdbfe; background: rgb(59 130 246 / .11); font-size: .58rem; font-weight: 900; letter-spacing: .1em; text-transform: uppercase; }
+.nj655-orbit__detail-title { max-width: calc(100% - 2rem); margin: .75rem 0 0; color: white; font-size: 1.08rem; font-weight: 850; line-height: 1.3; }
+.nj655-orbit__detail-text { margin: .45rem 0 0; color: #d1d5db; font-size: .8rem; line-height: 1.55; }
+.nj655-orbit__detail-meta { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .75rem; }
+.nj655-orbit__detail-meta span { border: 1px solid rgb(156 163 175 / .2); border-radius: 9999px; padding: .2rem .45rem; color: #d1d5db; background: rgb(31 41 55 / .5); font-size: .66rem; font-weight: 700; }
+.nj655-orbit__detail-api { margin-top: .75rem; border-top: 1px solid rgb(156 163 175 / .16); padding-top: .65rem; }
+.nj655-orbit__detail-api strong { display: block; margin-bottom: .25rem; color: #9ca3af; font-size: .58rem; letter-spacing: .1em; text-transform: uppercase; }
+.nj655-orbit__detail-api code { display: block; overflow: hidden; padding: .15rem 0; color: #bfdbfe; font-size: .66rem; text-overflow: ellipsis; white-space: nowrap; }
+.nj655-orbit__open { display: inline-flex; min-height: 38px; align-items: center; gap: .45rem; margin-top: .85rem; border-radius: 7px; padding: .5rem .7rem; color: #172554; background: linear-gradient(135deg, #bfdbfe, #93c5fd); font-size: .78rem; font-weight: 900; }
+.nj655-orbit__open:hover { filter: brightness(1.08); }
+.nj655-orbit__fallback { position: absolute; z-index: 10; top: 50%; left: 50%; width: min(42rem, calc(100vw - 2rem)); transform: translate(-50%, -50%); border: 1px solid rgb(147 197 253 / .32); border-radius: 12px; padding: 1.25rem; color: #e5e7eb; background: rgb(3 7 18 / .92); box-shadow: 0 20px 70px rgb(3 7 18 / .55); }
+.nj655-orbit__fallback[hidden] { display: none; }
+.nj655-orbit__fallback h2 { margin: 0; color: white; font-size: 1rem; font-weight: 850; }
+.nj655-orbit__fallback p { margin: .4rem 0 0; color: #d1d5db; font-size: .8rem; }
+.nj655-orbit__fallback > a { display: inline-block; margin-top: 1rem; color: #bfdbfe; font-size: .8rem; font-weight: 850; }
+.nj655-orbit__fallback-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .45rem; margin-top: 1rem; }
+.nj655-orbit__fallback-list a { border: 1px solid rgb(156 163 175 / .2); border-radius: 7px; padding: .5rem; color: #dbeafe; background: rgb(17 24 39 / .72); font-size: .76rem; font-weight: 750; }
+.nj655-orbit__fallback-list a:hover { border-color: rgb(147 197 253 / .7); color: white; }
+.nj655-orbit.is-fallback .nj655-orbit__stage { display: none; }
+.nj655-visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; overflow: hidden !important; clip: rect(0 0 0 0) !important; clip-path: inset(50%) !important; white-space: nowrap !important; }
+@media (max-width: 639px) { .nj655-orbit__panel { right: .6rem; bottom: .6rem; width: calc(100vw - 1.2rem); } }
+@media (prefers-reduced-motion: reduce) { .nj655-orbit *, .nj655-orbit *::before, .nj655-orbit *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; } }

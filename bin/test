@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# =============================================================================
+# N2J — запуск тестов (phpunit).
+# Если composer-зависимостей нет — сообщает, но не падает молча.
+# =============================================================================
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+# shellcheck source=bin/_env.sh
+source "$(dirname "${BASH_SOURCE[0]}")/_env.sh"
+
+# Окружение главнее файла: DB_DEFAULT_NAME от bin/check-fresh.sh переживает .env
+n2j_load_env .env
+
+PHP_BIN="$(n2j_php_bin)" || { echo "ERROR: PHP не найден (bin/restore-env.sh)" >&2; exit 1; }
+
+if [[ -f vendor/bin/phpunit ]]; then
+    exec "$PHP_BIN" vendor/bin/phpunit -c phpunit.xml.dist "$@"
+fi
+
+# Опциональная независимая валидация PDF-выхода (bin/test --pdf):
+# свой PHP-парсер не должен оставаться единственным судьёй своих же файлов —
+# прогоняем генерацию/сплит/мерж через pypdf (если он доступен). Пропускается
+# тихо, когда python3/pypdf нет — это не обязательный этап для дефолтного
+# прогона, а «canary» для сред с pypdf (песочница агентов).
+if [[ "${1:-}" == "--pdf" ]]; then
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo "SKIP: python3 не найден — pypdf-валидация пропущена" >&2
+        exit 0
+    fi
+    if ! python3 -c "import pypdf" >/dev/null 2>&1; then
+        echo "SKIP: pypdf не установлен (pip3 install pypdf) — валидация пропущена" >&2
+        exit 0
+    fi
+    exec python3 tests/pdf_external_check.py
+fi
+
+# Статическая проверка приоритетов `= … AND …`. Это не «ещё один линтер ради
+# галочки»: такая строка не падает и не ловится php -l, но молча присваивает
+# только левый операнд. 23.10.2026 она стоила бесконечной перезагрузки
+# админки MCP Hub (`$run_running = $run AND $run['status'] === 'running'`),
+# а до этого — неверных статусов в nj120 и «админ = вошёл» в nj605/nj670.
+# Проверка отдельным шагом: падение тестов и предупреждение линтера нельзя
+# смешивать в один вывод.
+if command -v python3 >/dev/null 2>&1 && [[ -f .tools/php_ternary_lint.py ]]; then
+    if python3 -c "import tree_sitter, tree_sitter_php" >/dev/null 2>&1; then
+        echo "==> Приоритеты and/or в присваиваниях (php_ternary_lint)"
+        if ! python3 .tools/php_ternary_lint.py application; then
+            echo "FAIL: `= … AND/OR …` присваивает только первый операнд — поставьте скобки" >&2
+            exit 1
+        fi
+        echo
+    else
+        echo "SKIP: tree-sitter не установлен (pip3 install tree_sitter tree_sitter_php)" >&2
+    fi
+fi
+
+# Fallback для сред без composer/packagist (закрытая сеть): мини-раннер
+# прогоняет tests/Smoke и tests/Unit без phpunit.
+if [[ -f tests/mini_runner.php ]]; then
+    exec "$PHP_BIN" tests/mini_runner.php "$@"
+fi
+
+echo "phpunit не установлен (нет vendor/). Варианты:"
+echo "  1) composer install          — локально"
+echo "  2) make up && make shell     — внутри контейнера: vendor/bin/phpunit"
+exit 1

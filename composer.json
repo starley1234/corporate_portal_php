@@ -1,0 +1,32 @@
+{
+    "name": "app/skeleton",
+    "type": "project",
+    "_comment": [
+        "Зависимости держим по факту использования, а не «на всякий случай».",
+        "28.09.2026 удалены 10 пакетов, на которые в коде не было ни одной ссылки:",
+        "guzzlehttp/guzzle, phpoffice/phpspreadsheet, phpoffice/phpword, dompdf/dompdf,",
+        "monolog/monolog, nesbot/carbon, php-mqtt/client, php-amqplib/php-amqplib,",
+        "league/commonmark, vlucas/phpdotenv (последний не нужен: .env читает",
+        "собственный application/env.php). Проверка перед удалением — поиск по",
+        "корневому namespace каждого пакета во всём репозитории, 0 совпадений.",
+        "Осталось только то, что реально вызывается: symfony/mailer и symfony/mime",
+        "в Service_Nj597_Notify::send_email (доставка писем платформы).",
+        "Добавляя пакет — убедитесь, что он вызывается из кода, а не «пригодится»."
+    ],
+    "require": {
+        "php": "^8.4",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "symfony/mailer": "^7.2",
+        "symfony/mime": "^7.2"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.5"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "allow-plugins": {}
+    }
+}

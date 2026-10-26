@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="ru" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>N2J — прототип калькулятора НДС (nj501_vat)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+<script>
+    (function () {
+        if ((localStorage.getItem('theme') || 'dark') === 'dark') document.documentElement.classList.add('dark');
+    })();
+    tailwind.config = { darkMode: 'class', theme: { extend: { colors: { primary: '#3b82f6' } } } };
+</script>
+<style>
+    :root { --sbw: 264px; }
+    body.sb-collapsed { --sbw: 72px; }
+
+    #sidebar {
+        position: fixed; top: 0; bottom: 0; left: 0; z-index: 50;
+        display: flex; flex-direction: column;
+        width: var(--sbw);
+        background: #ffffff;
+        border-right: 1px solid rgb(229 231 235 / 0.8);
+        transition: width .2s ease, transform .25s ease;
+    }
+    .dark #sidebar { background: rgb(17 24 39); border-right-color: rgb(55 65 81 / 0.6); }
+    #page-wrapper { margin-left: var(--sbw); transition: margin-left .2s ease; min-width: 0; }
+    /* кнопка сворачивания — «ушко» на границе панели: не конкурирует с логотипом */
+    #sidebar-collapse {
+        position: absolute; top: 21px; right: -11px; z-index: 60;
+        height: 22px; width: 22px;
+        align-items: center; justify-content: center;
+        border-radius: 9999px;
+        background: #f8fafc;
+        border: 1px solid rgb(229 231 235);
+        color: #64748b;
+        box-shadow: 0 1px 2px rgb(0 0 0 / .05);
+    }
+    #sidebar-collapse:hover { color: #2563eb; border-color: #93c5fd; }
+    .dark #sidebar-collapse { background: rgb(17 24 39); border-color: rgb(55 65 81); color: #94a3b8; }
+    .dark #sidebar-collapse:hover { color: #60a5fa; border-color: #3b82f6; }
+    #sidebar-collapse i { font-size: 10px; }
+    body.sb-collapsed .sidebar-brand { justify-content: center; }
+
+
+    body.sb-collapsed .sidebar-label,
+    body.sb-collapsed .sidebar-group-title,
+    body.sb-collapsed .sidebar-usermeta { display: none; }
+    body.sb-collapsed .sidebar-item { justify-content: center; gap: 0; padding-left: 0; padding-right: 0; }
+    body.sb-collapsed #sidebar-collapse i { transform: rotate(180deg); }
+    body.sb-collapsed .sidebar-badge {
+        position: absolute; top: 4px; right: 10px; height: 8px; min-width: 8px;
+        padding: 0; border-radius: 9999px; font-size: 0;
+    }
+    body.sb-collapsed .sidebar-group { padding-top: .5rem; margin-top: .25rem; border-top: 1px solid rgb(229 231 235 / .6); }
+    .dark body.sb-collapsed .sidebar-group { border-top-color: rgb(55 65 81 / .5); }
+    body.sb-collapsed .sidebar-group:first-child { border-top: 0; padding-top: 0; margin-top: 0; }
+
+    @media (max-width: 767.98px) {
+        #sidebar { width: 280px; transform: translateX(-100%); }
+        #sidebar.open { transform: translateX(0); box-shadow: 0 25px 50px -12px rgb(0 0 0 / .35); }
+        #page-wrapper { margin-left: 0 !important; }
+    }
+
+    #sidebar nav::-webkit-scrollbar { width: 5px; }
+    #sidebar nav::-webkit-scrollbar-thumb { background: rgb(148 163 184 / .35); border-radius: 3px; }
+
+    .theme-toggle { position: relative; display: inline-block; width: 50px; height: 26px; }
+    .theme-toggle input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; inset: 0; background: #ccc; transition: .4s; border-radius: 34px; }
+    .slider:before { content: ""; position: absolute; height: 20px; width: 20px; left: 3px; bottom: 3px; background: white; transition: .4s; border-radius: 50%; }
+    input:checked + .slider { background: #3b82f6; }
+    input:checked + .slider:before { transform: translateX(24px); }
+    .sun-icon { left: 6px; color: #f59e0b; position: absolute; top: 5px; font-size: 14px; }
+    .moon-icon { right: 6px; color: #94a3b8; position: absolute; top: 5px; font-size: 14px; }
+</style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen transition-colors duration-200">
+<script>try { if (localStorage.getItem('n2j.sidebar.collapsed') === '1') document.body.classList.add('sb-collapsed'); } catch (e) { }</script>
+
+<!-- ===================== SIDEBAR (как в partials/sidebar.php) ===================== -->
+<aside id="sidebar" aria-label="Навигация по сервисам">
+    <div class="flex h-16 shrink-0 items-center gap-2 border-b border-gray-200/70 px-4 dark:border-gray-700/60">
+        <a href="#" class="sidebar-brand flex min-w-0 items-center gap-2 text-blue-600 dark:text-blue-400" title="На главную">
+            <span class="shrink-0 text-xl leading-none"><i class="fas fa-layer-group"></i></span>
+            <span class="sidebar-label truncate text-base font-bold text-gray-900 dark:text-white">N2J Hub</span>
+        </a>
+        <button id="sidebar-collapse" type="button" class="hidden md:flex" aria-label="Свернуть/развернуть панель">
+            <i class="fas fa-angles-left text-sm transition-transform duration-200"></i>
+        </button>
+    </div>
+
+    <div class="sidebar-label shrink-0 px-3 pt-3">
+        <div class="relative">
+            <i class="fas fa-magnifying-glass pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400"></i>
+            <input id="nav-search" type="text" autocomplete="off" spellcheck="false" placeholder="Поиск сервисов…"
+                   class="w-full rounded-lg border border-gray-200 bg-gray-50 py-1.5 pl-8 pr-12 text-xs text-gray-700 outline-none transition placeholder:text-gray-400 focus:border-blue-400 focus:bg-white focus:ring-2 focus:ring-blue-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200">
+            <kbd class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-gray-400 dark:border-gray-700 dark:bg-gray-800">⌘K</kbd>
+        </div>
+    </div>
+
+    <nav class="flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-3 py-4">
+        <div class="sidebar-group">
+            <div class="sidebar-group-title px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Платформа</div>
+            <ul class="space-y-0.5">
+                <li><a href="#" class="sidebar-item group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100" title="Дашборд"><i class="fas fa-gauge-high w-5 shrink-0 text-center text-[15px]"></i><span class="sidebar-label flex-1 truncate">Дашборд</span></a></li>
+                <li><a href="#" class="sidebar-item group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100" title="Мои ссылки"><i class="fas fa-link w-5 shrink-0 text-center text-[15px]"></i><span class="sidebar-label flex-1 truncate">Мои ссылки</span></a></li>
+                <li><a href="#" class="sidebar-item group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100" title="Уведомления"><i class="fas fa-bell w-5 shrink-0 text-center text-[15px]"></i><span class="sidebar-label flex-1 truncate">Уведомления</span><span class="sidebar-badge inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 text-[10px] font-bold leading-none text-white dark:bg-blue-500">3</span></a></li>
+                <li><a href="#" class="sidebar-item group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100" title="Файлы"><i class="fas fa-folder w-5 shrink-0 text-center text-[15px]"></i><span class="sidebar-label flex-1 truncate">Файлы</span></a></li>
+            </ul>
+        </div>
+
+        <div class="sidebar-group">
+            <div class="sidebar-group-title px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Сервисы</div>
+            <ul class="space-y-0.5">
+                <li><a id="nav-vat" href="#" class="sidebar-item group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100" title="Калькулятор НДС"><i class="fas fa-percent w-5 shrink-0 text-center text-[15px]"></i><span class="sidebar-label flex-1 truncate">Калькулятор НДС</span></a></li>
+                <li><a href="#" class="sidebar-item group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100" title="Конвертеры"><i class="fas fa-right-left w-5 shrink-0 text-center text-[15px]"></i><span class="sidebar-label flex-1 truncate">Конвертеры</span></a></li>
+                <li><a href="#" class="sidebar-item group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100" title="Калькуляторы"><i class="fas fa-calculator w-5 shrink-0 text-center text-[15px]"></i><span class="sidebar-label flex-1 truncate">Калькуляторы</span></a></li>
+                <li><a href="#" class="sidebar-item group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100" title="Генераторы"><i class="fas fa-wand-magic-sparkles w-5 shrink-0 text-center text-[15px]"></i><span class="sidebar-label flex-1 truncate">Генераторы</span></a></li>
+                <li><a href="#" class="sidebar-item group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100" title="Текст и документы"><i class="fas fa-file-lines w-5 shrink-0 text-center text-[15px]"></i><span class="sidebar-label flex-1 truncate">Текст и документы</span></a></li>
+            </ul>
+        </div>
+
+        <div class="sidebar-group">
+            <div class="sidebar-group-title px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">ИИ</div>
+            <ul class="space-y-0.5">
+                <li><a href="#" class="sidebar-item group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100" title="Семантический поиск"><i class="fas fa-magnifying-glass w-5 shrink-0 text-center text-[15px]"></i><span class="sidebar-label flex-1 truncate">Семантический поиск</span></a></li>
+                <li><a href="#" class="sidebar-item group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100" title="Агенты"><i class="fas fa-robot w-5 shrink-0 text-center text-[15px]"></i><span class="sidebar-label flex-1 truncate">Агенты</span></a></li>
+                <li><a href="#" class="sidebar-item group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100" title="Очередь задач"><i class="fas fa-list-check w-5 shrink-0 text-center text-[15px]"></i><span class="sidebar-label flex-1 truncate">Очередь задач</span><span class="sidebar-badge inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 text-[10px] font-bold leading-none text-white dark:bg-blue-500">12</span></a></li>
+            </ul>
+        </div>
+
+        <div class="sidebar-group">
+            <div class="sidebar-group-title px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Администрирование</div>
+            <ul class="space-y-0.5">
+                <li><a href="#" class="sidebar-item group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100" title="Модули"><i class="fas fa-cubes w-5 shrink-0 text-center text-[15px]"></i><span class="sidebar-label flex-1 truncate">Модули</span></a></li>
+                <li><a href="#" class="sidebar-item group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100" title="Миграции"><i class="fas fa-database w-5 shrink-0 text-center text-[15px]"></i><span class="sidebar-label flex-1 truncate">Миграции</span></a></li>
+                <li><a href="#" class="sidebar-item group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100" title="Настройки"><i class="fas fa-gear w-5 shrink-0 text-center text-[15px]"></i><span class="sidebar-label flex-1 truncate">Настройки</span></a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="shrink-0 border-t border-gray-200/70 p-3 dark:border-gray-700/60">
+        <div class="flex items-center gap-2.5 rounded-lg p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800">
+            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-sm font-bold text-white">A</div>
+            <div class="sidebar-label min-w-0 flex-1 leading-tight">
+                <p class="truncate text-sm font-semibold text-gray-900 dark:text-white">admin</p>
+                <a href="#" class="text-xs text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400">Профиль</a>
+            </div>
+            <a href="#" class="sidebar-label shrink-0 rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400" title="Выйти"><i class="fas fa-sign-out-alt"></i></a>
+        </div>
+    </div>
+</aside>
+<div id="nav-search-empty" class="fixed left-3 bottom-24 z-50 hidden w-[240px] px-3 text-xs text-gray-400 dark:text-gray-500">Ничего не найдено. Esc — сбросить.</div>
+<div id="sidebar-overlay" class="fixed inset-0 z-40 hidden bg-gray-900/50 backdrop-blur-sm md:hidden"></div>
+
+<!-- ===================== КОНТЕНТ: nj501_vat — калькулятор НДС ===================== -->
+<div id="page-wrapper" class="flex min-h-screen flex-col">
+    <header class="sticky top-0 z-30 w-full bg-white/90 dark:bg-gray-800/90 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
+        <div class="mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center">
+                <button id="mobile-menu-button" class="md:hidden mr-3 p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+                <span class="text-lg font-bold text-blue-600 dark:text-blue-400 md:hidden"><i class="fas fa-layer-group"></i> N2J</span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <label class="theme-toggle">
+                    <input type="checkbox" id="theme-toggle">
+                    <span class="slider"><i class="fas fa-sun sun-icon"></i><i class="fas fa-moon moon-icon"></i></span>
+                </label>
+                <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white text-sm font-bold">A</div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 p-4 sm:p-6">
+        <div class="mx-auto max-w-3xl">
+            <div class="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
+                <b>Прототип «Калькулятор НДС» (nj501_vat)</b> — витрина UI-элементов первого сервиса N2J:
+                живой ввод с форматированием, сегмент ставок 2026, режимы «выделить/начислить», чипы,
+                share-ссылка, история расчётов (localStorage), FAQ. JS в прототипе — рабочий,
+                зеркало <code class="rounded bg-blue-100 px-1 dark:bg-blue-900/40">Service_Nj501_Vat</code>.
+            </div>
+
+            <!-- Ввод -->
+            <div class="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-6">
+                <label for="vat-amount" class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Сумма, ₽</label>
+                <input id="vat-amount" type="text" inputmode="decimal" autocomplete="off" value="10 000"
+                       placeholder="10 000,00"
+                       class="mt-2 block w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-2xl font-bold tracking-wide text-gray-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 dark:border-gray-600 dark:bg-gray-900 dark:text-white"
+                       aria-describedby="vat-hint">
+                <p id="vat-hint" class="mt-1.5 text-xs text-gray-400 dark:text-gray-500">Можно вставлять с пробелами и копейками — «1 234 567,89»</p>
+
+                <div class="mt-3 flex flex-wrap gap-2">
+                    <button type="button" data-chip="1000" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:border-blue-400 hover:text-blue-600 dark:border-gray-600 dark:text-gray-300 dark:hover:border-blue-500 dark:hover:text-blue-400">1 000,00 ₽</button>
+                    <button type="button" data-chip="10000" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:border-blue-400 hover:text-blue-600 dark:border-gray-600 dark:text-gray-300 dark:hover:border-blue-500 dark:hover:text-blue-400">10 000,00 ₽</button>
+                    <button type="button" data-chip="100000" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:border-blue-400 hover:text-blue-600 dark:border-gray-600 dark:text-gray-300 dark:hover:border-blue-500 dark:hover:text-blue-400">100 000,00 ₽</button>
+                    <button type="button" data-chip="1000000" class="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:border-blue-400 hover:text-blue-600 dark:border-gray-600 dark:text-gray-300 dark:hover:border-blue-500 dark:hover:text-blue-400">1 000 000,00 ₽</button>
+                </div>
+
+                <div class="mt-5">
+                    <span class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Ставка НДС</span>
+                    <div id="vat-rates" role="radiogroup" aria-label="Ставка НДС" class="mt-2 inline-flex flex-wrap gap-1 rounded-xl bg-gray-100 p-1 dark:bg-gray-900">
+                        <button type="button" role="radio" data-rate="22" aria-checked="true" title="Общая ставка с 2026 года" class="vat-rate-btn rounded-lg px-3.5 py-2 text-sm font-bold transition bg-white text-blue-600 shadow dark:bg-gray-700 dark:text-blue-400">22%<span class="ml-1 rounded bg-blue-100 px-1 text-[9px] font-bold uppercase text-blue-700 dark:bg-blue-900/60 dark:text-blue-300">2026</span></button>
+                        <button type="button" role="radio" data-rate="20" aria-checked="false" title="Общая ставка до 2026 года" class="vat-rate-btn rounded-lg px-3.5 py-2 text-sm font-bold transition text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200">20%<span class="ml-1 rounded bg-blue-100 px-1 text-[9px] font-bold uppercase text-blue-700 dark:bg-blue-900/60 dark:text-blue-300">до 2026</span></button>
+                        <button type="button" role="radio" data-rate="10" aria-checked="false" title="Льготная ставка" class="vat-rate-btn rounded-lg px-3.5 py-2 text-sm font-bold transition text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200">10%</button>
+                        <button type="button" role="radio" data-rate="7" aria-checked="false" title="Пониженная (УСН)" class="vat-rate-btn rounded-lg px-3.5 py-2 text-sm font-bold transition text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200">7%<span class="ml-1 rounded bg-blue-100 px-1 text-[9px] font-bold uppercase text-blue-700 dark:bg-blue-900/60 dark:text-blue-300">УСН</span></button>
+                        <button type="button" role="radio" data-rate="5" aria-checked="false" title="Пониженная (УСН)" class="vat-rate-btn rounded-lg px-3.5 py-2 text-sm font-bold transition text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200">5%<span class="ml-1 rounded bg-blue-100 px-1 text-[9px] font-bold uppercase text-blue-700 dark:bg-blue-900/60 dark:text-blue-300">УСН</span></button>
+                        <button type="button" role="radio" data-rate="0" aria-checked="false" title="Без НДС" class="vat-rate-btn rounded-lg px-3.5 py-2 text-sm font-bold transition text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200">0%</button>
+                    </div>
+                </div>
+
+                <div class="mt-5">
+                    <span class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Что считаем</span>
+                    <div id="vat-mode" role="radiogroup" aria-label="Режим расчёта" class="mt-2 grid grid-cols-2 gap-2">
+                        <button type="button" role="radio" data-mode="extract" aria-checked="true" class="vat-mode-btn rounded-xl border px-3 py-2.5 text-sm font-semibold transition border-blue-600 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-900/30 dark:text-blue-300"><i class="fas fa-arrow-down-short-wide mr-1.5"></i>Выделить из суммы</button>
+                        <button type="button" role="radio" data-mode="add" aria-checked="false" class="vat-mode-btn rounded-xl border px-3 py-2.5 text-sm font-semibold transition border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-600 dark:text-gray-300"><i class="fas fa-arrow-up-wide-short mr-1.5"></i>Начислить сверху</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Результат -->
+            <div class="mt-4 grid gap-3 sm:grid-cols-3" id="vat-result">
+                <div class="rounded-2xl border-2 border-blue-500 bg-blue-50/60 p-4 text-center shadow-sm dark:border-blue-500/60 dark:bg-blue-900/20">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">НДС</p>
+                    <p class="vat-num mt-1 text-2xl font-extrabold text-blue-700 dark:text-blue-300" id="vat-out">—</p>
+                </div>
+                <div class="rounded-2xl border border-gray-200 bg-white p-4 text-center shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Сумма без НДС</p>
+                    <p class="vat-num mt-1 text-2xl font-bold text-gray-900 dark:text-white" id="net-out">—</p>
+                </div>
+                <div class="rounded-2xl border border-gray-200 bg-white p-4 text-center shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Итого</p>
+                    <p class="vat-num mt-1 text-2xl font-bold text-gray-900 dark:text-white" id="total-out">—</p>
+                </div>
+            </div>
+
+            <!-- Расчётка и действия -->
+            <div class="mt-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                <table class="w-full text-sm">
+                    <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
+                        <tr><td class="py-2 text-gray-500 dark:text-gray-400">Введённая сумма</td><td class="py-2 text-right font-semibold" id="row-amount">—</td></tr>
+                        <tr><td class="py-2 text-gray-500 dark:text-gray-400">Формула <span class="text-xs">(выделение)</span></td><td class="py-2 text-right font-mono text-xs" id="row-formula">—</td></tr>
+                        <tr><td class="py-2 text-gray-500 dark:text-gray-400">Ставка</td><td class="py-2 text-right font-semibold" id="row-rate">22%</td></tr>
+                    </tbody>
+                </table>
+                <div class="mt-3 flex flex-wrap gap-2">
+                    <button type="button" id="vat-copy" class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-40" disabled><i class="fas fa-copy"></i> Копировать результат</button>
+                    <button type="button" id="vat-share" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-blue-400 hover:text-blue-600 dark:border-gray-600 dark:text-gray-300 dark:hover:border-blue-500" disabled><i class="fas fa-link"></i> Скопировать ссылку</button>
+                    <button type="button" id="vat-swap" class="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-blue-400 hover:text-blue-600 dark:border-gray-600 dark:text-gray-300 dark:hover:border-blue-500" title="Поменять режим расчёта"><i class="fas fa-right-left"></i> Поменять</button>
+                </div>
+            </div>
+
+            <!-- История -->
+            <div id="vat-history-wrap" class="mt-4 hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                <div class="flex items-center justify-between">
+                    <p class="text-sm font-semibold text-gray-700 dark:text-gray-300"><i class="fas fa-clock-rotate-left mr-1.5 text-gray-400"></i>Последние расчёты</p>
+                    <button type="button" id="vat-history-clear" class="text-xs text-gray-400 transition hover:text-red-500">очистить</button>
+                </div>
+                <div id="vat-history" class="mt-2 flex flex-wrap gap-2"></div>
+            </div>
+
+            <!-- Формулы -->
+            <div class="mt-6 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                <h2 class="text-lg font-bold text-gray-900 dark:text-white">Формулы</h2>
+                <div class="mt-3 space-y-2 text-sm text-gray-600 dark:text-gray-300">
+                    <p><b>Выделить НДС</b> из суммы с НДС: <code class="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs dark:bg-gray-900">НДС = Сумма × 22/122</code></p>
+                    <p><b>Начислить НДС</b> на сумму без НДС: <code class="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs dark:bg-gray-900">НДС = Сумма × 22/100</code></p>
+                    <p class="text-xs text-gray-400 dark:text-gray-500">Расчётные ставки выделения: 22/122, 20/120, 10/110, 7/107, 5/105. Округление — до копейки.</p>
+                </div>
+            </div>
+
+            <!-- FAQ -->
+            <div class="mt-6 mb-10 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                <h2 class="text-lg font-bold text-gray-900 dark:text-white">Частые вопросы</h2>
+                <div class="mt-2 divide-y divide-gray-100 dark:divide-gray-700">
+                    <details class="group py-3" open>
+                        <summary class="cursor-pointer list-none text-sm font-semibold text-gray-800 marker:hidden dark:text-gray-200"><i class="fas fa-chevron-down mr-2 text-xs text-gray-400 transition group-open:rotate-180"></i>Как выделить НДС 22% из суммы?</summary>
+                        <p class="mt-2 pl-6 text-sm text-gray-600 dark:text-gray-300">Разделите сумму на 122 и умножьте на 22. Например, из 1 220 000 ₽: 1 220 000 × 22/122 = 220 000 ₽. Ставка 22% — общая с 1 января 2026 года.</p>
+                    </details>
+                    <details class="group py-3">
+                        <summary class="cursor-pointer list-none text-sm font-semibold text-gray-800 marker:hidden dark:text-gray-200"><i class="fas fa-chevron-down mr-2 text-xs text-gray-400 transition group-open:rotate-180"></i>Какие ставки НДС действуют для УСН?</summary>
+                        <p class="mt-2 pl-6 text-sm text-gray-600 dark:text-gray-300">Пониженные 5% (расчётная 5/105) и 7% (7/107). Границы доходов периодически меняются — сверяйтесь с действующей редакцией НК РФ.</p>
+                    </details>
+                    <details class="group py-3">
+                        <summary class="cursor-pointer list-none text-sm font-semibold text-gray-800 marker:hidden dark:text-gray-200"><i class="fas fa-chevron-down mr-2 text-xs text-gray-400 transition group-open:rotate-180"></i>Как посчитать НДС с аванса?</summary>
+                        <p class="mt-2 pl-6 text-sm text-gray-600 dark:text-gray-300">С предоплаты НДС исчисляется по расчётной ставке r/(100+r): аванс 105 000 ₽ при 5% → 105 000 × 5/105 = 5 000 ₽.</p>
+                    </details>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+    // тема
+    var toggle = document.getElementById('theme-toggle');
+    function setTheme(dark) {
+        document.documentElement.classList.toggle('dark', dark);
+        localStorage.setItem('theme', dark ? 'dark' : 'light');
+        toggle.checked = dark;
+    }
+    toggle.checked = document.documentElement.classList.contains('dark');
+    toggle.addEventListener('change', function (e) { setTheme(e.target.checked); });
+
+    // сайдбар
+    var sidebar = document.getElementById('sidebar');
+    var overlay = document.getElementById('sidebar-overlay');
+    var collapseBtn = document.getElementById('sidebar-collapse');
+    var burger = document.getElementById('mobile-menu-button');
+
+    // класс sb-collapsed ставится ранним boot-скриптом сразу после <body>
+    collapseBtn.addEventListener('click', function () {
+        var c = document.body.classList.toggle('sb-collapsed');
+        localStorage.setItem('n2j.sidebar.collapsed', c ? '1' : '0');
+    });
+    function drawer(open) {
+        sidebar.classList.toggle('open', open);
+        overlay.classList.toggle('hidden', !open);
+        var icon = burger.querySelector('i');
+        icon.classList.toggle('fa-bars', !open);
+        icon.classList.toggle('fa-times', open);
+    }
+    burger.addEventListener('click', function (e) { e.stopPropagation(); drawer(!sidebar.classList.contains('open')); });
+    overlay.addEventListener('click', function () { drawer(false); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') drawer(false); });
+
+    // быстрый поиск по сервисам (Ctrl+K / Cmd+K / /)
+    var search = document.getElementById('nav-search');
+    var empty = document.getElementById('nav-search-empty');
+    if (search) {
+        var applyFilter = function () {
+            var q = search.value.trim().toLowerCase();
+            var anyVisible = false;
+            document.querySelectorAll('.sidebar-group').forEach(function (groupEl) {
+                var groupVisible = false;
+                groupEl.querySelectorAll('a.sidebar-item').forEach(function (a) {
+                    var label = a.querySelector('.sidebar-label');
+                    var hay = (a.getAttribute('data-search') || (label ? label.textContent : '')).toLowerCase();
+                    var show = !q || hay.indexOf(q) !== -1;
+                    a.parentElement.classList.toggle('hidden', !show);
+                    if (show) groupVisible = true;
+                });
+                groupEl.classList.toggle('hidden', !groupVisible);
+                if (groupVisible) anyVisible = true;
+            });
+            if (empty) empty.classList.toggle('hidden', anyVisible || !q);
+        };
+        search.addEventListener('input', applyFilter);
+        search.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') { search.value = ''; applyFilter(); search.blur(); }
+        });
+        document.addEventListener('keydown', function (e) {
+            var typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement && document.activeElement.tagName || '');
+            if ((e.key === 'k' || e.key === 'K') && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault(); search.focus(); search.select();
+            } else if (e.key === '/' && !typing) {
+                e.preventDefault(); search.focus();
+            }
+        });
+    }
+
+    // активный пункт (демо: подсвечиваем «Дашборд»)
+    var path = location.pathname.replace(/\/+$/, '') || '/';
+    var best = null, bestLen = -1;
+    sidebar.querySelectorAll('a.sidebar-item').forEach(function (a) {
+        var h = (a.getAttribute('href') || '').replace(/\/+$/, '') || '/';
+        if (h === path || (h !== '/' && path.indexOf(h + '/') === 0)) {
+            if (h.length > bestLen) { bestLen = h.length; best = a; }
+        }
+    });
+    if (best) {
+        best.classList.add('bg-blue-50', 'text-blue-700', 'dark:bg-blue-900/40', 'dark:text-blue-300');
+        best.classList.remove('text-gray-600', 'dark:text-gray-400');
+    }
+</script>
+<script>
+<!-- nj501_vat: инлайн-скрипт калькулятора и мини-демо на главной (источник один — этот файл) -->
+<script>
+/**
+ * nj501_vat — калькулятор НДС. Клиентское зеркало Service_Nj501_Vat.
+ *
+ * Все суммы — целые копейки, округление half-up (как в PHP).
+ * При изменении формул менять и PHP-сервис, и этот файл (см. AGENTS модуля).
+ */
+(function () {
+    'use strict';
+
+    var RATES = [22, 20, 10, 7, 5, 0];
+
+    var state = {
+        rate: 22,
+        mode: 'extract' // extract | add
+    };
+
+    // ---------- деньги ----------
+
+    // '1 234,56' → 123456 (копейки) или null
+    function toKop(raw) {
+        if (raw == null) return null;
+        var s = String(raw).replace(/[\s\u00A0\u202F\u2009]/g, '').replace(',', '.');
+        if (!/^\d{1,15}(\.\d{1,2})?$/.test(s)) return null;
+        var parts = s.split('.');
+        var rub = parseInt(parts[0], 10) || 0;
+        var kop = 0;
+        if (parts[1] !== undefined) {
+            kop = parseInt((parts[1] + '00').slice(0, 2), 10) || 0;
+        }
+        var total = rub * 100 + kop;
+        if (total > 99999999999900) return null; // MAX_AMOUNT
+        return total;
+    }
+
+    // 123456 → '1 234,56'
+    function formatKop(kop) {
+        var neg = kop < 0;
+        kop = Math.abs(kop);
+        var rub = Math.floor(kop / 100);
+        var fr = ('0' + (kop % 100)).slice(-2);
+        var s = String(rub).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        return (neg ? '−' : '') + s + ',' + fr;
+    }
+
+    // те же формулы, что в Service_Nj501_Vat::calculate()
+    function calc(amountKop, rate, mode) {
+        if (amountKop == null || RATES.indexOf(rate) === -1) return null;
+        var net, vat, total, formula;
+        if (mode === 'extract') {
+            vat = Math.round(amountKop * rate / (100 + rate)); // half-up
+            net = amountKop - vat;
+            total = amountKop;
+            formula = rate > 0
+                ? formatKop(amountKop) + ' × ' + rate + '/' + rate + '00'
+                : 'без НДС';
+        } else {
+            net = amountKop;
+            vat = Math.round(amountKop * rate / 100);
+            total = amountKop + vat;
+            formula = rate > 0
+                ? formatKop(amountKop) + ' × ' + rate + '%'
+                : 'без НДС';
+        }
+        return {
+            kop: amountKop, net: net, vat: vat, total: total, formula: formula
+        };
+    }
+
+    // ---------- DOM ----------
+
+    var $input = document.getElementById('vat-amount');
+    var $vat = document.getElementById('vat-out');
+    var $net = document.getElementById('net-out');
+    var $total = document.getElementById('total-out');
+    var $rowAmount = document.getElementById('row-amount');
+    var $rowFormula = document.getElementById('row-formula');
+    var $rowRate = document.getElementById('row-rate');
+    var $copy = document.getElementById('vat-copy');
+    var $share = document.getElementById('vat-share');
+    var $swap = document.getElementById('vat-swap');
+    var $histWrap = document.getElementById('vat-history-wrap');
+    var $hist = document.getElementById('vat-history');
+    var $histClear = document.getElementById('vat-history-clear');
+    // ---------- мини-демо на главной (#vat-mini, опционально) ----------
+    // Использует те же toKop/calc/formatKop — третей копии формул нет.
+    var $mini = document.getElementById('vat-mini');
+    if ($mini) {
+        var $miniIn = document.getElementById('vat-mini-amount');
+        var $miniOut = document.getElementById('vat-mini-out');
+        var miniRate = parseInt($mini.getAttribute('data-rate') || '22', 10) || 22;
+        var miniMode = $mini.getAttribute('data-mode') === 'add' ? 'add' : 'extract';
+        var miniRender = function () {
+            var kop = toKop($miniIn.value);
+            if (kop == null) { $miniOut.textContent = '—'; return; }
+            $miniOut.textContent = formatKop(calc(kop, miniRate, miniMode).vat) + ' ₽';
+        };
+        $miniIn.addEventListener('input', miniRender);
+        miniRender();
+    }
+
+    if (!$input) return;
+
+    function rateButtons() { return document.querySelectorAll('.vat-rate-btn'); }
+    function modeButtons() { return document.querySelectorAll('.vat-mode-btn'); }
+
+    // начальное состояние — из отрендеренного сервером DOM
+    (function initState() {
+        var activeRate = document.querySelector('.vat-rate-btn[aria-checked="true"]');
+        if (activeRate) state.rate = parseInt(activeRate.getAttribute('data-rate'), 10);
+        var activeMode = document.querySelector('.vat-mode-btn[aria-checked="true"]');
+        if (activeMode) state.mode = activeMode.getAttribute('data-mode');
+    })();
+
+    function renderRate() {
+        rateButtons().forEach(function (b) {
+            var on = parseInt(b.getAttribute('data-rate'), 10) === state.rate;
+            b.setAttribute('aria-checked', on ? 'true' : 'false');
+            b.className = 'vat-rate-btn rounded-lg px-3.5 py-2 text-sm font-bold transition ' + (on
+                ? 'bg-white text-blue-600 shadow dark:bg-gray-700 dark:text-blue-400'
+                : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200');
+        });
+    }
+
+    function renderMode() {
+        modeButtons().forEach(function (b) {
+            var on = b.getAttribute('data-mode') === state.mode;
+            b.setAttribute('aria-checked', on ? 'true' : 'false');
+            b.className = 'vat-mode-btn rounded-xl border px-3 py-2.5 text-sm font-semibold transition ' + (on
+                ? 'border-blue-600 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-900/30 dark:text-blue-300'
+                : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-600 dark:text-gray-300');
+        });
+    }
+
+    function renderResult() {
+        var kop = toKop($input.value);
+        var res = calc(kop, state.rate, state.mode);
+        var has = !!res;
+
+        $vat.textContent = has ? formatKop(res.vat) + ' ₽' : '—';
+        $net.textContent = has ? formatKop(res.net) + ' ₽' : '—';
+        $total.textContent = has ? formatKop(res.total) + ' ₽' : '—';
+        $rowAmount.textContent = has ? formatKop(res.kop) + ' ₽' : '—';
+        $rowFormula.textContent = has ? res.formula : '—';
+        $rowRate.textContent = state.rate + '%';
+
+        $copy.disabled = !has;
+        $share.disabled = !has;
+
+        if (has) {
+            updateUrl();
+            pushHistory(res);
+        }
+    }
+
+    function updateUrl() {
+        var kop = toKop($input.value);
+        if (kop == null) return;
+        var url = location.pathname +
+            '?a=' + encodeURIComponent(formatKop(kop)) +
+            '&r=' + state.rate +
+            '&m=' + state.mode;
+        try { history.replaceState(null, '', url); } catch (e) { /* file:// */ }
+    }
+
+    // ---------- история (localStorage, только локально) ----------
+
+    var HIST_KEY = 'n2j.vat.history';
+
+    function loadHistory() {
+        try {
+            var raw = localStorage.getItem(HIST_KEY);
+            var arr = raw ? JSON.parse(raw) : [];
+            return Array.isArray(arr) ? arr.slice(0, 8) : [];
+        } catch (e) { return []; }
+    }
+
+    function saveHistory(list) {
+        try { localStorage.setItem(HIST_KEY, JSON.stringify(list.slice(0, 8))); } catch (e) { }
+    }
+
+    function pushHistory(res) {
+        var item = {
+            a: formatKop(res.kop),
+            r: state.rate,
+            m: state.mode
+        };
+        var list = loadHistory();
+        if (list[0] && list[0].a === item.a && list[0].r === item.r && list[0].m === item.m) return;
+        list.unshift(item);
+        saveHistory(list);
+        renderHistory();
+    }
+
+    function renderHistory() {
+        var list = loadHistory();
+        if (!list.length) {
+            $histWrap.classList.add('hidden');
+            return;
+        }
+        $histWrap.classList.remove('hidden');
+        $hist.innerHTML = '';
+        list.forEach(function (it) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:border-blue-400 hover:text-blue-600 dark:border-gray-600 dark:text-gray-300';
+            b.textContent = it.a + ' ₽ · ' + it.r + '% · ' + (it.m === 'add' ? 'начислить' : 'выделить');
+            b.addEventListener('click', function () {
+                $input.value = it.a;
+                state.rate = it.r;
+                state.mode = it.m;
+                renderRate(); renderMode();
+                recalc(true);
+            });
+            $hist.appendChild(b);
+        });
+    }
+
+    // ---------- ввод ----------
+
+    var histTimer = null;
+
+    function recalc(immediate) {
+        renderResult();
+        if (immediate) return;
+        clearTimeout(histTimer);
+        histTimer = setTimeout(renderHistory, 800); // история — не на каждый символ
+    }
+
+    // живое форматирование: пробелы между разрядами, до 2 знаков после запятой
+    function formatInput() {
+        var raw = $input.value;
+        var s = raw.replace(/[\s\u00A0\u202F\u2009]/g, '');
+        if (!s) return;
+        var m = s.match(/^(\d{1,15})([.,](\d{0,2}))?/);
+        if (!m) return;
+        var intPart = m[1].replace(/^0+(?=\d)/, '').replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        var out = intPart;
+        if (m[2] !== undefined) {
+            out += ',' + (m[3] || '');
+        }
+        if (out !== raw) {
+            var pos = $input.value.length; // курсор в конец — простое решение
+            $input.value = out;
+            try { $input.setSelectionRange(pos, pos); } catch (e) { }
+        }
+    }
+
+    $input.addEventListener('input', function () {
+        formatInput();
+        recalc(false);
+    });
+
+    rateButtons().forEach(function (b) {
+        b.addEventListener('click', function () {
+            state.rate = parseInt(b.getAttribute('data-rate'), 10);
+            renderRate();
+            recalc(false);
+        });
+    });
+
+    modeButtons().forEach(function (b) {
+        b.addEventListener('click', function () {
+            state.mode = b.getAttribute('data-mode');
+            renderMode();
+            recalc(false);
+        });
+    });
+
+    document.querySelectorAll('[data-chip]').forEach(function (b) {
+        b.addEventListener('click', function () {
+            $input.value = b.getAttribute('data-chip');
+            formatInput();
+            recalc(false);
+            $input.focus();
+        });
+    });
+
+    // пометить сумму в режиме «поменять»: выделяем НДС из той же итоговой суммы
+    $swap.addEventListener('click', function () {
+        var kop = toKop($input.value);
+        state.mode = state.mode === 'add' ? 'extract' : 'add';
+        renderMode();
+        if (kop != null && state.mode === 'extract') {
+            // при смене на «выделить» сохраняем итого прежнего расчёта
+            var res = calc(kop, state.rate, 'add');
+            $input.value = formatKop(res.total);
+            formatInput();
+        }
+        recalc(false);
+    });
+
+    // ---------- буфер обмена ----------
+
+    function toast(msg) {
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(msg, 'success');
+        }
+    }
+
+    function copyText(text, okMsg) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function () { toast(okMsg); }, function () { });
+        } else {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); toast(okMsg); } catch (e) { }
+            document.body.removeChild(ta);
+        }
+    }
+
+    $copy.addEventListener('click', function () {
+        var res = calc(toKop($input.value), state.rate, state.mode);
+        if (!res) return;
+        var dir = state.mode === 'add' ? 'начислен' : 'выделен';
+        copyText(
+            'Сумма: ' + formatKop(res.kop) + ' ₽\n' +
+            'НДС ' + state.rate + '% (' + dir + '): ' + formatKop(res.vat) + ' ₽\n' +
+            'Без НДС: ' + formatKop(res.net) + ' ₽\n' +
+            'Итого: ' + formatKop(res.total) + ' ₽',
+            'Результат скопирован'
+        );
+    });
+
+    $share.addEventListener('click', function () {
+        copyText(location.href, 'Ссылка скопирована');
+    });
+
+    // ---------- история: очистка ----------
+
+    if ($histClear) {
+        $histClear.addEventListener('click', function () {
+            saveHistory([]);
+            renderHistory();
+        });
+    }
+
+    // первичный пересчёт, если сумма уже задана (SSR-состояние или прототип)
+    if ($input.value.trim() !== '') {
+        renderResult();
+    }
+
+    renderHistory();
+})();
+
+</script>
+</body>
+</html>
