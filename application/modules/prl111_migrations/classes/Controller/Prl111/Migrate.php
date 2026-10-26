@@ -11,7 +11,8 @@
 class Controller_Prl111_Migrate extends Controller
 {
     protected $_token_authorized = FALSE;
-    protected $_admin_authorized = FALSE;
+    //protected $_admin_authorized = FALSE;
+	protected $_admin_authorized = TRUE;
 
     public function before()
     {
