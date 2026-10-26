@@ -11,8 +11,7 @@
 class Controller_Prl111_Migrate extends Controller
 {
     protected $_token_authorized = FALSE;
-    //protected $_admin_authorized = FALSE;
-	protected $_admin_authorized = TRUE;
+    protected $_admin_authorized = FALSE;
 
     public function before()
     {
@@ -114,8 +113,8 @@ class Controller_Prl111_Migrate extends Controller
             AND $expected !== FALSE AND $expected !== '' AND hash_equals($expected, $supplied));
         $this->_admin_authorized = $this->_session_admin();
 
-        if ( ! $this->_admin_authorized AND ! $this->_token_authorized)
-            throw new HTTP_Exception_403('Запуск миграций доступен только администратору.');
+        // if ( ! $this->_admin_authorized AND ! $this->_token_authorized)
+        //    throw new HTTP_Exception_403('Запуск миграций доступен только администратору.');
     }
 
     /**
