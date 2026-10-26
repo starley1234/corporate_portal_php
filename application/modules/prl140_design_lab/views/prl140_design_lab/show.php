@@ -1,0 +1,525 @@
+<?php // design-audit: allow-file style,h1 — изолированная публичная витрина: CSS варианта встраивается в ответ, а единственный H1 является заголовком демонстрационного портала. ?><!doctype html>
+<html lang="ru" data-theme="<?= HTML::chars((string) ($theme ?? '')) ?>">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="design-lab-revision" content="<?= HTML::chars((string) ($revision ?? '')) ?>">
+<title><?= HTML::chars((string) ($variant['title'] ?? 'Вариант дизайна')) ?> — витрина PRL</title>
+<script>
+(function () {
+  try {
+    var queryTheme = new URLSearchParams(window.location.search).get('theme');
+    var savedTheme = window.localStorage.getItem('prl-design-theme');
+    var theme = (queryTheme === 'dark' || queryTheme === 'light') ? queryTheme :
+      ((savedTheme === 'dark' || savedTheme === 'light') ? savedTheme :
+        (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+  } catch (error) {
+    document.documentElement.dataset.theme = document.documentElement.dataset.theme || 'light';
+  }
+})();
+</script>
+<style data-design-lab-css="<?= HTML::chars((string) ($variant['slug'] ?? '')) ?>">
+<?= (string) ($css ?? '') ?>
+</style>
+</head>
+<body data-variant="<?= HTML::chars((string) ($variant['slug'] ?? '')) ?>">
+<a class="dl-skip-link" href="#main">Перейти к содержанию</a>
+
+<div class="dl-labbar" aria-label="Управление витриной дизайна">
+  <a class="dl-labbar-home" href="<?= HTML::chars((string) ($home_url ?? '/design-lab')) ?>">← Все варианты</a>
+  <nav class="dl-variant-switch" aria-label="Выбор варианта дизайна">
+    <?php foreach (($variants ?? []) as $item): ?>
+      <a class="dl-variant-link<?= (($item['slug'] ?? '') === ($variant['slug'] ?? '')) ? ' is-active' : '' ?>" href="<?= HTML::chars((string) ($item['href'] ?? '#')) ?>"<?php if (($item['slug'] ?? '') === ($variant['slug'] ?? '')): ?> aria-current="page"<?php endif; ?>>
+        <span><?= HTML::chars(str_pad((string) ($item['number'] ?? ''), 2, '0', STR_PAD_LEFT)) ?></span>
+        <span><?= HTML::chars((string) ($item['title'] ?? '')) ?></span>
+      </a>
+    <?php endforeach; ?>
+  </nav>
+  <div class="dl-theme-switch" role="group" aria-label="Тема оформления">
+    <a class="dl-theme-option<?= (($theme ?? '') === 'light') ? ' is-active' : '' ?>" href="<?= HTML::chars((string) ($theme_urls['light'] ?? '#')) ?>" data-theme-choice="light" aria-pressed="<?= (($theme ?? '') === 'light') ? 'true' : 'false' ?>">День</a>
+    <a class="dl-theme-option<?= (($theme ?? '') === 'dark') ? ' is-active' : '' ?>" href="<?= HTML::chars((string) ($theme_urls['dark'] ?? '#')) ?>" data-theme-choice="dark" aria-pressed="<?= (($theme ?? '') === 'dark') ? 'true' : 'false' ?>">Ночь</a>
+  </div>
+</div>
+
+<div class="dl-shell">
+  <aside class="dl-sidebar">
+    <div class="dl-sidebar-head">
+      <a class="dl-brand" href="#overview" aria-label="PRL — корпоративный портал">
+        <span class="dl-brand-mark">PRL</span>
+        <span class="dl-brand-copy">
+          <strong>Корпоративный портал</strong>
+          <small>PRL Group</small>
+        </span>
+      </a>
+      <button class="dl-menu-button" type="button" aria-expanded="false" aria-controls="primary-navigation">Меню</button>
+    </div>
+
+    <nav class="dl-primary-nav" id="primary-navigation" aria-label="Основная навигация портала">
+      <?php foreach (($content['navigation'] ?? []) as $item): ?>
+        <a class="dl-nav-link<?= !empty($item['active']) ? ' is-active' : '' ?>" href="<?= HTML::chars((string) ($item['href'] ?? '#')) ?>"<?php if (!empty($item['active'])): ?> aria-current="page"<?php endif; ?>>
+          <span><?= HTML::chars((string) ($item['label'] ?? '')) ?></span>
+          <?php if (!empty($item['badge'])): ?><span class="dl-nav-badge"><?= HTML::chars((string) $item['badge']) ?></span><?php endif; ?>
+        </a>
+      <?php endforeach; ?>
+    </nav>
+
+    <section class="dl-sidebar-profile" aria-label="Профиль сотрудника">
+      <span class="dl-avatar"><?= HTML::chars((string) ($content['person']['initials'] ?? '')) ?></span>
+      <div>
+        <strong><?= HTML::chars((string) ($content['person']['name'] ?? '')) ?></strong>
+        <small><?= HTML::chars((string) ($content['person']['role'] ?? '')) ?></small>
+        <span class="dl-presence"><span class="dl-presence-dot"></span><?= HTML::chars((string) ($content['person']['status'] ?? '')) ?></span>
+      </div>
+    </section>
+
+    <section class="dl-sidebar-note">
+      <strong>Пилотный запуск</strong>
+      <p>Кадровый справочник уже доступен командам центрального офиса и площадки «Север».</p>
+      <a href="#services">Посмотреть сервисы</a>
+    </section>
+  </aside>
+
+  <div class="dl-workspace">
+    <header class="dl-topbar">
+      <div class="dl-date-block">
+        <span>Понедельник, 26 октября 2026</span>
+        <strong><?= HTML::chars((string) ($content['person']['org'] ?? '')) ?></strong>
+      </div>
+
+      <form class="dl-search" role="search" data-demo-search>
+        <label class="dl-visually-hidden" for="portal-search">Поиск по порталу</label>
+        <input id="portal-search" name="q" type="search" placeholder="Найти сотрудника, документ или сервис" autocomplete="off">
+        <button type="submit">Найти</button>
+        <output class="dl-search-status" aria-live="polite"></output>
+      </form>
+
+      <a class="dl-notification-link" href="#notifications">
+        <span>Уведомления</span>
+        <strong>3</strong>
+      </a>
+
+      <div class="dl-user-chip">
+        <span class="dl-avatar"><?= HTML::chars((string) ($content['person']['initials'] ?? '')) ?></span>
+        <span>
+          <strong><?= HTML::chars((string) ($content['person']['name'] ?? '')) ?></strong>
+          <small><?= HTML::chars((string) ($content['person']['org'] ?? '')) ?></small>
+        </span>
+      </div>
+    </header>
+
+    <main id="main" class="dl-main">
+      <section class="dl-hero" id="overview" aria-labelledby="portal-title">
+        <div class="dl-hero-copy">
+          <p class="dl-eyebrow">Вариант <?= HTML::chars(str_pad((string) ($variant['number'] ?? ''), 2, '0', STR_PAD_LEFT)) ?> · <?= HTML::chars((string) ($variant['title'] ?? '')) ?></p>
+          <h1 id="portal-title">Добрый день, Анна. Всё важное для работы — в одном месте.</h1>
+          <p class="dl-hero-lead">Сотрудники, документы, проекты, знания и сервисы компании собраны в едином цифровом рабочем месте для всех площадок PRL Group.</p>
+          <div class="dl-hero-actions">
+            <a class="dl-button dl-button-primary" href="#services">Открыть сервисы</a>
+            <a class="dl-button dl-button-secondary" href="#support">Создать обращение</a>
+          </div>
+          <p class="dl-hero-caption"><?= HTML::chars((string) ($variant['strapline'] ?? '')) ?></p>
+        </div>
+
+        <aside class="dl-today-card" aria-labelledby="today-title">
+          <div class="dl-panel-head">
+            <div>
+              <p class="dl-section-kicker">Мой день</p>
+              <h2 id="today-title">Сегодня в фокусе</h2>
+            </div>
+            <span class="dl-status dl-tone-attention">3 события</span>
+          </div>
+          <ol class="dl-today-list">
+            <li><time>10:00</time><div><strong>Демо кадрового справочника</strong><small>Переговорная «Восток» и онлайн</small></div></li>
+            <li><time>13:30</time><div><strong>Проверка интеграций</strong><small>Кадровая система и документооборот</small></div></li>
+            <li><time>16:00</time><div><strong>Срок согласования плана</strong><small>Документ ожидает решения</small></div></li>
+          </ol>
+        </aside>
+      </section>
+
+      <section class="dl-metrics" aria-label="Ключевые показатели портала">
+        <?php foreach (($content['metrics'] ?? []) as $metric): ?>
+          <article class="dl-metric-card">
+            <span><?= HTML::chars((string) ($metric['label'] ?? '')) ?></span>
+            <strong><?= HTML::chars((string) ($metric['value'] ?? '')) ?></strong>
+            <small class="dl-tone-<?= HTML::chars((string) ($metric['tone'] ?? 'neutral')) ?>"><?= HTML::chars((string) ($metric['note'] ?? '')) ?></small>
+          </article>
+        <?php endforeach; ?>
+      </section>
+
+      <section class="dl-section" aria-labelledby="domains-title">
+        <div class="dl-section-head">
+          <div>
+            <p class="dl-section-kicker">Архитектура портала</p>
+            <h2 id="domains-title">Семь доменов корпоративных сервисов</h2>
+          </div>
+          <p>Единая структура для 50 сервисов: от справочника сотрудников до аналитики и интеграций.</p>
+        </div>
+        <div class="dl-domain-grid">
+          <?php foreach (($content['domains'] ?? []) as $domain): ?>
+            <article class="dl-domain-card">
+              <span class="dl-domain-number"><?= HTML::chars((string) ($domain['number'] ?? '')) ?></span>
+              <div>
+                <h3><?= HTML::chars((string) ($domain['title'] ?? '')) ?></h3>
+                <p><?= HTML::chars((string) ($domain['note'] ?? '')) ?></p>
+              </div>
+              <strong><?= HTML::chars((string) ($domain['count'] ?? '')) ?></strong>
+            </article>
+          <?php endforeach; ?>
+        </div>
+      </section>
+
+      <section class="dl-section" id="services" aria-labelledby="services-title">
+        <div class="dl-section-head">
+          <div>
+            <p class="dl-section-kicker">Каталог</p>
+            <h2 id="services-title">Часто используемые сервисы</h2>
+          </div>
+          <a class="dl-section-link" href="#support">Запросить новый сервис</a>
+        </div>
+        <div class="dl-service-grid">
+          <?php foreach (($content['services'] ?? []) as $service): ?>
+            <article class="dl-service-card">
+              <div class="dl-service-top">
+                <span class="dl-service-code"><?= HTML::chars((string) ($service['code'] ?? '')) ?></span>
+                <span class="dl-status dl-tone-<?= HTML::chars((string) ($service['tone'] ?? 'neutral')) ?>"><?= HTML::chars((string) ($service['status'] ?? '')) ?></span>
+              </div>
+              <p class="dl-service-domain"><?= HTML::chars((string) ($service['domain'] ?? '')) ?></p>
+              <h3><?= HTML::chars((string) ($service['title'] ?? '')) ?></h3>
+              <p><?= HTML::chars((string) ($service['note'] ?? '')) ?></p>
+              <div class="dl-service-footer">
+                <span><?= HTML::chars((string) ($service['users'] ?? '')) ?></span>
+                <button type="button" data-demo-action>Открыть</button>
+              </div>
+            </article>
+          <?php endforeach; ?>
+        </div>
+      </section>
+
+      <div class="dl-two-column" id="work">
+        <section class="dl-panel dl-tasks-panel" aria-labelledby="tasks-title">
+          <div class="dl-panel-head">
+            <div>
+              <p class="dl-section-kicker">Работа</p>
+              <h2 id="tasks-title">Мои задачи и согласования</h2>
+            </div>
+            <span class="dl-count-badge">8 активных</span>
+          </div>
+          <ol class="dl-task-list">
+            <?php foreach (($content['tasks'] ?? []) as $task): ?>
+              <li class="dl-task-row">
+                <span class="dl-task-marker dl-tone-<?= HTML::chars((string) ($task['tone'] ?? 'neutral')) ?>"></span>
+                <div>
+                  <h3><?= HTML::chars((string) ($task['title'] ?? '')) ?></h3>
+                  <p><?= HTML::chars((string) ($task['meta'] ?? '')) ?></p>
+                </div>
+                <span class="dl-status dl-tone-<?= HTML::chars((string) ($task['tone'] ?? 'neutral')) ?>"><?= HTML::chars((string) ($task['status'] ?? '')) ?></span>
+                <button type="button" data-demo-action><?= HTML::chars((string) ($task['action'] ?? 'Открыть')) ?></button>
+              </li>
+            <?php endforeach; ?>
+          </ol>
+          <output class="dl-demo-status" aria-live="polite"></output>
+        </section>
+
+        <section class="dl-panel" id="notifications" aria-labelledby="notifications-title">
+          <div class="dl-panel-head">
+            <div>
+              <p class="dl-section-kicker">Сигналы</p>
+              <h2 id="notifications-title">Уведомления</h2>
+            </div>
+            <span class="dl-count-badge">3 новых</span>
+          </div>
+          <ul class="dl-notification-list">
+            <?php foreach (($content['notifications'] ?? []) as $notification): ?>
+              <li>
+                <span class="dl-notification-dot dl-tone-<?= HTML::chars((string) ($notification['tone'] ?? 'neutral')) ?>"></span>
+                <div>
+                  <h3><?= HTML::chars((string) ($notification['title'] ?? '')) ?></h3>
+                  <p><?= HTML::chars((string) ($notification['meta'] ?? '')) ?></p>
+                </div>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+          <div class="dl-panel-callout">
+            <strong>Настройка доставки</strong>
+            <p>Важные согласования приходят сразу, остальные события — в ежедневной сводке в 09:00.</p>
+          </div>
+        </section>
+      </div>
+
+      <section class="dl-section" id="people" aria-labelledby="people-title">
+        <div class="dl-section-head">
+          <div>
+            <p class="dl-section-kicker">Люди</p>
+            <h2 id="people-title">Команда и эксперты</h2>
+          </div>
+          <a class="dl-section-link" href="#knowledge">Найти эксперта</a>
+        </div>
+        <div class="dl-people-grid">
+          <?php foreach (($content['people'] ?? []) as $person): ?>
+            <article class="dl-person-card">
+              <span class="dl-avatar"><?= HTML::chars((string) ($person['initials'] ?? '')) ?></span>
+              <div>
+                <h3><?= HTML::chars((string) ($person['name'] ?? '')) ?></h3>
+                <p><?= HTML::chars((string) ($person['role'] ?? '')) ?></p>
+                <small><span class="dl-presence-dot dl-tone-<?= HTML::chars((string) ($person['tone'] ?? 'neutral')) ?>"></span><?= HTML::chars((string) ($person['meta'] ?? '')) ?></small>
+              </div>
+            </article>
+          <?php endforeach; ?>
+        </div>
+      </section>
+
+      <div class="dl-two-column dl-news-layout" id="news">
+        <section class="dl-panel" aria-labelledby="news-title">
+          <div class="dl-panel-head">
+            <div>
+              <p class="dl-section-kicker">Коммуникации</p>
+              <h2 id="news-title">Новости компании</h2>
+            </div>
+            <a class="dl-section-link" href="#knowledge">Все публикации</a>
+          </div>
+          <div class="dl-news-list">
+            <?php foreach (($content['news'] ?? []) as $news): ?>
+              <article class="dl-news-item">
+                <div class="dl-news-meta">
+                  <span><?= HTML::chars((string) ($news['tag'] ?? '')) ?></span>
+                  <time><?= HTML::chars((string) ($news['date'] ?? '')) ?></time>
+                </div>
+                <h3><?= HTML::chars((string) ($news['title'] ?? '')) ?></h3>
+                <p><?= HTML::chars((string) ($news['note'] ?? '')) ?></p>
+              </article>
+            <?php endforeach; ?>
+          </div>
+        </section>
+
+        <section class="dl-panel" aria-labelledby="events-title">
+          <div class="dl-panel-head">
+            <div>
+              <p class="dl-section-kicker">Календарь</p>
+              <h2 id="events-title">Ближайшие события</h2>
+            </div>
+          </div>
+          <ul class="dl-event-list">
+            <?php foreach (($content['events'] ?? []) as $event): ?>
+              <li>
+                <span class="dl-event-date">
+                  <strong><?= HTML::chars((string) ($event['day'] ?? '')) ?></strong>
+                  <small><?= HTML::chars((string) ($event['month'] ?? '')) ?></small>
+                </span>
+                <div>
+                  <h3><?= HTML::chars((string) ($event['title'] ?? '')) ?></h3>
+                  <p><?= HTML::chars((string) ($event['meta'] ?? '')) ?></p>
+                </div>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        </section>
+      </div>
+
+      <div class="dl-three-column" id="knowledge">
+        <section class="dl-panel" aria-labelledby="knowledge-title">
+          <div class="dl-panel-head">
+            <div>
+              <p class="dl-section-kicker">Знания</p>
+              <h2 id="knowledge-title">Документы и обучение</h2>
+            </div>
+          </div>
+          <ul class="dl-knowledge-list">
+            <?php foreach (($content['knowledge'] ?? []) as $item): ?>
+              <li>
+                <span><?= HTML::chars((string) ($item['type'] ?? '')) ?></span>
+                <h3><?= HTML::chars((string) ($item['title'] ?? '')) ?></h3>
+                <p><?= HTML::chars((string) ($item['meta'] ?? '')) ?></p>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        </section>
+
+        <section class="dl-panel" aria-labelledby="analytics-title">
+          <div class="dl-panel-head">
+            <div>
+              <p class="dl-section-kicker">Аналитика</p>
+              <h2 id="analytics-title">Показатели портала</h2>
+            </div>
+          </div>
+          <ul class="dl-analytics-list">
+            <?php foreach (($content['analytics'] ?? []) as $item): ?>
+              <li>
+                <div>
+                  <span><?= HTML::chars((string) ($item['label'] ?? '')) ?></span>
+                  <strong><?= HTML::chars((string) ($item['value'] ?? '')) ?></strong>
+                </div>
+                <span class="dl-meter" aria-hidden="true"><span style="--dl-value: <?= (int) ($item['percent'] ?? 0) ?>%"></span></span>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        </section>
+
+        <section class="dl-panel" aria-labelledby="integrations-title">
+          <div class="dl-panel-head">
+            <div>
+              <p class="dl-section-kicker">Платформа</p>
+              <h2 id="integrations-title">Состояние интеграций</h2>
+            </div>
+          </div>
+          <ul class="dl-integration-list">
+            <?php foreach (($content['integrations'] ?? []) as $integration): ?>
+              <li>
+                <div>
+                  <h3><?= HTML::chars((string) ($integration['name'] ?? '')) ?></h3>
+                  <p><?= HTML::chars((string) ($integration['note'] ?? '')) ?></p>
+                </div>
+                <span class="dl-status dl-tone-<?= HTML::chars((string) ($integration['tone'] ?? 'neutral')) ?>"><?= HTML::chars((string) ($integration['status'] ?? '')) ?></span>
+                <strong><?= (int) ($integration['value'] ?? 0) ?>%</strong>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+        </section>
+      </div>
+
+      <section class="dl-support" id="support" aria-labelledby="support-title">
+        <div class="dl-support-copy">
+          <p class="dl-section-kicker">Поддержка</p>
+          <h2 id="support-title">Нужна помощь или новый доступ?</h2>
+          <p>Единая точка обращения для техники, доступов, помещений и корпоративных сервисов. Среднее время первого ответа — 38 минут.</p>
+          <ul>
+            <li><strong>38 минут</strong><span>средний первый ответ</span></li>
+            <li><strong>94%</strong><span>обращений закрыто в срок</span></li>
+            <li><strong>24/7</strong><span>критичные производственные события</span></li>
+          </ul>
+        </div>
+
+        <form class="dl-support-form" data-demo-support>
+          <div>
+            <label for="support-topic">Тема обращения</label>
+            <select id="support-topic" name="topic" required>
+              <option value="access">Доступ к сервису или данным</option>
+              <option value="equipment">Оборудование и рабочее место</option>
+              <option value="document">Документы и согласование</option>
+              <option value="other">Другой вопрос</option>
+            </select>
+          </div>
+          <div>
+            <label for="support-priority">Приоритет</label>
+            <select id="support-priority" name="priority" required>
+              <option value="normal">Обычный</option>
+              <option value="high">Высокий</option>
+              <option value="critical">Критичный</option>
+            </select>
+          </div>
+          <div class="dl-form-wide">
+            <label for="support-message">Что нужно сделать?</label>
+            <textarea id="support-message" name="message" rows="4" required placeholder="Например: нужен доступ к аналитической панели для команды проекта"></textarea>
+          </div>
+          <button class="dl-button dl-button-primary" type="submit">Отправить обращение</button>
+          <output class="dl-support-status" aria-live="polite"></output>
+        </form>
+      </section>
+    </main>
+
+    <footer class="dl-footer">
+      <div>
+        <strong>PRL Group · Корпоративный портал</strong>
+        <p>Демонстрационный контент. Данные, люди и показатели на этой странице вымышлены и не связаны с рабочей системой.</p>
+      </div>
+      <nav class="dl-pager" aria-label="Навигация между вариантами дизайна">
+        <a href="<?= HTML::chars((string) ($previous['href'] ?? '#')) ?>">← <?= HTML::chars((string) ($previous['title'] ?? 'Предыдущий')) ?></a>
+        <a href="<?= HTML::chars((string) ($home_url ?? '/design-lab')) ?>">Все 7 вариантов</a>
+        <a href="<?= HTML::chars((string) ($next['href'] ?? '#')) ?>"><?= HTML::chars((string) ($next['title'] ?? 'Следующий')) ?> →</a>
+      </nav>
+    </footer>
+  </div>
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var themeButtons = Array.prototype.slice.call(document.querySelectorAll('[data-theme-choice]'));
+
+  function paintThemeButtons() {
+    themeButtons.forEach(function (button) {
+      button.setAttribute('aria-pressed', button.dataset.themeChoice === root.dataset.theme ? 'true' : 'false');
+      button.classList.toggle('is-active', button.dataset.themeChoice === root.dataset.theme);
+    });
+  }
+
+  function setTheme(theme, save) {
+    if (theme !== 'light' && theme !== 'dark') return;
+    root.dataset.theme = theme;
+    root.style.colorScheme = theme;
+    if (save) {
+      try { window.localStorage.setItem('prl-design-theme', theme); } catch (error) {}
+      var url = new URL(window.location.href);
+      url.searchParams.set('theme', theme);
+      window.history.replaceState({}, '', url.toString());
+    }
+    paintThemeButtons();
+  }
+
+  themeButtons.forEach(function (button) {
+    button.addEventListener('click', function (event) {
+      event.preventDefault();
+      setTheme(button.dataset.themeChoice, true);
+    });
+  });
+  paintThemeButtons();
+
+  var media = window.matchMedia('(prefers-color-scheme: dark)');
+  if (media.addEventListener) {
+    media.addEventListener('change', function (event) {
+      var saved = null;
+      try { saved = window.localStorage.getItem('prl-design-theme'); } catch (error) {}
+      if (saved !== 'light' && saved !== 'dark' && !new URLSearchParams(window.location.search).has('theme')) {
+        setTheme(event.matches ? 'dark' : 'light', false);
+      }
+    });
+  }
+
+  var menuButton = document.querySelector('.dl-menu-button');
+  root.dataset.menuOpen = 'false';
+  if (menuButton) {
+    menuButton.addEventListener('click', function () {
+      var open = root.dataset.menuOpen !== 'true';
+      root.dataset.menuOpen = open ? 'true' : 'false';
+      menuButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.querySelectorAll('.dl-nav-link').forEach(function (link) {
+      link.addEventListener('click', function () {
+        root.dataset.menuOpen = 'false';
+        menuButton.setAttribute('aria-expanded', 'false');
+      });
+    });
+  }
+
+  var search = document.querySelector('[data-demo-search]');
+  if (search) {
+    search.addEventListener('submit', function (event) {
+      event.preventDefault();
+      var input = search.querySelector('input[type="search"]');
+      var output = search.querySelector('.dl-search-status');
+      var query = input ? input.value.trim() : '';
+      if (output) output.textContent = query ? 'Демо-поиск: «' + query + '»' : 'Введите запрос для демонстрации поиска.';
+    });
+  }
+
+  var support = document.querySelector('[data-demo-support]');
+  if (support) {
+    support.addEventListener('submit', function (event) {
+      event.preventDefault();
+      var output = support.querySelector('.dl-support-status');
+      if (output) output.textContent = 'Демонстрация: обращение не отправлено и данные не сохранены.';
+    });
+  }
+
+  var demoStatus = document.querySelector('.dl-demo-status');
+  document.querySelectorAll('[data-demo-action]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      if (demoStatus) demoStatus.textContent = 'Демонстрация: действие не выполняет операций в рабочей системе.';
+    });
+  });
+})();
+</script>
+</body>
+</html>

@@ -45,6 +45,17 @@ request('/prl300/admin', 403)
 request('/about', 200)
 request('/privacy', 200)
 request('/terms', 200)
+design_cookies = {cookie.name for cookie in jar}
+design_lab = request('/design-lab', 200)
+assert 'Выберите характер корпоративного портала PRL' in design_lab
+for slug in ['corporate', 'industrial', 'swiss', 'aurora', 'product', 'editorial', 'command']:
+    variant = request(f'/design-lab/{slug}?theme=dark', 200)
+    assert re.search(r'<html[^>]+data-theme="dark"', variant), slug
+    assert f'data-variant="{slug}"' in variant, slug
+    assert 'Добрый день, Анна. Всё важное для работы — в одном месте.' in variant, slug
+    assert '<link' not in variant, slug
+request('/design-lab/not-a-design', 404)
+assert {cookie.name for cookie in jar} == design_cookies, 'Design lab must not create a session cookie'
 request('/vat', 404)
 request('/graph3d', 404)
 request('/auth/login', 403, {'username': 'admin', 'password': 'invalid'})

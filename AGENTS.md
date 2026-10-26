@@ -11,6 +11,8 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
   Статус `planned` не означает работающий модуль.
 - Архитектура: `docs/ARCHITECTURE.md`; создание: `docs/MODULE_GUIDE.md`.
 - Дизайн: `docs/DESIGN-SYSTEM.md`, `.tools/tailwind/input.css`, `app.js`.
+  Явное исключение — публичная демонстрационная `prl140_design_lab`: прямой
+  `Controller`, без Auth/БД/общего шаблона и с автономными CSS вариантов.
 - Перед правкой читать `AGENTS.md` целевого модуля; при изменении контракта
   обновлять его. Исторические примеры в памятках не являются зависимостями.
 - Контекст-пак: `make brief m=prl120_jobs` (генерируется, не коммитить).
@@ -26,7 +28,8 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
 3. Манифест объявляет меню, каналы, recent/search/cleanup/health/schedule.
    Не добавлять списки бизнес-модулей в ядро. `schedule` — описание, а не
    работающий планировщик: настройте cron/службу явно.
-4. Deny by default. Контроллеры приложений наследуют `Controller_Base`.
+4. Deny by default. Контроллеры приложений наследуют `Controller_Base`
+   (единственное публичное исключение без данных и состояния — `prl140_design_lab`).
    `ACL::check` даёт RBAC; объектные ограничения/оргконтекст проверяет сервис.
    Скрытая кнопка не является защитой. Чужие записи — 403/404; гостевой API —
    401 JSON. Worker callback проверяет токен отдельно и не принимает его из UI.
@@ -42,7 +45,8 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
    `workers/prl_workers/{base,llm,llmwatch,usage,webread}.py` не дублировать.
    Heartbeat, retry, cancel, usage сохраняются. Новый канал регистрируется в
    Python HANDLERS и в манифесте PHP-владельца.
-9. Внешние JS/CSS/шрифты в HTML запрещены: только `/assets/`.
+9. Внешние JS/CSS/шрифты в HTML запрещены: только локальные ресурсы
+   (`/assets/`; в `prl140_design_lab` — встроенные автономные CSS модуля).
    View не использует `$this`; данные передаются переменными. Меню — через
    `set_menu`, чипы — `set_module_nav`. Используйте `prl-*` и `PRL.*` UI API.
    Деструктивные действия — `data-prl-arm`/`data-prl-confirm`, не window.confirm.

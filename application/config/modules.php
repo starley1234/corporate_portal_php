@@ -16,6 +16,7 @@ return [
     'prl100_platform' => APPPATH.'modules/prl100_platform',
     'prl100_search' => APPPATH.'modules/prl100_search',
     'prl110_catalog' => APPPATH.'modules/prl110_catalog',
+    'prl140_design_lab' => APPPATH.'modules/prl140_design_lab',
     'prl208_events' => APPPATH.'modules/prl208_events',
     'prl120_jobs' => APPPATH.'modules/prl120_jobs',
     'prl115_semantic' => APPPATH.'modules/prl115_semantic',
