@@ -335,3 +335,37 @@ h1 {
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition: none !important; }
 }
+
+/* Акцент компании холдинга на галерее: тот же бренд-токен, что и в вариантах. */
+:root { --company-accent: #2563eb; --company-ink: #1d4ed8; --company-on: #ffffff; }
+html[data-company-accent="orange"] { --company-accent: #ea580c; --company-ink: #c2410c; --company-on: #ffffff; }
+html[data-company-accent="blue"] { --company-accent: #2563eb; --company-ink: #1d4ed8; --company-on: #ffffff; }
+html[data-company-accent="yellow"] { --company-accent: #eab308; --company-ink: #a16207; --company-on: #422006; }
+html[data-theme="dark"][data-company-accent="orange"] { --company-accent: #fb923c; --company-ink: #fdba74; --company-on: #431407; }
+html[data-theme="dark"][data-company-accent="blue"] { --company-accent: #60a5fa; --company-ink: #93c5fd; --company-on: #08111f; }
+html[data-theme="dark"][data-company-accent="yellow"] { --company-accent: #facc15; --company-ink: #fde68a; --company-on: #422006; }
+.dl-company-switch { display: inline-flex; align-items: center; gap: .2rem; padding: .22rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); }
+.dl-company-label { padding: 0 .45rem; color: var(--muted); font-size: .7rem; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.dl-company-option { display: inline-flex; align-items: center; gap: .38rem; padding: .4rem .62rem; border-radius: 999px; color: var(--muted); font-size: .8rem; font-weight: 800; text-decoration: none; white-space: nowrap; }
+.dl-company-option:hover { color: var(--ink); }
+.dl-company-option.is-active { background: var(--surface); color: var(--ink); box-shadow: 0 4px 14px rgba(15, 23, 42, .12), inset 0 0 0 1px var(--line); }
+.dl-company-dot { width: .62rem; height: .62rem; border-radius: 50%; background: #2563eb; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .16); }
+.dl-company-option[data-company-choice="orange"] .dl-company-dot { background: #f97316; }
+.dl-company-option[data-company-choice="blue"] .dl-company-dot { background: #2563eb; }
+.dl-company-option[data-company-choice="yellow"] .dl-company-dot { background: #eab308; }
+html[data-company-accent] .dl-header { box-shadow: inset 0 3px 0 var(--company-accent); }
+html[data-company-accent] .dl-brand-mark { background: var(--company-accent); color: var(--company-on); }
+html[data-company-accent] .dl-eyebrow, html[data-company-accent] .dl-card-link { color: var(--company-ink); }
+html[data-company-accent] a:focus-visible { outline-color: var(--company-accent); }
+@media (max-width: 1240px) {
+  .dl-company-label, .dl-revision { display: none; }
+}
+@media (max-width: 760px) {
+  .dl-header { flex-wrap: wrap; }
+  .dl-header-actions { flex-basis: 100%; flex-wrap: wrap; }
+  .dl-company-switch { order: 2; max-width: 100%; overflow-x: auto; }
+  .dl-company-label { display: inline; }
+}
+@media (max-width: 520px) {
+  .dl-company-option { padding: .38rem .52rem; font-size: .76rem; }
+}

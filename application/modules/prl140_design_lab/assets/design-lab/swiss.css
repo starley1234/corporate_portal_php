@@ -81,7 +81,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .dl-main { display: grid; gap: clamp(2rem, 5vw, 4.5rem); margin-top: clamp(1.5rem, 5vw, 4rem); }
 .dl-hero { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(290px, .65fr); gap: clamp(1.5rem, 5vw, 5rem); align-items: end; }
 .dl-eyebrow, .dl-section-kicker { margin: 0 0 .7rem; color: var(--accent); font-size: .76rem; font-weight: 950; letter-spacing: .14em; text-transform: uppercase; }
-.dl-hero h1 { margin: 0; max-width: 900px; font-size: clamp(2.7rem, 7vw, 6.2rem); line-height: .94; letter-spacing: -.065em; }
+.dl-hero h1 { margin: 0; max-width: 880px; font-size: clamp(2.05rem, 3.8vw, 3.05rem); line-height: 1.02; letter-spacing: -.045em; }
 .dl-hero-lead { max-width: 720px; margin: 1.5rem 0 0; color: var(--muted); font-size: clamp(1.05rem, 2vw, 1.3rem); line-height: 1.55; }
 .dl-hero-actions { display: flex; flex-wrap: wrap; gap: .7rem; margin-top: 1.6rem; }
 .dl-button { display: inline-flex; align-items: center; justify-content: center; min-height: 3rem; padding: .8rem 1.15rem; border-radius: 0; font-weight: 950; text-decoration: none; }
@@ -213,7 +213,7 @@ html[data-theme="dark"] .dl-support { border: 1px solid var(--line); background:
 @media (max-width: 520px) {
   body { font-size: 15px; }
   .dl-brand-copy small, .dl-date-block span { display: none; }
-  .dl-hero h1 { font-size: 2.65rem; }
+  .dl-hero h1 { font-size: 2rem; }
   .dl-metrics { grid-template-columns: 1fr; }
   .dl-metric-card, .dl-metric-card + .dl-metric-card { padding: 1rem 0; border-left: 0; border-top: 1px solid var(--line); }
   .dl-domain-card { flex-wrap: wrap; }
@@ -227,4 +227,38 @@ html[data-theme="dark"] .dl-support { border: 1px solid var(--line); background:
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition: none !important; }
+}
+
+/* Акцент компании холдинга: отдельный бренд-токен, не меняющий семантику действий. */
+:root { --company-accent: #2563eb; --company-ink: #1d4ed8; --company-soft: #eff6ff; --company-on: #ffffff; }
+html[data-company-accent="orange"] { --company-accent: #ea580c; --company-ink: #c2410c; --company-soft: #fff7ed; --company-on: #ffffff; }
+html[data-company-accent="blue"] { --company-accent: #2563eb; --company-ink: #1d4ed8; --company-soft: #eff6ff; --company-on: #ffffff; }
+html[data-company-accent="yellow"] { --company-accent: #eab308; --company-ink: #a16207; --company-soft: #fefce8; --company-on: #422006; }
+html[data-theme="dark"][data-company-accent="orange"] { --company-accent: #fb923c; --company-ink: #fdba74; --company-soft: #431407; --company-on: #431407; }
+html[data-theme="dark"][data-company-accent="blue"] { --company-accent: #60a5fa; --company-ink: #93c5fd; --company-soft: #172554; --company-on: #08111f; }
+html[data-theme="dark"][data-company-accent="yellow"] { --company-accent: #facc15; --company-ink: #fde68a; --company-soft: #422006; --company-on: #422006; }
+.dl-company-switch { display: inline-flex; flex: 0 0 auto; align-items: center; gap: .2rem; padding: .22rem; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--ink); }
+.dl-company-label { padding: 0 .45rem; color: var(--muted); font-size: .7rem; font-weight: 850; letter-spacing: .06em; text-transform: uppercase; }
+.dl-company-option { display: inline-flex; align-items: center; gap: .38rem; padding: .4rem .62rem; border-radius: 999px; color: var(--muted); font-size: .8rem; font-weight: 800; text-decoration: none; white-space: nowrap; }
+.dl-company-option:hover { color: var(--ink); }
+.dl-company-option.is-active { background: var(--surface); color: var(--ink); box-shadow: 0 4px 14px rgba(15, 23, 42, .12), inset 0 0 0 1px var(--line); }
+.dl-company-dot { width: .62rem; height: .62rem; border-radius: 50%; background: #2563eb; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .16); }
+.dl-company-option[data-company-choice="orange"] .dl-company-dot { background: #f97316; }
+.dl-company-option[data-company-choice="blue"] .dl-company-dot { background: #2563eb; }
+.dl-company-option[data-company-choice="yellow"] .dl-company-dot { background: #eab308; }
+html[data-company-accent] .dl-labbar { box-shadow: inset 0 3px 0 var(--company-accent); }
+html[data-company-accent] .dl-brand-mark { border-color: var(--company-accent); background: var(--company-accent); color: var(--company-on); }
+html[data-company-accent] .dl-eyebrow, html[data-company-accent] .dl-section-kicker { color: var(--company-ink); }
+html[data-company-accent] .dl-date-block strong::before { content: ""; display: inline-block; width: .55rem; height: .55rem; margin-right: .45rem; border-radius: 50%; background: var(--company-accent); vertical-align: .08em; }
+html[data-company-accent] .dl-hero-copy { border-top: 4px solid var(--company-accent); }
+html[data-company-accent] .dl-service-code, html[data-company-accent] .dl-domain-number { color: var(--company-ink); }
+html[data-company-accent] .dl-nav-badge { background: var(--company-accent); color: var(--company-on); }
+html[data-company-accent] .dl-meter > span { background: var(--company-accent); }
+html[data-company-accent] a:focus-visible, html[data-company-accent] button:focus-visible, html[data-company-accent] input:focus-visible, html[data-company-accent] select:focus-visible, html[data-company-accent] textarea:focus-visible { outline-color: var(--company-accent); }
+@media (max-width: 1240px) {
+  .dl-company-label { display: none; }
+}
+@media (max-width: 760px) {
+  .dl-company-switch { order: 4; flex-basis: 100%; overflow-x: auto; }
+  .dl-company-label { display: inline; }
 }

@@ -4,7 +4,7 @@ use PHPUnit\Framework\TestCase;
 /** Контракты публичной изолированной витрины дизайна prl140. */
 class DesignLabTest extends TestCase
 {
-    public function test_registry_declares_seven_unique_public_variants(): void
+    public function test_registry_declares_eleven_unique_public_variants(): void
     {
         $this->assertArrayHasKey('prl140_design_lab', Kohana::modules());
 
@@ -17,13 +17,17 @@ class DesignLabTest extends TestCase
         $this->assertSame('beta', $manifest['status']);
 
         $variants = $this->_variants();
-        $this->assertCount(7, $variants);
-        $this->assertCount(7, array_unique(Arr::pluck($variants, 'slug')));
-        $this->assertCount(7, array_unique(Arr::pluck($variants, 'css')));
+        $this->assertCount(11, $variants);
+        $this->assertCount(11, array_unique(Arr::pluck($variants, 'slug')));
+        $this->assertCount(11, array_unique(Arr::pluck($variants, 'css')));
         $this->assertSame(
-            ['corporate', 'industrial', 'swiss', 'aurora', 'product', 'editorial', 'command'],
+            [
+                'corporate', 'industrial', 'swiss', 'product', 'editorial', 'command',
+                'sample-classic', 'sample-workbench', 'sample-compact', 'sample-reading', 'sample-operations',
+            ],
             Arr::pluck($variants, 'slug')
         );
+        $this->assertNotContains('aurora', Arr::pluck($variants, 'slug'));
     }
 
     public function test_controller_is_direct_and_content_is_canonical(): void
@@ -77,7 +81,7 @@ class DesignLabTest extends TestCase
         foreach ($this->_variants() as $variant) {
             $slug = $variant['slug'];
             $response = Request::factory('design-lab/'.$slug)
-                ->query(['theme' => 'dark'])
+                ->query(['theme' => 'dark', 'company' => 'orange'])
                 ->execute();
             $body = (string) $response->body();
 
@@ -86,13 +90,18 @@ class DesignLabTest extends TestCase
             $this->assertStringContainsString('no-cache', $response->headers('Pragma'), $slug);
             $this->assertNotSame('', (string) $response->headers('X-PRL-Design-Lab-Revision'), $slug);
             $this->assertStringContainsString('data-theme="dark"', $body, $slug);
+            $this->assertStringContainsString('data-company-accent="orange"', $body, $slug);
             $this->assertStringContainsString('data-variant="'.$slug.'"', $body, $slug);
             $this->assertStringContainsString('data-design-lab-css="'.$slug.'"', $body, $slug);
             $this->assertStringContainsString('data-theme-choice="light"', $body, $slug);
             $this->assertStringContainsString('data-theme-choice="dark"', $body, $slug);
+            $this->assertStringContainsString('data-company-choice="orange"', $body, $slug);
+            $this->assertStringContainsString('data-company-choice="blue"', $body, $slug);
+            $this->assertStringContainsString('data-company-choice="yellow"', $body, $slug);
             $this->assertStringContainsString('class="dl-menu-button"', $body, $slug);
             $this->assertStringContainsString('?v=', $body, $slug);
             $this->assertStringContainsString('&amp;theme=dark', $body, $slug);
+            $this->assertStringContainsString('&amp;company=orange', $body, $slug);
             $this->assertStringNotContainsString('<link', $body, $slug);
             $this->assertStringNotContainsString('template_tailwindcss', $body, $slug);
             $this->assertStringNotContainsString('prl-main', $body, $slug);
@@ -113,16 +122,25 @@ class DesignLabTest extends TestCase
             $this->assertStringContainsString('/design-lab/'.$variant['slug'].'?v=', $body);
         }
 
-        $light = Request::factory('design-lab/corporate')->query(['theme' => 'light'])->execute();
-        $this->assertStringContainsString('data-theme="light"', (string) $light->body());
+        $light = Request::factory('design-lab/corporate')
+            ->query(['theme' => 'light', 'company' => 'yellow'])
+            ->execute();
+        $light_body = (string) $light->body();
+        $this->assertStringContainsString('data-theme="light"', $light_body);
+        $this->assertStringContainsString('data-company-accent="yellow"', $light_body);
 
         $invalid_theme = Request::factory('design-lab/corporate')
-            ->query(['theme' => '"><script>alert(1)</script>'])
+            ->query(['theme' => '"><script>alert(1)</script>', 'company' => '"><script>alert(2)</script>'])
             ->execute();
         $invalid_body = (string) $invalid_theme->body();
         $this->assertSame(200, $invalid_theme->status());
         $this->assertStringContainsString('data-theme=""', $invalid_body);
+        $this->assertStringContainsString('data-company-accent=""', $invalid_body);
         $this->assertStringNotContainsString('<script>alert(1)</script>', $invalid_body);
+        $this->assertStringNotContainsString('<script>alert(2)</script>', $invalid_body);
+
+        $removed = Request::factory('design-lab/aurora')->execute();
+        $this->assertSame(404, $removed->status());
 
         $missing = Request::factory('design-lab/not-a-design')->execute();
         $this->assertSame(404, $missing->status());
@@ -144,6 +162,10 @@ class DesignLabTest extends TestCase
             $this->assertGreaterThan(8000, strlen($css), $name);
             $hashes[] = hash('sha256', $css);
             $this->assertStringContainsString('html[data-theme="dark"]', $css, $name);
+            $this->assertStringContainsString('.dl-company-switch', $css, $name);
+            $this->assertStringContainsString('html[data-company-accent="orange"]', $css, $name);
+            $this->assertStringContainsString('html[data-company-accent="blue"]', $css, $name);
+            $this->assertStringContainsString('html[data-company-accent="yellow"]', $css, $name);
             $this->assertStringContainsString('@media (max-width: 760px)', $css, $name);
             $this->assertStringContainsString('@media (prefers-reduced-motion: reduce)', $css, $name);
             $this->assertStringNotContainsString('@import', $css, $name);
@@ -170,6 +192,15 @@ class DesignLabTest extends TestCase
             ] as $selector) {
                 $this->assertStringContainsString($selector, $css, $variant['css'].': '.$selector);
             }
+        }
+
+        // Владелец отдельно попросил не раздувать H1 в этих трёх направлениях.
+        $this->assertStringNotContainsString('clamp(2.7rem, 7vw, 6.2rem)', $files['swiss.css']);
+        $this->assertStringNotContainsString('clamp(2.2rem, 4.7vw, 4.3rem)', $files['product.css']);
+        $this->assertStringNotContainsString('clamp(2.7rem, 6vw, 5.4rem)', $files['editorial.css']);
+        foreach (['sample-classic.css', 'sample-workbench.css', 'sample-compact.css', 'sample-reading.css', 'sample-operations.css'] as $sample_css) {
+            $this->assertStringContainsString('Финальный предохранитель шкалы эталона', $files[$sample_css], $sample_css);
+            $this->assertMatchesRegularExpression('/\.dl-hero h1 \{ font-size: 1\.(7|875|95)rem; \}/', $files[$sample_css], $sample_css);
         }
     }
 

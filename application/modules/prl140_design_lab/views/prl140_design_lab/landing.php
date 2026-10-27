@@ -1,23 +1,32 @@
 <?php // design-audit: allow-file style,h1 — изолированная публичная галерея: CSS встраивается в ответ, а единственный H1 является заголовком витрины. ?><!doctype html>
-<html lang="ru" data-theme="<?= HTML::chars((string) ($theme ?? '')) ?>">
+<html lang="ru" data-theme="<?= HTML::chars((string) ($theme ?? '')) ?>" data-company-accent="<?= HTML::chars((string) ($company_accent ?? '')) ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <meta name="design-lab-revision" content="<?= HTML::chars((string) ($revision ?? '')) ?>">
-<title>Витрина дизайна PRL — 7 вариантов корпоративного портала</title>
+<title>Витрина дизайна PRL — <?= (int) ($variant_count ?? 0) ?> вариантов корпоративного портала</title>
 <script>
 (function () {
   try {
-    var queryTheme = new URLSearchParams(window.location.search).get('theme');
+    var params = new URLSearchParams(window.location.search);
+    var queryTheme = params.get('theme');
     var savedTheme = window.localStorage.getItem('prl-design-theme');
     var theme = (queryTheme === 'dark' || queryTheme === 'light') ? queryTheme :
       ((savedTheme === 'dark' || savedTheme === 'light') ? savedTheme :
         (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
+
+    var companies = ['orange', 'blue', 'yellow'];
+    var queryCompany = params.get('company');
+    var savedCompany = window.localStorage.getItem('prl-design-company');
+    var company = companies.indexOf(queryCompany) >= 0 ? queryCompany :
+      (companies.indexOf(savedCompany) >= 0 ? savedCompany : 'blue');
+    document.documentElement.dataset.companyAccent = company;
   } catch (error) {
     document.documentElement.dataset.theme = document.documentElement.dataset.theme || 'light';
+    document.documentElement.dataset.companyAccent = document.documentElement.dataset.companyAccent || 'blue';
   }
 })();
 </script>
@@ -38,6 +47,12 @@
   </a>
   <div class="dl-header-actions">
     <span class="dl-revision">Редакция <?= HTML::chars((string) ($revision ?? '')) ?></span>
+    <div class="dl-company-switch" role="group" aria-label="Акцент компании холдинга">
+      <span class="dl-company-label">Компания</span>
+      <?php foreach (($company_options ?? []) as $company_option): ?>
+        <a class="dl-company-option<?= !empty($company_option['active']) ? ' is-active' : '' ?>" href="<?= HTML::chars((string) ($company_option['href'] ?? '#')) ?>" data-company-choice="<?= HTML::chars((string) ($company_option['slug'] ?? '')) ?>" aria-pressed="<?= !empty($company_option['active']) ? 'true' : 'false' ?>"><span class="dl-company-dot" aria-hidden="true"></span><?= HTML::chars((string) ($company_option['title'] ?? '')) ?></a>
+      <?php endforeach; ?>
+    </div>
     <div class="dl-theme-switch" role="group" aria-label="Тема оформления">
       <a class="dl-theme-option<?= (($theme ?? '') === 'light') ? ' is-active' : '' ?>" href="<?= HTML::chars((string) ($theme_urls['light'] ?? '#')) ?>" data-theme-choice="light" aria-pressed="<?= (($theme ?? '') === 'light') ? 'true' : 'false' ?>">День</a>
       <a class="dl-theme-option<?= (($theme ?? '') === 'dark') ? ' is-active' : '' ?>" href="<?= HTML::chars((string) ($theme_urls['dark'] ?? '#')) ?>" data-theme-choice="dark" aria-pressed="<?= (($theme ?? '') === 'dark') ? 'true' : 'false' ?>">Ночь</a>
@@ -48,7 +63,7 @@
 <main id="top">
   <section class="dl-hero" aria-labelledby="landing-title">
     <div>
-      <p class="dl-eyebrow">Семь направлений · одинаковое содержание</p>
+      <p class="dl-eyebrow"><?= (int) ($variant_count ?? 0) ?> направлений · одинаковое содержание · 3 акцента компаний</p>
       <h1 id="landing-title">Выберите характер корпоративного портала PRL</h1>
       <p class="dl-lead">Каждый вариант показывает портал целиком: навигацию, поиск, сервисы, задачи, сотрудников, новости, знания, аналитику и поддержку. Тексты и структура совпадают — сравнивается только дизайн.</p>
     </div>
@@ -57,6 +72,7 @@
       <ol>
         <li><strong>Откройте вариант</strong><span>и пролистайте страницу целиком.</span></li>
         <li><strong>Переключите день и ночь</strong><span>кнопками в верхней панели.</span></li>
+        <li><strong>Выберите акцент компании</strong><span>оранжевый, синий или жёлтый; он меняет бренд-детали, а не семантику кнопок.</span></li>
         <li><strong>Проверьте мобильный вид</strong><span>на телефоне или уменьшив окно браузера.</span></li>
         <li><strong>Запомните номер</strong><span>чтобы назвать понравившееся направление.</span></li>
       </ol>
@@ -64,10 +80,10 @@
   </section>
 
   <section class="dl-facts" aria-label="Условия сравнения">
-    <article><strong>7</strong><span>полноценных вариантов портала</span></article>
+    <article><strong><?= (int) ($variant_count ?? 0) ?></strong><span>полноценных вариантов портала</span></article>
     <article><strong>1</strong><span>общий набор текстов и данных</span></article>
-    <article><strong>2</strong><span> темы в каждом варианте: день и ночь</span></article>
-    <article><strong>0</strong><span>зависимостей от общего CSS портала</span></article>
+    <article><strong>2</strong><span>темы в каждом варианте: день и ночь</span></article>
+    <article><strong>3</strong><span>акцента компаний холдинга</span></article>
   </section>
 
   <section class="dl-variants" id="variants" aria-labelledby="variants-title">
@@ -130,15 +146,38 @@
 <script>
 (function () {
   var root = document.documentElement;
-  var buttons = Array.prototype.slice.call(document.querySelectorAll('[data-theme-choice]'));
-  function paint() {
-    buttons.forEach(function (button) {
+  var themeButtons = Array.prototype.slice.call(document.querySelectorAll('[data-theme-choice]'));
+  var companyButtons = Array.prototype.slice.call(document.querySelectorAll('[data-company-choice]'));
+  var companies = ['orange', 'blue', 'yellow'];
+
+  function updateVariantLinks() {
+    document.querySelectorAll('.dl-card-link, .dl-preview').forEach(function (link) {
+      try {
+        var href = new URL(link.href);
+        href.searchParams.set('theme', root.dataset.theme);
+        href.searchParams.set('company', root.dataset.companyAccent);
+        link.href = href.toString();
+      } catch (error) {}
+    });
+  }
+
+  function paintTheme() {
+    themeButtons.forEach(function (button) {
       var active = button.dataset.themeChoice === root.dataset.theme;
       button.setAttribute('aria-pressed', active ? 'true' : 'false');
       button.classList.toggle('is-active', active);
     });
   }
-  buttons.forEach(function (button) {
+
+  function paintCompany() {
+    companyButtons.forEach(function (button) {
+      var active = button.dataset.companyChoice === root.dataset.companyAccent;
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      button.classList.toggle('is-active', active);
+    });
+  }
+
+  themeButtons.forEach(function (button) {
     button.addEventListener('click', function (event) {
       event.preventDefault();
       var theme = button.dataset.themeChoice;
@@ -148,15 +187,29 @@
       var url = new URL(window.location.href);
       url.searchParams.set('theme', theme);
       window.history.replaceState({}, '', url.toString());
-      document.querySelectorAll('.dl-card-link, .dl-preview').forEach(function (link) {
-        var href = new URL(link.href);
-        href.searchParams.set('theme', theme);
-        link.href = href.toString();
-      });
-      paint();
+      updateVariantLinks();
+      paintTheme();
     });
   });
-  paint();
+
+  companyButtons.forEach(function (button) {
+    button.addEventListener('click', function (event) {
+      event.preventDefault();
+      var company = button.dataset.companyChoice;
+      if (companies.indexOf(company) < 0) return;
+      root.dataset.companyAccent = company;
+      try { window.localStorage.setItem('prl-design-company', company); } catch (error) {}
+      var url = new URL(window.location.href);
+      url.searchParams.set('company', company);
+      window.history.replaceState({}, '', url.toString());
+      updateVariantLinks();
+      paintCompany();
+    });
+  });
+
+  paintTheme();
+  paintCompany();
+  updateVariantLinks();
 })();
 </script>
 </body>

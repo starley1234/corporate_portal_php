@@ -1,5 +1,5 @@
 <?php // design-audit: allow-file style,h1 — изолированная публичная витрина: CSS варианта встраивается в ответ, а единственный H1 является заголовком демонстрационного портала. ?><!doctype html>
-<html lang="ru" data-theme="<?= HTML::chars((string) ($theme ?? '')) ?>">
+<html lang="ru" data-theme="<?= HTML::chars((string) ($theme ?? '')) ?>" data-company-accent="<?= HTML::chars((string) ($company_accent ?? '')) ?>">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,15 +9,24 @@
 <script>
 (function () {
   try {
-    var queryTheme = new URLSearchParams(window.location.search).get('theme');
+    var params = new URLSearchParams(window.location.search);
+    var queryTheme = params.get('theme');
     var savedTheme = window.localStorage.getItem('prl-design-theme');
     var theme = (queryTheme === 'dark' || queryTheme === 'light') ? queryTheme :
       ((savedTheme === 'dark' || savedTheme === 'light') ? savedTheme :
         (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
+
+    var companies = ['orange', 'blue', 'yellow'];
+    var queryCompany = params.get('company');
+    var savedCompany = window.localStorage.getItem('prl-design-company');
+    var company = companies.indexOf(queryCompany) >= 0 ? queryCompany :
+      (companies.indexOf(savedCompany) >= 0 ? savedCompany : 'blue');
+    document.documentElement.dataset.companyAccent = company;
   } catch (error) {
     document.documentElement.dataset.theme = document.documentElement.dataset.theme || 'light';
+    document.documentElement.dataset.companyAccent = document.documentElement.dataset.companyAccent || 'blue';
   }
 })();
 </script>
@@ -38,6 +47,12 @@
       </a>
     <?php endforeach; ?>
   </nav>
+  <div class="dl-company-switch" role="group" aria-label="Акцент компании холдинга">
+    <span class="dl-company-label">Компания</span>
+    <?php foreach (($company_options ?? []) as $company_option): ?>
+      <a class="dl-company-option<?= !empty($company_option['active']) ? ' is-active' : '' ?>" href="<?= HTML::chars((string) ($company_option['href'] ?? '#')) ?>" data-company-choice="<?= HTML::chars((string) ($company_option['slug'] ?? '')) ?>" aria-pressed="<?= !empty($company_option['active']) ? 'true' : 'false' ?>"><span class="dl-company-dot" aria-hidden="true"></span><?= HTML::chars((string) ($company_option['title'] ?? '')) ?></a>
+    <?php endforeach; ?>
+  </div>
   <div class="dl-theme-switch" role="group" aria-label="Тема оформления">
     <a class="dl-theme-option<?= (($theme ?? '') === 'light') ? ' is-active' : '' ?>" href="<?= HTML::chars((string) ($theme_urls['light'] ?? '#')) ?>" data-theme-choice="light" aria-pressed="<?= (($theme ?? '') === 'light') ? 'true' : 'false' ?>">День</a>
     <a class="dl-theme-option<?= (($theme ?? '') === 'dark') ? ' is-active' : '' ?>" href="<?= HTML::chars((string) ($theme_urls['dark'] ?? '#')) ?>" data-theme-choice="dark" aria-pressed="<?= (($theme ?? '') === 'dark') ? 'true' : 'false' ?>">Ночь</a>
@@ -426,7 +441,7 @@
       </div>
       <nav class="dl-pager" aria-label="Навигация между вариантами дизайна">
         <a href="<?= HTML::chars((string) ($previous['href'] ?? '#')) ?>">← <?= HTML::chars((string) ($previous['title'] ?? 'Предыдущий')) ?></a>
-        <a href="<?= HTML::chars((string) ($home_url ?? '/design-lab')) ?>">Все 7 вариантов</a>
+        <a href="<?= HTML::chars((string) ($home_url ?? '/design-lab')) ?>">Все <?= (int) ($variant_count ?? 0) ?> вариантов</a>
         <a href="<?= HTML::chars((string) ($next['href'] ?? '#')) ?>"><?= HTML::chars((string) ($next['title'] ?? 'Следующий')) ?> →</a>
       </nav>
     </footer>
@@ -437,11 +452,40 @@
 (function () {
   var root = document.documentElement;
   var themeButtons = Array.prototype.slice.call(document.querySelectorAll('[data-theme-choice]'));
+  var companyButtons = Array.prototype.slice.call(document.querySelectorAll('[data-company-choice]'));
+  var companies = ['orange', 'blue', 'yellow'];
+
+  function updateLabLinks() {
+    document.querySelectorAll('.dl-variant-link, .dl-labbar-home, .dl-pager a').forEach(function (link) {
+      try {
+        var href = new URL(link.href);
+        href.searchParams.set('theme', root.dataset.theme);
+        href.searchParams.set('company', root.dataset.companyAccent);
+        link.href = href.toString();
+      } catch (error) {}
+    });
+  }
+
+  function revealActiveVariant() {
+    var variantSwitch = document.querySelector('.dl-variant-switch');
+    var activeVariant = document.querySelector('.dl-variant-link.is-active');
+    if (!variantSwitch || !activeVariant) return;
+    var switchRect = variantSwitch.getBoundingClientRect();
+    var activeRect = activeVariant.getBoundingClientRect();
+    variantSwitch.scrollLeft += activeRect.left - switchRect.left - ((variantSwitch.clientWidth - activeRect.width) / 2);
+  }
 
   function paintThemeButtons() {
     themeButtons.forEach(function (button) {
       button.setAttribute('aria-pressed', button.dataset.themeChoice === root.dataset.theme ? 'true' : 'false');
       button.classList.toggle('is-active', button.dataset.themeChoice === root.dataset.theme);
+    });
+  }
+
+  function paintCompanyButtons() {
+    companyButtons.forEach(function (button) {
+      button.setAttribute('aria-pressed', button.dataset.companyChoice === root.dataset.companyAccent ? 'true' : 'false');
+      button.classList.toggle('is-active', button.dataset.companyChoice === root.dataset.companyAccent);
     });
   }
 
@@ -456,6 +500,18 @@
       window.history.replaceState({}, '', url.toString());
     }
     paintThemeButtons();
+    updateLabLinks();
+  }
+
+  function setCompany(company) {
+    if (companies.indexOf(company) < 0) return;
+    root.dataset.companyAccent = company;
+    try { window.localStorage.setItem('prl-design-company', company); } catch (error) {}
+    var url = new URL(window.location.href);
+    url.searchParams.set('company', company);
+    window.history.replaceState({}, '', url.toString());
+    paintCompanyButtons();
+    updateLabLinks();
   }
 
   themeButtons.forEach(function (button) {
@@ -464,7 +520,16 @@
       setTheme(button.dataset.themeChoice, true);
     });
   });
+  companyButtons.forEach(function (button) {
+    button.addEventListener('click', function (event) {
+      event.preventDefault();
+      setCompany(button.dataset.companyChoice);
+    });
+  });
   paintThemeButtons();
+  paintCompanyButtons();
+  updateLabLinks();
+  revealActiveVariant();
 
   var media = window.matchMedia('(prefers-color-scheme: dark)');
   if (media.addEventListener) {

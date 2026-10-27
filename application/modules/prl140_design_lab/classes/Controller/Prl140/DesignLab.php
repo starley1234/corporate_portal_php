@@ -13,20 +13,24 @@ class Controller_Prl140_DesignLab extends Controller
     public function action_index()
     {
         $theme = $this->_theme();
+        $company = $this->_company_accent();
         $variants = [];
         foreach ($this->_variants() as $variant) {
-            $variant['href'] = $this->_url('design-lab/' . $variant['slug'], $theme);
+            $variant['href'] = $this->_url('design-lab/' . $variant['slug'], $theme, $company);
             $variants[] = $variant;
         }
 
         $view = View::factory('prl140_design_lab/landing')
             ->set('variants', $variants)
+            ->set('variant_count', count($variants))
             ->set('theme', $theme)
+            ->set('company_accent', $company)
+            ->set('company_options', $this->_company_options('design-lab', $theme, $company))
             ->set('revision', $this->_revision())
             ->set('css', $this->_css('landing.css'))
             ->set('theme_urls', [
-                'light' => $this->_url('design-lab', 'light'),
-                'dark' => $this->_url('design-lab', 'dark'),
+                'light' => $this->_url('design-lab', 'light', $company),
+                'dark' => $this->_url('design-lab', 'dark', $company),
             ]);
 
         return $this->_html($view, 200);
@@ -52,31 +56,35 @@ class Controller_Prl140_DesignLab extends Controller
         }
 
         $theme = $this->_theme();
+        $company = $this->_company_accent();
         $switch_variants = [];
         foreach ($variants as $variant) {
-            $variant['href'] = $this->_url('design-lab/' . $variant['slug'], $theme);
+            $variant['href'] = $this->_url('design-lab/' . $variant['slug'], $theme, $company);
             $switch_variants[] = $variant;
         }
 
-        $current['href'] = $this->_url('design-lab/' . $current['slug'], $theme);
+        $current['href'] = $this->_url('design-lab/' . $current['slug'], $theme, $company);
         $previous = $variants[($current_index - 1 + count($variants)) % count($variants)];
         $next = $variants[($current_index + 1) % count($variants)];
-        $previous['href'] = $this->_url('design-lab/' . $previous['slug'], $theme);
-        $next['href'] = $this->_url('design-lab/' . $next['slug'], $theme);
+        $previous['href'] = $this->_url('design-lab/' . $previous['slug'], $theme, $company);
+        $next['href'] = $this->_url('design-lab/' . $next['slug'], $theme, $company);
 
         $view = View::factory('prl140_design_lab/show')
             ->set('variant', $current)
             ->set('variants', $switch_variants)
+            ->set('variant_count', count($variants))
             ->set('previous', $previous)
             ->set('next', $next)
             ->set('content', (new Service_Prl140_DesignLab())->content())
             ->set('theme', $theme)
+            ->set('company_accent', $company)
+            ->set('company_options', $this->_company_options('design-lab/' . $current['slug'], $theme, $company))
             ->set('revision', $this->_revision())
             ->set('css', $this->_css($current['css']))
-            ->set('home_url', $this->_url('design-lab', $theme))
+            ->set('home_url', $this->_url('design-lab', $theme, $company))
             ->set('theme_urls', [
-                'light' => $this->_url('design-lab/' . $current['slug'], 'light'),
-                'dark' => $this->_url('design-lab/' . $current['slug'], 'dark'),
+                'light' => $this->_url('design-lab/' . $current['slug'], 'light', $company),
+                'dark' => $this->_url('design-lab/' . $current['slug'], 'dark', $company),
             ]);
 
         return $this->_html($view, 200);
@@ -85,18 +93,21 @@ class Controller_Prl140_DesignLab extends Controller
     protected function _not_found()
     {
         $theme = $this->_theme();
+        $company = $this->_company_accent();
         $variants = [];
         foreach ($this->_variants() as $variant) {
-            $variant['href'] = $this->_url('design-lab/' . $variant['slug'], $theme);
+            $variant['href'] = $this->_url('design-lab/' . $variant['slug'], $theme, $company);
             $variants[] = $variant;
         }
 
         $view = View::factory('prl140_design_lab/not_found')
             ->set('variants', $variants)
+            ->set('variant_count', count($variants))
             ->set('theme', $theme)
+            ->set('company_accent', $company)
             ->set('revision', $this->_revision())
             ->set('css', $this->_css('landing.css'))
-            ->set('home_url', $this->_url('design-lab', $theme));
+            ->set('home_url', $this->_url('design-lab', $theme, $company));
 
         return $this->_html($view, 404);
     }
@@ -146,11 +157,39 @@ class Controller_Prl140_DesignLab extends Controller
         return ($theme === 'light' || $theme === 'dark') ? $theme : '';
     }
 
-    protected function _url($path, $theme = '')
+    protected function _company_accent()
+    {
+        $company = strtolower(trim((string) $this->request->query('company')));
+        return in_array($company, ['orange', 'blue', 'yellow'], true) ? $company : '';
+    }
+
+    protected function _company_options($path, $theme, $current)
+    {
+        $labels = [
+            'orange' => 'Оранжевый',
+            'blue' => 'Синий',
+            'yellow' => 'Жёлтый',
+        ];
+        $options = [];
+        foreach ($labels as $slug => $title) {
+            $options[] = [
+                'slug' => $slug,
+                'title' => $title,
+                'href' => $this->_url($path, $theme, $slug),
+                'active' => ($current === $slug || ($current === '' && $slug === 'blue')),
+            ];
+        }
+        return $options;
+    }
+
+    protected function _url($path, $theme = '', $company = '')
     {
         $query = ['v' => $this->_revision()];
         if ($theme === 'light' || $theme === 'dark') {
             $query['theme'] = $theme;
+        }
+        if (in_array($company, ['orange', 'blue', 'yellow'], true)) {
+            $query['company'] = $company;
         }
         return URL::site($path) . '?' . http_build_query($query);
     }
