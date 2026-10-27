@@ -35,6 +35,47 @@
 </style>
 </head>
 <body data-variant="<?= HTML::chars((string) ($variant['slug'] ?? '')) ?>">
+<?php
+// Точный эталон v6 использует локальный inline-SVG набор вместо Font Awesome:
+// витрина остаётся автономной, без общего CSS, шрифтов и внешних файлов.
+$dl_show_icons = (($variant['slug'] ?? '') === 'required-design-sample');
+$dl_icon = static function ($name) use ($dl_show_icons) {
+    if (!$dl_show_icons) {
+        return '';
+    }
+    $name = preg_replace('/[^a-z0-9-]/', '', strtolower((string) $name));
+    if ($name === '') {
+        return '';
+    }
+    return '<svg class="dl-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><use href="#dl-icon-' . $name . '"></use></svg>';
+};
+?>
+<?php if ($dl_show_icons): ?>
+<svg class="dl-visually-hidden" aria-hidden="true" focusable="false">
+  <symbol id="dl-icon-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/><path d="M9.5 21v-6h5v6"/></symbol>
+  <symbol id="dl-icon-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="dl-icon-check-square" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m8.5 12.2 2.4 2.4 4.8-5"/></symbol>
+  <symbol id="dl-icon-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.4 3.2-5 6.5-5s5.7 1.6 6.5 5"/><circle cx="17.5" cy="9" r="2.5"/><path d="M16.2 15.2c2.6.3 4.5 1.9 5.3 4.8"/></symbol>
+  <symbol id="dl-icon-newspaper" viewBox="0 0 24 24"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H17v16H6.5A2.5 2.5 0 0 1 4 17.5z"/><path d="M17 9h2.5A1.5 1.5 0 0 1 21 10.5V18a2 2 0 0 1-2 2"/><path d="M7 8h6M7 12h6M7 16h6"/></symbol>
+  <symbol id="dl-icon-book" viewBox="0 0 24 24"><path d="M5 4.5A2.5 2.5 0 0 1 7.5 2H20v17.5H7.5A2.5 2.5 0 0 0 5 22z"/><path d="M5 17a2.5 2.5 0 0 1 2.5-2.5H20"/></symbol>
+  <symbol id="dl-icon-headset" viewBox="0 0 24 24"><path d="M4 13a8 8 0 0 1 16 0"/><rect x="3" y="13" width="4" height="7" rx="2"/><rect x="17" y="13" width="4" height="7" rx="2"/><path d="M19 20a4 4 0 0 1-4 2h-2"/></symbol>
+  <symbol id="dl-icon-file-check" viewBox="0 0 24 24"><path d="M6 2.5h8L19 7v14.5H6z"/><path d="M14 2.5V7h5"/><path d="m9 14 2 2 4-4.5"/></symbol>
+  <symbol id="dl-icon-briefcase" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M9 8V6a3 3 0 0 1 3-3 3 3 0 0 1 3 3v2"/><path d="M3 13h18"/></symbol>
+  <symbol id="dl-icon-graduation" viewBox="0 0 24 24"><path d="m2.5 9 9.5-4.5L21.5 9 12 13.5z"/><path d="M6 11.5V16c0 1.7 2.7 3 6 3s6-1.3 6-3v-4.5"/><path d="M21.5 9v5"/></symbol>
+  <symbol id="dl-icon-comments" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-8 8H4l-1 1V12a8 8 0 0 1 8-8h2a8 8 0 0 1 8 8z"/><path d="M8 11h8M8 14.5h5"/></symbol>
+  <symbol id="dl-icon-chart" viewBox="0 0 24 24"><path d="M4 3v18h17"/><path d="M8 17v-5M12 17V8M16 17v-8M20 17V6"/></symbol>
+  <symbol id="dl-icon-plug" viewBox="0 0 24 24"><path d="M9 7V3M15 7V3"/><path d="M7 7h10v4a5 5 0 0 1-10 0z"/><path d="M12 16v5"/></symbol>
+  <symbol id="dl-icon-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></symbol>
+  <symbol id="dl-icon-bell" viewBox="0 0 24 24"><path d="M18 9a6 6 0 1 0-12 0c0 7-2.5 8-2.5 8h17S18 16 18 9"/><path d="M10 20a2.2 2.2 0 0 0 4 0"/></symbol>
+  <symbol id="dl-icon-bars" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="dl-icon-arrow-right" viewBox="0 0 24 24"><path d="M4 12h16"/><path d="m14 6 6 6-6 6"/></symbol>
+  <symbol id="dl-icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="dl-icon-send" viewBox="0 0 24 24"><path d="m21 3-9.5 9.5"/><path d="M21 3 14 21l-2.5-8.5L3 10z"/></symbol>
+  <symbol id="dl-icon-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="dl-icon-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></symbol>
+  <symbol id="dl-icon-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+</svg>
+<?php endif; ?>
 <a class="dl-skip-link" href="#main">Перейти к содержанию</a>
 
 <div class="dl-labbar" aria-label="Управление витриной дизайна">
@@ -69,13 +110,13 @@
           <small>PRL Group</small>
         </span>
       </a>
-      <button class="dl-menu-button" type="button" aria-expanded="false" aria-controls="primary-navigation">Меню</button>
+      <button class="dl-menu-button" type="button" aria-expanded="false" aria-controls="primary-navigation"><?= $dl_icon('bars') ?><span>Меню</span></button>
     </div>
 
     <nav class="dl-primary-nav" id="primary-navigation" aria-label="Основная навигация портала">
       <?php foreach (($content['navigation'] ?? []) as $item): ?>
         <a class="dl-nav-link<?= !empty($item['active']) ? ' is-active' : '' ?>" href="<?= HTML::chars((string) ($item['href'] ?? '#')) ?>"<?php if (!empty($item['active'])): ?> aria-current="page"<?php endif; ?>>
-          <span><?= HTML::chars((string) ($item['label'] ?? '')) ?></span>
+          <span class="dl-nav-label"><?= $dl_icon((string) ($item['icon'] ?? '')) ?><span><?= HTML::chars((string) ($item['label'] ?? '')) ?></span></span>
           <?php if (!empty($item['badge'])): ?><span class="dl-nav-badge"><?= HTML::chars((string) $item['badge']) ?></span><?php endif; ?>
         </a>
       <?php endforeach; ?>
@@ -93,7 +134,7 @@
     <section class="dl-sidebar-note">
       <strong>Пилотный запуск</strong>
       <p>Кадровый справочник уже доступен командам центрального офиса и площадки «Север».</p>
-      <a href="#services">Посмотреть сервисы</a>
+      <a href="#services">Посмотреть сервисы<?= $dl_icon('arrow-right') ?></a>
     </section>
   </aside>
 
@@ -107,12 +148,12 @@
       <form class="dl-search" role="search" data-demo-search>
         <label class="dl-visually-hidden" for="portal-search">Поиск по порталу</label>
         <input id="portal-search" name="q" type="search" placeholder="Найти сотрудника, документ или сервис" autocomplete="off">
-        <button type="submit">Найти</button>
+        <button type="submit"><?= $dl_icon('search') ?><span>Найти</span></button>
         <output class="dl-search-status" aria-live="polite"></output>
       </form>
 
-      <a class="dl-notification-link" href="#notifications">
-        <span>Уведомления</span>
+      <a class="dl-notification-link" href="#notifications" aria-label="Уведомления, 3 новых">
+        <?= $dl_icon('bell') ?><span class="dl-notification-label">Уведомления</span>
         <strong>3</strong>
       </a>
 
@@ -132,8 +173,8 @@
           <h1 id="portal-title">Добрый день, Анна. Всё важное для работы — в одном месте.</h1>
           <p class="dl-hero-lead">Сотрудники, документы, проекты, знания и сервисы компании собраны в едином цифровом рабочем месте для всех площадок PRL Group.</p>
           <div class="dl-hero-actions">
-            <a class="dl-button dl-button-primary" href="#services">Открыть сервисы</a>
-            <a class="dl-button dl-button-secondary" href="#support">Создать обращение</a>
+            <a class="dl-button dl-button-primary" href="#services"><?= $dl_icon('grid') ?><span>Открыть сервисы</span></a>
+            <a class="dl-button dl-button-secondary" href="#support"><?= $dl_icon('plus') ?><span>Создать обращение</span></a>
           </div>
           <p class="dl-hero-caption"><?= HTML::chars((string) ($variant['strapline'] ?? '')) ?></p>
         </div>
@@ -142,7 +183,7 @@
           <div class="dl-panel-head">
             <div>
               <p class="dl-section-kicker">Мой день</p>
-              <h2 id="today-title">Сегодня в фокусе</h2>
+              <h2 id="today-title"><?= $dl_icon('clock') ?><span>Сегодня в фокусе</span></h2>
             </div>
             <span class="dl-status dl-tone-attention">3 события</span>
           </div>
@@ -175,7 +216,7 @@
         <div class="dl-domain-grid">
           <?php foreach (($content['domains'] ?? []) as $domain): ?>
             <article class="dl-domain-card">
-              <span class="dl-domain-number"><?= HTML::chars((string) ($domain['number'] ?? '')) ?></span>
+              <span class="dl-domain-number"><?php if ($dl_show_icons): ?><?= $dl_icon((string) ($domain['icon'] ?? '')) ?><?php else: ?><?= HTML::chars((string) ($domain['number'] ?? '')) ?><?php endif; ?></span>
               <div>
                 <h3><?= HTML::chars((string) ($domain['title'] ?? '')) ?></h3>
                 <p><?= HTML::chars((string) ($domain['note'] ?? '')) ?></p>
@@ -192,13 +233,13 @@
             <p class="dl-section-kicker">Каталог</p>
             <h2 id="services-title">Часто используемые сервисы</h2>
           </div>
-          <a class="dl-section-link" href="#support">Запросить новый сервис</a>
+          <a class="dl-section-link" href="#support">Запросить новый сервис<?= $dl_icon('arrow-right') ?></a>
         </div>
         <div class="dl-service-grid">
           <?php foreach (($content['services'] ?? []) as $service): ?>
             <article class="dl-service-card">
               <div class="dl-service-top">
-                <span class="dl-service-code"><?= HTML::chars((string) ($service['code'] ?? '')) ?></span>
+                <span class="dl-service-code"><?php if ($dl_show_icons): ?><?= $dl_icon((string) ($service['icon'] ?? '')) ?><?php else: ?><?= HTML::chars((string) ($service['code'] ?? '')) ?><?php endif; ?></span>
                 <span class="dl-status dl-tone-<?= HTML::chars((string) ($service['tone'] ?? 'neutral')) ?>"><?= HTML::chars((string) ($service['status'] ?? '')) ?></span>
               </div>
               <p class="dl-service-domain"><?= HTML::chars((string) ($service['domain'] ?? '')) ?></p>
@@ -206,7 +247,7 @@
               <p><?= HTML::chars((string) ($service['note'] ?? '')) ?></p>
               <div class="dl-service-footer">
                 <span><?= HTML::chars((string) ($service['users'] ?? '')) ?></span>
-                <button type="button" data-demo-action>Открыть</button>
+                <button type="button" data-demo-action><span>Открыть</span><?= $dl_icon('arrow-right') ?></button>
               </div>
             </article>
           <?php endforeach; ?>
@@ -231,7 +272,7 @@
                   <p><?= HTML::chars((string) ($task['meta'] ?? '')) ?></p>
                 </div>
                 <span class="dl-status dl-tone-<?= HTML::chars((string) ($task['tone'] ?? 'neutral')) ?>"><?= HTML::chars((string) ($task['status'] ?? '')) ?></span>
-                <button type="button" data-demo-action><?= HTML::chars((string) ($task['action'] ?? 'Открыть')) ?></button>
+                <button type="button" data-demo-action><span><?= HTML::chars((string) ($task['action'] ?? 'Открыть')) ?></span><?= $dl_icon('arrow-right') ?></button>
               </li>
             <?php endforeach; ?>
           </ol>
@@ -270,7 +311,7 @@
             <p class="dl-section-kicker">Люди</p>
             <h2 id="people-title">Команда и эксперты</h2>
           </div>
-          <a class="dl-section-link" href="#knowledge">Найти эксперта</a>
+          <a class="dl-section-link" href="#knowledge">Найти эксперта<?= $dl_icon('arrow-right') ?></a>
         </div>
         <div class="dl-people-grid">
           <?php foreach (($content['people'] ?? []) as $person): ?>
@@ -293,7 +334,7 @@
               <p class="dl-section-kicker">Коммуникации</p>
               <h2 id="news-title">Новости компании</h2>
             </div>
-            <a class="dl-section-link" href="#knowledge">Все публикации</a>
+            <a class="dl-section-link" href="#knowledge">Все публикации<?= $dl_icon('arrow-right') ?></a>
           </div>
           <div class="dl-news-list">
             <?php foreach (($content['news'] ?? []) as $news): ?>
@@ -344,7 +385,7 @@
           <ul class="dl-knowledge-list">
             <?php foreach (($content['knowledge'] ?? []) as $item): ?>
               <li>
-                <span><?= HTML::chars((string) ($item['type'] ?? '')) ?></span>
+                <span><?= $dl_icon('book') ?><span><?= HTML::chars((string) ($item['type'] ?? '')) ?></span></span>
                 <h3><?= HTML::chars((string) ($item['title'] ?? '')) ?></h3>
                 <p><?= HTML::chars((string) ($item['meta'] ?? '')) ?></p>
               </li>
@@ -428,7 +469,7 @@
             <label for="support-message">Что нужно сделать?</label>
             <textarea id="support-message" name="message" rows="4" required placeholder="Например: нужен доступ к аналитической панели для команды проекта"></textarea>
           </div>
-          <button class="dl-button dl-button-primary" type="submit">Отправить обращение</button>
+          <button class="dl-button dl-button-primary" type="submit"><?= $dl_icon('send') ?><span>Отправить обращение</span></button>
           <output class="dl-support-status" aria-live="polite"></output>
         </form>
       </section>

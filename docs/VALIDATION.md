@@ -31,19 +31,20 @@ Python 3.11, Node.js. Сайт проверялся на работающем `0
 | Реальный Python echo-worker, PostgreSQL transport | Задача выполнена, результат сохранён; воркер остановлен |
 | Реальный Python echo-worker, HTTP transport | Authenticated API, claim/complete, результат сохранён; release_mine проверен после исправления SQL; воркер остановлен |
 
-## Дополнение 27.10.2026 — вторая итерация `prl140_design_lab`
+## Дополнение 27.10.2026 — расширение и корректировка `prl140_design_lab`
 
 | Проверка | Результат |
 |---|---|
-| Реестр и статический рендер | 11 вариантов без `aurora`; PHP-WASM выполнил реальные `config`, `Service`, три view и все CSS модуля, сформировав галерею, 11 страниц вариантов и standalone 404 |
-| PHP-синтаксис | Token-parse lint PHP 8.4 WASM для контроллера, сервиса, конфигов, трёх view и обновлённого `DesignLabTest` — успешно |
-| CSS и Python smoke | Все 12 CSS витрины разобраны css-tree без ошибок; `python3 -m py_compile tests/http_smoke.py` — успешно |
-| Chromium, статический рендер | 40 сценариев: галерея light/dark/mobile; каждый из 11 вариантов в light и dark на 1440×1000; каждый на 390×844 с открытым меню; три акцента компании и клик-переключение компании/темы. Horizontal overflow, `pageerror` и console error не найдены; активный вариант виден в панели витрины |
-| Размеры H1 в Chromium | Swiss — 48,8 px, Product — 42,4 px, Editorial — 48,8 px; пять `sample-*` — 27,2–31,2 px |
-| Обновлённые автоматические тесты | `DesignLabTest` и `tests/http_smoke.py` переведены на 11 вариантов, удалённый `aurora` (404), `company=orange|yellow`, company-селекторы CSS и H1-предохранители |
+| Реестр и статический рендер | 10 вариантов без `aurora`, `sample-workbench` и `sample-reading`; PHP-WASM выполнил реальные `config`, `Service`, три view и все CSS модуля, сформировав галерею, 10 страниц вариантов и standalone 404 |
+| PHP-синтаксис | Token-parse lint PHP 8.4 WASM для изменённых сервиса, конфигов, `show.php` и `DesignLabTest` — успешно; контроллер и остальные view проверялись в предшествующем прогоне этой итерации |
+| CSS и Python smoke | Все 11 CSS витрины (галерея и 10 вариантов) разобраны css-tree без ошибок; `python3 -m py_compile tests/http_smoke.py` — успешно |
+| Chromium, статический рендер | 37 сценариев: галерея light/dark/mobile; каждый из 10 вариантов в light и dark на 1440×1000; каждый на 390×844 с открытым меню; три акцента компании и клик-переключение компании/темы. Horizontal overflow, `pageerror` и console error не найдены; мобильный viewport точного эталона подтверждён как 390 px |
+| Inline-SVG точного эталона | У `required-design-sample` найден спрайт и 49 иконок; у остальных вариантов — 0; Font Awesome и удалённые slug в статическом рендере отсутствуют |
+| Размеры H1 в Chromium | Swiss — 48,8 px, Product — 42,4 px, Editorial — 48,8 px; три `sample-*` — 27,2–30 px; `required-design-sample` — ровно 30 px |
+| Обновлённые автоматические тесты | `DesignLabTest` и `tests/http_smoke.py` переведены на 10 вариантов, 404 для `aurora`, `sample-workbench` и `sample-reading`, `company=orange|yellow`, company-селекторы CSS, H1-предохранители и контракт inline-SVG |
 
 Нативные `bash bin/test DesignLabTest`, полный `bash bin/test` и живой
-HTTP smoke для второй итерации в этой песочнице **не запускались**: отсутствуют
+HTTP smoke для этой корректировки в этой песочнице **не запускались**: отсутствуют
 PHP CLI, PostgreSQL и `.env`, а полный Kohana bootstrap под PHP-WASM не
 поддерживает нужное окружение/`pdo_pgsql`. Их нужно выполнить в восстановленной
 нативной среде до production-развёртывания; статический Chromium-рендер не
@@ -51,8 +52,9 @@ PHP CLI, PostgreSQL и `.env`, а полный Kohana bootstrap под PHP-WASM 
 
 ## HTTP и права (основной прогон 26.10.2026)
 
-`tests/http_smoke.py` выполняет **61 запрос** против живого сайта:
-гость, публичная галерея `/design-lab`, все семь вариантов с `theme=dark` и
+В основном живом прогоне 26.10.2026 `tests/http_smoke.py` выполнял
+**61 запрос**: гость, публичная галерея `/design-lab`, все семь тогдашних
+вариантов с `theme=dark` и
 неизвестный slug 404 до входа; CSRF входа, саморегистрация 404 (оба маршрута),
 недоступные старые сервисы, вход администратора, сохранённые экраны, каталог
 и поиск, гостевой 401 и административные маршруты `/employee*` и

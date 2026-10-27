@@ -49,14 +49,19 @@ design_cookies = {cookie.name for cookie in jar}
 design_lab = request('/design-lab?company=yellow', 200)
 assert 'Выберите характер корпоративного портала PRL' in design_lab
 assert 'data-company-accent="yellow"' in design_lab
-for slug in ['corporate', 'industrial', 'swiss', 'product', 'editorial', 'command', 'sample-classic', 'sample-workbench', 'sample-compact', 'sample-reading', 'sample-operations']:
+for slug in ['corporate', 'industrial', 'swiss', 'product', 'editorial', 'command', 'sample-classic', 'sample-compact', 'sample-operations', 'required-design-sample']:
     variant = request(f'/design-lab/{slug}?theme=dark&company=orange', 200)
     assert re.search(r'<html[^>]+data-theme="dark"', variant), slug
     assert 'data-company-accent="orange"' in variant, slug
     assert f'data-variant="{slug}"' in variant, slug
     assert 'Добрый день, Анна. Всё важное для работы — в одном месте.' in variant, slug
     assert '<link' not in variant, slug
-request('/design-lab/aurora', 404)
+    if slug == 'required-design-sample':
+        assert 'id="dl-icon-home"' in variant, slug
+        assert variant.count('class="dl-icon"') >= 40, slug
+        assert 'fontawesome' not in variant.lower(), slug
+for removed_slug in ['aurora', 'sample-workbench', 'sample-reading']:
+    request(f'/design-lab/{removed_slug}', 404)
 request('/design-lab/not-a-design', 404)
 assert {cookie.name for cookie in jar} == design_cookies, 'Design lab must not create a session cookie'
 request('/vat', 404)

@@ -4,7 +4,7 @@ use PHPUnit\Framework\TestCase;
 /** Контракты публичной изолированной витрины дизайна prl140. */
 class DesignLabTest extends TestCase
 {
-    public function test_registry_declares_eleven_unique_public_variants(): void
+    public function test_registry_declares_ten_unique_public_variants(): void
     {
         $this->assertArrayHasKey('prl140_design_lab', Kohana::modules());
 
@@ -17,17 +17,19 @@ class DesignLabTest extends TestCase
         $this->assertSame('beta', $manifest['status']);
 
         $variants = $this->_variants();
-        $this->assertCount(11, $variants);
-        $this->assertCount(11, array_unique(Arr::pluck($variants, 'slug')));
-        $this->assertCount(11, array_unique(Arr::pluck($variants, 'css')));
+        $this->assertCount(10, $variants);
+        $this->assertCount(10, array_unique(Arr::pluck($variants, 'slug')));
+        $this->assertCount(10, array_unique(Arr::pluck($variants, 'css')));
         $this->assertSame(
             [
                 'corporate', 'industrial', 'swiss', 'product', 'editorial', 'command',
-                'sample-classic', 'sample-workbench', 'sample-compact', 'sample-reading', 'sample-operations',
+                'sample-classic', 'sample-compact', 'sample-operations', 'required-design-sample',
             ],
             Arr::pluck($variants, 'slug')
         );
-        $this->assertNotContains('aurora', Arr::pluck($variants, 'slug'));
+        foreach (['aurora', 'sample-workbench', 'sample-reading'] as $removed_slug) {
+            $this->assertNotContains($removed_slug, Arr::pluck($variants, 'slug'));
+        }
     }
 
     public function test_controller_is_direct_and_content_is_canonical(): void
@@ -55,6 +57,10 @@ class DesignLabTest extends TestCase
         $this->assertCount(3, $content['notifications']);
         $this->assertCount(4, $content['integrations']);
         $this->assertCount(4, $content['analytics']);
+        $this->assertSame('home', $content['navigation'][0]['icon']);
+        $this->assertSame('users', $content['domains'][0]['icon']);
+        $this->assertSame('users', $content['services'][0]['icon']);
+        $this->assertSame('plug', $content['services'][7]['icon']);
     }
 
     public function test_each_variant_renders_same_content_with_own_css_and_themes(): void
@@ -109,6 +115,17 @@ class DesignLabTest extends TestCase
             foreach ($canonical as $text) {
                 $this->assertStringContainsString($text, $body, $slug.': '.$text);
             }
+
+            if ($slug === 'required-design-sample') {
+                $this->assertStringContainsString('id="dl-icon-home"', $body, $slug);
+                $this->assertStringContainsString('id="dl-icon-search"', $body, $slug);
+                $this->assertStringContainsString('id="dl-icon-bell"', $body, $slug);
+                $this->assertStringContainsString('<use href="#dl-icon-users"></use>', $body, $slug);
+                $this->assertGreaterThanOrEqual(40, substr_count($body, 'class="dl-icon"'), $slug);
+                $this->assertStringNotContainsString('fontawesome', strtolower($body), $slug);
+            } else {
+                $this->assertStringNotContainsString('class="dl-icon"', $body, $slug);
+            }
         }
     }
 
@@ -139,8 +156,10 @@ class DesignLabTest extends TestCase
         $this->assertStringNotContainsString('<script>alert(1)</script>', $invalid_body);
         $this->assertStringNotContainsString('<script>alert(2)</script>', $invalid_body);
 
-        $removed = Request::factory('design-lab/aurora')->execute();
-        $this->assertSame(404, $removed->status());
+        foreach (['aurora', 'sample-workbench', 'sample-reading'] as $removed_slug) {
+            $removed = Request::factory('design-lab/'.$removed_slug)->execute();
+            $this->assertSame(404, $removed->status(), $removed_slug);
+        }
 
         $missing = Request::factory('design-lab/not-a-design')->execute();
         $this->assertSame(404, $missing->status());
@@ -198,9 +217,24 @@ class DesignLabTest extends TestCase
         $this->assertStringNotContainsString('clamp(2.7rem, 7vw, 6.2rem)', $files['swiss.css']);
         $this->assertStringNotContainsString('clamp(2.2rem, 4.7vw, 4.3rem)', $files['product.css']);
         $this->assertStringNotContainsString('clamp(2.7rem, 6vw, 5.4rem)', $files['editorial.css']);
-        foreach (['sample-classic.css', 'sample-workbench.css', 'sample-compact.css', 'sample-reading.css', 'sample-operations.css'] as $sample_css) {
+        foreach (['sample-classic.css', 'sample-compact.css', 'sample-operations.css', 'required-design-sample.css'] as $sample_css) {
             $this->assertStringContainsString('Финальный предохранитель шкалы эталона', $files[$sample_css], $sample_css);
-            $this->assertMatchesRegularExpression('/\.dl-hero h1 \{ font-size: 1\.(7|875|95)rem; \}/', $files[$sample_css], $sample_css);
+            $this->assertMatchesRegularExpression('/\.dl-hero h1 \{ font-size: 1\.(7|875)rem; \}/', $files[$sample_css], $sample_css);
+        }
+
+        $exact_css = $files['required-design-sample.css'];
+        foreach ([
+            '.dl-icon',
+            '.dl-nav-label .dl-icon',
+            '--exact-control: 44px',
+            'grid-template-columns: 264px minmax(0, 1fr)',
+            'min-height: 64px',
+            'font-size: 30px',
+            'font-size: 22px',
+            'font-size: 18px',
+            'Точный слой required_design_sample',
+        ] as $exact_contract) {
+            $this->assertStringContainsString($exact_contract, $exact_css, $exact_contract);
         }
     }
 
