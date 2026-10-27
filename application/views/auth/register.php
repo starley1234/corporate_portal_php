@@ -86,7 +86,7 @@
 
             <div class="flex items-start">
                 <div class="flex items-center h-5">
-                    <input id="terms" name="terms" type="checkbox" required class="h-4 w-4 rounded border-gray-300 accent-blue-600 dark:border-gray-600">
+                    <input id="terms" name="terms" type="checkbox" required class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
                 </div>
                 <div class="ml-3 text-sm">
                     <label for="terms" class="text-gray-600 dark:text-gray-400">

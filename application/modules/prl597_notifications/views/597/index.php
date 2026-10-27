@@ -40,13 +40,13 @@ $chip = function ($key) use ($binding) {
 
 	<div class="mt-2 flex flex-wrap items-center justify-between gap-3">
 		<h1 class="prl-h1"><i class="fas fa-bell mr-2 text-blue-500"></i>Уведомления</h1>
-		<span class="rounded-full px-2 py-0.5 text-xs font-bold uppercase <?php echo $unread ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500 dark:bg-gray-800'; ?>">
-			<?php echo $unread ? 'непрочитанных: '.(int) $unread : 'всё прочитано'; ?>
+		<span class="prl-badge <?php echo $unread ? 'prl-badge-info' : 'prl-badge-ok'; ?>">
+			<span class="prl-dot"></span><?php echo $unread ? 'непрочитанных: '.(int) $unread : 'всё прочитано'; ?>
 		</span>
 	</div>
 
 	<?php if ((string) $flash !== ''): ?>
-	<div class="mt-3 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs font-semibold sm:text-sm dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
+	<div class="prl-flash prl-flash-info mt-3" role="status">
 		<i class="fas fa-circle-info shrink-0"></i><span><?php echo HTML::chars($flash); ?></span>
 	</div>
 	<?php endif; ?>
@@ -139,7 +139,7 @@ $chip = function ($key) use ($binding) {
 							<span>От системы</span>
 							<?php endif; ?>
 							<span><?php echo HTML::chars(date('d.m.Y H:i', strtotime((string) $n['created_at']))); ?></span>
-							<span class="rounded bg-gray-100 px-1.5 py-0.5 text-gray-500 dark:bg-gray-700 dark:text-gray-300"><?php echo HTML::chars(Service_Prl597_Registry::category_label((string) Arr::get($n, 'category', 'system'))); ?></span>
+							<span class="prl-count"><?php echo HTML::chars(Service_Prl597_Registry::category_label((string) Arr::get($n, 'category', 'system'))); ?></span>
 						</p>
 					</div>
 					<?php if (empty($n['read_at'])): ?>
@@ -189,7 +189,7 @@ $chip = function ($key) use ($binding) {
 						<label class="flex items-start gap-3">
 							<input type="hidden" name="<?php echo HTML::chars($field); ?>" value="0">
 							<input type="checkbox" name="<?php echo HTML::chars($field); ?>" value="1" <?php echo ! empty($prefs[$field]) ? 'checked' : ''; ?>
-							       class="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600">
+							       class="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
 							<span class="min-w-0 flex-1">
 								<span class="flex items-center gap-2 text-sm font-semibold text-gray-800 dark:text-gray-100">
 									<i class="<?php echo HTML::chars((string) $info['icon']); ?> text-blue-500"></i>

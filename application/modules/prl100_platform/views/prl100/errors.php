@@ -4,17 +4,17 @@ defined('SYSPATH') or die('No direct script access.');
  * «Хвост ошибок» — единая лента неисправностей: БД-модули + системный лог.
  * Только чтение; лечится руками по ссылкам из модулей.
  */
-$card  = 'rounded-xl border border-gray-200 bg-white p-4 shadow-xs dark:border-gray-700 dark:bg-gray-800';
+$card  = 'prl-card';
 $lbl   = 'text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500';
 
 $tint = function (string $level): string {
     switch (strtoupper($level))
     {
-        case 'ERROR': case 'CRITICAL': case 'ALERT': case 'EMERGENCY':
-            return 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400';
-        case 'WARNING':   return 'bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400';
-        case 'STUCK':     return 'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400';
-        default:          return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300';
+        case 'ERROR': case 'FAILED': case 'CRITICAL': case 'ALERT': case 'EMERGENCY':
+            return 'prl-badge-err';
+        case 'WARNING':   return 'prl-badge-run';
+        case 'STUCK':     return 'prl-badge-info';
+        default:          return 'prl-badge-wait';
     }
 };
 
@@ -56,7 +56,7 @@ $fmt = function (string $ts): string {
     <div class="<?php echo $card; ?>">
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-3 dark:border-gray-700/60">
             <h2 class="prl-h3"><i class="fas fa-database mr-1.5 text-gray-400"></i>Модули: свежие ошибочные записи</h2>
-            <span class="prl-badge prl-badge-wait"><?php echo count($db); ?></span>
+            <span class="prl-count"><?php echo count($db); ?></span>
         </div>
         <?php if (empty($db)): ?>
             <p class="mt-3 text-sm text-gray-500 dark:text-gray-400"><i class="fas fa-circle-check mr-1 text-emerald-500"></i>Ошибочных записей в модулях нет.</p>
@@ -81,7 +81,7 @@ $fmt = function (string $ts): string {
                                 <?php if ($e['href']): ?><a class="text-blue-600 hover:underline dark:text-blue-400" href="<?php echo HTML::chars($e['href']); ?>"><?php echo HTML::chars($e['code']); ?></a>
                                 <?php else: ?><?php echo HTML::chars($e['code']); ?><?php endif; ?>
                             </td>
-                            <td class="py-2 pr-3"><span class="rounded-full px-2 py-0.5 text-xs font-bold uppercase <?php echo $tint(in_array($e['status'], ['error', 'failed'], TRUE) ? $e['status'] : ''); ?>"><?php echo HTML::chars($e['status'] ?: '—'); ?></span></td>
+                            <td class="py-2 pr-3"><span class="prl-badge uppercase <?php echo $tint(in_array($e['status'], ['error', 'failed'], TRUE) ? $e['status'] : ''); ?>"><span class="prl-dot"></span><?php echo HTML::chars($e['status'] ?: '—'); ?></span></td>
                             <td class="max-w-md py-2 text-gray-600 dark:text-gray-300"><?php echo HTML::chars($e['error']); ?></td>
                         </tr>
                         <?php endforeach; ?>
@@ -95,7 +95,7 @@ $fmt = function (string $ts): string {
     <div class="<?php echo $card; ?>">
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-3 dark:border-gray-700/60">
             <h2 class="prl-h3"><i class="fas fa-terminal mr-1.5 text-gray-400"></i>Системный лог: WARNING и выше (сегодня и вчера)</h2>
-            <span class="prl-badge prl-badge-wait"><?php echo count($log); ?></span>
+            <span class="prl-count"><?php echo count($log); ?></span>
         </div>
         <?php if (empty($log)): ?>
             <p class="mt-3 text-sm text-gray-500 dark:text-gray-400"><i class="fas fa-circle-check mr-1 text-emerald-500"></i>Предупреждений и ошибок в логе нет.</p>
@@ -104,7 +104,7 @@ $fmt = function (string $ts): string {
                 <?php foreach ($log as $e): ?>
                 <li class="rounded-lg border border-gray-100 p-2.5 dark:border-gray-700/60">
                     <div class="flex flex-wrap items-center gap-2">
-                        <span class="rounded-full px-2 py-0.5 text-xs font-bold uppercase <?php echo $tint($e['level']); ?>"><?php echo HTML::chars($e['level']); ?></span>
+                        <span class="prl-badge uppercase <?php echo $tint($e['level']); ?>"><span class="prl-dot"></span><?php echo HTML::chars($e['level']); ?></span>
                         <span class="text-xs text-gray-400"><?php echo HTML::chars($e['time']); ?></span>
                     </div>
                     <p class="mt-1 break-words font-mono text-xs text-gray-700 dark:text-gray-200"><?php echo HTML::chars($e['msg']); ?></p>

@@ -270,7 +270,7 @@
                         data.results.forEach(function (r, i) {
                             html += '<a href="' + esc(r.url) + '" data-gsi="' + i + '" class="block px-4 py-2.5 transition hover:bg-gray-50 dark:hover:bg-gray-700/40">'
                                 + '<div class="flex items-center gap-2">'
-                                + '<span class="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-bold text-gray-500 dark:bg-gray-700 dark:text-gray-300">' + esc(r.kind) + '</span>'
+                                + '<span class="prl-count shrink-0">' + esc(r.kind) + '</span>'
                                 + '<span class="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900 dark:text-white">' + esc(r.title) + '</span>'
                                 + '</div>'
                                 + (r.sub ? '<p class="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">' + esc(r.sub) + '</p>' : '')
@@ -476,7 +476,7 @@
                             <div class="hidden lg:block text-left">
                                 <p class="text-sm font-semibold leading-none"><?php echo HTML::chars($current_user->username); ?></p>
                             </div>
-                            <i class="fas fa-chevron-down text-xs text-gray-400 group-hover:text-gray-600 transition-transform" id="dropdownArrow"></i>
+                            <i class="fas fa-chevron-down text-xs text-gray-400 transition-transform group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300" id="dropdownArrow"></i>
                         </button>
 
                         <div id="userDropdownMenu" class="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 hidden opacity-0 transition-all duration-200 transform scale-95 origin-top-right z-50">
@@ -517,7 +517,7 @@
                                     </a>
                                 <?php endif; ?>
                                 <div class="my-1 border-t border-gray-100 dark:border-gray-700"></div>
-                                <a href="/auth/logout" class="flex items-center px-3 py-2.5 text-sm rounded-xl text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors">
+                                <a href="/auth/logout" class="flex items-center px-3 py-2.5 text-sm rounded-xl text-rose-600 transition-colors hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-900/20">
                                     <i class="fas fa-sign-out-alt mr-3"></i> Выйти
                                 </a>
                             </div>

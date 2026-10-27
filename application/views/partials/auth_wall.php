@@ -47,9 +47,7 @@ $aw_wrap = $aw_tone === 'amber'
     ? 'border-amber-300 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-950/30'
     : 'border-blue-200 bg-blue-50/70 dark:border-blue-900/70 dark:bg-blue-950/30';
 
-$aw_badge = $aw_tone === 'amber'
-    ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
-    : 'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300';
+$aw_badge = $aw_tone === 'amber' ? 'prl-badge-run' : 'prl-badge-info';
 
 $aw_pad = $aw_compact ? 'p-4' : 'p-4 sm:p-5';
 ?>
@@ -57,16 +55,14 @@ $aw_pad = $aw_compact ? 'p-4' : 'p-4 sm:p-5';
 <section class="rounded-xl border <?php echo $aw_wrap; ?> <?php echo $aw_pad; ?> shadow-xs"
          data-auth-wall="<?php echo HTML::chars($aw_return !== '' ? $aw_return : 'page'); ?>">
 
-    <span class="inline-flex items-center gap-1.5 rounded-md <?php echo $aw_badge; ?> px-2 py-0.5 text-xs font-bold uppercase tracking-wide">
-        <i class="fas fa-lock text-[11px]" aria-hidden="true"></i>Только для зарегистрированных
-    </span>
+    <span class="prl-badge uppercase <?php echo $aw_badge; ?>"><span class="prl-dot"></span>Только для зарегистрированных</span>
 
     <div class="mt-3 flex items-start gap-3">
         <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/80 text-blue-600 shadow-xs dark:bg-gray-900/60 dark:text-blue-300">
             <i class="<?php echo HTML::chars($aw_icon); ?>" aria-hidden="true"></i>
         </span>
         <div class="min-w-0">
-            <h2 class="text-base font-bold text-gray-900 dark:text-white"><?php echo HTML::chars($aw_title); ?></h2>
+            <h2 class="prl-h3"><?php echo HTML::chars($aw_title); ?></h2>
             <?php if ($aw_text !== ''): ?>
             <p class="mt-1 text-sm leading-relaxed text-gray-600 dark:text-gray-300"><?php echo HTML::chars($aw_text); ?></p>
             <?php endif; ?>

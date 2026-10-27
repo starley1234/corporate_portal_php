@@ -54,21 +54,15 @@
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="prl-badge prl-badge-wait uppercase">
+                                    <span class="prl-count uppercase">
                                         <?php echo HTML::chars($backend->driver); ?>
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <?php if ($backend->is_active): ?>
-                                        <span class="prl-badge prl-badge-ok">
-                                            <span class="w-2 h-2 mr-1.5 bg-emerald-500 rounded-full"></span>
-                                            Активен
-                                        </span>
+                                        <span class="prl-badge prl-badge-ok"><span class="prl-dot"></span>Активен</span>
                                     <?php else: ?>
-                                        <span class="prl-badge prl-badge-err">
-                                            <span class="w-2 h-2 mr-1.5 bg-rose-500 rounded-full"></span>
-                                            Отключен
-                                        </span>
+                                        <span class="prl-badge prl-badge-wait"><span class="prl-dot"></span>Отключён</span>
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-6 py-4">

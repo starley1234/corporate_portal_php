@@ -46,6 +46,7 @@ $pct_cls = function ($st) {
 		<!-- Умолчания по ролям -->
 		<div class="prl-card p-0">
 			<div class="border-b border-gray-100 px-4 py-3 dark:border-gray-700/60"><h2 class="prl-h3">Умолчания по ролям</h2></div>
+			<div class="overflow-x-auto">
 			<table class="prl-table">
 				<thead><tr class="text-left text-xs text-gray-400"><th class="px-4 py-2">Роль</th><th class="px-4 py-2">День</th><th class="px-4 py-2">Месяц</th></tr></thead>
 				<tbody class="text-sm text-gray-700 dark:text-gray-200">
@@ -58,6 +59,7 @@ $pct_cls = function ($st) {
 					<?php endforeach; ?>
 				</tbody>
 			</table>
+			</div>
 			<p class="prl-hint px-4 py-3">Меняются через env `PRL120_BUDGET_DAILY_&lt;ROLE&gt;` / `PRL120_BUDGET_MONTHLY_&lt;ROLE&gt;` (config/prl120_budget.php).</p>
 		</div>
 

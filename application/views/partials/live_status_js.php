@@ -169,7 +169,7 @@ window.PRLLive = (function () {
         var silent = b.querySelector('[data-live-silent]');
         if (silent) {
             if (typeof s.silent_sec === 'number' && s.silent_sec > 180) {
-                silent.textContent = 'нет пульса ' + Math.floor(s.silent_sec / 60) + ' мин';
+                silent.innerHTML = '<span class="prl-dot"></span>нет пульса ' + Math.floor(s.silent_sec / 60) + ' мин';
                 silent.classList.remove('hidden');
 
                 // Честная подсказка: сервер сам остановит застрявший сбор

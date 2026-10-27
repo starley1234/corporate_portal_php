@@ -62,7 +62,7 @@
         <div class="flex justify-end">
             <button
                 type="submit"
-                class="prl-btn-process"
+                class="prl-btn-cta"
             >
                 <i class="fas fa-paper-plane mr-2"></i>
                 <?php echo __('Publish Event'); ?>

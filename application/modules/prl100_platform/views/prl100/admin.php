@@ -83,7 +83,7 @@
     <section class="mt-6" aria-labelledby="prl100-admin-tools">
         <h2 id="prl100-admin-tools" class="text-sm font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Инструменты платформы</h2>
         <?php if ( ! $tools): ?>
-            <p class="prl-hint mt-2 rounded-xl border border-dashed border-gray-300 px-4 py-3">Нет подключённых инструментов.</p>
+            <p class="prl-hint mt-2 rounded-xl border border-dashed border-gray-300 px-4 py-3 dark:border-gray-600">Нет подключённых инструментов.</p>
         <?php else: ?>
         <div class="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <?php foreach ($tools as $tool): ?>

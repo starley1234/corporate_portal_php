@@ -35,19 +35,20 @@ $dark_init = 'try{if(localStorage.getItem("theme")==="dark"||(!localStorage.getI
         <div role="alert" class="prl-flash prl-flash-err block"><strong>Ошибка настройки баз:</strong> <?php echo HTML::chars($configuration_warning); ?></div>
     <?php endif; ?>
 
-    <?php if ($message): ?>
-        <div role="status" class="rounded-xl border p-4 text-sm <?php echo $message_type === 'success'
-            ? 'border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200'
-            : ($message_type === 'error'
-                ? 'border-rose-300 bg-rose-50 text-rose-900 dark:border-rose-800 dark:bg-rose-950/30 dark:text-rose-200'
-                : 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200'); ?>">
-            <?php echo HTML::chars($message); ?>
+    <?php if ($message):
+        $message_flash = $message_type === 'success' ? 'prl-flash-ok'
+            : ($message_type === 'error' ? 'prl-flash-err' : 'prl-flash-warn');
+        $message_icon = $message_type === 'success' ? 'fa-circle-check' : 'fa-triangle-exclamation';
+    ?>
+        <div role="<?php echo $message_type === 'error' ? 'alert' : 'status'; ?>" class="prl-flash <?php echo $message_flash; ?>">
+            <i class="fas <?php echo $message_icon; ?>"></i>
+            <span><?php echo HTML::chars($message); ?></span>
         </div>
     <?php endif; ?>
 
     <?php if ( ! empty($operation_log)): ?>
         <div class="prl-card" role="status">
-            <h2 class="mb-2 font-semibold">Результат запуска</h2>
+            <h2 class="prl-h3 mb-2">Результат запуска</h2>
             <div class="space-y-1 font-mono text-xs">
                 <?php foreach ($operation_log as $entry): ?><p class="<?php echo $entry['level']==='error'?'text-rose-600':($entry['level']==='ok'?'text-emerald-600':'text-gray-600 dark:text-gray-300'); ?>"><?php echo HTML::chars($entry['message']); ?></p><?php endforeach; ?>
             </div>
@@ -72,7 +73,7 @@ $dark_init = 'try{if(localStorage.getItem("theme")==="dark"||(!localStorage.getI
 
     <!-- Обновление схемы -->
     <div class="prl-card">
-        <h2 class="font-semibold text-gray-900 dark:text-white">Обновление схемы</h2>
+        <h2 class="prl-h3">Обновление схемы</h2>
         <p class="prl-hint">Каждая миграция выполняется в отдельной транзакции. При ошибке текущая миграция откатывается.</p>
 
         <?php if ($pending): ?>
@@ -108,9 +109,7 @@ $dark_init = 'try{if(localStorage.getItem("theme")==="dark"||(!localStorage.getI
                 <?php foreach ($inventory as $row): ?>
                     <tr>
                         <td class="px-4 py-2">
-                            <span class="prl-badge <?php echo $row['applied'] ? 'prl-badge-ok' : 'prl-badge-run'; ?>">
-                                <span class="inline-block h-1.5 w-1.5 rounded-full <?php echo $row['applied'] ? 'bg-emerald-500' : 'bg-amber-500'; ?>"></span><?php echo $row['applied'] ? 'применена' : 'ожидает'; ?>
-                            </span>
+                            <span class="prl-badge <?php echo $row['applied'] ? 'prl-badge-ok' : 'prl-badge-wait'; ?>"><span class="prl-dot"></span><?php echo $row['applied'] ? 'применена' : 'ожидает'; ?></span>
                         </td>
                         <td class="px-4 py-2"><span class="font-mono text-xs"><?php echo HTML::chars($row['class']); ?></span></td>
                         <td class="px-4 py-2"><?php echo HTML::chars($row['module']); ?></td>
@@ -125,6 +124,6 @@ $dark_init = 'try{if(localStorage.getItem("theme")==="dark"||(!localStorage.getI
         </table>
     </div>
 
-    <p><a href="/" class="text-sm font-semibold text-blue-600 hover:underline">← На главную PRL</a></p>
+    <p><a href="/" class="text-sm font-semibold text-blue-600 hover:underline dark:text-blue-400">← На главную PRL</a></p>
 </div>
 </body></html>

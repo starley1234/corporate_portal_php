@@ -1,11 +1,18 @@
 <?php defined('SYSPATH') or die('No direct script access.'); ?>
 
 <div class="prl-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
-    <div id="prl218-stats" class="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <div class="prl-card"><div class="text-xs text-gray-500">Всего</div><div id="prl218-total" class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">—</div></div>
-        <div class="prl-card"><div class="text-xs text-gray-500">Опубликовано</div><div id="prl218-active" class="mt-1 text-2xl font-bold text-emerald-600">—</div></div>
-        <div class="prl-card"><div class="text-xs text-gray-500">Стабильных</div><div id="prl218-stable" class="mt-1 text-2xl font-bold text-blue-600">—</div></div>
-        <div class="prl-card"><div class="text-xs text-gray-500">Последнее сканирование</div><div id="prl218-scan" class="mt-1 truncate text-sm font-semibold text-gray-700 dark:text-gray-200">—</div></div>
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Платформа'], ['Реестр модулей']],
+        'title'  => 'Реестр модулей',
+        'pill'   => ['prl218 · платформа', 'fa-cubes'],
+        'lead'   => 'Программные компоненты портала, их публикация, порядок в навигации и техническое состояние.',
+    ]); ?>
+
+    <div id="prl218-stats" class="mt-6 mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div class="prl-card"><div class="text-xs text-gray-500 dark:text-gray-400">Всего</div><div id="prl218-total" class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">—</div></div>
+        <div class="prl-card"><div class="text-xs text-gray-500 dark:text-gray-400">Опубликовано</div><div id="prl218-active" class="mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-400">—</div></div>
+        <div class="prl-card"><div class="text-xs text-gray-500 dark:text-gray-400">Стабильных</div><div id="prl218-stable" class="mt-1 text-2xl font-bold text-blue-600 dark:text-blue-400">—</div></div>
+        <div class="prl-card"><div class="text-xs text-gray-500 dark:text-gray-400">Последнее сканирование</div><div id="prl218-scan" class="mt-1 truncate text-sm font-semibold text-gray-700 dark:text-gray-200">—</div></div>
     </div>
 
     <!-- Фильтры и Действия -->
@@ -46,7 +53,7 @@
     </div>
 
     <!-- Таблица реестра -->
-    <div class="prl-card p-0 overflow-hidden">
+    <section class="prl-panel">
         <div class="overflow-x-auto">
             <table class="prl-table min-w-full table-fixed">
                 <thead class="bg-gray-50 dark:bg-gray-900/50">
@@ -71,13 +78,13 @@
                     <?php if ($modules->count()): ?>
                         <?php foreach ($modules as $module): ?>
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors" data-module-id="<?php echo $module->id; ?>">
-                                <td class="px-4 py-4 text-center <?php echo ($filters['sort'] == 'sort_order') ? 'cursor-move handle' : 'opacity-20 cursor-not-allowed'; ?> text-gray-400 hover:text-gray-600">
+                                <td class="px-4 py-4 text-center <?php echo ($filters['sort'] == 'sort_order') ? 'cursor-move handle' : 'opacity-20 cursor-not-allowed'; ?> text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
                                     <i class="fas fa-grip-vertical"></i>
                                 </td>
                                 <td class="px-4 py-4 text-center">
                                     <div class="main-page-link-container">
                                         <?php if (!empty($module->main_page_uri)): ?>
-                                            <a href="<?php echo URL::site($module->main_page_uri); ?>" target="_blank" class="text-blue-500 hover:text-blue-700 transition-colors" title="Перейти на главную страницу модуля">
+                                            <a href="<?php echo URL::site($module->main_page_uri); ?>" target="_blank" class="text-blue-600 transition-colors hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" title="Перейти на главную страницу модуля">
                                                 <i class="fas fa-external-link-alt"></i>
                                             </a>
                                         <?php else: ?>
@@ -118,18 +125,18 @@
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <?php
                                         $status_classes = [
-                                            'alpha'    => 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
-                                            'beta'     => 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-                                            'stable'   => 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
-                                            'archived' => 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400',
+                                            'alpha'    => 'prl-badge-run',
+                                            'beta'     => 'prl-badge-info',
+                                            'stable'   => 'prl-badge-ok',
+                                            'archived' => 'prl-badge-wait',
                                         ];
                                         $current_status = $module->status ?? 'alpha';
                                     ?>
-                                    <button class="edit-status-btn inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium <?php echo $status_classes[$current_status] ?? $status_classes['alpha']; ?>"
+                                    <button type="button" class="edit-status-btn prl-badge <?php echo $status_classes[$current_status] ?? $status_classes['alpha']; ?>"
                                             data-module-id="<?php echo $module->id; ?>"
                                             data-current-status="<?php echo HTML::chars($current_status); ?>"
                                             title="Изменить статус">
-                                        <i class="fas fa-circle text-[8px] mr-1.5"></i>
+                                        <span class="prl-dot"></span>
                                         <span class="status-text"><?php echo ucfirst(HTML::chars($current_status)); ?></span>
                                     </button>
                                 </td>
@@ -137,7 +144,7 @@
                                     <button class="toggle-published relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none <?php echo $module->is_published ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'; ?>"
                                             data-module-id="<?php echo $module->id; ?>"
                                             data-is-published="<?php echo $module->is_published ? '1' : '0'; ?>">
-                                        <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out <?php echo $module->is_published ? 'translate-x-5' : 'translate-x-0'; ?>"></span>
+                                        <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow dark:bg-white ring-0 transition duration-200 ease-in-out <?php echo $module->is_published ? 'translate-x-5' : 'translate-x-0'; ?>"></span>
                                     </button>
                                 </td>
                                 <td class="px-6 py-4 text-sm text-blue-500 dark:text-blue-400 editable-field" data-field="developer_notes" data-module-id="<?php echo $module->id; ?>">
@@ -178,10 +185,10 @@
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="9" class="px-6 py-12 text-center">
-                                <div class="flex flex-col items-center">
-                                    <i class="fas fa-folder-open text-4xl text-gray-300 dark:text-gray-600 mb-3"></i>
-                                    <p class="text-gray-500 dark:text-gray-400">Модули не найдены. Запустите сканирование системы.</p>
+                            <td colspan="8" class="px-6 py-4">
+                                <div class="prl-empty">
+                                    <span class="prl-empty-icon"><i class="fas fa-cubes"></i></span>
+                                    <p class="prl-empty-text">Модули не найдены. Запустите сканирование системы.</p>
                                 </div>
                             </td>
                         </tr>
@@ -189,7 +196,7 @@
                 </tbody>
             </table>
         </div>
-    </div>
+    </section>
 
     <?php if ($pagination->total_pages > 1): ?>
         <div class="mt-6">
@@ -510,7 +517,7 @@ $(document).ready(function() {
                     if (response.updated_fields.main_page_uri !== undefined) {
                         const linkContainer = moduleRow.find('.main-page-link-container');
                         if (response.updated_fields.main_page_uri) {
-                            linkContainer.html(`<a href="/${response.updated_fields.main_page_uri}" target="_blank" class="text-blue-500 hover:text-blue-700 transition-colors" title="Перейти на главную страницу модуля"><i class="fas fa-external-link-alt"></i></a>`);
+                            linkContainer.html(`<a href="/${response.updated_fields.main_page_uri}" target="_blank" class="text-blue-600 transition-colors hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" title="Перейти на главную страницу модуля"><i class="fas fa-external-link-alt"></i></a>`);
                         } else {
                             linkContainer.html(`<i class="fas fa-link text-gray-300 dark:text-gray-600" title="URI не указан"></i>`);
                         }
@@ -531,10 +538,10 @@ $(document).ready(function() {
     // --- Функционал для изменения статуса модуля ---
     let currentModuleIdForStatus = null;
     const statusClasses = {
-        'alpha': 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
-        'beta': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
-        'stable': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
-        'archived': 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-400',
+        'alpha': 'prl-badge-run',
+        'beta': 'prl-badge-info',
+        'stable': 'prl-badge-ok',
+        'archived': 'prl-badge-wait',
     };
 
     $(document).on('click', '.edit-status-btn', function() {

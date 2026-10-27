@@ -46,7 +46,7 @@
                         <i class="<?php echo HTML::chars($m['icon']); ?> w-4 shrink-0 text-center text-sm text-gray-400"></i>
                         <span class="truncate"><?php echo HTML::chars($m['title']); ?></span>
                         <?php if ( ! empty($m['badge'])): ?>
-                        <span class="prl-badge prl-badge-info shrink-0 uppercase"><?php echo HTML::chars((string) $m['badge']); ?></span>
+                        <span class="prl-count shrink-0 uppercase"><?php echo HTML::chars((string) $m['badge']); ?></span>
                         <?php endif; ?>
                     </a>
                     <?php // Звёздочка «в Избранное»: проявляется при наведении на строку. Закрепление видно в меню сразу (prl.nav.v1). ?>

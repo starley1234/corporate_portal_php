@@ -15,7 +15,7 @@
     <h1 class="prl-h1 mt-2"><i class="fas fa-user-tag mr-2 text-blue-500"></i>Роли</h1>
 
     <?php if ((string) $flash !== ''): ?>
-    <div class="mt-3 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs font-semibold sm:text-sm dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
+    <div class="prl-flash prl-flash-info mt-3" role="status">
         <i class="fas fa-circle-info shrink-0"></i><span><?php echo HTML::chars($flash); ?></span>
     </div>
     <?php endif; ?>
@@ -37,7 +37,7 @@
                     <tbody class="divide-y divide-gray-100 text-sm text-gray-600 dark:divide-gray-700/60 dark:text-gray-300">
                         <?php foreach ($roles as $r): $core = in_array((string) $r['name'], ['login', 'admin'], TRUE); ?>
                         <tr class="transition-colors hover:bg-gray-50/70 dark:hover:bg-gray-700/25">
-                            <td class="py-2.5 pl-4 pr-3 sm:pl-5"><span class="prl-badge <?php echo $r['name'] === 'admin' ? 'prl-badge-info' : ($r['name'] === 'login' ? 'prl-badge-ok' : 'prl-badge-wait'); ?> uppercase"><?php echo HTML::chars($r['name']); ?></span><?php echo $core ? ' <span class="text-xs text-gray-400">системная</span>' : ''; ?></td>
+                            <td class="py-2.5 pl-4 pr-3 sm:pl-5"><span class="prl-count uppercase"><?php echo HTML::chars($r['name']); ?></span><?php echo $core ? ' <span class="text-xs text-gray-400">системная</span>' : ''; ?></td>
                             <td class="max-w-[20rem] truncate px-3 py-2.5" title="<?php echo HTML::chars((string) $r['description']); ?>"><?php echo HTML::chars((string) $r['description']); ?></td>
                             <td class="px-3 py-2.5 font-mono"><?php echo (int) $r['users']; ?></td>
                             <td class="py-2.5 pr-4 text-right sm:pr-5">
@@ -59,7 +59,7 @@
         <!-- ============ Создание роли (1/3) ============ -->
         <div class="min-w-0 space-y-5 md:col-span-1">
             <div class="prl-card">
-                <h3 class="prl-h3 border-b border-gray-100 pb-3"><i class="fas fa-plus mr-1.5 text-blue-500"></i>Новая роль</h3>
+                <h3 class="prl-h3 border-b border-gray-100 pb-3 dark:border-gray-700"><i class="fas fa-plus mr-1.5 text-blue-500"></i>Новая роль</h3>
                 <form method="post" action="/prl595/admin/roles" class="mt-3 space-y-3">
                     <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
                     <div>

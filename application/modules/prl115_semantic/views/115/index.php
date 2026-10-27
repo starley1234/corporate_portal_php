@@ -20,11 +20,11 @@ $n     = function ($v) { return number_format((float) $v, 0, ',', ' '); };
 $when  = function ($ts) { return $ts ? Date::formatted_time((string) $ts, 'd.m.y H:i') : '—'; };
 
 $status_ru = [
-    'pending'    => ['Ожидает', 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'],
-    'processing' => ['Выполняется', 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'],
-    'done'       => ['Готово', 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'],
-    'failed'     => ['Ошибка', 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'],
-    'cancelled'  => ['Отменена', 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300'],
+    'pending'    => ['Ожидает', 'prl-badge-wait'],
+    'processing' => ['Выполняется', 'prl-badge-run'],
+    'done'       => ['Готово', 'prl-badge-ok'],
+    'failed'     => ['Ошибка', 'prl-badge-err'],
+    'cancelled'  => ['Отменена', 'prl-badge-wait'],
 ];
 
 $engine = (string) ($health['engine'] ?? '');
@@ -37,12 +37,12 @@ $search_stat = (array) ($panel['search_stats'] ?? []);
 $found_html = function (array $s_row) {
     if ($s_row['error'] !== '')
     {
-        return '<span class="rounded bg-rose-50 px-2 py-0.5 text-sm font-semibold text-rose-600 dark:bg-rose-950/40 dark:text-rose-300" title="'.HTML::chars($s_row['error']).'">ошибка</span>';
+        return '<span class="prl-badge prl-badge-err" title="'.HTML::chars($s_row['error']).'"><span class="prl-dot"></span>ошибка</span>';
     }
 
     if ((int) $s_row['results'] === 0)
     {
-        return '<span class="rounded bg-amber-50 px-2 py-0.5 text-sm font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">пусто</span>';
+        return '<span class="prl-badge prl-badge-wait"><span class="prl-dot"></span>пусто</span>';
     }
 
     $html = '<span class="font-semibold text-gray-900 dark:text-white">'.(int) $s_row['results'].'</span>'
@@ -68,16 +68,14 @@ $found_html = function (array $s_row) {
         <h1 class="prl-h1">
             <i class="fas fa-magnifying-glass-chart mr-2 text-emerald-600 dark:text-emerald-400"></i>Семантический поиск
         </h1>
-        <span class="rounded-full bg-emerald-600 px-2.5 py-0.5 text-xs font-semibold text-white">Векторы платформы</span>
+        <span class="prl-count">Векторы платформы</span>
         <?php if ($engine !== ''): ?>
-        <span class="prl-badge prl-badge-wait font-mono" title="Как ищет PostgreSQL: pgvector (&lt;=&gt;) или косинусная функция prl_115_vec_dist">
+        <span class="prl-count font-mono" title="Как ищет PostgreSQL: pgvector (&lt;=&gt;) или косинусная функция prl_115_vec_dist">
             <?php echo HTML::chars($engine === 'pgvector' ? 'pgvector · HNSW' : 'real[] · косинус'); ?>
         </span>
         <?php endif; ?>
         <?php if ($busy > 0): ?>
-        <span class="prl-badge prl-badge-info" id="prl115-busy">
-            в очереди: <?php echo (int) $busy; ?>
-        </span>
+        <span class="prl-badge prl-badge-info" id="prl115-busy"><span class="prl-dot"></span>в очереди: <?php echo (int) $busy; ?></span>
         <?php endif; ?>
     </div>
 
@@ -143,7 +141,7 @@ $found_html = function (array $s_row) {
                 <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-700/60">
                     <div class="flex items-center gap-2">
                         <h2 class="prl-h3">Коллекции</h2>
-                        <span class="rounded-md bg-gray-100 px-2 py-0.5 text-sm font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300"><?php echo count($collections); ?></span>
+                        <span class="prl-count"><?php echo count($collections); ?></span>
                     </div>
                     <button type="button" id="prl115-refresh" class="prl-btn-secondary prl-btn-sm">
                         <i class="fas fa-rotate"></i>Обновить
@@ -192,7 +190,7 @@ $found_html = function (array $s_row) {
                 <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-700/60">
                     <div class="flex items-center gap-2">
                         <h2 class="prl-h3">Источники индексации</h2>
-                        <span id="prl115-sources" class="rounded-md bg-gray-100 px-2 py-0.5 text-sm font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300"><?php echo count($health['coverage'] ?? []); ?></span>
+                        <span id="prl115-sources" class="prl-count"><?php echo count($health['coverage'] ?? []); ?></span>
                         <?php if (isset($health['coverage_min']) AND $health['coverage_min'] !== NULL): ?>
                         <?php $cmin = (float) $health['coverage_min']; ?>
                         <span class="text-sm font-semibold <?php echo $cmin >= 99.5 ? 'text-emerald-600 dark:text-emerald-400' : ($cmin >= 90 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400'); ?>">
@@ -299,7 +297,7 @@ $found_html = function (array $s_row) {
                 <div class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-700/60">
                     <div class="flex items-center gap-2">
                         <h2 class="prl-h3">Поисковые запросы</h2>
-                        <span id="prl115-searches-total" class="<?php echo (int) ($search_stat['total'] ?? 0) > 0 ? '' : 'hidden'; ?> rounded-md bg-gray-100 px-2 py-0.5 text-sm font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300" title="За последние 24 часа">
+                        <span id="prl115-searches-total" class="prl-count <?php echo (int) ($search_stat['total'] ?? 0) > 0 ? '' : 'hidden'; ?>" title="За последние 24 часа">
                             за сутки: <?php echo $n($search_stat['total'] ?? 0); ?>
                         </span>
                     </div>
@@ -355,7 +353,7 @@ $found_html = function (array $s_row) {
             <div class="prl-card p-0">
                 <div class="flex items-center gap-2 border-b border-gray-100 px-4 py-3 dark:border-gray-700/60">
                     <h2 class="prl-h3">Последние задачи канала</h2>
-                    <span class="rounded-md bg-gray-100 px-2 py-0.5 text-sm font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300"><?php echo count($jobs); ?></span>
+                    <span class="prl-count"><?php echo count($jobs); ?></span>
                 </div>
                 <div class="overflow-x-auto prl-scrollbar" style="scrollbar-width:thin">
                     <table class="prl-table">
@@ -370,14 +368,14 @@ $found_html = function (array $s_row) {
                         </thead>
                         <tbody class="divide-y divide-gray-100 text-sm dark:divide-gray-700/60">
                             <?php foreach ($jobs as $j): ?>
-                            <?php $st = $status_ru[$j['status']] ?? [$j['status'], 'bg-gray-100 text-gray-500']; ?>
+                            <?php $st = $status_ru[$j['status']] ?? [$j['status'], 'prl-badge-wait']; ?>
                             <tr class="transition-colors hover:bg-gray-50/70 dark:hover:bg-gray-700/25">
                                 <td class="py-2.5 pr-3 pl-4">
                                     <a href="/prl120/task/<?php echo (int) $j['id']; ?>" class="font-mono font-semibold text-emerald-600 hover:underline dark:text-emerald-400">#<?php echo (int) $j['id']; ?></a>
                                     <span class="block text-sm text-gray-400"><?php echo HTML::chars($when($j['finished_at'] !== '' ? $j['finished_at'] : $j['created_at'])); ?></span>
                                 </td>
                                 <td class="py-2.5 px-3">
-                                    <span class="rounded px-2 py-0.5 text-sm font-semibold <?php echo $st[1]; ?>"><?php echo HTML::chars($st[0]); ?></span>
+                                    <span class="prl-badge <?php echo $st[1]; ?>"><span class="prl-dot"></span><?php echo HTML::chars($st[0]); ?></span>
                                     <?php if ($j['error'] !== ''): ?>
                                     <span class="block max-w-[22rem] truncate text-sm text-rose-500" title="<?php echo HTML::chars($j['error']); ?>"><?php echo HTML::chars($j['error']); ?></span>
                                     <?php endif; ?>
@@ -411,7 +409,7 @@ $found_html = function (array $s_row) {
                      делать» — иначе владельцу не с чем идти. */ ?>
             <?php if ( ! empty($health['problems'])): ?>
             <div class="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/40">
-                <h2 class="flex items-center gap-2 text-base font-bold text-amber-900 dark:text-amber-200">
+                <h2 class="prl-h3 flex items-center gap-2 text-amber-900 dark:text-amber-200">
                     <i class="fas fa-triangle-exclamation"></i>Что требует внимания
                 </h2>
                 <ul class="mt-2 space-y-1.5 text-sm text-amber-900 dark:text-amber-100">
@@ -568,8 +566,8 @@ $found_html = function (array $s_row) {
                 var d = document.createElement('div');
                 d.className = 'rounded-lg border border-gray-200 bg-gray-50/60 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900/40';
                 var chip = r.match === 'text'
-                    ? '<span class="shrink-0 rounded bg-amber-100 px-2 py-0.5 text-sm font-semibold text-amber-700 dark:bg-amber-950/50 dark:text-amber-300">по словам</span>'
-                    : '<span class="shrink-0 rounded bg-gray-100 px-2 py-0.5 text-sm font-semibold text-gray-600 dark:bg-gray-700 dark:text-gray-300">вектор</span>';
+                    ? '<span class="prl-count shrink-0">по словам</span>'
+                    : '<span class="prl-count shrink-0">вектор</span>';
 
                 d.innerHTML = '<div class="flex items-baseline justify-between gap-3">'
                     + '<span class="font-mono text-gray-500 dark:text-gray-400">' + esc(r.entity) + ' / ' + esc(r.entity_id) + '</span>'
@@ -601,9 +599,9 @@ $found_html = function (array $s_row) {
         var found;
 
         if (r.error) {
-            found = '<span class="rounded bg-rose-50 px-2 py-0.5 text-sm font-semibold text-rose-600 dark:bg-rose-950/40 dark:text-rose-300" title="' + esc(r.error) + '">ошибка</span>';
+            found = '<span class="prl-badge prl-badge-err" title="' + esc(r.error) + '"><span class="prl-dot"></span>ошибка</span>';
         } else if (Number(r.results) === 0) {
-            found = '<span class="rounded bg-amber-50 px-2 py-0.5 text-sm font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">пусто</span>';
+            found = '<span class="prl-badge prl-badge-wait"><span class="prl-dot"></span>пусто</span>';
         } else {
             found = '<span class="font-semibold text-gray-900 dark:text-white">' + num(r.results) + '</span>'
                 + '<span class="text-gray-400">(' + num(r.vector_hits) + ' по смыслу'

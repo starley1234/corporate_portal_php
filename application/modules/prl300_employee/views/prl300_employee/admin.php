@@ -5,7 +5,7 @@
         'title' => 'Структура холдинга',
         'pill' => [$dashboard['scope']['global'] ? 'Все организации' : 'Своя организация', 'fa-sitemap'],
         'actions' => [
-            ['label' => 'Сотрудники', 'href' => '/prl300/admin/employees', 'icon' => 'fa-users', 'role' => 'process'],
+            ['label' => 'Сотрудники', 'href' => '/prl300/admin/employees', 'icon' => 'fa-users', 'role' => 'secondary'],
             ['label' => 'Импорт HR-данных', 'href' => '/prl300/admin/import', 'icon' => 'fa-file-import', 'role' => 'secondary'],
         ],
         'lead' => 'Организации, площадки и иерархия подразделений. HR-пользователь видит и изменяет только организацию своего сопоставленного сотрудника; администратор портала — все.',

@@ -20,11 +20,11 @@ $tasks      = isset($tasks) ? (array) $tasks : [];
 $result_url = isset($result_url) ? (string) $result_url : '';
 
 $badge = [
-    'pending'    => 'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-300',
-    'processing' => 'bg-blue-50 text-blue-600 animate-pulse dark:bg-blue-950/60 dark:text-blue-300',
-    'done'       => 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-300',
-    'failed'     => 'bg-rose-50 text-rose-500 dark:bg-rose-950/60 dark:text-rose-300',
-    'cancelled'  => 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300',
+    'pending'    => 'prl-badge-wait',
+    'processing' => 'prl-badge-run',
+    'done'       => 'prl-badge-ok',
+    'failed'     => 'prl-badge-err',
+    'cancelled'  => 'prl-badge-wait',
 ];
 $status_ru = [
     'pending'    => 'в очереди',
@@ -53,11 +53,11 @@ $latest_status = $latest ? (string) $latest['status'] : '';
             <i class="fas fa-list-check mr-2 text-blue-500"></i>Задача <?php echo HTML::chars($code); ?>
         </h1>
         <?php if ($latest): ?>
-        <span class="rounded-full px-2.5 py-0.5 text-xs font-bold <?php echo $badge[$latest_status] ?? ''; ?>"><?php echo HTML::chars($status_ru[$latest_status] ?? $latest_status); ?></span>
-        <span class="prl-badge prl-badge-info"><?php echo HTML::chars((string) $latest['label']); ?></span>
+        <span class="prl-badge <?php echo $badge[$latest_status] ?? 'prl-badge-wait'; ?>"><span class="prl-dot"></span><?php echo HTML::chars($status_ru[$latest_status] ?? $latest_status); ?></span>
+        <span class="prl-count"><?php echo HTML::chars((string) $latest['label']); ?></span>
         <?php endif; ?>
         <?php if ($result_url !== ''): ?>
-        <a href="<?php echo HTML::chars($result_url); ?>" class="prl-btn-process prl-btn-sm">
+        <a href="<?php echo HTML::chars($result_url); ?>" class="prl-btn-secondary prl-btn-sm">
             <i class="fas fa-arrow-up-right-from-square text-[11px]"></i>Открыть результат
         </a>
         <?php endif; ?>
@@ -80,6 +80,7 @@ $latest_status = $latest ? (string) $latest['status'] : '';
     <?php endif; ?>
 
     <div class="prl-card p-0 mt-4 overflow-hidden">
+        <div class="overflow-x-auto">
         <table class="prl-table">
             <thead>
                 <tr class="border-b border-gray-100 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:border-gray-700/60 dark:text-gray-400">
@@ -94,7 +95,7 @@ $latest_status = $latest ? (string) $latest['status'] : '';
                 <?php foreach ($tasks as $t): $st = (string) $t['status']; ?>
                 <tr class="border-b border-gray-50 last:border-0 dark:border-gray-700/40">
                     <td class="px-3.5 py-2.5 font-mono text-gray-400">
-                        <a href="/prl120/task/<?php echo (int) $t['id']; ?>" class="transition hover:text-blue-600 hover:underline" title="Открыть журнал задачи"><?php echo (int) $t['id']; ?></a>
+                        <a href="/prl120/task/<?php echo (int) $t['id']; ?>" class="transition hover:text-blue-600 hover:underline dark:hover:text-blue-400" title="Открыть журнал задачи"><?php echo (int) $t['id']; ?></a>
                     </td>
                     <td class="px-3 py-2.5 text-gray-700 dark:text-gray-200">
                         <?php echo HTML::chars((string) $t['label']); ?>
@@ -103,7 +104,7 @@ $latest_status = $latest ? (string) $latest['status'] : '';
                         <?php endif; ?>
                     </td>
                     <td class="px-3 py-2.5">
-                        <span class="rounded-full px-2 py-0.5 text-xs font-bold <?php echo $badge[$st] ?? ''; ?>"><?php echo HTML::chars($status_ru[$st] ?? $st); ?></span>
+                        <span class="prl-badge <?php echo $badge[$st] ?? 'prl-badge-wait'; ?>"><span class="prl-dot"></span><?php echo HTML::chars($status_ru[$st] ?? $st); ?></span>
                     </td>
                     <td class="px-3 py-2.5 text-gray-500 dark:text-gray-400"><?php echo $fmt($t['created']); ?></td>
                     <td class="px-3.5 py-2.5 text-gray-500 dark:text-gray-400"><?php echo $fmt($t['finished']); ?></td>
@@ -111,6 +112,7 @@ $latest_status = $latest ? (string) $latest['status'] : '';
                 <?php endforeach; ?>
             </tbody>
         </table>
+        </div>
     </div>
 
     <?php if ($latest): ?>

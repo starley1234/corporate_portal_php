@@ -82,7 +82,7 @@
             <div class="flex flex-col space-y-4">
                 <div class="flex items-center">
                     <input id="is_active" name="is_active" type="checkbox" value="1"
-                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600"
+                           class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
                            <?php echo ($subscriber->is_active || !$subscriber->loaded()) ? 'checked' : ''; ?>>
                     <label for="is_active" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">
                         <?php echo __('Is Active'); ?>
@@ -91,7 +91,7 @@
 
                 <div class="flex items-center">
                     <input id="is_notification" name="is_notification" type="checkbox" value="1"
-                           class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600"
+                           class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
                            <?php echo ($subscriber->is_notification) ? 'checked' : ''; ?>>
                     <label for="is_notification" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">
                         <?php echo __('Is Notification'); ?>
@@ -105,7 +105,7 @@
                     <?php echo __('Cancel'); ?>
                 </a>
                 <button type="submit"
-                        class="prl-btn-process">
+                        class="prl-btn-cta">
                     <?php echo HTML::chars($subscriber->loaded() ? __('Update Subscription') : __('Create Subscription')); ?>
                 </button>
             </div>

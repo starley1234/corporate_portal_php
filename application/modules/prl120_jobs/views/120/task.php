@@ -7,11 +7,11 @@
  */
 
 $badge = [
-    'pending'    => 'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-300',
-    'processing' => 'bg-blue-50 text-blue-600 animate-pulse dark:bg-blue-950/60 dark:text-blue-300',
-    'done'       => 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-300',
-    'failed'     => 'bg-rose-50 text-rose-500 dark:bg-rose-950/60 dark:text-rose-300',
-    'cancelled'  => 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300',
+    'pending'    => 'prl-badge-wait',
+    'processing' => 'prl-badge-run',
+    'done'       => 'prl-badge-ok',
+    'failed'     => 'prl-badge-err',
+    'cancelled'  => 'prl-badge-wait',
 ];
 // Значения по умолчанию: вьюха обязана открываться даже с частичными данными.
 // Живой случай 27.09.2026 — /tasks/<code> рендерил этот шаблон без $job_id и
@@ -54,8 +54,8 @@ $fmt = static function ($ts): string {
         <h1 class="prl-h1">
             <i class="fas fa-list-check mr-2 text-emerald-600 dark:text-emerald-400"></i>Задача #<?php echo (int) $job_id; ?>
         </h1>
-        <span class="rounded px-2 py-0.5 text-xs font-bold <?php echo $badge[$job['status']] ?? ''; ?>"><?php echo HTML::chars($status_ru[$job['status']] ?? $job['status']); ?></span>
-        <span class="prl-badge prl-badge-info font-mono"><?php echo HTML::chars($label); ?></span>
+        <span class="prl-badge <?php echo $badge[$job['status']] ?? 'prl-badge-wait'; ?>"><span class="prl-dot"></span><?php echo HTML::chars($status_ru[$job['status']] ?? $job['status']); ?></span>
+        <span class="prl-count font-mono"><?php echo HTML::chars($label); ?></span>
     </div>
 
     <?php /* «Почему висит и что дальше»: одно предложение + цифры пульса и
@@ -116,7 +116,7 @@ $fmt = static function ($ts): string {
             <?php foreach ($events as $e): ?>
             <li class="flex items-start gap-2 text-xs">
                 <span class="mt-0.5 w-16 shrink-0 font-mono text-gray-400"><?php echo $fmt($e['created_at']); ?></span>
-                <span class="prl-badge prl-badge-wait shrink-0 font-mono"><?php echo HTML::chars((string) $e['event']); ?></span>
+                <span class="prl-count shrink-0 font-mono"><?php echo HTML::chars((string) $e['event']); ?></span>
                 <span class="min-w-0 break-words text-gray-600 dark:text-gray-300"><?php echo HTML::chars((string) ($e['message'] ?? '')); ?></span>
             </li>
             <?php endforeach; ?>

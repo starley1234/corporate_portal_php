@@ -68,7 +68,7 @@
                 <div class="flex items-center h-5">
                     <input id="is_public" name="is_public" type="checkbox" value="1"
                            <?php echo $file->is_public ? 'checked' : ''; ?>
-                           class="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-900">
+                           class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
                 </div>
                 <div class="ml-3 text-sm">
                     <label for="is_public" class="font-medium text-gray-700 dark:text-gray-300">Общий файл</label>
@@ -77,7 +77,7 @@
             </div>
 
             <div class="pt-6 border-t border-gray-200 dark:border-gray-700 flex items-center justify-end gap-4">
-                <button type="reset" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors">
+                <button type="reset" class="prl-btn-secondary">
                     Сбросить изменения
                 </button>
                 <button type="submit" class="prl-btn-cta">

@@ -18,7 +18,7 @@ class Controller_Prl208_Widget extends Controller_Base {
         $this->auto_render = FALSE;
 
         if (!$this->can('prl208_events.view_latest_events_widget')) {
-            $this->response->body('<div class="alert alert-warning">' . __('У вас нет прав для просмотра виджета последних событий.') . '</div>');
+            $this->response->body('<div class="prl-flash prl-flash-warn" role="alert"><i class="fas fa-triangle-exclamation"></i><span>' . HTML::chars(__('У вас нет прав для просмотра виджета последних событий.')) . '</span></div>');
             return;
         }
 
@@ -39,7 +39,7 @@ class Controller_Prl208_Widget extends Controller_Base {
             Kohana::$log->add(Log::ERROR, 'Ошибка в Controller_Prl208_Widget::action_latest_events: :error',
                 array(':error' => $e->getMessage()));
 
-            $this->response->body('<div class="alert alert-danger">' . __('Не удалось загрузить последние события.') . '</div>');
+            $this->response->body('<div class="prl-flash prl-flash-err" role="alert"><i class="fas fa-triangle-exclamation"></i><span>' . HTML::chars(__('Не удалось загрузить последние события.')) . '</span></div>');
         }
     }
 
@@ -55,7 +55,7 @@ class Controller_Prl208_Widget extends Controller_Base {
         $this->auto_render = FALSE;
 
         if (!$this->can('prl208_events.publish_event_widget')) {
-            $this->response->body('<div class="alert alert-warning">' . __('У вас нет прав для публикации событий через виджет.') . '</div>');
+            $this->response->body('<div class="prl-flash prl-flash-warn" role="alert"><i class="fas fa-triangle-exclamation"></i><span>' . HTML::chars(__('У вас нет прав для публикации событий через виджет.')) . '</span></div>');
             return;
         }
 
@@ -93,7 +93,7 @@ class Controller_Prl208_Widget extends Controller_Base {
                         Event::fire('prl208_events.published', (object)['name' => $event_name, 'payload' => $payload]);
 
                         $post_data = array();
-                        $this->response->body('<div class="alert alert-success">' . __('Событие ":event_name" успешно опубликовано!', array(':event_name' => $event_name)) . '</div>');
+                        $this->response->body('<div class="prl-flash prl-flash-ok" role="status"><i class="fas fa-circle-check"></i><span>' . HTML::chars(__('Событие ":event_name" успешно опубликовано!', array(':event_name' => $event_name))) . '</span></div>');
                         return;
                     }
                     catch (Exception $e)

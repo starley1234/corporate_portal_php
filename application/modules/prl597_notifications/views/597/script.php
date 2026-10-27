@@ -122,7 +122,7 @@
                         link.href = url.href;
                         link.target = '_blank';
                         link.rel = 'noopener noreferrer';
-                        link.className = 'text-blue-600 underline';
+                        link.className = 'text-blue-600 underline dark:text-blue-400';
                         link.textContent = 'Открыть бота';
                         box.appendChild(link);
                     }

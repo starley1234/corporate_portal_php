@@ -188,7 +188,7 @@ $e = function ($value) {
                     <span class="prl-ds-xs text-gray-400 dark:text-gray-500">Осталось: ~30 с</span>
                     <!-- Красная деликатная кнопка остановки -->
                     <button type="button"
-                            class="prl-btn-danger prl-btn-sm border-rose-200 hover:border-rose-300">
+                            class="prl-btn-danger prl-btn-sm">
                         <i class="fas fa-stop text-[11px]"></i>
                         <span>Остановить</span>
                     </button>

@@ -5,11 +5,11 @@
  * ошибки, параметры, отменить/прервать/удалить (two-click). Автообновление 15 с.
  */
 $st = [
-    'pending'    => ['Ожидает', 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'],
-    'processing' => ['Выполняется', 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'],
-    'done'       => ['Готово', 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'],
-    'failed'     => ['Ошибка', 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'],
-    'cancelled'  => ['Отменена', 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300'],
+    'pending'    => ['Ожидает', 'prl-badge-wait'],
+    'processing' => ['Выполняется', 'prl-badge-run'],
+    'done'       => ['Готово', 'prl-badge-ok'],
+    'failed'     => ['Ошибка', 'prl-badge-err'],
+    'cancelled'  => ['Отменена', 'prl-badge-wait'],
 ];
 $c   = function ($v) { return number_format((float) $v, 0, ',', ' '); };
 $dt  = function ($v) { return $v ? HTML::chars(Date::formatted_time((string) $v, 'd.m.y H:i:s')) : '—'; };
@@ -57,7 +57,7 @@ $v = $verdict[$health['verdict']] ?? $verdict['idle'];
                 </button>
             </form>
             <label class="flex cursor-pointer items-center gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
-                <input type="checkbox" id="njmon-auto" checked class="h-4 w-4 rounded accent-emerald-600">
+                <input type="checkbox" id="njmon-auto" checked class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
                 автообновление 15 с
             </label>
         </div>
@@ -119,13 +119,13 @@ $v = $verdict[$health['verdict']] ?? $verdict['idle'];
             <p class="mt-1 text-2xl font-black text-gray-900 dark:text-white"><?php echo $c($health['done_24h']); ?></p>
             <?php if ($health['avg_ms_24h'] !== NULL): ?><p class="prl-hint mt-0.5">ср. время <?php echo $c(($health['avg_ms_24h'] / 1000)); ?> с</p><?php endif; ?>
         </div>
-        <a href="/prl120/monitor?p=failed" class="prl-card transition hover:border-rose-300">
+        <a href="/prl120/monitor?p=failed" class="prl-card transition hover:border-rose-300 dark:hover:border-rose-800">
             <p class="text-xs font-semibold uppercase text-gray-400">Ошибки за 24 ч</p>
             <p class="mt-1 text-2xl font-black <?php echo $health['failed_24h'] > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-gray-900 dark:text-white'; ?>"><?php echo $c($health['failed_24h']); ?></p>
         </a>
     </div>
 
-    <div id="njmon-now" class="mt-3 <?php echo empty($health['now_doing']) ? 'hidden' : ''; ?> rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+    <div id="njmon-now" class="prl-card mt-3 <?php echo empty($health['now_doing']) ? 'hidden' : ''; ?>">
         <p class="text-xs font-semibold uppercase text-gray-400">Воркер сейчас делает</p>
         <ul class="mt-1.5 space-y-1">
             <?php foreach ((array) $health['now_doing'] as $nd): ?>
@@ -172,13 +172,13 @@ $v = $verdict[$health['verdict']] ?? $verdict['idle'];
                 </tr>
             </thead>
             <tbody class="text-gray-700 dark:text-gray-300">
-                <?php foreach ($jobs as $r): [$stl, $stc] = $st[$r['status']] ?? [$r['status'], 'bg-gray-100 text-gray-500 dark:bg-gray-700']; ?>
+                <?php foreach ($jobs as $r): [$stl, $stc] = $st[$r['status']] ?? [$r['status'], 'prl-badge-wait']; ?>
                 <tr class="border-t border-gray-50 align-top dark:border-gray-700/50">
-                    <td class="px-3 py-2 font-mono text-gray-400"><a href="/prl120/task/<?php echo (int) $r['id']; ?>" class="transition hover:text-blue-600 hover:underline" title="Открыть журнал задачи"><?php echo (int) $r['id']; ?></a></td>
+                    <td class="px-3 py-2 font-mono text-gray-400"><a href="/prl120/task/<?php echo (int) $r['id']; ?>" class="transition hover:text-blue-600 hover:underline dark:hover:text-blue-400" title="Открыть журнал задачи"><?php echo (int) $r['id']; ?></a></td>
                     <td class="max-w-[16rem] py-2">
                         <p class="truncate font-semibold" title="<?php echo HTML::chars($r['label']); ?>"><?php if ( ! empty($r['url'])): ?><a href="<?php echo HTML::chars($r['url']); ?>" class="text-blue-600 hover:underline dark:text-blue-400" title="Открыть результат"><?php echo HTML::chars($r['title'] ?: $r['label']); ?></a><?php else: echo HTML::chars($r['title'] ?: $r['label']); endif; ?></p>
                         <p class="mt-0.5 flex items-center gap-1.5 text-gray-400">
-                            <span class="rounded bg-gray-100 px-1.5 font-bold text-gray-500 dark:bg-gray-700 dark:text-gray-300"><?php echo HTML::chars($r['label']); ?></span>
+                            <span class="prl-count"><?php echo HTML::chars($r['label']); ?></span>
                             <?php if ((int) $r['attempts'] > 1): ?><span>попытка <?php echo (int) $r['attempts']; ?>/<?php echo (int) $r['max_attempts']; ?></span><?php endif; ?>
                         </p>
                         <?php // Этап воркера: что задача делает ПРЯМО СЕЙЧАС (ctx.progress → журнал) ?>
@@ -191,16 +191,16 @@ $v = $verdict[$health['verdict']] ?? $verdict['idle'];
                     </td>
                     <td class="max-w-[10rem] py-2 truncate" title="visitor: <?php echo HTML::chars($r['visitor_id']); ?>"><?php echo HTML::chars($r['owner_name'] ?: (($r['visitor_id'] !== '' AND $r['visitor_id'] !== 'anon') ? $r['visitor_id'] : 'система')); ?></td>
                     <td class="py-2">
-                        <span class="whitespace-nowrap rounded px-1.5 py-0.5 font-bold <?php echo $stc; ?>"><?php echo $stl; ?></span>
+                        <span class="prl-badge whitespace-nowrap <?php echo $stc; ?>"><span class="prl-dot"></span><?php echo $stl; ?></span>
                         <?php if ($r['status'] === 'processing' AND ! empty($r['heartbeat_at'])): ?>
                         <?php $silent = time() - strtotime((string) $r['heartbeat_at']); ?>
                         <?php $stop_left = max(0, (int) $silent_stop - $silent); ?>
-                        <?php if ($silent > 1800): ?><span class="ml-1 whitespace-nowrap rounded bg-rose-100 px-1.5 py-0.5 font-bold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" title="Воркер не подаёт признаков жизни">нет пульса <?php echo $c($silent / 60); ?> мин</span>
-                        <?php elseif ($silent > 120): ?><span class="ml-1 whitespace-nowrap rounded bg-amber-100 px-1.5 py-0.5 font-bold text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">пульс <?php echo $c($silent / 60); ?> мин</span>
+                        <?php if ($silent > 1800): ?><span class="prl-badge prl-badge-err ml-1 whitespace-nowrap" title="Воркер не подаёт признаков жизни"><span class="prl-dot"></span>нет пульса <?php echo $c($silent / 60); ?> мин</span>
+                        <?php elseif ($silent > 120): ?><span class="prl-badge prl-badge-run ml-1 whitespace-nowrap"><span class="prl-dot"></span>пульс <?php echo $c($silent / 60); ?> мин</span>
                         <?php endif; ?>
                         <?php // Что будет дальше: свипер закроет строку через N секунд, объяснять это до визита админа некому. ?>
                         <?php if ($silent > 60): ?>
-                        <span class="ml-1 whitespace-nowrap rounded bg-gray-100 px-1.5 py-0.5 font-semibold text-gray-500 dark:bg-gray-700 dark:text-gray-300" title="Порог авто-остановки: <?php echo (int) $silent_stop; ?> с молчания (PRL_SILENT_STOP_SEC)">авто-стоп через <?php echo $c($stop_left); ?> с</span>
+                        <span class="prl-count ml-1 whitespace-nowrap" title="Порог авто-остановки: <?php echo (int) $silent_stop; ?> с молчания (PRL_SILENT_STOP_SEC)">авто-стоп через <?php echo $c($stop_left); ?> с</span>
                         <?php endif; ?>
                         <?php endif; ?>
                         <?php if ( ! empty($r['error'])): ?><p class="mt-1 max-w-[14rem] truncate text-rose-500" title="<?php echo HTML::chars($r['error']); ?>"><?php echo HTML::chars(mb_substr((string) $r['error'], 0, 60)); ?></p><?php endif; ?>
@@ -249,7 +249,7 @@ $v = $verdict[$health['verdict']] ?? $verdict['idle'];
                                 <p><b class="text-gray-700 dark:text-gray-200">Старт:</b> <?php echo $dt($r['started_at']); ?> · <b class="text-gray-700 dark:text-gray-200">Финиш:</b> <?php echo $dt($r['finished_at']); ?></p>
                                 <p><b class="text-gray-700 dark:text-gray-200">visitor:</b> <?php echo HTML::chars($r['visitor_id'] ?: '—'); ?></p>
                                 <?php if ($r['url_tpl'] !== '' AND isset($r['payload_arr']['code'])): ?>
-                                <a href="<?php echo HTML::chars(str_replace('<code>', urlencode((string) $r['payload_arr']['code']), $r['url_tpl'])); ?>" class="prl-btn-cta prl-btn-sm">К результату <i class="fas fa-arrow-right ml-1.5"></i></a>
+                                <a href="<?php echo HTML::chars(str_replace('<code>', urlencode((string) $r['payload_arr']['code']), $r['url_tpl'])); ?>" class="prl-btn-secondary prl-btn-sm">К результату <i class="fas fa-arrow-right ml-1.5"></i></a>
                                 <?php endif; ?>
                             </div>
                         </div>

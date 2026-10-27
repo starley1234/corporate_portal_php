@@ -126,17 +126,30 @@ RULES = {
 }
 
 # Модули, где ночная тема выверена: для них --check требует ноль замечаний
-# «dark». Отдельный храповик (25.10.2026, «ночью не видно» в /mcphub):
-# остальным модулям правило показывается в сводке, но сборку не роняет.
-# Список только растёт.
+# «dark». Отдельный храповик (25.10.2026, «ночью не видно» в /mcphub).
+# 27.10.2026 к нулю приведены все production-модули и общие группы.
+# prl140_design_lab сюда не входит: это автономная витрина альтернативных
+# тем со своими CSS, а не страницы рабочего портала. Список только растёт.
 DARK_DONE = {
     'cookie_consent',
     'llm',
+    'prl100_platform',
     'prl110_catalog',
+    'prl111_migrations',
     'prl115_semantic',
+    'prl120_jobs',
+    'prl208_events',
+    'prl212_file_storage',
+    'prl218_module_manager',
     'prl300_employee',
+    'prl560_knowledge',
+    'prl595_useradmin',
+    'prl597_notifications',
+    'prl599_account',
+    'views/(корень)',
     'views/auth',
     'views/errors',
+    'views/pages',
     'views/pagination',
     'views/partials',
     'views/welcome',

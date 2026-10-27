@@ -8,17 +8,25 @@
 <div class="prl-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
 
     <?php if ($flash !== ''): ?>
-    <div class="mb-3 rounded-xl border <?php echo $kicked ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40' : 'border-rose-200 bg-rose-50 dark:border-rose-800 dark:bg-rose-950/40'; ?> px-3 py-2 text-xs <?php echo $kicked ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-300'; ?>">
-        <?php echo HTML::chars($flash); ?>
+    <div class="prl-flash <?php echo $kicked ? 'prl-flash-ok' : 'prl-flash-err'; ?> mb-5" role="<?php echo $kicked ? 'status' : 'alert'; ?>">
+        <i class="fas <?php echo $kicked ? 'fa-circle-check' : 'fa-triangle-exclamation'; ?>"></i>
+        <span><?php echo HTML::chars($flash); ?></span>
     </div>
     <?php endif; ?>
 
-    <div class="gap-4 space-y-4 md:grid md:grid-cols-2 md:items-start md:space-y-0">
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Платформа'], ['Обновление сайта']],
+        'title'  => 'Обновление сайта',
+        'pill'   => ['prl100 · деплой', 'fa-arrows-rotate'],
+        'lead'   => 'Диагностика ветки деплоя, запуск обновления и журнал последнего пинка.',
+    ]); ?>
+
+    <div class="mt-6 gap-4 space-y-4 md:grid md:grid-cols-2 md:items-start md:space-y-0">
 
         <div class="space-y-4">
             <?php if ($diag !== NULL): $pending = ! empty($diag['pending']); ?>
-            <div class="rounded-xl border <?php echo ($pending OR $diag['ahead'] > 0) ? 'border-amber-300/80 bg-amber-50/90 dark:border-amber-800/80 dark:bg-amber-950/40' : 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'; ?> p-4 shadow-xs">
-                <p class="text-sm font-bold text-gray-900 dark:text-white"><i class="fas fa-code-branch mr-1.5 <?php echo ($pending OR $diag['ahead'] > 0) ? 'text-amber-500' : 'text-blue-500'; ?>"></i>Куда смотрит деплой</p>
+            <section class="<?php echo ($pending OR $diag['ahead'] > 0) ? 'prl-flash prl-flash-warn block' : 'prl-card'; ?>">
+                <h2 class="prl-h3"><i class="fas fa-code-branch mr-1.5 <?php echo ($pending OR $diag['ahead'] > 0) ? 'text-amber-600 dark:text-amber-400' : 'text-blue-500'; ?>"></i>Куда смотрит деплой</h2>
                 <p class="mt-1.5 text-xs text-gray-600 dark:text-gray-300">
                     Ветка сервера: <span class="font-mono font-bold"><?php echo HTML::chars($diag['branch']); ?></span>
                     (на сервере <span class="font-mono"><?php echo HTML::chars($diag['local']); ?></span>)
@@ -44,11 +52,11 @@
                 <?php else: ?>
                 <p class="prl-hint mt-1.5"><i class="fas fa-circle-check mr-1 text-emerald-500"></i>Сайт на последнем коммите своей ветки — обновлять нечего.</p>
                 <?php endif; ?>
-            </div>
+            </section>
             <?php endif; ?>
 
             <div class="prl-card">
-                <p class="text-sm font-bold text-gray-900 dark:text-white"><i class="fas fa-arrows-rotate mr-1.5 text-blue-500"></i>Обновить сайт сейчас</p>
+                <h2 class="prl-h3"><i class="fas fa-arrows-rotate mr-1.5 text-blue-500"></i>Обновить сайт сейчас</h2>
                 <p class="prl-hint">Запускает <span class="font-mono">bin/deploy.sh --migrate</span> в фоне: git pull → composer → идемпотентные миграции БД (<span class="font-mono">db:migrate</span>) → перезапуск воркера → reload php-fpm. Повторный пинок, пока обновление идёт, безопасен (flock). Крон каждую минуту больше не нужен — таймер systemd можно отключить.</p>
 
                 <form method="post" action="/prl100/update" class="mt-3">
@@ -61,7 +69,7 @@
             </div>
 
             <div class="prl-card">
-                <p class="text-sm font-bold text-gray-900 dark:text-white"><i class="fas fa-robot mr-1.5 text-gray-400"></i>Пинок для агента (без логина)</p>
+                <h2 class="prl-h3"><i class="fas fa-robot mr-1.5 text-blue-500"></i>Пинок для агента (без логина)</h2>
                 <?php if ($kick_on): ?>
                 <p class="mt-1 text-xs text-gray-600 dark:text-gray-300">GET-ссылка с токеном <span class="font-mono">SITE_UPDATE_TOKEN</span> из <span class="font-mono">.env</span>:</p>
                 <p class="mt-1 break-all rounded-xl bg-gray-50 p-2 font-mono text-xs text-gray-600 dark:bg-gray-900 dark:text-gray-300">/update/kick/&lt;SITE_UPDATE_TOKEN&gt;</p>
@@ -73,7 +81,7 @@
         </div>
 
         <div class="prl-card">
-            <p class="text-sm font-bold text-gray-900 dark:text-white"><i class="fas fa-terminal mr-1.5 text-gray-400"></i>Журнал пинка <span class="font-mono text-xs text-gray-400"><?php echo HTML::chars($log_path); ?></span></p>
+            <h2 class="prl-h3"><i class="fas fa-terminal mr-1.5 text-blue-500"></i>Журнал пинка <span class="font-mono text-xs font-normal text-gray-400 dark:text-gray-500"><?php echo HTML::chars($log_path); ?></span></h2>
             <?php if (empty($log)): ?>
             <p class="prl-hint mt-2">Пока пусто — пинок ещё не запускался.</p>
             <?php else: ?>

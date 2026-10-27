@@ -78,7 +78,7 @@
 <div class="prl-card p-0 overflow-hidden">
     <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
         <h4 class="font-bold text-gray-700 dark:text-gray-200">Недавние изменения</h4>
-        <a href="/prl218/modules" class="text-xs text-gray-500 hover:text-blue-600 transition-colors">Все модули</a>
+        <a href="/prl218/modules" class="text-xs text-gray-500 transition-colors hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-400">Все модули</a>
     </div>
     <div class="overflow-x-auto">
         <table class="prl-table">
@@ -103,16 +103,14 @@
                         <td class="px-4 py-3 text-right">
                             <?php 
                                 $status_classes = [
-                                    'stable' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-                                    'beta'   => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-                                    'alpha'  => 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-                                    'archived' => 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-400'
+                                    'stable' => 'prl-badge-ok',
+                                    'beta'   => 'prl-badge-info',
+                                    'alpha'  => 'prl-badge-run',
+                                    'archived' => 'prl-badge-wait'
                                 ];
                                 $class = $status_classes[$mod->status] ?? $status_classes['archived'];
                             ?>
-                            <span class="px-2 py-0.5 rounded-full text-xs font-bold uppercase <?php echo $class; ?>">
-                                <?php echo HTML::chars($mod->status); ?>
-                            </span>
+                            <span class="prl-badge uppercase <?php echo $class; ?>"><span class="prl-dot"></span><?php echo HTML::chars($mod->status); ?></span>
                         </td>
                     </tr>
                     <?php endforeach; ?>

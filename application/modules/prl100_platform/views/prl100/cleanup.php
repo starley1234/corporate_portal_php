@@ -33,7 +33,7 @@
                     <p class="text-sm font-bold text-gray-900 dark:text-white"><?php echo HTML::chars($conf['label']); ?></p>
                     <p class="prl-hint mt-0.5"><?php echo HTML::chars($conf['note']); ?></p>
                 </div>
-                <span class="shrink-0 rounded-lg bg-gray-100 px-2.5 py-1 text-sm font-black text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+                <span class="prl-count shrink-0">
                     <?php echo $state[$key] === NULL ? '—' : number_format((float) $state[$key], 0, ',', ' '); ?>
                 </span>
             </div>

@@ -51,7 +51,7 @@
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="prl-badge prl-badge-wait">
+                                    <span class="prl-count uppercase">
                                         <?php echo HTML::chars($file->extension ?: 'bin'); ?>
                                     </span>
                                 </td>
@@ -100,12 +100,12 @@
             <?php endif; ?>
         </div>
     <?php else: ?>
-        <div class="bg-white dark:bg-gray-800 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 p-12 text-center">
-            <div class="mx-auto w-16 h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4">
-                <i class="fas fa-folder-open text-gray-400 text-2xl"></i>
+        <section class="prl-panel">
+            <div class="prl-empty">
+                <div class="prl-empty-icon"><i class="fas fa-folder-open"></i></div>
+                <h3 class="prl-h3 mt-4">Публичные файлы отсутствуют</h3>
+                <p class="prl-empty-text">В данный момент нет файлов, доступных для общего просмотра.</p>
             </div>
-            <h3 class="prl-h3">Публичные файлы отсутствуют</h3>
-            <p class="mt-1 text-gray-500 dark:text-gray-400">В данный момент нет файлов, доступных для общего просмотра.</p>
-        </div>
+        </section>
     <?php endif; ?>
 </div>

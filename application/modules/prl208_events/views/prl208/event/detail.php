@@ -8,7 +8,7 @@
             </h1>
             <div class="flex space-x-2">
                 <a href="<?php echo Route::url('prl208_events', array('action' => 'edit_event', 'id' => $event->id)); ?>"
-                   class="prl-btn-process">
+                   class="prl-btn-secondary">
                     <i class="fas fa-edit mr-2"></i> <?php echo __('Edit'); ?>
                 </a>
                 <a href="<?php echo Route::url('prl208_events', array('action' => 'delete_event', 'id' => $event->id)); ?>"

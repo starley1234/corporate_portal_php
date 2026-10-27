@@ -53,7 +53,7 @@
                         <div>
                             <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">MIME-тип</dt>
                             <dd class="mt-1 text-sm text-gray-900 dark:text-white flex items-center">
-                                <span class="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-xs font-mono mr-2"><?php echo $file->mime_type; ?></span>
+                                <span class="prl-count mr-2 font-mono"><?php echo HTML::chars($file->mime_type); ?></span>
                             </dd>
                         </div>
                         <div>
@@ -69,7 +69,7 @@
                             <dd class="mt-1 text-sm text-gray-900 dark:text-white">
                                 <?php if ($file->user->loaded()): ?>
                                     <div class="flex items-center">
-                                        <div class="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-xs font-bold text-blue-600 mr-2">
+                                        <div class="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-xs font-bold text-blue-600 dark:text-blue-300 mr-2">
                                             <?php echo strtoupper(substr($file->user->username, 0, 1)); ?>
                                         </div>
                                         <?php echo HTML::chars($file->user->username); ?>
@@ -98,13 +98,9 @@
                             <dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Статус доступа</dt>
                             <dd class="mt-1">
                                 <?php if ($file->is_public): ?>
-                                    <span class="prl-badge prl-badge-ok">
-                                        <i class="fas fa-globe mr-1"></i> Публичный
-                                    </span>
+                                    <span class="prl-badge prl-badge-info"><span class="prl-dot"></span>Публичный</span>
                                 <?php else: ?>
-                                    <span class="prl-badge prl-badge-run">
-                                        <i class="fas fa-lock mr-1"></i> Приватный
-                                    </span>
+                                    <span class="prl-badge prl-badge-wait"><span class="prl-dot"></span>Приватный</span>
                                 <?php endif; ?>
                             </dd>
                         </div>
@@ -164,7 +160,7 @@
                     <div class="space-y-4">
                         <div class="flex items-center justify-between">
                             <span class="text-sm text-gray-600 dark:text-gray-400">Права доступа (ACL)</span>
-                            <span class="prl-badge prl-badge-info">
+                            <span class="prl-count">
                                 <?php echo count($file->permissions->find_all()); ?> записей
                             </span>
                         </div>

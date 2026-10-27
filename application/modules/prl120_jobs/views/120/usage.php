@@ -54,7 +54,7 @@ $n = function ($v) { return number_format((float) $v, 0, ',', ' '); };
     <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <div class="prl-card">
             <p class="text-sm font-bold text-gray-900 dark:text-white">По модулям (каналам)</p>
-            <table class="prl-table mt-2">
+            <div class="mt-2 overflow-x-auto"><table class="prl-table">
                 <thead><tr class="text-left text-gray-400"><th class="py-1">Модуль</th><th>Задач</th><th>Токены</th><th>Ср. время</th></tr></thead>
                 <tbody class="text-gray-700 dark:text-gray-300">
                 <?php foreach ($by_channel as $r): ?>
@@ -67,12 +67,12 @@ $n = function ($v) { return number_format((float) $v, 0, ',', ' '); };
                 <?php endforeach; ?>
                 <?php if ( ! $by_channel): ?><tr><td colspan="4" class="py-2 text-gray-400">Отчётов пока нет — появятся после работы воркеров (нужна миграция prl120/004).</td></tr><?php endif; ?>
                 </tbody>
-            </table>
+            </table></div>
         </div>
 
         <div class="prl-card">
             <p class="text-sm font-bold text-gray-900 dark:text-white">По моделям</p>
-            <table class="prl-table mt-2">
+            <div class="mt-2 overflow-x-auto"><table class="prl-table">
                 <thead><tr class="text-left text-gray-400"><th class="py-1">Модель</th><th>Выз.</th><th>Токены</th></tr></thead>
                 <tbody class="text-gray-700 dark:text-gray-300">
                 <?php foreach ($by_model as $r): ?>
@@ -84,12 +84,12 @@ $n = function ($v) { return number_format((float) $v, 0, ',', ' '); };
                 <?php endforeach; ?>
                 <?php if ( ! $by_model): ?><tr><td colspan="3" class="py-2 text-gray-400">Пока пусто.</td></tr><?php endif; ?>
                 </tbody>
-            </table>
+            </table></div>
         </div>
 
         <div class="prl-card">
             <p class="text-sm font-bold text-gray-900 dark:text-white">По пользователям</p>
-            <table class="prl-table mt-2">
+            <div class="mt-2 overflow-x-auto"><table class="prl-table">
                 <thead><tr class="text-left text-gray-400"><th class="py-1">Пользователь</th><th>Задач</th><th>Токены</th><th>Ошиб.</th></tr></thead>
                 <tbody class="text-gray-700 dark:text-gray-300">
                 <?php foreach ($by_user as $r): ?>
@@ -102,7 +102,7 @@ $n = function ($v) { return number_format((float) $v, 0, ',', ' '); };
                 <?php endforeach; ?>
                 <?php if ( ! $by_user): ?><tr><td colspan="4" class="py-2 text-gray-400">Пока пусто.</td></tr><?php endif; ?>
                 </tbody>
-            </table>
+            </table></div>
         </div>
     </div>
 
@@ -112,7 +112,7 @@ $n = function ($v) { return number_format((float) $v, 0, ',', ' '); };
             <?php foreach ($errors as $r): ?>
             <li class="flex flex-wrap items-center gap-2 border-b border-gray-50 pb-1.5 dark:border-gray-700/50">
                 <span class="font-mono text-gray-400">#<?php echo (int) $r['job_id']; ?></span>
-                <span class="rounded bg-gray-100 px-1.5 py-0.5 font-bold text-gray-500 dark:bg-gray-700 dark:text-gray-300"><?php echo HTML::chars($r['channel']); ?></span>
+                <span class="prl-count"><?php echo HTML::chars($r['channel']); ?></span>
                 <span class="font-semibold"><?php echo HTML::chars($r['name']); ?></span>
                 <span class="min-w-0 flex-1 truncate"><?php echo HTML::chars(mb_substr(implode(' | ', json_decode((string) $r['errors'], TRUE) ?: []), 0, 220)); ?></span>
             </li>

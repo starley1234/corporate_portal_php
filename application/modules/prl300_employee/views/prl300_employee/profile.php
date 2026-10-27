@@ -5,7 +5,7 @@
         'title' => 'Мой профиль сотрудника',
         'pill' => ['HR', 'fa-id-card'],
         'actions' => [
-            ['label' => 'Справочник коллег', 'href' => '/employee/directory', 'icon' => 'fa-users', 'role' => 'process'],
+            ['label' => 'Справочник коллег', 'href' => '/employee/directory', 'icon' => 'fa-users', 'role' => 'secondary'],
             ['label' => 'Безопасность аккаунта', 'href' => '/account/security', 'icon' => 'fa-shield-halved', 'role' => 'secondary'],
         ],
         'lead' => 'Рабочие данные из кадрового источника. Пароль, роли и сессии остаются настройками аккаунта, а не профиля сотрудника.',
@@ -18,7 +18,7 @@
             <p class="prl-empty-text mt-4">Аккаунт пока не сопоставлен с сотрудником.</p>
             <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Обратитесь к HR или администратору портала. До сопоставления справочник коллег и будущие HR-сервисы не смогут определить вашу организацию.</p>
             <?php if ($can_admin): ?>
-            <a href="/prl300/admin/employees" class="prl-btn-process mt-5"><i class="fas fa-sitemap"></i>Открыть сопоставления</a>
+            <a href="/prl300/admin/employees" class="prl-btn-secondary mt-5"><i class="fas fa-sitemap"></i>Открыть сопоставления</a>
             <?php endif; ?>
         </div>
     </div>

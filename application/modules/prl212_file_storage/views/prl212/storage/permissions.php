@@ -49,15 +49,15 @@
 
                     <div class="space-y-3 pt-2">
                         <label class="flex items-center">
-                            <input type="checkbox" name="can_read" value="1" checked class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <input type="checkbox" name="can_read" value="1" checked class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
                             <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Разрешить чтение</span>
                         </label>
                         <label class="flex items-center">
-                            <input type="checkbox" name="can_write" value="1" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <input type="checkbox" name="can_write" value="1" class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
                             <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Разрешить запись</span>
                         </label>
                         <label class="flex items-center">
-                            <input type="checkbox" name="can_delete" value="1" class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                            <input type="checkbox" name="can_delete" value="1" class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
                             <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Разрешить удаление</span>
                         </label>
                     </div>

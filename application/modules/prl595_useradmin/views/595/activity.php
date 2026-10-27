@@ -21,18 +21,19 @@ $who = function ($vid) {
     }
 
 
-    return '<span class="rounded-md bg-gray-100 px-1.5 py-0.5 font-mono text-xs text-gray-500 dark:bg-gray-800 dark:text-gray-400" title="Служебный инициатор">'.HTML::chars($vid).'</span>';
+    return '<span class="prl-count font-mono" title="Служебный инициатор">'.HTML::chars($vid).'</span>';
 };
 
 $status_badge = function ($st) {
-    $map = ['done' => 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60',
-            'failed' => 'bg-rose-50 text-rose-500 dark:bg-rose-950/60',
-            'processing' => 'bg-blue-50 text-blue-600 dark:bg-blue-950/60',
-            'pending' => 'bg-gray-100 text-gray-500 dark:bg-gray-800'];
+    $map = ['done' => 'prl-badge-ok',
+            'failed' => 'prl-badge-err',
+            'processing' => 'prl-badge-run',
+            'pending' => 'prl-badge-wait',
+            'cancelled' => 'prl-badge-wait'];
 
-    $c = $map[$st] ?? 'bg-gray-100 text-gray-500 dark:bg-gray-800';
+    $c = $map[$st] ?? 'prl-badge-wait';
 
-    return '<span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold uppercase '.$c.'">'.HTML::chars((string) $st).'</span>';
+    return '<span class="prl-badge uppercase '.$c.'"><span class="prl-dot"></span>'.HTML::chars((string) $st).'</span>';
 };
 ?>
 
@@ -72,7 +73,7 @@ $status_badge = function ($st) {
             <div class="prl-card p-0 overflow-x-auto">
                 <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-3.5 sm:px-5 dark:border-gray-700/60">
                     <h2 class="prl-h3">Последние задачи</h2>
-                    <span class="prl-badge prl-badge-wait"><?php echo count($jobs); ?></span>
+                    <span class="prl-count"><?php echo count($jobs); ?></span>
                 </div>
                 <table class="prl-table whitespace-nowrap">
                     <thead>
@@ -105,7 +106,7 @@ $status_badge = function ($st) {
         <!-- ============ Разрезы (1/3) ============ -->
         <div class="min-w-0 space-y-5 md:col-span-1">
             <div class="prl-card">
-                <h3 class="prl-h3 border-b border-gray-100 pb-3">Каналы за 24 часа</h3>
+                <h3 class="prl-h3 border-b border-gray-100 pb-3 dark:border-gray-700">Каналы за 24 часа</h3>
                 <ul class="mt-2.5 space-y-1.5 text-xs text-gray-600 sm:text-sm dark:text-gray-300">
                     <?php foreach ($channels as $c): ?>
                     <li class="flex items-center justify-between gap-2">

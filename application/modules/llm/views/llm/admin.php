@@ -1,5 +1,4 @@
 <?php defined('SYSPATH') or die('No direct script access.'); $llm_flash = Session::instance()->get_once('llm_flash'); ?>
-<?php if ($llm_flash): ?><p class="prl-flash"><?= HTML::chars($llm_flash['message']) ?></p><?php endif; ?>
 <link rel="stylesheet" type="text/css" href="/assets/vendor/datatables/css/jquery.dataTables.min.css">
 <?php /* Обычный CSS: @apply в браузере не работает (с 28.09.2026 Tailwind собирается заранее). */ ?>
 <?php /* design-audit: allow style — тёмная тема DataTables: разметку рисует библиотека */ ?>
@@ -24,28 +23,43 @@
 </style>
 
 <div class="prl-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
-    <div class="prl-panel overflow-hidden">
-        <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <?php if ($llm_flash): $llm_flash_ok = ! empty($llm_flash['ok']); ?>
+    <div class="prl-flash <?php echo $llm_flash_ok ? 'prl-flash-ok' : 'prl-flash-err'; ?> mb-5" role="<?php echo $llm_flash_ok ? 'status' : 'alert'; ?>">
+        <i class="fas <?php echo $llm_flash_ok ? 'fa-circle-check' : 'fa-triangle-exclamation'; ?>"></i>
+        <span><?php echo HTML::chars($llm_flash['message'] ?? ''); ?></span>
+    </div>
+    <?php endif; ?>
+
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Инструменты ИИ'], ['Локальные LLM']],
+        'title'  => 'Управление локальными LLM',
+        'pill'   => ['LM Studio', 'fa-robot'],
+        'lead'   => 'Состояние локального сервера инференса и модели, доступные сервисам портала.',
+    ]); ?>
+
+    <section class="prl-panel mt-6">
+        <div class="prl-panel-head">
             <div>
-                <h2 class="prl-h2">Локальный провайдер (LM Studio)</h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Управление моделями и мониторинг состояния API</p>
+                <h2 class="prl-h3"><i class="fas fa-server mr-2 text-blue-500"></i>Локальный провайдер (LM Studio)</h2>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Управление моделями и мониторинг состояния API.</p>
             </div>
-            <div class="flex items-center space-x-2">
-                <span class="flex h-3 w-3 relative">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                </span>
-                <span class="text-sm font-medium text-gray-600 dark:text-gray-300"><?php echo HTML::chars($base_url); ?></span>
+            <div class="flex flex-wrap items-center gap-3">
+                <?php if ($error): ?>
+                    <span class="prl-badge prl-badge-err"><span class="prl-dot"></span>Нет соединения</span>
+                <?php else: ?>
+                    <span class="prl-badge prl-badge-ok"><span class="prl-dot"></span>Сервер доступен</span>
+                <?php endif; ?>
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Сервер: <code class="rounded-md bg-gray-100 px-2 py-0.5 text-xs dark:bg-gray-700"><?php echo HTML::chars($base_url); ?></code></span>
             </div>
         </div>
 
         <div class="p-6">
             <?php if ($error): ?>
-                <div class="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl p-4 flex items-start">
-                    <i class="fas fa-exclamation-triangle text-rose-500 mt-1 mr-3"></i>
+                <div class="prl-flash prl-flash-err" role="alert">
+                    <i class="fas fa-triangle-exclamation"></i>
                     <div>
-                        <h3 class="text-sm font-bold text-rose-800 dark:text-rose-400">Ошибка соединения</h3>
-                        <p class="text-sm text-rose-700 dark:text-rose-300 mt-1"><?php echo HTML::chars($error); ?></p>
+                        <strong>Ошибка соединения</strong>
+                        <p class="mt-1"><?php echo HTML::chars($error); ?></p>
                     </div>
                 </div>
             <?php else: ?>
@@ -72,7 +86,7 @@
                                                     <i class="fas <?php echo ($model['type'] === 'embedding') ? 'fa-font' : 'fa-robot'; ?> <?php echo !empty($model['loaded_instances']) ? 'text-emerald-500' : 'text-blue-500'; ?> mr-3"></i>
                                                     <span class="font-medium text-gray-900 dark:text-white"><?php echo HTML::chars($model['display_name'] ?? $model['key']); ?></span>
                                                     <?php if (!empty($model['loaded_instances'])): ?>
-                                                        <span data-llm-loaded class="prl-badge prl-badge-ok ml-2 uppercase tracking-wide">Loaded</span>
+                                                        <span data-llm-loaded class="prl-badge prl-badge-ok ml-2"><span class="prl-dot"></span>Загружена</span>
                                                     <?php endif; ?>
                                                 </div>
                                                 <div class="flex items-center mt-1 ml-7 group">
@@ -87,7 +101,7 @@
                                             <div class="text-sm text-gray-600 dark:text-gray-400">
                                                 <span class="uppercase"><?php echo HTML::chars($model['architecture'] ?? 'n/a'); ?></span>
                                                 <?php if (!empty($model['params_string'])): ?>
-                                                    <span class="ml-2 px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs"><?php echo HTML::chars($model['params_string']); ?></span>
+                                                    <span class="prl-count ml-2"><?php echo HTML::chars($model['params_string']); ?></span>
                                                 <?php endif; ?>
                                             </div>
                                             <div class="flex gap-1 mt-1">
@@ -134,24 +148,23 @@
             <?php endif; ?>
         </div>
 
-        <div class="p-6 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
-            <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center">
-                <i class="fas fa-info-circle text-blue-500 mr-2"></i> Справка по интеграции
-            </h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="text-sm text-gray-600 dark:text-gray-400 space-y-2">
-                    <p>Для работы с локальными моделями используйте <strong>LM Studio</strong>.</p>
-                    <p>Убедитесь, что сервер запущен и принимает запросы по адресу, указанному в конфигурации <code>llm.php</code>.</p>
-                </div>
-                <div class="bg-white dark:bg-gray-900 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <code class="text-xs text-rose-600 dark:text-rose-400 break-all">
-                        // Config path:<br>
-                        application/config/llm.php
-                    </code>
-                </div>
+    </section>
+
+    <section class="prl-card mt-6">
+        <h2 class="prl-h3"><i class="fas fa-circle-info mr-2 text-blue-500"></i>Справка по интеграции</h2>
+        <div class="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div class="space-y-2 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+                <p>Для работы с локальными моделями используйте <strong>LM Studio</strong>.</p>
+                <p>Убедитесь, что сервер запущен и принимает запросы по адресу, указанному в конфигурации <code>llm.php</code>.</p>
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900">
+                <code class="break-all text-xs text-gray-700 dark:text-gray-200">
+                    // Config path:<br>
+                    application/config/llm.php
+                </code>
             </div>
         </div>
-    </div>
+    </section>
 </div>
 
 <script src="/assets/vendor/jquery/jquery-3.7.1.min.js"></script>
@@ -268,7 +281,7 @@ function loadModelNow(modelKey, rowId) {
             }
             const nameSpan = row.querySelector('.font-medium');
             if (nameSpan) {
-                nameSpan.insertAdjacentHTML('afterend', '<span data-llm-loaded class="prl-badge prl-badge-ok ml-2 uppercase tracking-wide">Loaded</span>');
+                nameSpan.insertAdjacentHTML('afterend', '<span data-llm-loaded class="prl-badge prl-badge-ok ml-2"><span class="prl-dot"></span>Загружена</span>');
             }
 
             PRL.toast('Модель загружена', 0, 'ok');

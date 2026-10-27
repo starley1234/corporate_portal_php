@@ -5,13 +5,7 @@
  */
 
 $role_badge = function ($name) {
-    static $colors = ['admin' => 'bg-blue-50 text-blue-600 dark:bg-blue-950/60',
-                      'login' => 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60'];
-
-    $c = $colors[$name] ?? 'bg-gray-100 text-gray-500 dark:bg-gray-800';
-
-    return '<span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold uppercase '.$c.'">'
-        .HTML::chars($name).'</span>';
+    return '<span class="prl-count uppercase">'.HTML::chars($name).'</span>';
 };
 ?>
 
@@ -25,7 +19,7 @@ $role_badge = function ($name) {
     <h1 class="prl-h1 mt-2"><i class="fas fa-users mr-2 text-blue-500"></i>Пользователи</h1>
 
     <?php if ((string) $flash !== ''): ?>
-    <div class="mt-3 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs font-semibold sm:text-sm dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
+    <div class="prl-flash prl-flash-info mt-3" role="status">
         <i class="fas fa-circle-info shrink-0"></i><span><?php echo HTML::chars($flash); ?></span>
     </div>
     <?php endif; ?>
@@ -111,7 +105,7 @@ $role_badge = function ($name) {
         <!-- ============ Создание (1/3) ============ -->
         <div class="min-w-0 space-y-5 md:col-span-1">
             <div class="prl-card">
-                <h3 class="prl-h3 border-b border-gray-100 pb-3"><i class="fas fa-user-plus mr-1.5 text-blue-500"></i>Создать пользователя</h3>
+                <h3 class="prl-h3 border-b border-gray-100 pb-3 dark:border-gray-700"><i class="fas fa-user-plus mr-1.5 text-blue-500"></i>Создать пользователя</h3>
                 <form method="post" action="/prl595/admin/create" class="mt-3 space-y-3">
                     <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
                     <div>
@@ -130,7 +124,7 @@ $role_badge = function ($name) {
                                class="prl-input mt-1 w-full">
                     </div>
                     <label class="flex min-h-[36px] cursor-pointer items-center gap-2.5 text-xs text-gray-600 sm:text-sm dark:text-gray-300">
-                        <input type="checkbox" name="as_admin" value="1" class="h-4 w-4 rounded accent-blue-600">сразу роль admin
+                        <input type="checkbox" name="as_admin" value="1" class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">сразу роль admin
                     </label>
                     <button type="submit" class="prl-btn-cta w-full">Создать</button>
                     <p class="prl-hint">Роль login выдаётся автоматически — без неё вход закрыт.</p>

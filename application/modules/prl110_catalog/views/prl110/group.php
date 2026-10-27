@@ -36,7 +36,7 @@
                 <div class="min-w-0">
                     <h2 class="prl-h3 truncate"><?php echo HTML::chars($m['title']); ?></h2>
                     <?php if ( ! empty($m['badge'])): ?>
-                    <span class="prl-badge prl-badge-info mt-0.5 inline-block uppercase"><?php echo HTML::chars((string) $m['badge']); ?></span>
+                    <span class="prl-count mt-0.5 uppercase"><?php echo HTML::chars((string) $m['badge']); ?></span>
                     <?php endif; ?>
                 </div>
             </div>

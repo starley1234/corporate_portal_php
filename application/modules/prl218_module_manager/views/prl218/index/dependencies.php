@@ -42,7 +42,7 @@
             </div>
             <div class="mt-6 flex justify-end">
                 <button type="submit"
-                        class="prl-btn-process">
+                        class="prl-btn-cta">
                     <i class="fas fa-plus mr-2"></i> <?php echo __('Добавить зависимость'); ?>
                 </button>
             </div>
@@ -84,8 +84,8 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <button data-prl-arm="Удалить?" type="button" data-dependency-id="<?php echo $dependency->id; ?>"
-                                            class="delete-dependency-btn text-rose-600 hover:text-rose-900 dark:text-rose-500 dark:hover:text-rose-400 transition-colors duration-200 p-1 rounded-md">
-                                        <i class="fas fa-trash-alt mr-1"></i> <?php echo __('Удалить'); ?>
+                                            class="delete-dependency-btn prl-btn-icon-danger" title="<?php echo __('Удалить'); ?>" aria-label="<?php echo __('Удалить'); ?>">
+                                        <i class="fas fa-trash-can"></i>
                                     </button>
                                 </td>
                             </tr>

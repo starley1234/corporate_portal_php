@@ -1,7 +1,17 @@
 <?php defined('SYSPATH') or die('No direct script access.'); ?>
 
 <div class="prl-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Платформа'], ['Шина событий']],
+        'title'  => 'Шина событий',
+        'pill'   => ['prl208 · события', 'fa-tower-broadcast'],
+        'lead'   => 'Состояние шины, активные подписки и последние системные события.',
+        'actions' => [
+            ['label' => 'Опубликовать событие', 'href' => '/prl208_events/create_event', 'icon' => 'fa-circle-plus', 'role' => 'cta'],
+        ],
+    ]); ?>
+
+    <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         
         <!-- Левая колонка: Статистика и быстрые действия -->
         <div class="lg:col-span-1 space-y-6">
@@ -12,18 +22,12 @@
                 <div class="space-y-4">
                     <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
                         <span class="text-sm text-gray-500 dark:text-gray-400">Всего событий</span>
-                        <span class="text-xl font-bold text-blue-600 dark:text-blue-400"><?php echo $total_events ?? 0; ?></span>
+                        <span class="text-xl font-bold text-gray-900 dark:text-white"><?php echo $total_events ?? 0; ?></span>
                     </div>
                     <div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
                         <span class="text-sm text-gray-500 dark:text-gray-400">Активных подписок</span>
-                        <span class="text-xl font-bold text-emerald-600 dark:text-emerald-400"><?php echo $active_subscribers ?? 0; ?></span>
+                        <span class="text-xl font-bold text-gray-900 dark:text-white"><?php echo $active_subscribers ?? 0; ?></span>
                     </div>
-                </div>
-                
-                <div class="mt-6 pt-6 border-t border-gray-100 dark:border-gray-700">
-                    <a href="/prl208_events/create_event" class="prl-btn-cta w-full">
-                        <i class="fas fa-plus-circle mr-2"></i> Опубликовать событие
-                    </a>
                 </div>
             </div>
 
@@ -47,11 +51,14 @@
 
         <!-- Правая колонка: Последние события -->
         <div class="lg:col-span-2">
-            <div class="prl-card p-0 overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                    <h2 class="prl-h3">Последние события в системе</h2>
-                    <button onclick="location.reload()" class="prl-btn-icon">
-                        <i class="fas fa-sync-alt"></i>
+            <section class="prl-panel">
+                <div class="prl-panel-head">
+                    <div>
+                        <h2 class="prl-h3"><i class="fas fa-list-ul mr-2 text-blue-500"></i>Последние события в системе</h2>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Десять последних зафиксированных событий.</p>
+                    </div>
+                    <button type="button" onclick="location.reload()" class="prl-btn-icon" title="Обновить" aria-label="Обновить">
+                        <i class="fas fa-arrows-rotate"></i>
                     </button>
                 </div>
                 
@@ -73,7 +80,7 @@
                                             <span class="font-mono text-sm text-blue-600 dark:text-blue-400"><?php echo HTML::chars($event->event_name); ?></span>
                                         </td>
                                         <td class="px-6 py-4 text-sm">
-                                            <?php echo $event->initiator_id ? 'User ID: '.$event->initiator_id : '<span class="text-gray-400">System</span>'; ?>
+                                            <?php echo $event->initiator_id ? 'Пользователь № '.(int) $event->initiator_id : '<span class="text-gray-400 dark:text-gray-500">Система</span>'; ?>
                                         </td>
                                         <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                                             <?php echo date('d.m.Y H:i:s', strtotime($event->created_at)); ?>
@@ -87,9 +94,11 @@
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <tr>
-                                    <td colspan="4" class="px-6 py-10 text-center text-gray-500 dark:text-gray-400">
-                                        <i class="fas fa-ghost mb-2 text-2xl block"></i>
-                                        Событий пока не зафиксировано
+                                    <td colspan="4" class="px-6 py-4">
+                                        <div class="prl-empty">
+                                            <span class="prl-empty-icon"><i class="fas fa-tower-broadcast"></i></span>
+                                            <p class="prl-empty-text">Событий пока не зафиксировано.</p>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endif; ?>
@@ -97,12 +106,12 @@
                     </table>
                 </div>
                 
-                <div class="px-6 py-4 bg-gray-50 dark:bg-gray-900/30 border-t border-gray-200 dark:border-gray-700">
-                    <a href="/prl208_events/list_events" class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline">
+                <div class="prl-panel-foot">
+                    <a href="/prl208_events/list_events" class="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400">
                         Смотреть всю историю <i class="fas fa-arrow-right ml-1 text-xs"></i>
                     </a>
                 </div>
-            </div>
+            </section>
         </div>
     </div>
 </div>

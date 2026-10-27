@@ -1,28 +1,34 @@
 <?php defined('SYSPATH') or die('No direct script access.'); ?>
 
-<div class="prl-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
-    <div class="flex justify-between items-center mb-6">
-        <a href="<?php echo Route::url('prl208_events', array('action' => 'manage_subscription')); ?>" class="prl-btn-process">
-            <i class="fas fa-plus-circle mr-2"></i> <?php echo __('Add New Subscriber'); ?>
-        </a>
-    </div>
+<?php $subscriber_create_url = Route::url('prl208_events', array('action' => 'manage_subscription')); ?>
 
+<div class="prl-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
     <?php if (Session::instance()->get('success_message')): ?>
-        <div class="bg-emerald-100 border border-emerald-400 text-emerald-700 px-4 py-3 rounded relative mb-4 dark:bg-emerald-900 dark:border-emerald-700 dark:text-emerald-300" role="alert">
-            <strong class="font-bold"><?php echo __('Success!'); ?></strong>
-            <span class="block sm:inline"><?php echo Session::instance()->get_once('success_message'); ?></span>
+        <div class="prl-flash prl-flash-ok mb-5" role="status">
+            <i class="fas fa-circle-check"></i>
+            <span><?php echo HTML::chars(Session::instance()->get_once('success_message')); ?></span>
         </div>
     <?php endif; ?>
 
     <?php if (Session::instance()->get('error_message')): ?>
-        <div class="bg-rose-100 border border-rose-400 text-rose-700 px-4 py-3 rounded relative mb-4 dark:bg-rose-900 dark:border-rose-700 dark:text-rose-300" role="alert">
-            <strong class="font-bold"><?php echo __('Error!'); ?></strong>
-            <span class="block sm:inline"><?php echo Session::instance()->get_once('error_message'); ?></span>
+        <div class="prl-flash prl-flash-err mb-5" role="alert">
+            <i class="fas fa-triangle-exclamation"></i>
+            <span><?php echo HTML::chars(Session::instance()->get_once('error_message')); ?></span>
         </div>
     <?php endif; ?>
 
-    <div class="bg-white dark:bg-gray-800 shadow overflow-hidden sm:rounded-lg mb-6">
-        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Шина событий', '/prl208_events'], ['Подписчики']],
+        'title'  => 'Подписчики событий',
+        'pill'   => ['prl208 · подписки', 'fa-users-gear'],
+        'lead'   => 'Обработчики и уведомления, подписанные на события модулей портала.',
+        'actions' => [
+            ['label' => 'Добавить подписчика', 'href' => $subscriber_create_url, 'icon' => 'fa-circle-plus', 'role' => 'cta'],
+        ],
+    ]); ?>
+
+    <section class="prl-panel mt-6">
+        <div class="prl-panel-head block">
             <form action="<?php echo Route::url('prl208_events', array('action' => 'list_subscribers')); ?>" method="get" class="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4">
                 <div class="relative flex-grow w-full sm:w-auto">
                     <input type="text" name="search" value="<?php echo HTML::chars($search); ?>" placeholder="<?php echo __('Search by event name, module, or callback...'); ?>" class="prl-input w-full leading-5 pl-10">
@@ -44,7 +50,7 @@
         <?php if (count($subscribers) > 0): ?>
             <div class="overflow-x-auto">
                 <table class="prl-table min-w-full">
-                    <thead class="bg-gray-50 dark:bg-gray-700">
+                    <thead>
                         <tr>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                                 <?php echo __('Event Name'); ?>
@@ -83,22 +89,22 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm">
                                     <?php if ($subscriber->is_active): ?>
-                                        <span class="prl-badge prl-badge-ok">
+                                        <span class="prl-badge prl-badge-ok"><span class="prl-dot"></span>
                                             <?php echo __('Yes'); ?>
                                         </span>
                                     <?php else: ?>
-                                        <span class="prl-badge prl-badge-err">
+                                        <span class="prl-badge prl-badge-wait"><span class="prl-dot"></span>
                                             <?php echo __('No'); ?>
                                         </span>
                                     <?php endif; ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm">
                                     <?php if ($subscriber->is_notification): ?>
-                                        <span class="prl-badge prl-badge-info">
+                                        <span class="prl-badge prl-badge-info"><span class="prl-dot"></span>
                                             <?php echo __('Yes'); ?>
                                         </span>
                                     <?php else: ?>
-                                        <span class="prl-badge prl-badge-wait">
+                                        <span class="prl-badge prl-badge-wait"><span class="prl-dot"></span>
                                             <?php echo __('No'); ?>
                                         </span>
                                     <?php endif; ?>
@@ -111,11 +117,11 @@
                                     ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                    <a href="<?php echo Route::url('prl208_events', array('action' => 'manage_subscription', 'id' => $subscriber->id)); ?>" class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-3">
-                                        <?php echo __('Edit'); ?>
+                                    <a href="<?php echo Route::url('prl208_events', array('action' => 'manage_subscription', 'id' => $subscriber->id)); ?>" class="prl-btn-icon" title="<?php echo __('Edit'); ?>" aria-label="<?php echo __('Edit'); ?>">
+                                        <i class="fas fa-pen"></i>
                                     </a>
-                                    <a href="<?php echo Route::url('prl208_events', array('action' => 'delete_subscription', 'id' => $subscriber->id)); ?>" class="text-rose-600 hover:text-rose-900 dark:text-rose-400 dark:hover:text-rose-300" data-prl-arm="Точно удалить?">
-                                        <?php echo __('Delete'); ?>
+                                    <a href="<?php echo Route::url('prl208_events', array('action' => 'delete_subscription', 'id' => $subscriber->id)); ?>" class="prl-btn-icon-danger" title="<?php echo __('Delete'); ?>" aria-label="<?php echo __('Delete'); ?>" data-prl-arm="Точно удалить?">
+                                        <i class="fas fa-trash-can"></i>
                                     </a>
                                 </td>
                             </tr>
@@ -129,9 +135,10 @@
                 </div>
             <?php endif; ?>
         <?php else: ?>
-            <div class="p-4 text-center text-gray-500 dark:text-gray-400">
-                <?php echo __('No subscribers found.'); ?>
+            <div class="prl-empty">
+                <span class="prl-empty-icon"><i class="fas fa-users-gear"></i></span>
+                <p class="prl-empty-text"><?php echo __('No subscribers found.'); ?></p>
             </div>
         <?php endif; ?>
-    </div>
+    </section>
 </div>

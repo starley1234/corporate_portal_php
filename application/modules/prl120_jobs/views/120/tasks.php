@@ -5,11 +5,11 @@
  * По образцу: шапка с h1, слева список, справа блок-компаньон.
  */
 $badge = [
-    'done'       => ['bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400', 'готово'],
-    'pending'    => ['bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300', 'в очереди'],
-    'processing' => ['bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400', 'выполняется'],
-    'failed'     => ['bg-rose-50 text-rose-700 dark:bg-rose-950/60 dark:text-rose-400', 'ошибка'],
-    'cancelled'  => ['bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500', 'отменена'],
+    'done'       => ['prl-badge-ok', 'готово'],
+    'pending'    => ['prl-badge-wait', 'в очереди'],
+    'processing' => ['prl-badge-run', 'выполняется'],
+    'failed'     => ['prl-badge-err', 'ошибка'],
+    'cancelled'  => ['prl-badge-wait', 'отменена'],
 ];
 $has_active = FALSE;
 foreach ((array) $tasks as $t) { if (in_array($t['status'], ['pending', 'processing'], TRUE)) { $has_active = TRUE; break; } }
@@ -43,10 +43,10 @@ foreach ((array) $tasks as $t) { if (in_array($t['status'], ['pending', 'process
                         <?php foreach ($tasks as $t):
                             $b = isset($badge[$t['status']]) ? $badge[$t['status']] : $badge['pending'];
                             $active = in_array($t['status'], ['pending', 'processing'], TRUE); ?>
-                        <li class="prl-card p-3 transition hover:border-gray-300">
+                        <li class="prl-card p-3 transition hover:border-gray-300 dark:hover:border-gray-600">
                             <div class="flex flex-wrap items-center gap-2">
                                 <?php if ($active): ?><i class="fas fa-spinner prl-spin text-xs text-blue-500"></i><?php endif; ?>
-                                <span class="rounded-md px-2 py-0.5 text-xs font-bold uppercase <?php echo $b[0]; ?>"><?php echo $b[1]; ?></span>
+                                <span class="prl-badge <?php echo $b[0]; ?>"><span class="prl-dot"></span><?php echo $b[1]; ?></span>
                                 <span class="text-sm font-semibold text-gray-900 dark:text-white"><?php echo HTML::chars($t['label']); ?></span>
                                 <?php if ($t['title'] !== ''): ?>
                                     <span class="min-w-0 truncate text-xs text-gray-500 dark:text-gray-400">— <?php echo HTML::chars(mb_substr($t['title'], 0, 60)); ?></span>

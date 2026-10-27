@@ -28,7 +28,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- Account Info -->
                 <div class="space-y-4">
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-700 pb-2">
+                    <h3 class="prl-h3 border-b border-gray-100 pb-2 dark:border-gray-700">
                         Информация об аккаунте
                     </h3>
 
@@ -63,7 +63,7 @@
 
                 <!-- Security/Actions -->
                 <div class="space-y-4">
-                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-700 pb-2">
+                    <h3 class="prl-h3 border-b border-gray-100 pb-2 dark:border-gray-700">
                         Безопасность
                     </h3>
 

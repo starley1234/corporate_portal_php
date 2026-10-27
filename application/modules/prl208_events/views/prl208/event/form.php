@@ -58,7 +58,7 @@
                     <?php echo __('Cancel'); ?>
                 </a>
                 <button type="submit"
-                        class="prl-btn-process">
+                        class="prl-btn-cta">
                     <i class="fas fa-save mr-2"></i>
                     <?php echo HTML::chars($event->loaded() ? __('Save Changes') : __('Create & Publish Event')); ?>
                 </button>

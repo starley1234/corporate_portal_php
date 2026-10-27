@@ -1,5 +1,16 @@
 <?php defined('SYSPATH') or die('No direct script access.'); ?>
-<section class="prl-panel p-6">
-    <h1 class="prl-h1">О портале</h1>
-    <p class="mt-4 text-gray-600 dark:text-gray-300">PRL — единое рабочее пространство сотрудников холдинга. Учётные записи предоставляет администратор организации. Прикладные сервисы подключаются по мере реализации.</p>
-</section>
+
+<div class="prl-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Портал'], ['О портале']],
+        'title'  => 'О портале',
+        'pill'   => ['Платформа PRL', 'fa-building'],
+        'lead'   => 'Единое рабочее пространство холдинга: сервисы, данные, процессы и ассистент в одном интерфейсе.',
+    ]); ?>
+
+    <section class="prl-panel mt-6">
+        <div class="prl-prose p-6">
+            <p>PRL — единое рабочее пространство сотрудников холдинга. Учётные записи предоставляет администратор организации. Прикладные сервисы подключаются по мере реализации.</p>
+        </div>
+    </section>
+</div>

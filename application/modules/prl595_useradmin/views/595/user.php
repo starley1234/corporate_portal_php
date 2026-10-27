@@ -20,7 +20,7 @@
     </div>
 
     <?php if ((string) $flash !== ''): ?>
-    <div class="mt-3 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs font-semibold sm:text-sm dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
+    <div class="prl-flash prl-flash-info mt-3" role="status">
         <i class="fas fa-circle-info shrink-0"></i><span><?php echo HTML::chars($flash); ?></span>
     </div>
     <?php endif; ?>
@@ -32,7 +32,7 @@
             <form method="post" action="/prl595/admin/save/<?php echo (int) $u->id; ?>" class="prl-card">
                 <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
 
-                <h2 class="prl-h3 border-b border-gray-100 pb-3">Профиль</h2>
+                <h2 class="prl-h3 border-b border-gray-100 pb-3 dark:border-gray-700">Профиль</h2>
                 <div class="mt-4 grid gap-4 sm:grid-cols-2">
                     <div>
                         <label for="u-email" class="prl-label">Email</label>
@@ -51,7 +51,7 @@
                     </div>
                 </div>
 
-                <h2 class="prl-h3 mt-6 border-b border-gray-100 pb-3">Роли</h2>
+                <h2 class="prl-h3 mt-6 border-b border-gray-100 pb-3 dark:border-gray-700">Роли</h2>
                 <div class="mt-3 grid gap-2 sm:grid-cols-2">
                     <?php foreach ($roles as $r):
                         $name = (string) $r['name'];
@@ -59,7 +59,7 @@
                         $is_login = ($name === 'login');
                     ?>
                     <label class="flex min-h-[44px] cursor-pointer items-start gap-2.5 rounded-lg border border-gray-100 px-3 py-2.5 transition hover:bg-gray-50/70 dark:border-gray-700 dark:hover:bg-gray-700/25">
-                        <input type="checkbox" name="roles[]" value="<?php echo HTML::chars($name); ?>" <?php echo $checked ? 'checked' : ''; ?> class="mt-0.5 h-4 w-4 rounded accent-blue-600">
+                        <input type="checkbox" name="roles[]" value="<?php echo HTML::chars($name); ?>" <?php echo $checked ? 'checked' : ''; ?> class="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
                         <span class="min-w-0">
                             <span class="block text-sm font-semibold text-gray-900 dark:text-white"><?php echo HTML::chars($name); ?><?php echo $is_login ? ' <span class="text-xs font-normal text-emerald-600 dark:text-emerald-400">— вход разрешён</span>' : ''; ?></span>
                             <span class="block truncate text-xs text-gray-500 dark:text-gray-400"><?php echo HTML::chars((string) $r['description']); ?></span>
@@ -87,7 +87,7 @@
                     <div class="flex justify-between gap-2"><dt class="text-gray-500 dark:text-gray-400">Входов всего</dt><dd class="font-mono"><?php echo (int) $u->logins; ?></dd></div>
                     <div class="flex justify-between gap-2"><dt class="text-gray-500 dark:text-gray-400">Последний вход</dt><dd><?php $ll = (string) $u->last_login; echo ($ll !== '' AND $ll !== '0') ? HTML::chars(Date::formatted_time(ctype_digit($ll) ? '@'.(int) $ll : $ll, 'd.m.Y H:i')) : '—'; ?></dd></div>
                 </dl>
-                <p class="prl-hint mt-2 border-t border-gray-100 pt-2">Пароль хранится хэшем драйвера Auth — прочитать его нельзя, только заменить.</p>
+                <p class="prl-hint mt-2 border-t border-gray-100 pt-2 dark:border-gray-700">Пароль хранится хэшем драйвера Auth — прочитать его нельзя, только заменить.</p>
             </div>
 
             <div class="rounded-xl border border-gray-200/80 bg-gray-50/70 p-4 shadow-xs dark:border-gray-700/60 dark:bg-gray-800/40 sm:p-5">

@@ -3,31 +3,36 @@
 <div class="prl-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
     <div id="status-messages">
         <?php if (isset($error) && $error): ?>
-            <div class="prl-flash prl-flash-err mb-6">
-                <div class="flex items-center">
-                    <i class="fas fa-exclamation-triangle text-rose-500 mr-3"></i>
-                    <p class="text-sm text-rose-800 dark:text-rose-200"><?php echo HTML::chars($error); ?></p>
-                </div>
+            <div class="prl-flash prl-flash-err mb-5" role="alert">
+                <i class="fas fa-triangle-exclamation"></i>
+                <span><?php echo HTML::chars($error); ?></span>
             </div>
         <?php endif; ?>
 
         <?php if (isset($success) && $success): ?>
-            <div class="prl-flash prl-flash-ok mb-6">
-                <div class="flex items-center">
-                    <i class="fas fa-check-circle text-emerald-500 mr-3"></i>
-                    <p class="text-sm text-emerald-800 dark:text-emerald-200"><?php echo HTML::chars($success); ?></p>
-                </div>
+            <div class="prl-flash prl-flash-ok mb-5" role="status">
+                <i class="fas fa-circle-check"></i>
+                <span><?php echo HTML::chars($success); ?></span>
             </div>
         <?php endif; ?>
     </div>
 
-    <div class="max-w-5xl mx-auto">
-        <div class="prl-card p-0 overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
-                <h2 class="prl-h3 flex items-center">
-                    <i class="fas fa-cloud-upload-alt mr-3 text-blue-500"></i>
-                    Загрузка файлов
-                </h2>
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Файлы', '/prl212_storage'], ['Загрузка файлов']],
+        'title'  => 'Загрузка файлов',
+        'pill'   => ['prl212 · хранилище', 'fa-cloud-arrow-up'],
+        'lead'   => 'Выберите файл и хранилище. После загрузки файл станет доступен в соответствии с правами доступа.',
+        'actions' => [
+            ['label' => 'Мои файлы', 'href' => $cancel_url ?? '/prl212_storage', 'icon' => 'fa-folder-open', 'role' => 'secondary'],
+        ],
+    ]); ?>
+
+    <section class="prl-panel mt-6">
+            <div class="prl-panel-head">
+                <div>
+                    <h2 class="prl-h3"><i class="fas fa-cloud-arrow-up mr-2 text-blue-500"></i>Новый файл</h2>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Файл можно выбрать на устройстве или перетащить в выделенную область.</p>
+                </div>
             </div>
 
             <div class="p-6">
@@ -106,7 +111,7 @@
                                         <input type="radio"
                                                name="backend_id"
                                                value="<?php echo HTML::chars($key); ?>"
-                                               class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                               class="h-4 w-4 shrink-0 border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
                                                <?php echo (isset($default_storage) && $default_storage == $key) ? 'checked' : ''; ?>>
                                         <div class="ml-3">
                                             <span class="block text-sm font-medium text-gray-900 dark:text-white">
@@ -130,7 +135,7 @@
                                 Отмена
                             </a>
                             <button type="submit"
-                                    class="prl-btn-process"
+                                    class="prl-btn-cta"
                                     id="submit-btn">
                                 <i class="fas fa-upload mr-2"></i>
                                 <span>Загрузить</span>
@@ -139,8 +144,7 @@
                     </div>
                 </form>
             </div>
-        </div>
-    </div>
+    </section>
 </div>
 
 <script>
@@ -166,19 +170,16 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function showStatus(message, type = 'error') {
-        const bgColor = type === 'success' ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-rose-50 dark:bg-rose-900/20';
-        const borderColor = type === 'success' ? 'border-emerald-200 dark:border-emerald-800' : 'border-rose-200 dark:border-rose-800';
-        const textColor = type === 'success' ? 'text-emerald-800 dark:text-emerald-200' : 'text-rose-800 dark:text-rose-200';
-        const icon = type === 'success' ? 'fa-check-circle text-emerald-500' : 'fa-exclamation-triangle text-rose-500';
-
-        statusMessages.innerHTML = `
-            <div class="mb-6 p-4 ${bgColor} border ${borderColor} rounded-lg">
-                <div class="flex items-center">
-                    <i class="fas ${icon} mr-3"></i>
-                    <p class="text-sm ${textColor}">${message}</p>
-                </div>
-            </div>
-        `;
+        const ok = type === 'success';
+        const host = document.createElement('div');
+        host.className = 'prl-flash mb-5 ' + (ok ? 'prl-flash-ok' : 'prl-flash-err');
+        host.setAttribute('role', ok ? 'status' : 'alert');
+        const icon = document.createElement('i');
+        icon.className = 'fas ' + (ok ? 'fa-circle-check' : 'fa-triangle-exclamation');
+        const text = document.createElement('span');
+        text.textContent = message;
+        host.append(icon, text);
+        statusMessages.replaceChildren(host);
     }
 
     if (fileInput) {

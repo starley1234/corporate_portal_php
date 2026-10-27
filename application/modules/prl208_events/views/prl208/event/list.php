@@ -3,7 +3,7 @@
 <div class="prl-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between mb-6">
         <h1 class="prl-h1"><?= __('All Events') ?></h1>
-        <a href="<?= Route::url('prl208_events', array('action' => 'create_event')) ?>" class="prl-btn-process">
+        <a href="<?= Route::url('prl208_events', array('action' => 'create_event')) ?>" class="prl-btn-cta">
             <i class="fas fa-plus-circle mr-2"></i>
             <?= __('Publish New Event') ?>
         </a>

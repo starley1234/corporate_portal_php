@@ -86,12 +86,12 @@ $live_esc = function ($text) {
         <span class="prl-clock text-sm"
               data-live-elapsed><?php echo (int) floor($live_elapsed / 60); ?>:<?php echo str_pad((string) ($live_elapsed % 60), 2, '0', STR_PAD_LEFT); ?></span>
         <?php if ($live_silent !== NULL AND (int) $live_silent > 180): ?>
-        <span class="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/60 dark:text-amber-300" data-live-silent>нет пульса <?php echo (int) floor(((int) $live_silent) / 60); ?> мин</span>
+        <span class="prl-badge prl-badge-run" data-live-silent><span class="prl-dot"></span>нет пульса <?php echo (int) floor(((int) $live_silent) / 60); ?> мин</span>
         <?php else: ?>
-        <span class="hidden rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/60 dark:text-amber-300" data-live-silent></span>
+        <span class="prl-badge prl-badge-run hidden" data-live-silent></span>
         <?php endif; ?>
         <?php /* живой счётчик: сколько находок уже записано в этом прогоне */ ?>
-        <span class="hidden rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300" data-live-found></span>
+        <span class="prl-count hidden" data-live-found></span>
         <?php if ($live_stop !== ''): ?>
         <span class="ml-auto" data-live-stop><?php echo $live_stop; ?></span>
         <?php endif; ?>

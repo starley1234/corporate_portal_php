@@ -88,8 +88,7 @@
             </div>
 
             <div class="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-                <button type="submit" disabled
-                        class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-gray-400 cursor-not-allowed">
+                <button type="submit" disabled class="prl-btn-cta">
                     <?php echo __('Сохранить настройки (только для чтения)'); ?>
                 </button>
             </div>

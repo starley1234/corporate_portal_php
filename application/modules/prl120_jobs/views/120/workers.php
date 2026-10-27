@@ -39,7 +39,7 @@ $card = 'rounded-xl border border-gray-200 bg-white p-4 shadow-xs dark:border-gr
         <h2 class="prl-h3"><i class="fas fa-route mr-1.5 text-blue-500"></i>Как воркер отрабатывает задачу</h2>
         <p class="mt-1 text-sm leading-relaxed text-gray-500 dark:text-gray-400">
             Модуль кладёт задачу в очередь (<span class="font-mono text-xs">prl120_jobs</span>) со статусом
-            <span class="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-bold dark:bg-gray-700">pending</span>.
+            <span class="prl-count font-mono">pending</span>.
             Воркер забирает её в работу, и если обработчик упал — повторяет попытку с паузой,
             пока не кончатся попытки. Результат виден в «Моих задачах», пульс и ручное управление — в мониторе.
         </p>
@@ -61,7 +61,7 @@ $card = 'rounded-xl border border-gray-200 bg-white p-4 shadow-xs dark:border-gr
                     <i class="fas fa-gear mr-1.5 text-gray-400"></i><?php echo HTML::chars($w['title']); ?>
                 </h2>
                 <?php foreach ($w['channels'] as $ch): ?>
-                <span class="prl-badge prl-badge-info font-mono"><?php echo HTML::chars($ch); ?></span>
+                <span class="prl-count font-mono"><?php echo HTML::chars($ch); ?></span>
                 <?php endforeach; ?>
             </div>
 
@@ -90,13 +90,13 @@ $card = 'rounded-xl border border-gray-200 bg-white p-4 shadow-xs dark:border-gr
                 <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Переменные окружения</p>
                 <div class="mt-1.5 flex flex-wrap gap-1.5">
                     <?php foreach ($w['env'] as $k): ?>
-                    <span class="prl-badge prl-badge-wait font-mono"><?php echo HTML::chars($k); ?></span>
+                    <span class="prl-count font-mono"><?php echo HTML::chars($k); ?></span>
                     <?php endforeach; ?>
                 </div>
             </div>
             <?php endif; ?>
 
-            <p class="prl-hint mt-3 border-t border-gray-100 pt-2 font-mono"><?php echo HTML::chars($w['file']); ?></p>
+            <p class="prl-hint mt-3 border-t border-gray-100 pt-2 dark:border-gray-700 font-mono"><?php echo HTML::chars($w['file']); ?></p>
         </div>
         <?php endforeach; ?>
 

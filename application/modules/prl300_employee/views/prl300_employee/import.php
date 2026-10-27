@@ -48,7 +48,7 @@
             <h2 class="prl-h3 border-b border-gray-100 pb-3 dark:border-gray-700">Столбцы CSV</h2>
             <p class="prl-hint mt-3">Обязательные заголовки: <span class="font-mono"><?php echo HTML::chars(implode(', ', $required_headers)); ?></span>.</p>
             <div class="mt-3 flex flex-wrap gap-2">
-                <?php foreach ($headers as $header): ?><span class="prl-badge <?php echo in_array($header, $required_headers, TRUE) ? 'prl-badge-info' : 'prl-badge-wait'; ?>"><?php echo HTML::chars($header); ?></span><?php endforeach; ?>
+                <?php foreach ($headers as $header): ?><span class="prl-count"><?php echo HTML::chars($header); ?></span><?php endforeach; ?>
             </div>
             <dl class="mt-5 grid gap-4 text-sm sm:grid-cols-2">
                 <div><dt class="font-semibold text-gray-900 dark:text-white">Статусы</dt><dd class="mt-1 font-mono text-xs text-gray-600 dark:text-gray-300">active · on_leave · suspended · terminated</dd></div>

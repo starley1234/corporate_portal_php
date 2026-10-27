@@ -32,6 +32,26 @@ class Task_Module_Scaffold extends Minion_Task {
         $base = APPPATH.'modules/'.$module;
         $class = 'Prl'.$id;
         $title = var_export($name, TRUE);
+        $view = strtr(<<<'VIEW'
+<?php defined('SYSPATH') or die('No direct script access.'); ?>
+
+<div class="prl-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Сервисы', '/services'], [__TITLE__]],
+        'title'  => __TITLE__,
+        'pill'   => ['prl__ID__ · модуль в разработке', 'fa-cube'],
+        'lead'   => 'Раздел находится в разработке. Доступ откроется после реализации сервиса, политики прав и тестов.',
+    ]); ?>
+
+    <section class="prl-panel mt-6">
+        <div class="prl-empty">
+            <div class="prl-empty-icon"><i class="fas fa-cube"></i></div>
+            <h2 class="prl-h3 mt-4">Модуль в разработке</h2>
+            <p class="prl-empty-text">Здесь появится рабочий интерфейс сервиса после завершения разработки.</p>
+        </div>
+    </section>
+</div>
+VIEW, ['__TITLE__' => $title, '__ID__' => (string) $id]);
         $files = [
             'init.php' => "<?php defined('SYSPATH') or die('No direct script access.');\n"
                 ."Route::set('{$module}', '{$slug}')\n"
@@ -54,9 +74,7 @@ class Task_Module_Scaffold extends Minion_Task {
                 ."class pgMigration_Prl_{$id}_001_Initial extends pgMigration {\n"
                 ."    public function up() { /* Добавьте идемпотентную схему prl_{$id}_*. */ }\n"
                 ."    public function down() { /* Явный план отката. */ }\n}\n",
-            'views/'.$module.'/index.php' => "<?php defined('SYSPATH') or die('No direct script access.'); ?>\n"
-                ."<div class=\"prl-panel p-6\"><h1 class=\"prl-h1\"><?= HTML::chars({$title}) ?></h1>\n"
-                ."<p class=\"mt-3 text-gray-500\">Модуль в разработке.</p></div>\n",
+            'views/'.$module.'/index.php' => $view,
             'AGENTS.md' => "# {$module}\n\n## Назначение\n{$name}\n\n## Состояние работ\n"
                 ."Каркас. Не подключён. Права не выданы, API и бизнес-операций нет.\n\n"
                 ."## Контракты\nТаблицы: prl_{$id}_*. Сервис: Service_{$class}_Module.\n"

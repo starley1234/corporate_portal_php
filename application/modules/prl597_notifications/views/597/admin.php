@@ -28,13 +28,13 @@ $tabs = [
 /** Плашка состояния: было ли отправлено, отложено или упало. */
 $badge = function ($status) {
 	$map = [
-		'sent'    => ['fas fa-circle-check', 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300', 'отправлено'],
-		'pending' => ['fas fa-clock', 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300', 'в очереди'],
-		'sending' => ['fas fa-truck-fast', 'bg-blue-200 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200', 'отправляется'],
-		'deferred'=> ['fas fa-hourglass-half', 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300', 'отложено'],
-		'skipped' => ['fas fa-circle-minus', 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300', 'пропущено'],
-		'failed'  => ['fas fa-circle-exclamation', 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300', 'ошибка'],
-		'dead'    => ['fas fa-skull', 'bg-rose-200 text-rose-800 dark:bg-rose-900/60 dark:text-rose-200', 'в DLQ'],
+		'sent'    => ['prl-badge-ok', 'отправлено'],
+		'pending' => ['prl-badge-wait', 'в очереди'],
+		'sending' => ['prl-badge-run', 'отправляется'],
+		'deferred'=> ['prl-badge-run', 'отложено'],
+		'skipped' => ['prl-badge-wait', 'пропущено'],
+		'failed'  => ['prl-badge-err', 'ошибка'],
+		'dead'    => ['prl-badge-err', 'в DLQ'],
 	];
 
 	return $map[$status] ?? $map['skipped'];
@@ -57,7 +57,7 @@ $badge = function ($status) {
 	</div>
 
 	<?php if ((string) $flash !== ''): ?>
-	<div class="mt-3 flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-xs font-semibold sm:text-sm dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
+	<div class="prl-flash prl-flash-info mt-3" role="status">
 		<i class="fas fa-circle-info shrink-0"></i><span><?php echo HTML::chars($flash); ?></span>
 	</div>
 	<?php endif; ?>
@@ -67,7 +67,7 @@ $badge = function ($status) {
 		<a href="/prl597/admin?tab=<?php echo $key; ?>" class="inline-flex min-h-[40px] items-center gap-2 whitespace-nowrap border-b-2 px-3 text-sm font-semibold transition <?php echo $tab === $key ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400'; ?>">
 			<i class="<?php echo $info[0]; ?>"></i><?php echo $info[1]; ?>
 			<?php if ($key === 'journal' AND ! empty($stats['failed'])): ?>
-			<span class="prl-badge prl-badge-err"><?php echo (int) $stats['failed']; ?></span>
+			<span class="prl-badge prl-badge-err"><span class="prl-dot"></span><?php echo (int) $stats['failed']; ?></span>
 			<?php endif; ?>
 		</a>
 		<?php endforeach; ?>
@@ -137,7 +137,7 @@ $badge = function ($status) {
 				<li class="px-4 py-3 text-sm">
 					<div class="flex items-center justify-between">
 						<span class="font-semibold text-gray-800 dark:text-gray-100"><?php echo HTML::chars($channels[$key]['label']); ?></span>
-						<span class="prl-badge prl-badge-wait">режим: <?php echo HTML::chars($bot['mode']); ?></span>
+						<span class="prl-count">режим: <?php echo HTML::chars($bot['mode']); ?></span>
 					</div>
 					<code class="mt-1 block break-all text-xs text-gray-400"><?php echo HTML::chars($bot['url']); ?></code>
 				</li>
@@ -257,7 +257,7 @@ $badge = function ($status) {
 				<h2 class="prl-h3">Очередь доставки</h2>
 				<p class="prl-hint mt-0.5">Кто ждёт отправки, в каком канале и почему. Причину пишет движок, когда откладывает сообщение: тихие часы, лимит, недоступный канал или повтор после ошибки.</p>
 			</div>
-			<span class="prl-badge prl-badge-wait"><?php echo count($queue); ?> в работе</span>
+			<span class="prl-count"><?php echo count($queue); ?> в работе</span>
 		</div>
 		<div class="overflow-x-auto">
 			<table class="prl-table min-w-[880px]">
@@ -290,7 +290,7 @@ $badge = function ($status) {
 						</td>
 						<td class="px-3 py-2 text-xs"><?php echo HTML::chars(Service_Prl597_Registry::channel_label((string) Arr::get($row, 'channel', ''))); ?></td>
 						<td class="px-3 py-2 text-center">
-							<span class="rounded px-1.5 py-0.5 text-xs font-semibold <?php echo $b[1]; ?>"><i class="<?php echo $b[0]; ?> mr-1"></i><?php echo $b[2]; ?></span>
+							<span class="prl-badge <?php echo $b[0]; ?>"><span class="prl-dot"></span><?php echo $b[1]; ?></span>
 						</td>
 						<td class="px-3 py-2 text-center text-xs"><?php echo (int) Arr::get($row, 'attempts', 0); ?></td>
 						<td class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400"><?php echo HTML::chars((string) Arr::get($row, 'next_attempt_at', '')); ?></td>
@@ -352,7 +352,7 @@ $badge = function ($status) {
 				<h2 class="prl-h3">Отправлено за сутки (каналы)</h2>
 				<p class="prl-hint mt-0.5">Что реально ушло через доставку: письма, Telegram, MAX, внутренние уведомления из очереди. Цифра «Отправлено за сутки» в сводке — это число строк этой таблицы.</p>
 			</div>
-			<span class="prl-badge prl-badge-ok"><?php echo count($sent); ?> за 24 часа</span>
+			<span class="prl-count"><?php echo count($sent); ?> за 24 часа</span>
 		</div>
 		<div class="overflow-x-auto">
 			<table class="prl-table min-w-[820px]">
@@ -397,7 +397,7 @@ $badge = function ($status) {
 				<h2 class="prl-h3">В ленту за сутки (колокольчик)</h2>
 				<p class="prl-hint mt-0.5">Что увидели пользователи: события модулей, «Объявление всем» и «Сообщение от системы». Такие записи пишутся прямо в ленту, минуя очередь доставки, — поэтому в журнале каналов их нет, а здесь видно, кому и что ушло.</p>
 			</div>
-			<span class="prl-badge prl-badge-info"><?php echo count($feed); ?> за 24 часа</span>
+			<span class="prl-count"><?php echo count($feed); ?> за 24 часа</span>
 		</div>
 		<div class="overflow-x-auto">
 			<table class="prl-table min-w-[820px]">
@@ -423,7 +423,7 @@ $badge = function ($status) {
 							<?php endif; ?>
 						</td>
 						<td class="px-3 py-2 text-center text-xs">
-							<?php echo trim((string) Arr::get($row, 'read_at', '')) === '' ? '<span class="text-gray-400">нет</span>' : '<i class="fas fa-check text-emerald-600"></i>'; ?>
+							<?php echo trim((string) Arr::get($row, 'read_at', '')) === '' ? '<span class="text-gray-400 dark:text-gray-500">нет</span>' : '<i class="fas fa-check text-emerald-600 dark:text-emerald-400"></i>'; ?>
 						</td>
 					</tr>
 					<?php endforeach; ?>
@@ -467,9 +467,9 @@ $badge = function ($status) {
 					<button data-prl-arm="Убрать из ленты?" type="submit" class="prl-btn-secondary prl-btn-sm">
 						<i class="fas fa-eraser"></i>
 						<span class="font-mono"><?php echo HTML::chars($fe_alias); ?></span>
-						<span class="prl-badge prl-badge-wait"><?php echo $fe_count; ?></span>
+						<span class="prl-count"><?php echo $fe_count; ?></span>
 						<?php if ($fe_hour > 0): ?>
-						<span class="prl-badge <?php echo $fe_hot ? 'prl-badge-err' : 'prl-badge-wait'; ?>">за час: <?php echo $fe_hour; ?></span>
+						<span class="<?php echo $fe_hot ? 'prl-badge prl-badge-err' : 'prl-count'; ?>"><?php echo $fe_hot ? '<span class="prl-dot"></span>' : ''; ?>за час: <?php echo $fe_hour; ?></span>
 						<?php endif; ?>
 					</button>
 				</form>
@@ -593,7 +593,7 @@ $badge = function ($status) {
 				<div class="mt-1 flex flex-wrap gap-3" id="prl_ev_channels">
 					<?php foreach (Service_Prl597_Registry::channels(FALSE) as $key => $info): ?>
 					<label class="inline-flex items-center gap-1.5 text-sm">
-						<input type="checkbox" name="channels[]" value="<?php echo HTML::chars((string) $key); ?>" class="h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600">
+						<input type="checkbox" name="channels[]" value="<?php echo HTML::chars((string) $key); ?>" class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
 						<?php echo HTML::chars($info['label']); ?>
 					</label>
 					<?php endforeach; ?>
@@ -604,7 +604,7 @@ $badge = function ($status) {
 				<div class="mt-1 flex flex-wrap gap-3" id="prl_ev_roles">
 					<?php foreach (['login' => 'вошедший', 'manager' => 'менеджер', 'admin' => 'администратор'] as $role => $label): ?>
 					<label class="inline-flex items-center gap-1.5 text-sm">
-						<input type="checkbox" name="roles[]" value="<?php echo $role; ?>" class="h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600">
+						<input type="checkbox" name="roles[]" value="<?php echo $role; ?>" class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
 						<?php echo HTML::chars($label); ?>
 					</label>
 					<?php endforeach; ?>
@@ -615,9 +615,9 @@ $badge = function ($status) {
 				<input type="text" name="placeholders" id="prl_ev_placeholders" placeholder="title,count,href" class="prl-input mt-1 w-full" autocomplete="off">
 			</label>
 			<div class="flex flex-wrap gap-4 sm:col-span-2">
-				<label class="inline-flex items-center gap-1.5 text-sm"><input type="checkbox" name="enabled" id="prl_ev_enabled" value="1" checked class="h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600"> включено</label>
-				<label class="inline-flex items-center gap-1.5 text-sm"><input type="checkbox" name="mandatory" id="prl_ev_mandatory" value="1" class="h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600"> обязательное (нельзя выключить)</label>
-				<label class="inline-flex items-center gap-1.5 text-sm"><input type="checkbox" name="digest" id="prl_ev_digest" value="1" class="h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600"> склеивать в сводку</label>
+				<label class="inline-flex items-center gap-1.5 text-sm"><input type="checkbox" name="enabled" id="prl_ev_enabled" value="1" checked class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"> включено</label>
+				<label class="inline-flex items-center gap-1.5 text-sm"><input type="checkbox" name="mandatory" id="prl_ev_mandatory" value="1" class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"> обязательное (нельзя выключить)</label>
+				<label class="inline-flex items-center gap-1.5 text-sm"><input type="checkbox" name="digest" id="prl_ev_digest" value="1" class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"> склеивать в сводку</label>
 			</div>
 			<div class="flex gap-2 sm:col-span-2">
 				<button type="submit" class="prl-btn-cta"><i class="fas fa-floppy-disk mr-2"></i>Сохранить</button>
@@ -719,7 +719,7 @@ $badge = function ($status) {
 				<input type="search" data-prl597-tpl-filter class="prl-input w-full" placeholder="Найти событие: тренды, сборка, prl667…" autocomplete="off">
 			</label>
 			<label class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-				<input type="checkbox" data-prl597-tpl-gaps class="h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600"> только без текста
+				<input type="checkbox" data-prl597-tpl-gaps class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"> только без текста
 			</label>
 			<span class="text-xs text-gray-500 dark:text-gray-400">заполнено <strong class="text-gray-700 dark:text-gray-200" data-prl597-tpl-count><?php echo (int) $tpl_filled; ?></strong> из <?php echo (int) $tpl_total; ?></span>
 			<span class="text-xs text-amber-600 dark:text-amber-400" data-prl597-tpl-hidden></span>
@@ -731,7 +731,7 @@ $badge = function ($status) {
 					<h2 class="prl-h3"><i class="fas fa-wand-magic-sparkles mr-1.5 text-blue-500"></i>Составить шаблон с ИИ</h2>
 					<p class="prl-hint mt-0.5">Вставьте сообщение, которое уже писали людям, — ИИ перепишет его в шаблон выбранного события и канала: сохранит подстановки, добавит тему письма и уберёт лишнее. Ничего не сохраняется, пока вы не нажмёте «Сохранить» в нужной карточке.</p>
 				</div>
-				<span class="prl-badge prl-badge-info"><?php echo $ai_ready ? 'ИИ готов' : 'ИИ недоступен'; ?></span>
+				<span class="prl-badge <?php echo $ai_ready ? 'prl-badge-ok' : 'prl-badge-err'; ?>"><span class="prl-dot"></span><?php echo $ai_ready ? 'ИИ готов' : 'ИИ недоступен'; ?></span>
 			</div>
 			<?php if ( ! $ai_ready): ?>
 			<div class="px-4 py-4 text-sm text-amber-700 dark:text-amber-300">
@@ -828,7 +828,7 @@ $badge = function ($status) {
 				<h2 class="prl-h3">
 					<i class="<?php echo HTML::chars($event['icon']); ?> mr-1.5 text-blue-500"></i><?php echo HTML::chars($event['title']); ?>
 					<code class="ml-2 text-xs font-normal text-gray-400"><?php echo HTML::chars($event['alias']); ?></code>
-					<span class="prl-badge <?php echo $mine === 0 ? 'prl-badge-run' : 'prl-badge-ok'; ?> ml-2"><?php echo $mine === 0 ? 'нет текстов' : $mine.' из '.count($ch_keys).' каналов'; ?></span>
+					<span class="prl-badge <?php echo $mine === 0 ? 'prl-badge-run' : 'prl-badge-ok'; ?> ml-2"><span class="prl-dot"></span><?php echo $mine === 0 ? 'нет текстов' : $mine.' из '.count($ch_keys).' каналов'; ?></span>
 				</h2>
 				<span class="text-xs text-gray-400">подстановки:
 					<?php foreach (array_merge(Service_Prl597_Base::_csv(Arr::get($event, 'placeholders', '')), ['user_name', 'site_url', 'href']) as $ph): ?>
@@ -849,10 +849,10 @@ $badge = function ($status) {
 					<div class="mb-2 flex items-center justify-between">
 						<span class="text-sm font-semibold text-gray-800 dark:text-gray-100"><i class="<?php echo HTML::chars($info['icon']); ?> mr-1.5 text-blue-500"></i><?php echo HTML::chars($info['label']); ?>
 						<?php if ($tpl === NULL OR trim((string) Arr::get((array) $tpl, 'body', '')) === ''): ?>
-						<span class="prl-badge prl-badge-wait ml-1.5">нет текста</span>
+						<span class="prl-badge prl-badge-wait ml-1.5"><span class="prl-dot"></span>нет текста</span>
 						<?php endif; ?>
 						</span>
-						<label class="inline-flex items-center gap-1.5 text-xs"><input type="checkbox" name="is_active" value="1" <?php echo ($tpl === NULL OR ! empty($tpl['is_active'])) ? 'checked' : ''; ?> class="h-4 w-4 rounded border-gray-300 text-blue-600 dark:border-gray-600"> вкл.</label>
+						<label class="inline-flex items-center gap-1.5 text-xs"><input type="checkbox" name="is_active" value="1" <?php echo ($tpl === NULL OR ! empty($tpl['is_active'])) ? 'checked' : ''; ?> class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"> вкл.</label>
 					</div>
 					<?php if ((string) $key !== 'in_app'): ?>
 					<input type="text" name="subject" value="<?php echo HTML::chars((string) Arr::get((array) $tpl, 'subject', '')); ?>" placeholder="Тема ({{title}})"
@@ -889,9 +889,7 @@ $badge = function ($status) {
 		<div class="prl-card p-0">
 			<div class="flex items-center justify-between gap-2 border-b border-gray-100 px-4 py-3.5 dark:border-gray-700/60">
 				<h2 class="prl-h3"><i class="<?php echo HTML::chars($row['icon']); ?> mr-1.5 text-blue-500"></i><?php echo HTML::chars($row['label']); ?></h2>
-				<span class="prl-badge <?php echo $row['enabled'] ? 'prl-badge-ok' : 'prl-badge-wait'; ?>">
-					<?php echo $row['enabled'] ? 'настроен' : 'не настроен / выключен'; ?>
-				</span>
+				<span class="prl-badge <?php echo $row['enabled'] ? 'prl-badge-ok' : 'prl-badge-wait'; ?>"><span class="prl-dot"></span><?php echo $row['enabled'] ? 'настроен' : 'не настроен / выключен'; ?></span>
 			</div>
 			<div class="space-y-2 px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
 				<?php if ($row['whoami'] !== NULL): ?>
@@ -1106,7 +1104,7 @@ $badge = function ($status) {
 	<?php if ($dead): ?>
 	<div class="mt-5 rounded-xl border border-rose-200 bg-rose-50/60 shadow-xs dark:border-rose-900 dark:bg-rose-950/20">
 		<div class="flex flex-wrap items-center justify-between gap-2 border-b border-rose-200 px-4 py-3.5 dark:border-rose-900">
-			<h2 class="text-base font-bold text-rose-800 dark:text-rose-300"><i class="fas fa-skull mr-1.5"></i>DLQ — не дошло ни с какой попытки</h2>
+			<h2 class="prl-h3 text-rose-800 dark:text-rose-300"><i class="fas fa-skull mr-1.5"></i>DLQ — не дошло ни с какой попытки</h2>
 			<form autocomplete="off" method="post" action="/prl597/admin">
 				<input type="hidden" name="csrf" value="<?php echo $csrf_h; ?>">
 				<input type="hidden" name="act" value="retry_dead">
@@ -1174,7 +1172,7 @@ $badge = function ($status) {
 						<td class="px-3 py-2 text-xs"><?php echo HTML::chars(Service_Prl597_Registry::channel_label((string) Arr::get($row, 'channel', ''))); ?></td>
 						<td class="px-3 py-2 text-center text-xs"><?php echo (int) Arr::get($row, 'attempt', 0); ?></td>
 						<td class="px-3 py-2 text-center">
-							<span class="rounded px-1.5 py-0.5 text-xs font-semibold <?php echo $b[1]; ?>"><i class="<?php echo $b[0]; ?> mr-1"></i><?php echo $b[2]; ?></span>
+							<span class="prl-badge <?php echo $b[0]; ?>"><span class="prl-dot"></span><?php echo $b[1]; ?></span>
 						</td>
 						<td class="px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
 							<?php if ($reason !== ''): ?><code class="mr-1"><?php echo HTML::chars($reason); ?></code><?php endif; ?>

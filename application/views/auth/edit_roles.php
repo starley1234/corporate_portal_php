@@ -25,7 +25,7 @@
                     <?php foreach ($all_roles as $role): ?>
                     <label for="role_<?php echo htmlspecialchars($role->id); ?>" class="flex cursor-pointer items-center gap-2 text-gray-700 dark:text-gray-300">
                         <input type="checkbox" name="roles[]" value="<?php echo htmlspecialchars($role->name); ?>" id="role_<?php echo htmlspecialchars($role->id); ?>"
-                            class="h-4 w-4 rounded border-gray-300 accent-blue-600 dark:border-gray-600"
+                            class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
                             <?php if (in_array($role->name, $user_roles)): ?>checked<?php endif; ?>>
                         <?php echo htmlspecialchars($role->name); ?>
                     </label>

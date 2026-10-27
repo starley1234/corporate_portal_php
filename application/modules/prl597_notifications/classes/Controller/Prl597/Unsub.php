@@ -85,27 +85,33 @@ class Controller_Prl597_Unsub extends Controller
         $title = htmlspecialchars((string) $title, ENT_QUOTES, 'UTF-8');
         $text  = htmlspecialchars((string) $text, ENT_QUOTES, 'UTF-8');
 
-        $base  = Service_Prl597_Base::base_url();
+        $base = htmlspecialchars((string) Service_Prl597_Base::base_url(), ENT_QUOTES, 'UTF-8');
 
-        $color = $ok ? '#059669' : '#dc2626';
-        $mark  = $ok ? '✓' : '!';
+        $mark   = $ok ? '✓' : '!';
+        $status = $ok ? 'status-ok' : 'status-err';
 
         $html = '<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8">'
             .'<meta name="viewport" content="width=device-width, initial-scale=1">'
-            .'<title>'.$title.' — PRL.ru</title></head>'
-            .'<body style="margin:0;background:#f3f4f6;font:16px/1.55 Arial,Helvetica,sans-serif;color:#111827;">'
-            .'<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:48px 16px;">'
-            .'<table role="presentation" width="560" cellpadding="0" cellspacing="0" '
-            .'style="max-width:560px;width:100%;background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;">'
-            .'<tr><td style="background:#111827;padding:16px 28px;color:#ffffff;font:bold 18px Arial,Helvetica,sans-serif;">'
-            .'<span style="color:#60a5fa;">PRL</span>.ru</td></tr>'
-            .'<tr><td style="padding:28px;">'
-            .'<div style="font:bold 40px Arial,Helvetica,sans-serif;color:'.$color.';line-height:1;">'.$mark.'</div>'
-            .'<h1 style="margin:8px 0 12px;font-size:20px;">'.$title.'</h1>'
-            .'<p style="margin:0 0 20px;color:#374151;">'.$text.'</p>'
-            .'<p style="margin:0 0 8px;"><a href="'.$base.'/prl597?tab=settings" style="color:#2563eb;">Настройки уведомлений</a></p>'
-            .'<p style="margin:0;"><a href="'.$base.'" style="color:#2563eb;">На главную PRL.ru</a></p>'
-            .'</td></tr></table></td></tr></table></body></html>';
+            .'<title>'.$title.' — PRL</title>'
+            .'<style>'
+            .'*{box-sizing:border-box}'
+            .'body{margin:0;background:#f9fafb;color:#111827;font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}'
+            .'main{width:min(100% - 2rem,35rem);margin:12vh auto;padding:2rem;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 1px 2px rgb(17 24 39/.06)}'
+            .'.mark{display:flex;align-items:center;justify-content:center;width:56px;height:56px;border-radius:9999px;font-size:28px;font-weight:700;line-height:1}'
+            .'.status-ok{background:#ecfdf5;color:#047857}.status-err{background:#fff1f2;color:#be123c}'
+            .'h1{margin:1rem 0 .75rem;font-size:30px;line-height:1.2;letter-spacing:-.02em}'
+            .'p{margin:.75rem 0;color:#4b5563}'
+            .'.actions{display:flex;flex-wrap:wrap;gap:.625rem;margin-top:1.25rem}'
+            .'a.button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:.625rem 1rem;border:1px solid #d1d5db;border-radius:8px;background:#f9fafb;color:#1f2937;font-weight:600;text-decoration:none}'
+            .'a.button:hover{background:#f3f4f6}'
+            .'@media(prefers-color-scheme:dark){body{background:#111827;color:#f9fafb}main{background:#1f2937;border-color:#374151;box-shadow:0 1px 2px rgb(0 0 0/.25)}p{color:#d1d5db}.status-ok{background:rgb(6 78 59/.35);color:#6ee7b7}.status-err{background:rgb(80 7 36/.45);color:#fda4af}a.button{background:#1f2937;border-color:#4b5563;color:#f9fafb}a.button:hover{background:#374151}}'
+            .'</style></head><body><main>'
+            .'<div class="mark '.$status.'" aria-hidden="true">'.$mark.'</div>'
+            .'<h1>'.$title.'</h1><p>'.$text.'</p>'
+            .'<div class="actions">'
+            .'<a class="button" href="'.$base.'/prl597?tab=settings">Настройки уведомлений</a>'
+            .'<a class="button" href="'.$base.'">На главную</a>'
+            .'</div></main></body></html>';
 
         $response->status((int) $code);
         $response->headers('Content-Type', 'text/html; charset=utf-8');

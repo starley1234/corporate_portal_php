@@ -16,9 +16,9 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Основные параметры -->
         <div class="lg:col-span-2 space-y-6">
-            <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
-                    <h3 class="font-semibold text-gray-900 dark:text-white">Глобальная конфигурация</h3>
+            <section class="prl-panel">
+                <div class="prl-panel-head">
+                    <h2 class="prl-h3"><i class="fas fa-sliders mr-2 text-blue-500"></i>Глобальная конфигурация</h2>
                 </div>
                 <div class="p-6 space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -33,7 +33,7 @@
                             <label class="prl-label mb-1">Разрешенные типы (MIME)</label>
                             <div class="flex flex-wrap gap-1">
                                 <?php foreach ((array)($config['allowed_mime_types'] ?? []) as $mime): ?>
-                                    <span class="prl-badge prl-badge-info">
+                                    <span class="prl-count">
                                         <?php echo HTML::chars($mime); ?>
                                     </span>
                                 <?php endforeach; ?>
@@ -41,11 +41,11 @@
                         </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
-                    <h3 class="font-semibold text-gray-900 dark:text-white">Активные бэкенды (Драйверы)</h3>
+            <section class="prl-panel">
+                <div class="prl-panel-head">
+                    <h2 class="prl-h3"><i class="fas fa-server mr-2 text-blue-500"></i>Активные бэкенды (драйверы)</h2>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="prl-table min-w-full">
@@ -68,9 +68,7 @@
                                         </div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="prl-badge prl-badge-ok">
-                                            Активен
-                                        </span>
+                                        <span class="prl-badge prl-badge-ok"><span class="prl-dot"></span>Активен</span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
                                         <button class="prl-btn-icon" title="Редактировать">
@@ -82,13 +80,13 @@
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </section>
         </div>
 
         <!-- Боковая панель: Инструменты -->
         <div class="space-y-6">
             <div class="prl-card">
-                <h3 class="font-semibold text-gray-900 dark:text-white mb-4">Обслуживание</h3>
+                <h2 class="prl-h3 mb-4"><i class="fas fa-screwdriver-wrench mr-2 text-blue-500"></i>Обслуживание</h2>
                 <div class="space-y-3">
                     <button class="prl-btn-secondary w-full justify-between">
                         <span>Очистить временные ссылки</span>
@@ -102,7 +100,7 @@
             </div>
 
             <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800 p-6">
-                <h3 class="font-semibold text-blue-900 dark:text-blue-300 mb-2">Информация</h3>
+                <h2 class="prl-h3 mb-2"><i class="fas fa-circle-info mr-2 text-blue-500"></i>Информация</h2>
                 <p class="text-sm text-blue-800 dark:text-blue-400 leading-relaxed">
                     Изменения в конфигурационном файле <code class="bg-blue-100 dark:bg-blue-800 px-1 rounded">prl212_storage.php</code> применяются мгновенно. Для добавления новых бэкендов используйте SQL миграции или интерфейс управления БД.
                 </p>

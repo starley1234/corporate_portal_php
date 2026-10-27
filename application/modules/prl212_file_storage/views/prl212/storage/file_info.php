@@ -2,8 +2,15 @@
 <?php defined('SYSPATH') or die('No direct script access.'); ?>
 
 <div class="prl-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Файлы', '/prl212_storage'], ['Сведения о файле']],
+        'title'  => 'Сведения о файле',
+        'pill'   => ['prl212 · хранилище', 'fa-file-lines'],
+        'lead'   => 'Метаданные файла, права доступа и ссылки для работы с ним.',
+    ]); ?>
+
     <!-- Файловая карточка -->
-    <div class="prl-card p-0 mb-6 overflow-hidden">
+    <div class="prl-card mt-6 p-0 overflow-hidden">
         <div class="p-6">
             <div class="flex flex-col lg:flex-row lg:items-start gap-6">
                 <!-- Иконка файла -->
@@ -21,12 +28,12 @@
                         </h2>
                         <div class="flex flex-wrap gap-2">
                             <?php if (isset($file['mime'])): ?>
-                                <span class="prl-badge prl-badge-wait">
+                                <span class="prl-count">
                                     <?php echo HTML::chars($file['mime']); ?>
                                 </span>
                             <?php endif; ?>
                             <?php if (isset($file['size_formatted'])): ?>
-                                <span class="prl-badge prl-badge-wait">
+                                <span class="prl-count">
                                     <?php echo HTML::chars($file['size_formatted']); ?>
                                 </span>
                             <?php endif; ?>
@@ -54,7 +61,7 @@
                         
                         <?php if (isset($file['updated_at'])): ?>
                             <div class="flex items-start">
-                                <span class="text-gray-500 dark:text-gray-400 w-24 flex-shrink-0">Изменен:</span>
+                                <span class="text-gray-500 dark:text-gray-400 w-24 flex-shrink-0">Изменён:</span>
                                 <span class="text-gray-900 dark:text-gray-100">
                                     <?php echo HTML::chars($file['updated_at']); ?>
                                 </span>
@@ -78,9 +85,9 @@
     <!-- Две колонки: Права и Ссылки -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Управление правами -->
-        <div class="prl-card p-0 overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                <h3 class="prl-h3">Права доступа</h3>
+        <section class="prl-panel">
+            <div class="prl-panel-head">
+                <h3 class="prl-h3"><i class="fas fa-lock mr-2 text-blue-500"></i>Права доступа</h3>
                 <?php if (isset($can_edit_permissions) && $can_edit_permissions): ?>
                     <button type="button" 
                             onclick="openPermissionModal()"
@@ -149,12 +156,12 @@
                     <p class="text-sm text-gray-500 dark:text-gray-400">Права доступа не настроены.</p>
                 <?php endif; ?>
             </div>
-        </div>
+        </section>
 
         <!-- Ссылки на файл -->
-        <div class="prl-card p-0 overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                <h3 class="prl-h3">Ссылки</h3>
+        <section class="prl-panel">
+            <div class="prl-panel-head">
+                <h3 class="prl-h3"><i class="fas fa-link mr-2 text-blue-500"></i>Ссылки</h3>
             </div>
             <div class="p-6 space-y-3">
                 <?php if (!empty($download_url)): ?>
@@ -169,6 +176,6 @@
                     <p class="text-sm text-gray-500 dark:text-gray-400">Ссылка на скачивание недоступна.</p>
                 <?php endif; ?>
             </div>
-        </div>
+        </section>
     </div>
 </div>

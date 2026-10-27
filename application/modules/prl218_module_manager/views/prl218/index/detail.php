@@ -16,7 +16,7 @@
                     <h1 class="prl-h1">
                         <?php echo HTML::chars($module->display_name); ?>
                     </h1>
-                    <span class="prl-badge prl-badge-wait">
+                    <span class="prl-count">
                         v<?php echo HTML::chars($module->version); ?>
                     </span>
                 </div>
@@ -62,11 +62,11 @@
             <!-- Description Card -->
             <div class="prl-panel overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                    <h3 class="font-bold text-gray-900 dark:text-white">Описание и назначение</h3>
+                    <h3 class="prl-h3">Описание и назначение</h3>
                     <button class="toggle-published relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none <?php echo $module->is_published ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'; ?>"
                             data-module-id="<?php echo $module->id; ?>"
                             data-is-published="<?php echo $module->is_published ? '1' : '0'; ?>">
-                        <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out <?php echo $module->is_published ? 'translate-x-5' : 'translate-x-0'; ?>"></span>
+                        <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow dark:bg-white ring-0 transition duration-200 ease-in-out <?php echo $module->is_published ? 'translate-x-5' : 'translate-x-0'; ?>"></span>
                     </button>
                 </div>
                 <div class="p-6">
@@ -95,7 +95,7 @@
             <!-- Dependencies Card -->
             <div class="prl-panel overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-                    <h3 class="font-bold text-gray-900 dark:text-white">Зависимости системы</h3>
+                    <h3 class="prl-h3">Зависимости системы</h3>
                 </div>
                 <div class="p-6">
                     <div class="space-y-3">
@@ -106,7 +106,7 @@
                                         <i class="fas fa-link text-gray-400 mr-3 text-sm"></i>
                                         <span class="text-sm font-medium text-gray-700 dark:text-gray-200"><?php echo HTML::chars($dep->name); ?></span>
                                     </div>
-                                    <span class="text-xs px-2 py-1 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 text-gray-500">
+                                    <span class="prl-count">
                                         <?php echo HTML::chars($dep->version_required); ?>
                                     </span>
                                 </div>
@@ -121,7 +121,7 @@
             <!-- Functionality Card -->
             <div class="prl-panel overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700">
-                    <h3 class="font-bold text-gray-900 dark:text-white">Функционал модуля</h3>
+                    <h3 class="prl-h3">Функционал модуля</h3>
                 </div>
                 <div class="p-6">
                     <?php
@@ -160,7 +160,7 @@
                     <?php if (!empty($module->main_page_uri)): ?>
                         <div class="flex justify-between items-center">
                             <span class="text-sm text-gray-500">Главная страница</span>
-                            <a href="<?php echo URL::site($module->main_page_uri); ?>" target="_blank" class="text-sm font-medium text-blue-600 hover:underline">
+                            <a href="<?php echo URL::site($module->main_page_uri); ?>" target="_blank" class="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400">
                                 Перейти <i class="fas fa-external-link-alt ml-1 text-xs"></i>
                             </a>
                         </div>
@@ -176,7 +176,7 @@
             <!-- LLM Analysis Card -->
             <div class="prl-panel overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                    <h3 class="font-bold text-gray-900 dark:text-white">LLM Анализ</h3>
+                    <h3 class="prl-h3">LLM Анализ</h3>
                     <?php if ($module->analysis->loaded() && $module->analysis->analysis_status == 'completed'): ?>
                         <span class="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
                             <i class="fas fa-check-circle mr-1.5"></i> Завершен

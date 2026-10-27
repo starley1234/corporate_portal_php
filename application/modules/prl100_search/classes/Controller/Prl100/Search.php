@@ -42,17 +42,40 @@ class Controller_Prl100_Search extends Controller {
         $this->response->headers('Cache-Control', 'public, max-age=3600');
 
         $this->response->body(<<<'HTML'
-<!doctype html><html lang="ru"><head><meta charset="utf-8">
-<title>Страница удалена — prl.ru</title>
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Страница удалена — PRL</title>
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-</head><body style="font:16px/1.5 system-ui,sans-serif;color:#111;margin:12vh auto;max-width:34rem;padding:0 1.25rem">
-<h1 style="font-size:1.25rem;margin:0 0 .75rem">Страница удалена</h1>
-<p style="color:#374151">Отдельная страница поиска больше не поддерживается — ей пользовались только роботы.</p>
-<p style="color:#374151">Поиск по материалам, базе знаний, организациям и вакансиям — в шапке любой страницы
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#f9fafb;color:#111827;font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{width:min(100% - 2rem,35rem);margin:12vh auto;padding:2rem;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 1px 2px rgb(17 24 39/.06)}
+h1{margin:0 0 .75rem;font-size:30px;line-height:1.2;letter-spacing:-.02em}
+p{margin:.75rem 0;color:#4b5563}
+a.button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;margin-top:1rem;padding:.625rem 1rem;border:1px solid #d1d5db;border-radius:8px;background:#f9fafb;color:#1f2937;font-weight:600;text-decoration:none}
+a.button:hover{background:#f3f4f6}
+@media(prefers-color-scheme:dark){
+body{background:#111827;color:#f9fafb}
+main{background:#1f2937;border-color:#374151;box-shadow:0 1px 2px rgb(0 0 0/.25)}
+p{color:#d1d5db}
+a.button{background:#1f2937;border-color:#4b5563;color:#f9fafb}
+a.button:hover{background:#374151}
+}
+</style>
+</head>
+<body>
+<main>
+<h1>Страница удалена</h1>
+<p>Отдельная страница поиска больше не поддерживается — ей пользовались только роботы.</p>
+<p>Поиск по материалам, базе знаний, организациям и вакансиям — в шапке любой страницы
 (значок лупы или Ctrl&nbsp;+&nbsp;K); Enter открывает выбранный результат.</p>
-<p><a href="/" style="color:#1d4ed8">На главную</a></p>
-</body></html>
+<a href="/" class="button">На главную</a>
+</main>
+</body>
+</html>
 HTML
         );
     }

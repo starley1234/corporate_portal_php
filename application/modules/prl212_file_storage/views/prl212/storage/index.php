@@ -44,7 +44,7 @@
             <h1 class="prl-h1 flex items-center">
                 <?php echo HTML::chars(isset($current_folder_name) ? $current_folder_name : 'Мои файлы'); ?>
                 <?php if (isset($search) && $search): ?>
-                    <span class="prl-badge prl-badge-info ml-2">Результаты поиска</span>
+                    <span class="prl-count ml-2">Результаты поиска</span>
                 <?php endif; ?>
             </h1>
             <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -67,7 +67,7 @@
 
         <div class="flex flex-wrap gap-2">
             <?php if (in_array('212_storage_admin', $current_user_roles) || in_array('212_storage_user', $current_user_roles)): ?>
-                <a href="<?php echo URL::site('prl212_storage/upload'); ?>" class="prl-btn-process">
+                <a href="<?php echo URL::site('prl212_storage/upload'); ?>" class="prl-btn-cta">
                     <i class="fas fa-cloud-upload-alt mr-2"></i>Загрузить
                 </a>
             <?php endif; ?>
@@ -85,19 +85,19 @@
 
     <!-- Список файлов -->
     <?php if (empty($files)): ?>
-        <div class="text-center py-20 bg-white dark:bg-gray-800 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-700">
-            <div class="mx-auto w-20 h-20 bg-gray-50 dark:bg-gray-900/50 rounded-full flex items-center justify-center mb-4">
-                <i class="fas fa-folder-open text-4xl text-gray-300 dark:text-gray-600"></i>
-            </div>
-            <h3 class="prl-h3 mb-1">Файлы не найдены</h3>
-            <p class="text-gray-500 dark:text-gray-400 max-w-xs mx-auto">
+        <section class="prl-panel">
+            <div class="prl-empty">
+                <div class="prl-empty-icon"><i class="fas fa-folder-open"></i></div>
+                <h3 class="prl-h3 mt-4">Файлы не найдены</h3>
+                <p class="prl-empty-text">
                 <?php if (isset($search)): ?>
                     По запросу "<?php echo HTML::chars($search); ?>" ничего не найдено. Попробуйте изменить параметры поиска.
                 <?php else: ?>
                     В этой папке пока нет файлов. Загрузите свой первый файл, чтобы начать работу.
                 <?php endif; ?>
-            </p>
-        </div>
+                </p>
+            </div>
+        </section>
     <?php else: ?>
         <div class="prl-card p-0 overflow-hidden">
             <div class="overflow-x-auto">
@@ -138,7 +138,7 @@
                                                 <?php echo HTML::chars($file->filename); ?>
                                             </div>
                                             <div class="flex items-center mt-0.5">
-                                                <span class="prl-badge prl-badge-wait font-mono uppercase">
+                                                <span class="prl-count font-mono uppercase">
                                                     <?php echo HTML::chars($file->extension ?: 'bin'); ?>
                                                 </span>
                                                 <?php if ($file->is_public): ?>
