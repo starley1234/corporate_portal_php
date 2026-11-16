@@ -194,7 +194,7 @@ class Service_Prl393_Workflow
      * Публичный и с необязательным списком — чтобы этот выбор можно было
      * проверить стендом без PostgreSQL.
      */
-    public static function match_rule($type_code, $domain, $inn, $haystack, array $rules = NULL)
+    public static function match_rule($type_code, $domain, $inn, $haystack, ?array $rules = NULL)
     {
         if ($rules === NULL)
         {
