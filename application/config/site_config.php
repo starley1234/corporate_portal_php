@@ -1,14 +1,14 @@
-<?php defined('SYSPATH') or die('No direct script access');
-
-return array(
-    'title'           => 'N2J.ru — онлайн-сервисы, калькуляторы и инструменты',
-    'description'     => 'Бесплатные онлайн-сервисы N2J.ru: калькуляторы, конвертеры, инструменты для текста, документов, файлов и работы с данными. Без регистрации.',
-    'h1'              => 'Онлайн-сервисы, калькуляторы и инструменты N2J',
-    'keywords'        => 'онлайн сервисы, полезные инструменты, калькуляторы онлайн, конвертер, генераторы, веб-утилиты, сервисы на каждый день, n2j',
-    'pagedescription' => 'Единая платформа практичных веб-инструментов: быстрые расчеты, генерация данных, конвертация форматов и утилиты для работы, учебы и повседневных задач.',
-    'site_url'        => 'https://n2j.ru',
-    'admin_mail'      => 'info@n2j.ru',
-    'domain'          => 'n2j.ru',
-    'site_name'       => 'N2J.ru',
-    'site_logo'       => '<i class="fas fa-layer-group mr-2"></i>',
-);
+<?php defined('SYSPATH') or die('No direct script access.');
+$url = rtrim((string) (getenv('APP_URL') ?: 'http://localhost:8080'), '/');
+return [
+    'title' => 'PRL — корпоративный портал',
+    'description' => 'Единое рабочее пространство сотрудников: сервисы, знания и коммуникации.',
+    'h1' => 'Корпоративный портал',
+    'keywords' => 'корпоративный портал, сотрудники, знания, PRL',
+    'pagedescription' => 'Сервисы холдинга в едином защищённом пространстве.',
+    'site_url' => $url,
+    'admin_mail' => getenv('ADMIN_EMAIL') ?: '',
+    'domain' => parse_url($url, PHP_URL_HOST),
+    'site_name' => 'PRL',
+    'site_logo' => '<i class="fas fa-layer-group mr-2"></i>',
+];

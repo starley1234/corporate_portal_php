@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 """Ловит ссылку на столбец, которого нет в подзапросе LATERAL («монитор 500»).
 
-Зачем (живая авария 28.09.2026): `/nj120/monitor` отдавал 500 —
+Зачем (живая авария 28.09.2026): `/prl120/monitor` отдавал 500 —
 
     Database_Exception [ 0 ]: ОШИБКА: столбец ev.created_at не существует
 
-В `Service/Nj120/JobQueue.php` «чем занят воркер сейчас» собиралось так:
+В `Service/Prl120/JobQueue.php` «чем занят воркер сейчас» собиралось так:
 
     SELECT … ev.message AS stage, ev.created_at AS stage_at
-      FROM nj_120_jobs j
+      FROM prl_120_jobs j
       LEFT JOIN LATERAL (
-          SELECT e.message FROM nj_120_job_events e …   -- created_at НЕ выбран
+          SELECT e.message FROM prl_120_job_events e …   -- created_at НЕ выбран
       ) ev ON TRUE
 
 Запрос синтаксически корректен, колонка в таблице есть, PHP-кода внутри строки
 нет — ни разбор грамматики, ни `php_sql_lint`, ни `php_ternary_lint` этого не
 видят. PostgreSQL отвергает запрос ЦЕЛИКОМ, поэтому падает вся страница, хотя
 остальные её запросы исправны. Настоящая проверка — исполнить SQL на живой базе
-(`.tools/nj120_monitor_pg_stand.py`); этот линтер ловит опечатку статически и
+(`.tools/prl120_monitor_pg_stand.py`); этот линтер ловит опечатку статически и
 сразу во всём проекте.
 
 Что проверяем: для каждого `LATERAL ( … ) alias ON …` собираем список столбцов,
@@ -192,23 +192,23 @@ def iter_files(target):
 SELFTEST_BAD = """<?php
 $rows = $db->query(Database::SELECT,
     'SELECT j.id, ev.message AS stage, ev.created_at AS stage_at
-       FROM nj_120_jobs j
+       FROM prl_120_jobs j
        LEFT JOIN LATERAL (
-           SELECT e.message FROM nj_120_job_events e WHERE e.job_id = j.id
+           SELECT e.message FROM prl_120_job_events e WHERE e.job_id = j.id
        ) ev ON TRUE', FALSE)->as_array();
 """
 
 SELFTEST_GOOD = """<?php
 $rows = $db->query(Database::SELECT,
     'SELECT j.id, ev.message AS stage, ev.created_at AS stage_at
-       FROM nj_120_jobs j
+       FROM prl_120_jobs j
        LEFT JOIN LATERAL (
-           SELECT e.message, e.created_at FROM nj_120_job_events e WHERE e.job_id = j.id
+           SELECT e.message, e.created_at FROM prl_120_job_events e WHERE e.job_id = j.id
        ) ev ON TRUE', FALSE)->as_array();
 
 $rows2 = $db->query(Database::SELECT,
-    'SELECT * FROM nj_120_jobs j LEFT JOIN LATERAL (
-         SELECT e.message FROM nj_120_job_events e
+    'SELECT * FROM prl_120_jobs j LEFT JOIN LATERAL (
+         SELECT e.message FROM prl_120_job_events e
      ) ev ON TRUE', FALSE)->as_array();
 """
 

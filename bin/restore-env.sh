@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# N2J — разворачивание среды с нуля (идемпотентно, можно запускать
+# PRL — разворачивание среды с нуля (идемпотентно, можно запускать
 # повторно). Восстанавливает всё: PHP 8.4 + PostgreSQL + конфиги + миграции.
 #
 #   bash bin/restore-env.sh                 # всё и сразу
@@ -119,10 +119,10 @@ install_pg() {
         sleep 2
         if pg_isready -h "$host" -p "$port" >/dev/null 2>&1; then
             ok "PostgreSQL (apt) запущен"
-            $SUDO -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='n2j'" | grep -q 1 || \
-                $SUDO -u postgres psql -c "CREATE ROLE n2j LOGIN PASSWORD 'n2j' CREATEDB;"
-            $SUDO -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='n2j'" | grep -q 1 || \
-                $SUDO -u postgres psql -c "CREATE DATABASE n2j OWNER n2j;"
+            $SUDO -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='prl'" | grep -q 1 || \
+                $SUDO -u postgres psql -c "CREATE ROLE prl LOGIN PASSWORD 'prl' CREATEDB;"
+            $SUDO -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='prl'" | grep -q 1 || \
+                $SUDO -u postgres psql -c "CREATE DATABASE prl OWNER prl;"
             return 0
         fi
     fi
@@ -137,7 +137,7 @@ import subprocess
 from pathlib import Path
 import pgserver
 root = sys.argv[1]
-pgdata = Path(os.environ.get("N2J_PGDATA", os.path.expanduser("~/.n2j/pgdata")))
+pgdata = Path(os.environ.get("PRL_PGDATA", os.path.expanduser("~/.prl/pgdata")))
 pgdata.parent.mkdir(parents=True, exist_ok=True)
 # Нюансы pgserver 0.1.4: cleanup_mode='stop' по умолчанию убивает сервер при
 # выходе python (atexit), а ensure_postgres_running() слушает только unix-сокет.
@@ -169,13 +169,13 @@ elif not tcp_ok:
     pg_ctl("-m", "fast", "stop")
     pg_ctl("-l", str(pgdata/"pg.log"), "-o", PGOPTS, "-w", "start")
 
-if psql("SELECT 1 FROM pg_roles WHERE rolname='n2j'") != "1":
-    psql("CREATE ROLE n2j LOGIN PASSWORD 'n2j' CREATEDB;")
-if psql("SELECT 1 FROM pg_database WHERE datname='n2j'") != "1":
-    psql("CREATE DATABASE n2j OWNER n2j")
+if psql("SELECT 1 FROM pg_roles WHERE rolname='prl'") != "1":
+    psql("CREATE ROLE prl LOGIN PASSWORD 'prl' CREATEDB;")
+if psql("SELECT 1 FROM pg_database WHERE datname='prl'") != "1":
+    psql("CREATE DATABASE prl OWNER prl")
 print("PostgreSQL (pgserver) готов: TCP 127.0.0.1:5432, данные", pgdata)
 PYEOF
-    ok "Переносимый PostgreSQL запущен (данные: ~/.n2j/pgdata)"
+    ok "Переносимый PostgreSQL запущен (данные: ~/.prl/pgdata)"
 }
 
 # =============================================================================
@@ -204,9 +204,11 @@ install_app() {
         warn "Миграции не выполнены (нет БД/PHP?) — запустите позже: make migrate"
     fi
 
+    source bin/_env.sh
+    prl_load_env "$ROOT/.env"
     msg "Создаю администратора"
-    bin/console auth:user --email="${ADMIN_EMAIL:-admin@n2j.ru}" \
-        --password="${ADMIN_PASSWORD:-admin123}" \
+    bin/console auth:user --email="${ADMIN_EMAIL:-admin@example.test}" \
+        --password="${ADMIN_PASSWORD:?Задайте ADMIN_PASSWORD в .env}" \
         --username="${ADMIN_USERNAME:-admin}" --admin || warn "Админ не создан (возможно, уже есть)"
 }
 

@@ -8,7 +8,7 @@
  *   mkdir -p /tmp/phpwasm && cd /tmp/phpwasm
  *   npm i @php-wasm/node @php-wasm/universal
  *   cp <repo>/.tools/phpwasm_stand.mjs .
- *   node phpwasm_stand.mjs .tools/nj642_auto_stand.php
+ *   node phpwasm_stand.mjs .tools/prl597_engine_stand.php
  *
  * Стенды читают исходники по путям из базы /app (root репозитория).
  */
@@ -20,12 +20,12 @@ import { dirname, resolve } from 'node:path';
 
 const stand = process.argv[2];
 
-if (!stand || !existsSync(stand) && !existsSync(resolve(process.env.N2J_ROOT || '.', stand || ''))) {
+if (!stand || !existsSync(stand) && !existsSync(resolve(process.env.PRL_ROOT || '.', stand || ''))) {
     console.error('использование: node phpwasm_stand.mjs <файл-стенда.php>');
     process.exit(2);
 }
 
-const root = (process.env.N2J_ROOT
+const root = (process.env.PRL_ROOT
     || spawnSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).stdout.trim()
     || process.cwd()).trim();
 const rt = await loadNodeRuntime('8.3', { emscriptenOptions: { processId: 8001 } });
@@ -72,8 +72,8 @@ for (const rel of ['.env.example']) {
 }
 
 // Дополнительные данные, которые стенд читает из виртуальной ФС (сид-файлы
-// миграций и т.п.): N2J_STAND_FILES="path1:path2" — пути от корня репозитория.
-for (const rel of (process.env.N2J_STAND_FILES || '').split(':').filter(Boolean)) {
+// миграций и т.п.): PRL_STAND_FILES="path1:path2" — пути от корня репозитория.
+for (const rel of (process.env.PRL_STAND_FILES || '').split(':').filter(Boolean)) {
     const abs = resolve(root, rel);
 
     if (existsSync(abs)) copy(abs);
@@ -82,15 +82,15 @@ for (const rel of (process.env.N2J_STAND_FILES || '').split(':').filter(Boolean)
 // сам стенд может быть ещё не закоммичен — копируем его отдельно
 copy(resolve(root, stand));
 
-// Переменные N2J_* из окружения доходят до стенда: так стенд включает режимы
+// Переменные PRL_* из окружения доходят до стенда: так стенд включает режимы
 // («показать страницы», свой набор данных) без правки самого стенда.
 const passEnv = Object.fromEntries(
-    Object.entries(process.env).filter(([key]) => key.startsWith('N2J_')));
+    Object.entries(process.env).filter(([key]) => key.startsWith('PRL_')));
 
-// N2J_MOUNT="<host-каталог>:<путь в PHP>": стенд может писать артефакты
+// PRL_MOUNT="<host-каталог>:<путь в PHP>": стенд может писать артефакты
 // (например, HTML-галерею вьюх) прямо на диск, а не только в память WASM.
-// Внутри PHP путь виден как обычный каталог, и его же передают в N2J_*.
-const mountSpec = (process.env.N2J_MOUNT || '').trim();
+// Внутри PHP путь виден как обычный каталог, и его же передают в PRL_*.
+const mountSpec = (process.env.PRL_MOUNT || '').trim();
 
 if (mountSpec) {
     const idx = mountSpec.lastIndexOf(':');

@@ -1,40 +1,40 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
-if ( ! class_exists('Service_Erp208_EventBus', false))
+if ( ! class_exists('Service_Prl208_EventBus', false))
 {
     $prev_reporting = error_reporting();
     error_reporting($prev_reporting & ~E_DEPRECATED);
-    class_exists('Service_Erp208_EventBus', true);
+    class_exists('Service_Prl208_EventBus', true);
     error_reporting($prev_reporting);
 }
 
 /**
  * Класс управления событиями (Event Dispatcher).
- * Проксирует вызовы в Service_Erp208_EventBus.
+ * Проксирует вызовы в Service_Prl208_EventBus.
  */
 class Event {
 
     /**
      * Получить инстанс шины событий с подавлением E_DEPRECATED для устаревших модулей в PHP 8.4.
-     * 
-     * @return Service_Erp208_EventBus
+     *
+     * @return Service_Prl208_EventBus
      */
     protected static function bus()
     {
-        if ( ! class_exists('Service_Erp208_EventBus', false))
+        if ( ! class_exists('Service_Prl208_EventBus', false))
         {
             $prev_reporting = error_reporting();
             error_reporting($prev_reporting & ~E_DEPRECATED);
-            class_exists('Service_Erp208_EventBus', true);
+            class_exists('Service_Prl208_EventBus', true);
             error_reporting($prev_reporting);
         }
 
-        return Service_Erp208_EventBus::instance();
+        return Service_Prl208_EventBus::instance();
     }
 
     /**
      * Подписаться на событие.
-     * 
+     *
      * @param string $name Название события
      * @param callable $callback Функция или метод
      */
@@ -45,7 +45,7 @@ class Event {
 
     /**
      * Запустить событие немедленно.
-     * 
+     *
      * @param string $name Название события
      * @param mixed $data Данные события
      * @return bool
@@ -62,7 +62,7 @@ class Event {
 
     /**
      * Отложить выполнение (сейчас работает как fire).
-     * 
+     *
      * @param string $name
      * @param mixed $data
      */
@@ -73,7 +73,7 @@ class Event {
 
     /**
      * Проверить наличие слушателей.
-     * 
+     *
      * @param string $name
      * @return bool
      */
@@ -84,7 +84,7 @@ class Event {
 
     /**
      * Удалить всех слушателей конкретного события.
-     * 
+     *
      * @param string $name
      */
     public static function forget($name)

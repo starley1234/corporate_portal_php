@@ -2,10 +2,10 @@
 
 use PHPUnit\Framework\TestCase;
 /**
- * Регресс-тест Service_Nj597_Notify::_base_url() (nj597_notifications).
+ * Регресс-тест Service_Prl597_Notify::_base_url() (prl597_notifications).
  *
  * Исторический баг: при пустом APP_URL метод звал сам себя (`self::_base_url()`)
- * без изменения состояния — бесконечная рекурсия. Cron `Nj603:Kick` с
+ * без изменения состояния — бесконечная рекурсия. Cron `Prl603:Kick` с
  * pending-уведомлениями доходил до `_base_url()` через email_shell()/digest_html()
  * и раздувал память процесса, пока ядро не убивало его по OOM (~2.4 ГБ total-vm
  * на сервере с 1 ГБ RAM). Этот тест фиксирует контракт: пустой APP_URL обязан
@@ -50,16 +50,16 @@ class NotifyBaseUrlTest extends TestCase {
     /** Вызвать protected static _base_url(). */
     protected function _base_url()
     {
-        $m = new ReflectionMethod('Service_Nj597_Notify', '_base_url');
+        $m = new ReflectionMethod('Service_Prl597_Notify', '_base_url');
 
         return $m->invoke(NULL);
     }
 
     public function test_base_url_with_app_url_set()
     {
-        $this->_with_app_url('https://n2j.ru/', function () {
+        $this->_with_app_url('http://localhost:8080/', function () {
             // завершающий слэш rtrim-ится
-            $this->assertSame('https://n2j.ru', $this->_base_url());
+            $this->assertSame('http://localhost:8080', $this->_base_url());
         });
     }
 
@@ -75,7 +75,7 @@ class NotifyBaseUrlTest extends TestCase {
         // Критичный случай OOM: APP_URL не задан (старое .env без строки).
         // Должен вернуться фолбэк, а не рухнуть рекурсией/Fatal error.
         $this->_with_app_url(NULL, function () {
-            $this->assertSame('https://n2j.ru', $this->_base_url());
+            $this->assertSame('http://localhost:8080', $this->_base_url());
         });
     }
 
@@ -83,7 +83,7 @@ class NotifyBaseUrlTest extends TestCase {
     {
         // getenv вернёт непустую строку из пробелов → rtrim -> '' -> фолбэк
         $this->_with_app_url('   ', function () {
-            $this->assertSame('https://n2j.ru', $this->_base_url());
+            $this->assertSame('http://localhost:8080', $this->_base_url());
         });
     }
 }

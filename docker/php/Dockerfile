@@ -1,5 +1,5 @@
 # =============================================================================
-# PHP 8.4 (FPM) для N2J
+# PHP 8.4 (FPM) для PRL
 # Сборка: docker compose build php
 # Включает: pgsql, pdo_pgsql, mbstring, intl, zip, gd, bcmath, sockets, pcntl,
 #           opcache, composer 2
@@ -38,7 +38,7 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # Настройки PHP (dev-ориентированные, Production-профиль включается KOHANA_ENV=production)
-COPY docker/php/php.ini /usr/local/etc/php/conf.d/99-n2j.ini
+COPY docker/php/php.ini /usr/local/etc/php/conf.d/99-prl.ini
 
 # Зависимости composer'а кэшируем отдельным слоем:
 # меняется только composer.json -> пересборка зависимостей.

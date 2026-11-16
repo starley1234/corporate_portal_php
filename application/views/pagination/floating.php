@@ -54,8 +54,8 @@ for ($i = $n7; $i <= $n8; ++$i)
 	$links[$i] = $i;
 }
 
-// кнопки — компонент .n2j-page эталона v6 (текущая — aria-current)
-$base_classes = "n2j-page text-sm font-semibold";
+// кнопки — компонент .prl-page эталона v6 (текущая — aria-current)
+$base_classes = "prl-page text-sm font-semibold";
 $active_classes = "";
 $inactive_classes = "";
 $disabled_classes = "pointer-events-none cursor-not-allowed text-gray-300 dark:text-gray-600";
@@ -64,15 +64,15 @@ $disabled_classes = "pointer-events-none cursor-not-allowed text-gray-300 dark:t
 <div class="mt-6 flex items-center justify-between border-t border-gray-100 px-4 py-3 sm:px-6 dark:border-gray-700/60">
     <div class="flex flex-1 justify-between sm:hidden">
         <?php if ($previous_page !== FALSE): ?>
-            <a href="<?php echo HTML::chars($page->url($previous_page)) ?>" class="n2j-btn-secondary n2j-btn-sm">Назад</a>
+            <a href="<?php echo HTML::chars($page->url($previous_page)) ?>" class="prl-btn-secondary prl-btn-sm">Назад</a>
         <?php else: ?>
-            <span class="n2j-btn-secondary n2j-btn-sm pointer-events-none opacity-50">Назад</span>
+            <span class="prl-btn-secondary prl-btn-sm pointer-events-none opacity-50">Назад</span>
         <?php endif ?>
-        
+
         <?php if ($next_page !== FALSE): ?>
-            <a href="<?php echo HTML::chars($page->url($next_page)) ?>" class="n2j-btn-secondary n2j-btn-sm ml-3">Вперед</a>
+            <a href="<?php echo HTML::chars($page->url($next_page)) ?>" class="prl-btn-secondary prl-btn-sm ml-3">Вперед</a>
         <?php else: ?>
-            <span class="n2j-btn-secondary n2j-btn-sm pointer-events-none ml-3 opacity-50">Вперед</span>
+            <span class="prl-btn-secondary prl-btn-sm pointer-events-none ml-3 opacity-50">Вперед</span>
         <?php endif ?>
     </div>
     <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">

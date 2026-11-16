@@ -2,7 +2,7 @@
 /**
  * Хелпер для tests/pdf_external_check.py (bin/test --pdf).
  *
- * Генерирует PDF через сервисы nj634 в переданный каталог ($argv[1]) и печатает
+ * Генерирует PDF через сервисы prl634 в переданный каталог ($argv[1]) и печатает
  * JSON-отчёт. НЕ часть обычного прогона — вызывается только независимой
  * pypdf-валидацией.
  *
@@ -17,7 +17,7 @@ if (PHP_SAPI !== 'cli')
 $root = realpath(__DIR__.'/..').DIRECTORY_SEPARATOR;
 
 require $root.'application/env.php';
-n2j_env_load($root);
+prl_env_load($root);
 
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
 
@@ -45,7 +45,7 @@ for ($i = 0; $i < 300; $i++)
     $lines[] = 'Строка '.$i;
 }
 
-$multi = Service_Nj634_Txt2pdf::build(implode("\n", array_merge(['Многостраничный'], $lines)), 'Много');
+$multi = Service_Prl634_Txt2pdf::build(implode("\n", array_merge(['Многостраничный'], $lines)), 'Много');
 
 if ( ! $multi['ok'])
 {
@@ -56,7 +56,7 @@ if ( ! $multi['ok'])
 file_put_contents($out_dir.'multi.pdf', $multi['pdf']);
 
 // split 2-3
-$split = Service_Nj634_SplitMerge::extract($multi['pdf'], 2, 3);
+$split = Service_Prl634_SplitMerge::extract($multi['pdf'], 2, 3);
 
 if ( ! $split['ok'])
 {
@@ -67,7 +67,7 @@ if ( ! $split['ok'])
 file_put_contents($out_dir.'split.pdf', $split['pdf']);
 
 // merge 3,1,2
-$merge = Service_Nj634_SplitMerge::merge_select($multi['pdf'], [3, 1, 2]);
+$merge = Service_Prl634_SplitMerge::merge_select($multi['pdf'], [3, 1, 2]);
 
 if ( ! $merge['ok'])
 {
@@ -78,7 +78,7 @@ if ( ! $merge['ok'])
 file_put_contents($out_dir.'merge.pdf', $merge['pdf']);
 
 // сколько страниц на самом деле в multi (по нашему парсеру — сверяем в python)
-$info = Service_Nj634_Parser::meta($multi['pdf']);
+$info = Service_Prl634_Parser::meta($multi['pdf']);
 
 echo json_encode([
     'multi_pages' => $info['pages'] ?? 0,

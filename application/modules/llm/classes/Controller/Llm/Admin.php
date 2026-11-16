@@ -18,6 +18,17 @@
  */
 class Controller_Llm_Admin extends Controller_Base {
 
+    public function before()
+    {
+        parent::before();
+        if (! $this->can('admin.access')) { throw HTTP_Exception::factory(403); }
+        if (in_array($this->request->action(), ['load', 'unload'], TRUE))
+        {
+            if ($this->request->method() !== Request::POST) { throw HTTP_Exception::factory(405)->allowed(['POST']); }
+            if (! Security::check((string) $this->request->post('csrf'))) { throw HTTP_Exception::factory(403); }
+        }
+    }
+
     /**
      * Заголовки запроса к LM Studio. Пустой Bearer не отправляем: LM Studio
      * 0.3+ считает его отсутствием авторизации и отвечает 401.
@@ -56,29 +67,29 @@ class Controller_Llm_Admin extends Controller_Base {
         $config_llm = Kohana::$config->load('llm');
         $config_providers = $config_llm->get('providers');
         $config = $config_providers['local_lms'];
-        
+
         $base_url = $config['base_url'] ?? 'http://localhost:1234/v1/';
         $api_key = $config['api_key'] ?? '';
-        
+
         $status_data = [];
         $error = null;
-        
+
         try {
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $base_url . 'models');
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_TIMEOUT, 5);
             curl_setopt($ch, CURLOPT_HTTPHEADER, $this->_lm_headers($api_key));
-            
+
             $response = curl_exec($ch);
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            
+
             if (curl_errno($ch)) {
                 throw new Exception(curl_error($ch));
             }
-            
+
             curl_close($ch);
-            
+
             if ($http_code >= 200 && $http_code < 300) {
                 $status_data = json_decode($response, true);
             } else {
@@ -89,7 +100,7 @@ class Controller_Llm_Admin extends Controller_Base {
         } catch (Exception $e) {
             $error = $e->getMessage();
         }
-        
+
         $menu = array(
             array(
                 'title' => 'Управление локальными LLM',
@@ -98,7 +109,7 @@ class Controller_Llm_Admin extends Controller_Base {
             ),
         );
         $this->set_menu($menu);
-        
+
         $this->_meta['title'] = 'Управление локальными LLM';
         $this->_meta['description'] = 'Перечень LLM, загрузка, выгрузка';
 
@@ -114,7 +125,7 @@ class Controller_Llm_Admin extends Controller_Base {
     public function action_unload()
     {
         $this->auto_render = FALSE;
-        $model_id = $this->request->query('model');
+        $model_id = $this->request->post('model');
         $is_ajax = $this->request->is_ajax();
 
         if (!$model_id) {
@@ -129,7 +140,7 @@ class Controller_Llm_Admin extends Controller_Base {
         // Убираем /v1/ из базового пути для обращения к /api/v1/models/unload если это требуется API
         $base_url = $config['base_url'] ?? 'http://localhost:1234/v1/';
         $api_key = $config['api_key'] ?? '';
-        
+
         // Корректируем URL для выгрузки согласно документации LM Studio
         // Обычно это POST /api/v1/models/unload или /v1/models/unload
         $unload_url = $base_url . 'models/unload';
@@ -144,7 +155,7 @@ class Controller_Llm_Admin extends Controller_Base {
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['instance_id' => $model_id]));
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch, CURLOPT_HTTPHEADER, $this->_lm_headers($api_key, TRUE));
-            
+
             $response = curl_exec($ch);
             $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
@@ -171,15 +182,15 @@ class Controller_Llm_Admin extends Controller_Base {
         }
 
         if ($success) {
-            Message::success($message);
+            Session::instance()->set('llm_flash', ['ok' => TRUE, 'message' => $message]);
         } else {
-            Message::error($message);
+            Session::instance()->set('llm_flash', ['ok' => FALSE, 'message' => $message]);
         }
 
-        $this->redirect('admin/llm');
+        HTTP::redirect('/llm_admin');
     }
-	
-	
+
+
 	/**
 	 * Загрузка модели (Load)
 	 */
@@ -187,7 +198,7 @@ class Controller_Llm_Admin extends Controller_Base {
 	{
 		$this->auto_render = FALSE;
 		// model_id для загрузки (например: "lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF")
-		$model_id = $this->request->query('model');
+		$model_id = $this->request->post('model');
 		$is_ajax = $this->request->is_ajax();
 
 		if (!$model_id) {
@@ -200,7 +211,7 @@ class Controller_Llm_Admin extends Controller_Base {
 		$config = Kohana::$config->load('llm.providers.local_lms');
 		$base_url = $config['base_url'] ?? 'http://localhost:1234/v1/';
 		$api_key = $config['api_key'] ?? '';
-		
+
 		// Эндпоинт загрузки
 		$load_url = $base_url . 'models/load';
 
@@ -217,7 +228,7 @@ class Controller_Llm_Admin extends Controller_Base {
 			]));
 			curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 			curl_setopt($ch, CURLOPT_HTTPHEADER, $this->_lm_headers($api_key, TRUE));
-			
+
 			$response = curl_exec($ch);
 			$http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 			curl_close($ch);
@@ -241,8 +252,8 @@ class Controller_Llm_Admin extends Controller_Base {
 			return;
 		}
 
-		$success ? Message::success($message) : Message::error($message);
-		$this->redirect('admin/llm');
+		Session::instance()->set('llm_flash', ['ok' => $success, 'message' => $message]);
+		HTTP::redirect('/llm_admin');
 	}
-	
+
 }

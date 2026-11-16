@@ -1,6 +1,6 @@
 {
-  "name": "n2j-assets",
-  "description": "Сборка CSS для n2j.ru (Tailwind). PHP-проект, node нужен только здесь.",
+  "name": "prl-assets",
+  "description": "Локальные assets корпоративного портала PRL",
   "directories": {
     "doc": "docs",
     "test": "tests"
@@ -8,39 +8,15 @@
   "scripts": {
     "build:css": "tailwindcss -c tailwind.config.js -i .tools/tailwind/input.css -o public_html/assets/css/app.css --minify",
     "watch:css": "tailwindcss -c tailwind.config.js -i .tools/tailwind/input.css -o public_html/assets/css/app.css --watch",
-    "test:qr": "node --test tests/Js/qr.test.mjs",
-    "test:qr:ui": "node .tools/nj510_qr_ui_smoke.mjs",
-    "test:similar:ui": "node .tools/nj654_similar_ui.mjs",
-    "test:forge:ui": "node .tools/erp222_forge_ui.mjs",
-    "test:jsondecode:ui": "node .tools/nj664_decode_ui.mjs",
-    "test:poll-qr": "node --test tests/Js/poll_qr.test.mjs",
-    "test:military-pension": "node --test tests/Js/military_pension.test.mjs",
-    "test:graph3d": "node --test tests/Js/nj667_graph3d.test.mjs",
-    "test:graph3d:ui": "node .tools/nj667_graph3d_ui.mjs",
-    "test:solid3d": "node --test tests/Js/nj669_solid3d.test.mjs",
-    "test:draw2d": "node --test tests/Js/nj668_draw2d.test.mjs",
-    "test:nj670:canvas": "node --test tests/Js/nj670_canvas_*.test.mjs",
-    "test:nj670:content": "node --test tests/Js/nj670_content_scale.test.mjs",
-    "test:bytes": "node --test tests/Js/bytes.test.mjs",
-    "test:n2j-ui": "node --test tests/Js/n2j_ui.test.mjs",
-    "test:modules:http": "node tests/Js/modules_http_smoke.mjs",
-    "test:inn:ui": "node tests/Js/inn_privacy.mjs",
-    "build:qr-vendor": "node .tools/qr_vendor.mjs"
+    "test:prl-ui": "node --test tests/Js/prl_ui.test.mjs",
+    "test": "node --test tests/Js/*.test.mjs"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/starley1234/n2j.ru.git"
-  },
-  "bugs": {
-    "url": "https://github.com/starley1234/n2j.ru/issues"
-  },
-  "homepage": "https://github.com/starley1234/n2j.ru#readme",
   "devDependencies": {
-    "@playwright/test": "1.56.1",
-    "fflate": "0.8.3",
-    "jsdom": "^30.1.1",
-    "jsqr": "1.4.0",
-    "tailwindcss": "^3.4.19"
+    "tailwindcss": "^3.4.19",
+    "jsdom": "^30.1.1"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "postcss-selector-parser": "^7.1.6"
+  }
 }

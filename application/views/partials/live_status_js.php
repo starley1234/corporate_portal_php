@@ -4,25 +4,25 @@
  * JS живого статус-ряда (один раз на страницу).
  *
  * Подключается ВСЕГДА — даже если сейчас ни один ряд не отрисован: кнопка
- * «Собрать» монтирует ряд сама, из <template data-n2j-live-tpl="<code>">,
+ * «Собрать» монтирует ряд сама, из <template data-prl-live-tpl="<code>">,
  * который страница рендерит для каждого радара/потока. Так пользователь видит
  * «идёт сбор» СРАЗУ после нажатия, без перезагрузки страницы (жалоба владельца:
  * «при нажатии Собрать я ожидал появления <div class="w-full"> с информацией о
  * запущенном процессе — почему я его увидел только после перезагрузки?»).
  *
- * Публичный API: window.N2JLive.mount(li, code) — вставить ряд из шаблона.
+ * Публичный API: window.PRLLive.mount(li, code) — вставить ряд из шаблона.
  */
-if ( ! empty($GLOBALS['__n2j_live_status_js']))
+if ( ! empty($GLOBALS['__prl_live_status_js']))
 {
     return;
 }
 
-$GLOBALS['__n2j_live_status_js'] = TRUE;
+$GLOBALS['__prl_live_status_js'] = TRUE;
 ?>
 <script>
 /* Живой статус-ряд: один интервал на страницу, каждый блок опрашивает свой
    thin-endpoint. Завершение — «Готово ✓» + одна перезагрузка (данные целостные). */
-window.N2JLive = (function () {
+window.PRLLive = (function () {
     'use strict';
 
     var blocks = [];
@@ -53,8 +53,8 @@ window.N2JLive = (function () {
     // Терминальные блоки (страница уже отрисована после завершения) не
     // регистрируем: иначе «done» из endpoint'а запускал бы перезагрузку по кругу.
     function register(el) {
-        if (!el || el.__n2jReg || el.hasAttribute('data-live-terminal')) return el;
-        el.__n2jReg = true;
+        if (!el || el.__prlReg || el.hasAttribute('data-live-terminal')) return el;
+        el.__prlReg = true;
         el.__sec = parseInt(el.getAttribute('data-live-elapsed') || '0', 10) || 0;
         el.__last = null;
 
@@ -69,11 +69,11 @@ window.N2JLive = (function () {
     function mount(host, code) {
         if (!host || !code) return null;
 
-        var tpl = document.querySelector('[data-n2j-live-tpl="' + code + '"]');
+        var tpl = document.querySelector('[data-prl-live-tpl="' + code + '"]');
         if (!tpl || !tpl.content) return null;
 
         // повторный клик «Собрать» не должен плодить ряды
-        var old = host.querySelector('[data-n2j-live]');
+        var old = host.querySelector('[data-prl-live]');
         if (old) return old;
 
         var el = tpl.content.firstElementChild.cloneNode(true);
@@ -132,7 +132,7 @@ window.N2JLive = (function () {
 
         // Модуль может держать СВОЙ статус (new/running/error/canceled) для своих
         // нужд и отдавать статус ряда в поле status_live — тогда общий механизм
-        // читает его. Так устроен /docs/<code> (nj580): там по 'status' живёт
+        // читает его. Так устроен /docs/<code> (prl580): там по 'status' живёт
         // таблица документов, и ломать её нельзя.
         if (typeof s.status_live === 'string' && s.status_live !== '') {
             s.status = s.status_live;
@@ -169,7 +169,7 @@ window.N2JLive = (function () {
         var silent = b.querySelector('[data-live-silent]');
         if (silent) {
             if (typeof s.silent_sec === 'number' && s.silent_sec > 180) {
-                silent.textContent = 'нет пульса ' + Math.floor(s.silent_sec / 60) + ' мин';
+                silent.innerHTML = '<span class="prl-dot"></span>нет пульса ' + Math.floor(s.silent_sec / 60) + ' мин';
                 silent.classList.remove('hidden');
 
                 // Честная подсказка: сервер сам остановит застрявший сбор
@@ -200,7 +200,7 @@ window.N2JLive = (function () {
             // распознанный текст в форму и тут же разбирает состав): тогда ряд
             // помечается data-live-keep, перезагрузки нет, а модуль получает
             // событие и решает, что делать дальше.
-            b.dispatchEvent(new CustomEvent('n2j:live-done', { detail: s, bubbles: true }));
+            b.dispatchEvent(new CustomEvent('prl:live-done', { detail: s, bubbles: true }));
 
             if (!b.hasAttribute('data-live-keep') && !reloading) {
                 // Страховка от петли перезагрузок: если серверный кадр и
@@ -209,7 +209,7 @@ window.N2JLive = (function () {
                 // страницу бесконечно — владелец видел ровно это на /mcphub/admin.
                 // Перезагружаем не чаще раза в 30 с на один статус-адрес:
                 // второй раз показываем итог и просим обновить вручную.
-                var key = 'n2j-live-reload:' + b.getAttribute('data-live-url');
+                var key = 'prl-live-reload:' + b.getAttribute('data-live-url');
                 var prev = 0;
                 try { prev = parseInt(window.sessionStorage.getItem(key) || '0', 10) || 0; } catch (e) {}
 
@@ -265,7 +265,7 @@ window.N2JLive = (function () {
 
     // Блоки, уже отрисованные сервером (страница открыта во время работы)
     Array.prototype.slice.call(
-        document.querySelectorAll('[data-n2j-live]:not([data-live-terminal])'))
+        document.querySelectorAll('[data-prl-live]:not([data-live-terminal])'))
         .forEach(register);
 
     setTimeout(poll, 2000);

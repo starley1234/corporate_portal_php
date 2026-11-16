@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-import n2j_workers.__main__ as entry
+import prl_workers.__main__ as entry
 
 
 @pytest.fixture(autouse=True)
@@ -26,13 +26,13 @@ def _clean_logging():
 
 
 def _write_line(text: str = "проверка записи") -> None:
-    logging.getLogger("n2j.test").info("%s", text)
+    logging.getLogger("prl.test").info("%s", text)
     for handler in logging.getLogger().handlers:
         handler.flush()
 
 
 def test_log_file_is_created_and_written(tmp_path, monkeypatch):
-    target = tmp_path / "logs" / "n2j-worker.log"
+    target = tmp_path / "logs" / "prl-worker.log"
     monkeypatch.setenv("WORKER_LOG_FILE", str(target))
 
     path = entry.setup_logging()
@@ -41,17 +41,17 @@ def test_log_file_is_created_and_written(tmp_path, monkeypatch):
     assert path == str(target)
     text = target.read_text(encoding="utf-8")
     assert "строка для разбора инцидента" in text
-    assert "INFO n2j.test" in text  # формат: время уровень имя: сообщение
+    assert "INFO prl.test" in text  # формат: время уровень имя: сообщение
 
 
 def test_default_path_is_workers_logs(monkeypatch):
     monkeypatch.delenv("WORKER_LOG_FILE", raising=False)
 
-    assert entry._log_file() == entry.WORKERS_ROOT / "logs" / "n2j-worker.log"
+    assert entry._log_file() == entry.WORKERS_ROOT / "logs" / "prl-worker.log"
 
 
 def test_log_rotates_by_size(tmp_path, monkeypatch):
-    target = tmp_path / "n2j-worker.log"
+    target = tmp_path / "prl-worker.log"
     monkeypatch.setenv("WORKER_LOG_FILE", str(target))
     monkeypatch.setenv("WORKER_LOG_MAX_MB", "0.001")   # ~1 КБ на файл
     monkeypatch.setenv("WORKER_LOG_BACKUPS", "2")
@@ -67,7 +67,7 @@ def test_log_rotates_by_size(tmp_path, monkeypatch):
 
 
 def test_log_can_be_disabled(tmp_path, monkeypatch):
-    target = tmp_path / "n2j-worker.log"
+    target = tmp_path / "prl-worker.log"
     monkeypatch.setenv("WORKER_LOG_FILE", str(target))
     monkeypatch.setenv("WORKER_LOG_ENABLED", "0")
 
@@ -84,14 +84,14 @@ def test_unwritable_dir_does_not_break_the_worker(tmp_path, monkeypatch):
     blocker = tmp_path / "not-a-dir"
     blocker.write_text("я файл, а не каталог", encoding="utf-8")
 
-    monkeypatch.setenv("WORKER_LOG_FILE", str(blocker / "n2j-worker.log"))
+    monkeypatch.setenv("WORKER_LOG_FILE", str(blocker / "prl-worker.log"))
 
     assert entry.setup_logging() == ""
     assert logging.getLogger().handlers  # stderr-обработчик остался
 
 
 def test_level_from_env(tmp_path, monkeypatch):
-    target = tmp_path / "n2j-worker.log"
+    target = tmp_path / "prl-worker.log"
     monkeypatch.setenv("WORKER_LOG_FILE", str(target))
     monkeypatch.setenv("WORKER_LOG_LEVEL", "WARNING")
 
@@ -109,7 +109,7 @@ def test_values_from_workers_env_are_picked_up_after_config_load(tmp_path, monke
     настройки лога из .env — а это как раз тот случай, когда «лог не пишется»
     выглядит как «воркер не работает».
     """
-    from n2j_workers import config as config_module
+    from prl_workers import config as config_module
 
     target = tmp_path / "from-dotenv.log"
     dotenv = tmp_path / ".env"

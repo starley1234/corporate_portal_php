@@ -8,14 +8,14 @@
 сайтовый свипер по мёртвому пульсу.
 
 Правильное поведение: воркер при остановке ждёт текущие задачи ограниченное
-время (N2J_STOP_GRACE_SEC), а не успевшие — закрывает САМ, с понятной причиной.
+время (PRL_STOP_GRACE_SEC), а не успевшие — закрывает САМ, с понятной причиной.
 """
 import asyncio
 import time
 
 import pytest
 
-from n2j_workers import base
+from prl_workers import base
 
 
 class _Cfg:
@@ -100,9 +100,9 @@ async def _quick(ctx, payload):
 
 
 def _prep(monkeypatch, grace: str = "1"):
-    monkeypatch.setenv("N2J_STOP_GRACE_SEC", grace)
-    monkeypatch.setenv("N2J_RELEASE_ORPHANS", "1")
-    monkeypatch.setenv("N2J_HARD_WATCHDOG_SEC", "3600")  # сторож тут не при чём
+    monkeypatch.setenv("PRL_STOP_GRACE_SEC", grace)
+    monkeypatch.setenv("PRL_RELEASE_ORPHANS", "1")
+    monkeypatch.setenv("PRL_HARD_WATCHDOG_SEC", "3600")  # сторож тут не при чём
     monkeypatch.setattr(base.BaseWorker, "_install_signal_handlers", lambda self: None)
 
 

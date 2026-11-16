@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# N2J — подготовка локального окружения (идемпотентно).
+# PRL — подготовка локального окружения (идемпотентно).
 #
 #   bash bin/setup.sh
 #
@@ -68,7 +68,7 @@ if [[ ! -f .env ]]; then
     # Токены тоже генерируем: в .env.example у них пустое значение И
     # inline-комментарий. Если оставить строку как есть, парсер .env раньше
     # превращал комментарий в ЗНАЧЕНИЕ (см. application/env.php) — воркеры
-    # получали 401 на /nj120/api/*, /nj597/api/outbox, /nj602/api/*.
+    # получали 401 на /prl120/api/*, /prl597/api/outbox, /prl602/api/*.
     for key in COOKIE_SALT AUTH_HASH_KEY MIGRATIONS_TOKEN WORKER_API_TOKEN SITE_UPDATE_TOKEN; do
         env_set .env "$key" "$(gen_secret)"
     done
@@ -76,6 +76,12 @@ if [[ ! -f .env ]]; then
     msg "Секреты COOKIE_SALT/AUTH_HASH_KEY и токены (MIGRATIONS/WORKER_API/SITE_UPDATE) сгенерированы"
 else
     msg ".env уже существует — пропускаю"
+fi
+
+# Администратор не должен получать известный всем пароль.
+if [[ -z "$(env_value .env ADMIN_PASSWORD)" ]]; then
+    env_set .env ADMIN_PASSWORD "$(gen_secret)"
+    msg "Случайный ADMIN_PASSWORD записан в локальный .env (не публикуйте файл)"
 fi
 
 # --- 1b. workers/.env -----------------------------------------------------------
@@ -93,6 +99,7 @@ if [[ -f workers/.env.example && ! -f workers/.env ]]; then
 
     if [[ -n "$site_token" ]]; then
         env_set workers/.env WORKER_SITE_TOKEN "$site_token"
+        env_set workers/.env WORKER_API_TOKEN "$site_token"
         msg "workers/.env создан (WORKER_SITE_TOKEN = токен сайта)"
     else
         msg "workers/.env создан (WORKER_API_TOKEN пуст — WORKER_SITE_TOKEN оставлен как есть)"
@@ -105,22 +112,22 @@ fi
 msg "Создаю каталоги приложения"
 mkdir -p application/logs application/cache application/sessions
 mkdir -p public_html/uploads public_html/img
-mkdir -p storage/nj580 storage/nj590 storage/nj651 storage/nj669
+mkdir -p storage
 
 # Сессии, временные кадры VLM, логи и файлы модулей — не публичные данные.
 # Не выдаём к ним доступ всем локальным пользователям: в частности, setup
 # запускается при каждом деплое, а application/cache содержит временные фото.
-storage_owner="$(n2j_storage_owner)"
+storage_owner="$(prl_storage_owner)"
 for private_dir in "$ROOT/application/logs" "$ROOT/application/cache" \
                    "$ROOT/application/sessions" "$ROOT/storage"; do
-    if ! n2j_secure_private_tree "$private_dir" "$storage_owner"; then
+    if ! prl_secure_private_tree "$private_dir" "$storage_owner"; then
         msg "Не удалось ограничить доступ к $private_dir"
         exit 1
     fi
 done
 
 # Эти два каталога предназначены для публичных загрузок/изображений сайта.
-chmod -R a+rwX public_html/uploads public_html/img 2>/dev/null || true
+chmod -R u+rwX,go+rX public_html/uploads public_html/img 2>/dev/null || true
 
 # --- 3. Composer / заглушка автозагрузчика --------------------------------------
 need_vendor_shim=0
@@ -159,7 +166,7 @@ if (is_file(__DIR__ . '/composer/autoload_real.php')) {
 
 spl_autoload_register(function ($class) {
     // Единственная зависимость проекта — symfony/mailer + symfony/mime
-    // (Service_Nj597_Notify). Карта префиксов держится в composer.json;
+    // (Service_Prl597_Notify). Карта префиксов держится в composer.json;
     // раньше здесь висели Guzzle/Monolog/Carbon/PhpOffice/Dompdf — пакеты,
     // удалённые 28.09.2026 за отсутствием вызовов.
     $prefix = 'Symfony\\';

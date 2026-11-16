@@ -1,111 +1,25 @@
 <?php defined('SYSPATH') or die('No direct script access.');
-
+// Deny by default. Роль admin имеет полный доступ через ACL::check().
+// login — техническая роль входа, а не должность сотрудника.
 return [
-	'nj669.start' => ['login', 'vip', 'admin'],
-	'nj669.moderate' => ['admin'],
-    // Формат: 'право' => ['роли', 'которые', 'могут']
-    
-    // Глобальные права
-    'admin.access'    => ['admin'],
-	
-	// Модуль Файлы (erp212_storage)
-	
-	'erp212_storage.view_public_files'     => ['login'],
-    'erp212_storage.view_files'     => ['admin', 'manager', 'accountant'],
-    'erp212_storage.upload'    		=> ['admin', 'manager'],
-    'erp212_storage.delete_file'   	=> ['admin'], // Только admin
-    'erp212_storage.*'        		=> ['admin'], // Управление может всё
-    
-    // Модуль CRM (Клиенты)
-    'crm.activity.view'     	=> ['admin', 'manager', 'accountant'],
-	'crm.activity.view_all'     => ['admin', 'manager', 'accountant'],
-	'crm.analytics.view'     	=> ['admin', 'manager', 'accountant'],
-	'crm.analytics.export'     => ['admin', 'manager', 'accountant'],
-	'crm.contact.view'     => ['admin', 'manager', 'accountant'],
-	'crm.activity.add'     => ['admin', 'manager'],
-    'crm.activity.edit'     => ['admin', 'manager'],
-    'client.delete'   => ['admin', 'super_manager'], // Только топам
-    'client.*'        => ['admin'], // Управление может всё в клиентах
-	'crm.*'        => ['admin', 'manager'], // Могут всё
-    
-    // Модуль Tasks (Задачи)
-    'task.create'     => ['login'], // Любой залогиненный может создать
-    'task.manage'     => ['admin', 'manager'],
-
-    // NJ-модули (новые сервисы). Формат ключа: '<slug-модуля>.<право>'.
-    // Роль admin имеет полный доступ автоматически (ACL::check, п.0),
-    // поэтому ниже перечисляем только ДОПОЛНИТЕЛЬНЫЕ роли.
-    'nj593.admin'       => ['admin'], // сборка обзоров GitHub и управление; остальные только читают
-    'nj597.admin'       => ['admin'], // админка уведомлений (/nj597/admin)
-    'nj594.import'      => ['admin'], // массовый импорт организаций ФНС
-    'nj595.users.admin' => ['admin'], // управление пользователями
-    'nj600.admin'       => ['admin'], // аккумулятор предпочтений (/nj600/admin, карточка владельца, рекомендации /nj600/admin/reco)
-    'nj516.admin'       => ['admin'], // метрики публичной витрины (/nj516/admin)
-    'nj120.usage.admin' => ['admin'], // ресурсы и потребление (/nj120/usage)
-    'nj115.admin'       => ['admin'], // семантика · поиск и векторы (/nj115)
-    'nj120.monitor'     => ['admin'], // монитор воркеров (/nj120/monitor)
-    'nj598.admin'       => ['admin'], // AI Досье · управление (/nj598/admin)
-    'nj602.admin'       => ['admin'], // Контент-конвейер · модерация (/nj602/admin)
-    'nj641.admin'       => ['admin'], // Генератор изображений · модерация (/imagegen/gallery)
-    'nj642.admin'       => ['admin'], // Вакансии компаний · управление (/vacancies)
-    'nj643.admin'       => ['admin'], // CAD-детали · управление (/cad/admin, движок и расход)
-    'nj603.admin'       => ['admin'], // Пиналка · управление (/nj603/admin)
-    'nj604.admin'       => ['admin'], // Новости сайта · управление (/nj604/admin)
-    'nj612.admin'       => ['admin'], // Серии касаний · управление (/nj612/admin)
-    'nj613.admin'       => ['admin'], // Дайджест · управление (/nj613/admin)
-    'nj100.cleanup.admin' => ['admin'], // чистка данных (/nj100/cleanup)
-    'nj601.admin'       => ['admin'], // счета Robokassa (/nj601/admin)
-    'nj657.admin'       => ['admin'], // Навыки Алисы · управление (/alice/admin)
-    'nj658.admin'       => ['admin'], // Справочник городов · управление (/geo/admin)
-    'nj659.yandexauth'  => ['admin'], // Вход через Яндекс · диагностика связок (/nj659/admin)
-    'nj100.admin'       => ['admin'], // Администрирование — единая страница управления (/admin)
-    // Кузница систем (erp222_forge): дашборд, миры, запуск циклов и публикация.
-    // Каталог артефактов и страницы артефактов открыты всем — права не нужны.
-    'erp222.forge'      => ['admin'], // циклы синтеза и управление публикацией (/forge)
-
-    // Диалог двух ИИ (nj662_dialog): разговор двух агентов — это модель,
-    // очередь и поиск в интернете, то есть расход на каждый обмен. Поэтому
-    // ЗАПУСК (создание и постановка обменов) открыт только привилегированным
-    // (роль vip) и админу: обычный аккаунт читает опубликованные разговоры
-    // и ведёт свои, если запустил их раньше. Сводка всех диалогов сайта —
-    // только админу (решение владельца 09.10.2026).
-    // Роль vip создаётся миграцией pgMigration_Nj662_002_Access_Vip и
-    // выдаётся на /nj595/admin (роль пользователя) — отдельной страницы нет.
-    'nj662.start'       => ['admin', 'vip'], // запуск и продолжение диалога (/dialog)
-    'nj662.manage'      => ['admin'],        // все диалоги сайта, и неопубликованные (/dialog/all)
-
-    // Многоголосая озвучка книги (nj666_multivoice): разбор книги — это
-    // десятки вызовов модели, озвучка — часы синтеза на внешнем GPU, поэтому
-    // запускать могут только привилегированные (роль vip) и админ. Чужие
-    // книги закрыты и без права: книга принадлежит владельцу или посетителю
-    // (проверка Service_Nj666_Multivoice::owns на всех точках).
-    'nj666.start'       => ['admin', 'vip'], // создать книгу, разбор и озвучка (/multivoice)
-
-    // Графовый 3D-конструктор (nj667_graph3d): начальная генерация графа —
-    // платный вызов модели. Её могут запускать зарегистрированные пользователи
-    // (роль login), vip и админ; LLM-правки существующего графа — только с
-    // nj667.moderate. Ручное редактирование и экспорт сохраняют отдельные права.
-    // Вердикты модерации — по nj667.moderate (/graph3d/moderate).
-    'nj667.start'       => ['admin', 'vip', 'login'], // начальная генерация, сборка и remix (/graph3d)
-    'nj667.moderate'    => ['admin'],        // каталог: одобрить/отклонить/образец
-
-    // Плоские иллюстрации (nj668_draw2d): сборка сцены — это вызов модели,
-    // поэтому запускать могут привилегированные (роль vip) и админ. Править
-    // свою сцену, сохранять и удалять может любой владелец (сервис проверяет
-    // владение), а каталог и чужие опубликованные иллюстрации открыты всем.
-    'nj668.start'       => ['admin', 'vip'], // сборка сцены по описанию (/draw2d)
-    'nj668.moderate'    => ['admin'],        // каталог: отметить лучшие
-
-    // ProcessHub (nj670_processhub): синтез схемы, разбор журнала и AI-аудит —
-    // вызовы модели и тяжёлые прогоны, поэтому запускают vip и админ. Ручная
-    // правка своей схемы, демо и выпуск регламента доступны владельцу процесса
-    // без отдельного права (сервис проверяет владение). Обзор всех рабочих
-    // пространств — только админ (/process/admin).
-    'nj670.start'       => ['admin', 'vip'], // синтез, факт, аудит, отчёт (/process)
-    'nj670.admin'       => ['admin'],        // все рабочие пространства и расход (/process/admin)
-    'nj676.admin'       => ['admin'],        // ручная модерация MCP Hub (/mcphub/admin)
-
-    // Пример расширения: разрешить super_manager админку уведомлений —
-    // раскомментировать и поправить роль:
-    // 'nj597.admin'   => ['admin', 'super_manager'],
+    'portal.access' => ['login'],
+    'admin.access' => ['admin'],
+    'prl100.admin' => ['admin'],
+    'prl100.cleanup.admin' => ['admin'],
+    'prl111.view' => ['admin'],
+    'prl111.apply' => ['admin'],
+    'prl115.admin' => ['admin'],
+    'prl120.monitor' => ['admin'],
+    'prl120.usage.admin' => ['admin'],
+    'prl300.view' => ['login'],
+    'prl300.directory' => ['login'],
+    'prl300.admin.view' => ['hr_viewer', 'hr_admin'],
+    'prl300.manage' => ['hr_admin'],
+    'prl300.import' => ['hr_admin'],
+    'prl300.identity' => ['hr_admin'],
+    'prl595.users.admin' => ['admin'],
+    'prl597.admin' => ['admin'],
+    'prl560.admin' => ['admin'],
+    'prl212_storage.*' => ['admin'],
+    'prl218.*' => ['admin'],
 ];

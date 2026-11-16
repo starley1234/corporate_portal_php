@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# N2J — разворачивание среды в ЗАКРЫТОЙ песочнице (apt/packagist недоступны,
+# PRL — разворачивание среды в ЗАКРЫТОЙ песочнице (apt/packagist недоступны,
 # доступны только github.com/codeload и PyPI).
 #
 #   bash bin/setup-sandbox.sh            # всё: тулчейн + PHP 8.4 + PG + приложение
@@ -12,9 +12,9 @@
 #      re2c (PyPI wheel) → m4 → autoconf → bison → pkgconf → zlib → openssl
 #      → libxml2 → curl → PHP 8.4 (cli: pgsql, pdo_pgsql, mbstring, dom/xml,
 #      curl, openssl, zlib, opcache...).
-#      Префикс: /tmp/n2j-opt (перезапуск песочницы = пересборка скриптом).
+#      Префикс: /tmp/prl-opt (перезапуск песочницы = пересборка скриптом).
 #   2. PostgreSQL — переносимый, из PyPI-пакета pgserver (как в restore-env.sh),
-#      порт 5432, роль/база n2j.
+#      порт 5432, роль/база prl.
 #   3. Приложение: .env (bin/setup.sh) + vendor-заглушка + миграции + админ.
 #   4. Тесты: php tests/mini_runner.php (phpunit в такой сети недоступен).
 #
@@ -26,9 +26,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-OPT=/tmp/n2j-opt
-SRC=/tmp/n2j-src
-BUILD=/tmp/n2j-build
+OPT=/tmp/prl-opt
+SRC=/tmp/prl-src
+BUILD=/tmp/prl-build
 PHP_TAG=php-8.4.25
 SERVE=0; SKIP_BUILD=0
 for arg in "$@"; do
@@ -80,8 +80,8 @@ if [[ $SKIP_BUILD -eq 0 ]]; then
         WHEEL=$(python3 - <<'PY'
 import glob, re, subprocess, sys
 out = subprocess.run([sys.executable, "-m", "pip", "download", "re2c", "--no-deps",
-                      "-d", "/tmp/n2j-src/wheels", "-q"], capture_output=True, text=True)
-w = glob.glob("/tmp/n2j-src/wheels/re2c-*.whl")
+                      "-d", "/tmp/prl-src/wheels", "-q"], capture_output=True, text=True)
+w = glob.glob("/tmp/prl-src/wheels/re2c-*.whl")
 print(w[0] if w else "")
 PY
 )
@@ -197,7 +197,7 @@ P
           && make -j2 >/dev/null && make install >/dev/null )
         # opcache собран как zend-extension
         cat > "$OPT/php/lib/php.ini" <<EOF
-; N2J sandbox (dev)
+; PRL sandbox (dev)
 memory_limit = 512M
 post_max_size = 32M
 upload_max_filesize = 32M
@@ -217,7 +217,7 @@ fi
 # ---------------------------------------------------------------------------
 # 2. PostgreSQL (pgserver, без root)
 # ---------------------------------------------------------------------------
-msg "PostgreSQL (PyPI pgserver): initdb/старт + роль и база n2j"
+msg "PostgreSQL (PyPI pgserver): initdb/старт + роль и база prl"
 pip install -q --break-system-packages pgserver 2>/dev/null || pip install -q pgserver
 # Нюансы pgserver 0.1.4:
 #   - get_server(cleanup_mode='stop') по умолчанию убивает сервер при выходе
@@ -230,7 +230,7 @@ import subprocess
 from pathlib import Path
 import pgserver
 
-pgdata = Path(os.environ.get("N2J_PGDATA", Path.home()/".n2j/pgdata"))
+pgdata = Path(os.environ.get("PRL_PGDATA", Path.home()/".prl/pgdata"))
 pgdata.parent.mkdir(parents=True, exist_ok=True)
 pgbin = Path(pgserver.__file__).parent / "pginstall" / "bin"
 PGOPTS = "-h 127.0.0.1 -p 5432 -k /tmp"
@@ -259,10 +259,10 @@ elif not tcp_ok:                           # жив, но только на со
     pg_ctl("-m", "fast", "stop")
     pg_ctl("-l", str(pgdata/"pg.log"), "-o", PGOPTS, "-w", "start")
 
-if psql("SELECT 1 FROM pg_roles WHERE rolname='n2j'") != "1":
-    psql("CREATE ROLE n2j LOGIN PASSWORD 'n2j' CREATEDB;")
-if psql("SELECT 1 FROM pg_database WHERE datname='n2j'") != "1":
-    psql("CREATE DATABASE n2j OWNER n2j")
+if psql("SELECT 1 FROM pg_roles WHERE rolname='prl'") != "1":
+    psql("CREATE ROLE prl LOGIN PASSWORD 'prl' CREATEDB;")
+if psql("SELECT 1 FROM pg_database WHERE datname='prl'") != "1":
+    psql("CREATE DATABASE prl OWNER prl")
 print("PostgreSQL TCP 127.0.0.1:5432 готов (данные: %s)" % pgdata)
 PY
 ok "PostgreSQL поднят"
@@ -273,9 +273,11 @@ ok "PostgreSQL поднят"
 [[ -f .env ]] || bash bin/setup.sh
 msg "Миграции"
 bash bin/console db:migrate | tail -1
+source bin/_env.sh
+prl_load_env "$ROOT/.env"
 msg "Админ из .env (ADMIN_*)"
-bash bin/console auth:user --email="${ADMIN_EMAIL:-admin@n2j.ru}" \
-    --password="${ADMIN_PASSWORD:-admin123}" \
+bash bin/console auth:user --email="${ADMIN_EMAIL:-admin@example.test}" \
+    --password="${ADMIN_PASSWORD:?Задайте ADMIN_PASSWORD в .env}" \
     --username="${ADMIN_USERNAME:-admin}" --admin || true
 
 msg "Дымовые тесты (мини-раннер, phpunit в закрытой сети недоступен)"

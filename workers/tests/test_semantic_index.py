@@ -12,7 +12,7 @@ import json
 
 import pytest
 
-from n2j_workers.handlers import semantic_index
+from prl_workers.handlers import semantic_index
 
 
 class _Tx:
@@ -98,8 +98,8 @@ class _Ctx:
 
 def _payload(items=3):
     return {
-        "collection": "nj401_tasks",
-        "entity": "nj401_task",
+        "collection": "prl401_tasks",
+        "entity": "prl401_task",
         "items": [{"id": str(i), "text": f"текст {i}"} for i in range(items)],
     }
 
@@ -153,7 +153,7 @@ async def test_pgvector_cast_for_vector_column():
 
 @pytest.mark.asyncio
 async def test_hanging_embedding_server_is_stopped_with_reason(monkeypatch):
-    monkeypatch.setenv("NJ115_EMBED_TIMEOUT", "0.3")
+    monkeypatch.setenv("PRL115_EMBED_TIMEOUT", "0.3")
 
     ctx = _Ctx(_Pool(_Conn()), _Embed(delay=5))
 
@@ -197,13 +197,18 @@ async def test_missing_collection_explains_what_to_do():
 
 
 @pytest.mark.asyncio
-async def test_http_mode_sends_vectors_to_the_site(monkeypatch):
+@pytest.mark.parametrize("api_base, expected_path", [
+    ("", "/prl115/api/vectors"),
+    ("http://portal.example.test/prl115/api", "/vectors"),
+])
+async def test_http_mode_sends_vectors_to_the_site(monkeypatch, api_base, expected_path):
     """Без pg обработчик работает мостом: считает векторы и отдаёт их сайту.
 
     Владелец (28.09, задача 60): воркер с сайтом на разных серверах раньше молча
     отвечал «skipped: http-mode» — задача «успешна», а векторов в базе нет.
     """
     calls = []
+    monkeypatch.setenv("PRL115_API_BASE", api_base)
 
     async def _fake_post(prefix, path, data, timeout=60.0, retries=2, json_body=False):
         calls.append((prefix, path, data, json_body))
@@ -220,10 +225,10 @@ async def test_http_mode_sends_vectors_to_the_site(monkeypatch):
     assert out["count"] == 3
     assert out["mode"] == "http-bridge", "мост должен быть виден в результате задачи"
     assert "skipped" not in out
-    assert [c[1] for c in calls] == ["/nj115/api/vectors"] * 2, "3 текста при пачке 2 — два запроса"
+    assert [c[1] for c in calls] == [expected_path] * 2, "3 текста при пачке 2 — два запроса"
     assert [len(c[2]["items"]) for c in calls] == [2, 1]
     assert all(c[3] is True for c in calls), "тело с массивами чисел уходит JSON-ом"
-    assert calls[0][2]["collection"] == "nj401_tasks"
+    assert calls[0][2]["collection"] == "prl401_tasks"
     assert calls[0][2]["model"] == ctx.embed.model
     assert calls[0][2]["items"][0]["vector"] == [0.1, 0.1, 0.1, 0.1]
 
@@ -240,9 +245,9 @@ async def test_http_mode_sends_vectors_to_the_site(monkeypatch):
 @pytest.mark.asyncio
 async def test_http_mode_without_site_settings_is_a_clear_failure(monkeypatch):
     """Молчаливого «skipped» нет: без адреса сайта задача падает с подсказкой."""
-    # NJ120_API_URL — тоже: иначе адрес сайта честно находится по нему, а тест
+    # PRL120_API_URL — тоже: иначе адрес сайта честно находится по нему, а тест
     # про «настройки доставки нет вообще» должен быть детерминированным.
-    for name in ("NJ115_API_BASE", "NJ120_API_BASE", "NJ120_API_URL", "NJ115_SITE_TOKEN",
+    for name in ("PRL115_API_BASE", "PRL120_API_BASE", "PRL120_API_URL", "PRL115_SITE_TOKEN",
                  "WORKER_SITE_TOKEN", "WORKER_API_TOKEN"):
         monkeypatch.delenv(name, raising=False)
 
@@ -252,7 +257,7 @@ async def test_http_mode_without_site_settings_is_a_clear_failure(monkeypatch):
         await semantic_index.handle(ctx, _payload(1))
 
     text = str(err.value)
-    assert "NJ115_API_BASE" in text and "workers/.env" in text
+    assert "PRL115_API_BASE" in text and "workers/.env" in text
     assert any(p == "Не получилось" for p, _n in ctx.steps)
 
 
@@ -286,12 +291,12 @@ def test_content_hash_matches_php_and_postgres():
 
     Сайт (PHP md5), воркер (hashlib.md5) и панель (PostgreSQL md5(text))
     считают один и тот же хеш — иначе повторная индексация вечно считала бы
-    тексты изменившимися, а покрытие на /nj115 показывало бы «не проиндексировано».
+    тексты изменившимися, а покрытие на /prl115 показывало бы «не проиндексировано».
     """
     assert semantic_index.content_hash("текст 1") == hashlib.md5("текст 1".encode("utf-8")).hexdigest()
 
     # Константа проверена с другой стороны: тот же хеш даёт PHP md5() (смоук
-    # t/nj115_hash.php) и PostgreSQL md5() — значит ключ кэша общий для всех.
+    # t/prl115_hash.php) и PostgreSQL md5() — значит ключ кэша общий для всех.
     assert semantic_index.content_hash("текст 1") == "4bc667cdb8b190655da156f93fa08d25"
     assert semantic_index.content_hash("") == "d41d8cd98f00b204e9800998ecf8427e"
 
@@ -322,7 +327,7 @@ async def test_html_403_gets_a_gateway_hint(monkeypatch):
 
     text = str(err.value)
     assert "$public_actions" in text
-    assert "/nj115/api/vectors" in text
+    assert "/prl115/api/vectors" in text
     assert "шлюза входа" in text
 
 

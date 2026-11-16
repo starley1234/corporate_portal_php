@@ -1,5 +1,5 @@
 /**
- * Сборка Tailwind для n2j.ru.
+ * Сборка Tailwind для prl.ru.
  *
  * До 28.09.2026 страницы подключали cdn.tailwindcss.com — это не файл, а
  * компилятор, который на КАЖДОЙ загрузке страницы разбирал вёрстку в браузере.
@@ -15,8 +15,8 @@
  * Конфигурация — ОБЪЕДИНЕНИЕ четырёх инлайновых `tailwind.config`, которые
  * жили в разных шаблонах и потихоньку расходились:
  *   views/template_tailwindcss.php          primary, dark, shadow-xs, ring-3
- *   erp218/layout/template.php              primary, dark, status_*
- *   nj111/migrate/index.php                 только darkMode
+ *   prl218/layout/template.php              primary, dark, status_*
+ *   prl111/migrate/index.php                 только darkMode
  *   601/finish.php                          конфига не было вовсе
  */
 module.exports = {
@@ -37,7 +37,7 @@ module.exports = {
                 primary: '#3b82f6',
                 dark: '#0f172a',
 
-                // статусы модулей в админке erp218
+                // статусы модулей в админке prl218
                 status_alpha: '#f59e0b',
                 status_beta: '#3b82f6',
                 status_stable: '#10b981',
@@ -60,11 +60,11 @@ module.exports = {
                 xs: '4px',                             // во v3 это blur-sm
             },
             spacing: {
-                4.5: '1.125rem',                       // переключатель в nj602
+                4.5: '1.125rem',                       // переключатель в prl602
                 5.5: '1.375rem',
             },
             maxWidth: {
-                '8xl': '88rem',                        // шире 7xl, erp217
+                '8xl': '88rem',                        // шире 7xl, prl217
             },
         },
     },

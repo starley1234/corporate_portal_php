@@ -1,91 +1,54 @@
-# Окружение и разворачивание
+# Окружение PRL
 
-## 1. Быстрый старт
-
-### Вариант А — Docker (рекомендуется)
-
-```bash
-cp .env.example .env          # при необходимости поправить порты/пароли
-docker compose up -d          # postgres 17 + redis + php 8.4-fpm + nginx
-docker compose --profile tools up -d     # + adminer (:8081), mailpit (:8025)
-docker compose exec php bin/console db:migrate
-docker compose exec php bin/console auth:user --email=admin@n2j.ru --password=admin123 --username=admin --admin
-# сайт: http://localhost:8080
-```
-
-### Вариант Б — нативно (Debian/Ubuntu)
+## Требования
+PHP 8.4 CLI/FPM с pgsql, pdo_pgsql, mbstring, curl, openssl, JSON, session;
+PostgreSQL 16+ (Docker: 17 + pgvector), Python 3.11+, Composer 2.
+Node нужен только для сборки Tailwind и UI-тестов, не на production-сервере.
 
 ```bash
-bash bin/restore-env.sh --serve
-# поставит PHP 8.4 (Sury) и PostgreSQL (apt или переносимый pgserver),
-# создаст .env с секретами, накатит миграции, создаст админа, поднимет :8080
+bash bin/setup.sh                  # .env, секреты, случайный пароль админа, runtime
+# Проверьте .env: APP_URL, DB_DEFAULT_*, ADMIN_*. Не публикуйте пароль.
+make up                           # Docker: nginx/php/postgres/redis
+make migrate && make seed         # если CLI PHP доступен на хосте
 ```
 
-Повторный запуск безопасен (идемпотентно). Только отдельные части:
+Команды внутри Docker — в README. Bind mount корня скрывает vendor образа:
+установите Composer-зависимости в смонтированный проект (через
+`docker compose exec php composer install`) перед использованием email.
+В закрытой сети setup создаёт только shim autoload: это **не** установленный
+Symfony Mailer. Для настоящей почты обязательно `composer install`.
 
-```bash
-bash bin/restore-env.sh --pg-only     # только БД
-bash bin/restore-env.sh --php-only    # только PHP
-bash bin/restore-env.sh --app-only    # .env + каталоги + миграции + админ
-```
+Нативно: `bash bin/restore-env.sh --serve`. В ограниченной сети:
+`bash bin/setup-sandbox.sh` (сборка PHP и переносимый PG), затем
+`PORT=8080 bash bin/serve`. Подробнее: SANDBOX-SETUP.md.
 
-## 2. Состав стека
+## Конфиги
 
-| Сервис | Порт (по умолчанию) | Назначение |
-|---|---|---|
-| nginx | 8080 | входная точка, docroot `public_html` |
-| php-fpm 8.4 | внутренний 9000 | приложение (образ собирается из `docker/php/Dockerfile`) |
-| postgres 17 + pgvector | 127.0.0.1:5432 | БД; расширения vector/pg_trgm/unaccent/uuid-ossp |
-| redis 7 | 127.0.0.1:6379 | кэш/счётчики (очередь — в PostgreSQL) |
-| worker (python) | — | профиль `workers`: очередь `nj120_jobs` |
-| adminer | 127.0.0.1:8081 | профиль `tools`: GUI БД |
-| mailpit | 127.0.0.1:8025 | профиль `tools`: ловушка писем |
+`application/env.php` читает .env до bootstrap; окружение процесса важнее файла.
+`application/config/modules.php` задаёт подключение и порядок миграций.
+`APP_URL` задаёт canonical, ссылки писем и доверенный production-хост.
+В development разрешены localhost и preview `*.e2b.app`.
+`APP_INTERNAL_HOSTS` — явный CSV внутренних DNS-имён (не wildcard); Docker
+задаёт `nginx`, чтобы HTTP-очередь и callbacks воркера шли внутри сети Compose.
+Canonical URL остаётся APP_URL; браузер использует публичный адрес.
+Не подставляйте адрес production в шаблон .env и не храните ключи в Git.
 
-## 3. Команды разработки
+Публичный docroot — только `public_html/`. Приватное хранилище — `storage/`
+вне docroot, runtime — `application/{cache,logs,sessions}`.
+Резервировать БД **и** `storage/`/пользовательские файлы; проверять восстановление.
+Для воркеров есть отдельный workers/.env. Docker использует root .env.
 
-```bash
-make up / down / ps / logs      # стек docker
-make serve                      # нативный dev-сервер (php -S, :8080)
-make shell                      # bash внутри php-контейнера
-make migrate / migrate-status   # миграции
-make seed                       # админ из .env
-make fresh                      # ПЕРЕСОЗДАТЬ схему с нуля (данные стираются!)
-make test / lint / doctor       # тесты, синтаксис, диагностика
-make composer                   # composer install (локально или в контейнере)
-make worker / worker-install    # python-воркеры
-```
+## Проверки
 
-## 4. Переменные окружения
+- `make check` — структурные контракты без PHP/БД.
+- `bash bin/check-fresh.sh` — временная БД, миграции дважды, PHP-тесты и CLI
+  обслуживания. Требует у dev-роли право CREATE DATABASE; не для production.
+- `SMOKE_URL=http://localhost:8080 bash bin/check-fresh.sh` — дополнительно HTTP
+  уже работающего сайта с админом из локального .env (не временной БД).
+- `source bin/_env.sh; prl_load_env .env; python3 tests/http_smoke.py` — только HTTP.
+- `npm ci && npm run build:css && npm test` — локальные assets и общий UI.
+- `PYTHONPATH=workers python3 -m pytest workers/tests -q` — worker regression.
 
-Полный список с комментариями — `.env.example`. Ключевые:
-
-| Переменная | Смысл |
-|---|---|
-| `KOHANA_ENV` | development/production (режим ошибок Kohana) |
-| `STRICT_DEPRECATIONS` | 1 = депрекейшены PHP 8.4 рвут запрос (для чистки кода) |
-| `DB_DEFAULT_*` | подключение к PostgreSQL (host/port/name/user/pass/schema) |
-| `COOKIE_SALT`, `AUTH_HASH_KEY` | секреты (генерирует `bin/setup.sh`) |
-| `TOOLFORGE_API_URL/KEY` | основной LLM-эндпоинт (OpenAI-совместимый) |
-| `OPENROUTER_API_KEY` | внешний LLM-провайдер |
-| `EMBEDDING_API_URL/KEY/MODEL/DIMENSIONS` | **отдельный сервер эмбеддингов** |
-| `WORKER_API_TOKEN` | токен HTTP-API очереди `/nj120/api/*` |
-| `WORKER_PG_DSN`, `WORKER_QUEUE_MODE` | как воркер ходит в очередь (pg/http) |
-| `ADMIN_*` | параметры `make seed` |
-| `MIGRATIONS_TOKEN` | токен веб-контроллера миграций |
-
-Приоритет источников: переменные окружения сервера > `.env` (см. `application/env.php`).
-
-## 5. PHP 8.4 — особенности
-
-* Проект переведён на PHP 8.4; legacy-код Kohana приглушает депрекейшены
-  (`STRICT_DEPRECATIONS=0` по умолчанию). Периодически включайте `=1` и чистите
-  код: `null` в строковых функциях, динамические свойства, неявные nullable.
-* Проверка синтаксиса: `make lint` (php -l по всему проекту, кроме vendor/system).
-
-## 6. Диагностика
-
-```bash
-make doctor                        # PHP, БД, конфиги, модули
-bin/console db:migrate --status    # состояние миграций
-bin/console module:list            # реестр модулей
-```
+Скрипт fresh не запускает и не оставляет фоновых HTTP-серверов.
+Настройка maintenance timer описана в WORKERS.md. Сам worker не отправляет
+PHP outbox без этого таймера.

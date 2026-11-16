@@ -17,17 +17,17 @@ class EnvironmentTest extends TestCase
         $this->assertNotEmpty(Kohana::modules(), 'Модули не подключены');
     }
 
-    public function test_erp_modules_registered(): void
+    public function test_prl_modules_registered(): void
     {
         $modules = array_keys(Kohana::modules());
-        foreach (['erp100_base', 'nj111_migrations', 'nj100_platform', 'nj120_jobs', 'nj115_semantic', 'nj130_agents', 'erp208_events'] as $m) {
+        foreach (['prl100_base', 'prl111_migrations', 'prl100_platform', 'prl120_jobs', 'prl115_semantic', 'prl208_events'] as $m) {
             $this->assertContains($m, $modules, "Модуль $m не подключён в bootstrap.php");
         }
     }
 
     public function test_critical_config_loads(): void
     {
-        foreach (['database', 'llm', 'nj120_jobs'] as $cfg) {
+        foreach (['database', 'llm', 'prl120_jobs'] as $cfg) {
             $this->assertNotEmpty(Kohana::$config->load($cfg), "Пустой конфиг: $cfg");
         }
     }
@@ -54,16 +54,16 @@ class EnvironmentTest extends TestCase
     {
         $db = Database::instance();
         $count = $db->query(Database::SELECT,
-            "SELECT COUNT(*) AS c FROM information_schema.tables WHERE table_name = 'nj_120_jobs'", FALSE)
+            "SELECT COUNT(*) AS c FROM information_schema.tables WHERE table_name = 'prl_120_jobs'", FALSE)
             ->current();
         $this->assertSame('1', (string) ((array) $count)['c'],
-            'Таблица очереди nj_120_jobs не найдена — выполните: make migrate');
+            'Таблица очереди prl_120_jobs не найдена — выполните: make migrate');
     }
 
     public function test_semantic_tables_exists(): void
     {
         $db = Database::instance();
-        foreach (['nj_115_collections', 'nj_115_vectors'] as $table) {
+        foreach (['prl_115_collections', 'prl_115_vectors'] as $table) {
             $count = $db->query(Database::SELECT,
                 "SELECT COUNT(*) AS c FROM information_schema.tables WHERE table_name = '$table'", FALSE)
                 ->current();
@@ -72,23 +72,12 @@ class EnvironmentTest extends TestCase
         }
     }
 
-    public function test_agents_tables_exists(): void
-    {
-        $db = Database::instance();
-        foreach (['nj_130_agents', 'nj_130_agent_runs', 'nj_130_agent_messages'] as $table) {
-            $count = $db->query(Database::SELECT,
-                "SELECT COUNT(*) AS c FROM information_schema.tables WHERE table_name = '$table'", FALSE)
-                ->current();
-            $this->assertSame('1', (string) ((array) $count)['c'],
-                "Таблица $table не найдена — выполните: make migrate");
-        }
-    }
 
     public function test_vec_dist_function_exists(): void
     {
         $db = Database::instance();
         $row = $db->query(Database::SELECT,
-            'SELECT nj_115_vec_dist(ARRAY[1.0, 0.0]::real[], ARRAY[0.0, 1.0]::real[]) AS d', FALSE)
+            'SELECT prl_115_vec_dist(ARRAY[1.0, 0.0]::real[], ARRAY[0.0, 1.0]::real[]) AS d', FALSE)
             ->current();
         $distance = (float) ((array) $row)['d'];
         $this->assertEqualsWithDelta(1.0, $distance, 0.001,

@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Ловит ПОВТОРНЫЕ объявления: методы, функции, маршруты, ключи массивов.
 
-Зачем (живая авария 28.09.2026): в `Controller/Nj643/Cad.php` метод
+Зачем (живая авария 28.09.2026): в `Controller/Prl643/Cad.php` метод
 `action_archive()` оказался объявлен ДВА раза — скрипт правки вставил блок поверх
 такого же блока, а все проверки молчали: разбор грамматикой видит оба метода как
 корректные (дубликат — не синтаксическая ошибка), `php_balance` считает скобки,
 `php_method_lint` ищет вызовы несуществующих методов. Живой PHP падает
 **фатально на компиляции класса**:
 
-    PHP Fatal error: Cannot redeclare Controller_Nj643_Cad::action_archive()
-    in .../Controller/Nj643/Cad.php on line 448
+    PHP Fatal error: Cannot redeclare Controller_Prl643_Cad::action_archive()
+    in .../Controller/Prl643/Cad.php on line 448
 
 и падает не только архив, а ВСЯ ветка модуля: файл класса компилируется целиком,
 поэтому 500-ку получает и /cad, и /cad/<code>, и /cad/admin. Такое надо ловить

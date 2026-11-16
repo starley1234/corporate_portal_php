@@ -1,3 +1,4 @@
+<?php defined('SYSPATH') or die('No direct script access.'); $llm_flash = Session::instance()->get_once('llm_flash'); ?>
 <link rel="stylesheet" type="text/css" href="/assets/vendor/datatables/css/jquery.dataTables.min.css">
 <?php /* Обычный CSS: @apply в браузере не работает (с 28.09.2026 Tailwind собирается заранее). */ ?>
 <?php /* design-audit: allow style — тёмная тема DataTables: разметку рисует библиотека */ ?>
@@ -21,34 +22,49 @@
     .dark table.dataTable thead th { border-bottom: 1px solid #374151 !important; }
 </style>
 
-<div class="n2j-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
-    <div class="n2j-panel overflow-hidden">
-        <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+<div class="prl-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
+    <?php if ($llm_flash): $llm_flash_ok = ! empty($llm_flash['ok']); ?>
+    <div class="prl-flash <?php echo $llm_flash_ok ? 'prl-flash-ok' : 'prl-flash-err'; ?> mb-5" role="<?php echo $llm_flash_ok ? 'status' : 'alert'; ?>">
+        <i class="fas <?php echo $llm_flash_ok ? 'fa-circle-check' : 'fa-triangle-exclamation'; ?>"></i>
+        <span><?php echo HTML::chars($llm_flash['message'] ?? ''); ?></span>
+    </div>
+    <?php endif; ?>
+
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Инструменты ИИ'], ['Локальные LLM']],
+        'title'  => 'Управление локальными LLM',
+        'pill'   => ['LM Studio', 'fa-robot'],
+        'lead'   => 'Состояние локального сервера инференса и модели, доступные сервисам портала.',
+    ]); ?>
+
+    <section class="prl-panel mt-6">
+        <div class="prl-panel-head">
             <div>
-                <h2 class="n2j-h2">Локальный провайдер (LM Studio)</h2>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Управление моделями и мониторинг состояния API</p>
+                <h2 class="prl-h3"><i class="fas fa-server mr-2 text-blue-500"></i>Локальный провайдер (LM Studio)</h2>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Управление моделями и мониторинг состояния API.</p>
             </div>
-            <div class="flex items-center space-x-2">
-                <span class="flex h-3 w-3 relative">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                </span>
-                <span class="text-sm font-medium text-gray-600 dark:text-gray-300"><?php echo HTML::chars($base_url); ?></span>
+            <div class="flex flex-wrap items-center gap-3">
+                <?php if ($error): ?>
+                    <span class="prl-badge prl-badge-err"><span class="prl-dot"></span>Нет соединения</span>
+                <?php else: ?>
+                    <span class="prl-badge prl-badge-ok"><span class="prl-dot"></span>Сервер доступен</span>
+                <?php endif; ?>
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Сервер: <code class="rounded-md bg-gray-100 px-2 py-0.5 text-xs dark:bg-gray-700"><?php echo HTML::chars($base_url); ?></code></span>
             </div>
         </div>
 
         <div class="p-6">
             <?php if ($error): ?>
-                <div class="bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl p-4 flex items-start">
-                    <i class="fas fa-exclamation-triangle text-rose-500 mt-1 mr-3"></i>
+                <div class="prl-flash prl-flash-err" role="alert">
+                    <i class="fas fa-triangle-exclamation"></i>
                     <div>
-                        <h3 class="text-sm font-bold text-rose-800 dark:text-rose-400">Ошибка соединения</h3>
-                        <p class="text-sm text-rose-700 dark:text-rose-300 mt-1"><?php echo HTML::chars($error); ?></p>
+                        <strong>Ошибка соединения</strong>
+                        <p class="mt-1"><?php echo HTML::chars($error); ?></p>
                     </div>
                 </div>
             <?php else: ?>
                 <div class="overflow-x-auto">
-                    <table id="modelsTable" class="n2j-table border-collapse">
+                    <table id="modelsTable" class="prl-table border-collapse">
                         <thead>
                             <tr class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
                                 <th class="px-4 py-3">Модель</th>
@@ -59,7 +75,7 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 dark:divide-gray-700">
-                            <?php if (isset($status_data['models']) && !empty($status_data['models'])): 
+                            <?php if (isset($status_data['models']) && !empty($status_data['models'])):
                                 $models = $status_data['models'];
                             ?>
                                 <?php foreach ($models as $model): ?>
@@ -70,12 +86,12 @@
                                                     <i class="fas <?php echo ($model['type'] === 'embedding') ? 'fa-font' : 'fa-robot'; ?> <?php echo !empty($model['loaded_instances']) ? 'text-emerald-500' : 'text-blue-500'; ?> mr-3"></i>
                                                     <span class="font-medium text-gray-900 dark:text-white"><?php echo HTML::chars($model['display_name'] ?? $model['key']); ?></span>
                                                     <?php if (!empty($model['loaded_instances'])): ?>
-                                                        <span data-llm-loaded class="n2j-badge n2j-badge-ok ml-2 uppercase tracking-wide">Loaded</span>
+                                                        <span data-llm-loaded class="prl-badge prl-badge-ok ml-2"><span class="prl-dot"></span>Загружена</span>
                                                     <?php endif; ?>
                                                 </div>
                                                 <div class="flex items-center mt-1 ml-7 group">
                                                     <span class="text-xs text-gray-400 truncate max-w-[200px]"><?php echo HTML::chars($model['key']); ?></span>
-                                                    <button onclick="copyToClipboard('<?php echo HTML::chars($model['key']); ?>', this)" class="n2j-btn-icon ml-2" title="Копировать ID">
+                                                    <button onclick="copyToClipboard('<?php echo HTML::chars($model['key']); ?>', this)" class="prl-btn-icon ml-2" title="Копировать ID">
                                                         <i class="far fa-copy text-[10px]"></i>
                                                     </button>
                                                 </div>
@@ -85,7 +101,7 @@
                                             <div class="text-sm text-gray-600 dark:text-gray-400">
                                                 <span class="uppercase"><?php echo HTML::chars($model['architecture'] ?? 'n/a'); ?></span>
                                                 <?php if (!empty($model['params_string'])): ?>
-                                                    <span class="ml-2 px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs"><?php echo HTML::chars($model['params_string']); ?></span>
+                                                    <span class="prl-count ml-2"><?php echo HTML::chars($model['params_string']); ?></span>
                                                 <?php endif; ?>
                                             </div>
                                             <div class="flex gap-1 mt-1">
@@ -110,15 +126,15 @@
                                         </td>
                                         <td class="px-4 py-4 text-right">
                                             <?php if (!empty($model['loaded_instances'])): ?>
-                                                <button 
+                                                <button
                                                    onclick="unloadModel('<?php echo HTML::chars($model['key']); ?>', '<?php echo md5($model['key']); ?>')"
-                                                   class="unload-btn n2j-btn-danger n2j-btn-sm">
+                                                   class="unload-btn prl-btn-danger prl-btn-sm">
                                                     <i class="fas fa-eject mr-1.5"></i> <span>Выгрузить</span>
                                                 </button>
                                             <?php else: ?>
-                                                <button 
+                                                <button
                                                    onclick="loadModel('<?php echo HTML::chars($model['key']); ?>', '<?php echo md5($model['key']); ?>')"
-                                                   class="load-btn n2j-btn-secondary n2j-btn-sm">
+                                                   class="load-btn prl-btn-secondary prl-btn-sm">
                                                     <i class="fas fa-download mr-1.5"></i> <span>Загрузить</span>
                                                 </button>
                                             <?php endif; ?>
@@ -131,25 +147,24 @@
                 </div>
             <?php endif; ?>
         </div>
-        
-        <div class="p-6 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
-            <h3 class="text-sm font-bold text-gray-900 dark:text-white mb-4 flex items-center">
-                <i class="fas fa-info-circle text-blue-500 mr-2"></i> Справка по интеграции
-            </h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="text-sm text-gray-600 dark:text-gray-400 space-y-2">
-                    <p>Для работы с локальными моделями используйте <strong>LM Studio</strong>.</p>
-                    <p>Убедитесь, что сервер запущен и принимает запросы по адресу, указанному в конфигурации <code>llm.php</code>.</p>
-                </div>
-                <div class="bg-white dark:bg-gray-900 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <code class="text-xs text-rose-600 dark:text-rose-400 break-all">
-                        // Config path:<br>
-                        application/config/llm.php
-                    </code>
-                </div>
+
+    </section>
+
+    <section class="prl-card mt-6">
+        <h2 class="prl-h3"><i class="fas fa-circle-info mr-2 text-blue-500"></i>Справка по интеграции</h2>
+        <div class="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div class="space-y-2 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+                <p>Для работы с локальными моделями используйте <strong>LM Studio</strong>.</p>
+                <p>Убедитесь, что сервер запущен и принимает запросы по адресу, указанному в конфигурации <code>llm.php</code>.</p>
+            </div>
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900">
+                <code class="break-all text-xs text-gray-700 dark:text-gray-200">
+                    // Config path:<br>
+                    application/config/llm.php
+                </code>
             </div>
         </div>
-    </div>
+    </section>
 </div>
 
 <script src="/assets/vendor/jquery/jquery-3.7.1.min.js"></script>
@@ -172,23 +187,23 @@ $(document).ready(function() {
 });
 
 function copyToClipboard(text, btn) {
-    N2J.copyText(text).then(() => {
+    PRL.copyText(text).then(() => {
         const icon = btn.querySelector('i');
         icon.classList.remove('far', 'fa-copy');
         icon.classList.add('fas', 'fa-check', 'text-emerald-500');
-        
-        N2J.toast('ID модели скопирован');
+
+        PRL.toast('ID модели скопирован');
 
         setTimeout(() => {
             icon.classList.remove('fas', 'fa-check', 'text-emerald-500');
             icon.classList.add('far', 'fa-copy');
         }, 2000);
-    }, () => N2J.toast('Не удалось скопировать'));
+    }, () => PRL.toast('Не удалось скопировать'));
 }
 
 function unloadModel(modelKey, rowId) {
     // окно эталона v6 вместо window.confirm
-    N2J.confirm({ title: 'Выгрузить модель?', message: 'Выгрузить модель {subject} из памяти?', subject: modelKey, ok: 'Выгрузить', tone: 'process' })
+    PRL.confirm({ title: 'Выгрузить модель?', message: 'Выгрузить модель {subject} из памяти?', subject: modelKey, ok: 'Выгрузить', tone: 'process' })
         .then(function (yes) { if (yes) { unloadModelNow(modelKey, rowId); } });
 }
 
@@ -200,14 +215,16 @@ function unloadModelNow(modelKey, rowId) {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Выгрузка...';
 
-    fetch('<?php echo Route::url("default", ["controller" => "llm_admin", "action" => "unload"]); ?>?model=' + encodeURIComponent(modelKey), {
+    fetch('<?php echo Route::url("default", ["controller" => "llm_admin", "action" => "unload"]); ?>', {
+        method: 'POST',
+        body: new URLSearchParams({model: modelKey, csrf: <?php echo json_encode(Security::token()); ?>}),
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
             const actionCell = btn.parentElement;
-            actionCell.innerHTML = '<button onclick="loadModel(\'' + modelKey + '\', \'' + rowId + '\')" class="load-btn n2j-btn-secondary n2j-btn-sm"><i class="fas fa-download mr-1.5"></i> <span>Загрузить</span></button>';
+            actionCell.innerHTML = '<button onclick="loadModel(\'' + modelKey + '\', \'' + rowId + '\')" class="load-btn prl-btn-secondary prl-btn-sm"><i class="fas fa-download mr-1.5"></i> <span>Загрузить</span></button>';
             row.classList.remove('bg-emerald-50/30', 'dark:bg-emerald-900/10');
             const icon = row.querySelector('.fa-robot, .fa-font');
             if (icon) {
@@ -217,16 +234,16 @@ function unloadModelNow(modelKey, rowId) {
             const badge = row.querySelector('[data-llm-loaded]');
             if (badge) badge.remove();
 
-            N2J.toast('Модель выгружена', 0, 'ok');
+            PRL.toast('Модель выгружена', 0, 'ok');
         } else {
-            N2J.toast('Ошибка: ' + (data.message || 'Неизвестная ошибка'), 0, 'err');
+            PRL.toast('Ошибка: ' + (data.message || 'Неизвестная ошибка'), 0, 'err');
             btn.disabled = false;
             btn.innerHTML = originalContent;
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        N2J.toast('Не удалось отправить запрос — проверьте сеть', 0, 'err');
+        PRL.toast('Не удалось отправить запрос — проверьте сеть', 0, 'err');
         btn.disabled = false;
         btn.innerHTML = originalContent;
     });
@@ -234,7 +251,7 @@ function unloadModelNow(modelKey, rowId) {
 
 function loadModel(modelKey, rowId) {
     // окно эталона v6 вместо window.confirm
-    N2J.confirm({ title: 'Загрузить модель?', message: 'Загрузить модель {subject} в память?', subject: modelKey, ok: 'Загрузить', tone: 'process' })
+    PRL.confirm({ title: 'Загрузить модель?', message: 'Загрузить модель {subject} в память?', subject: modelKey, ok: 'Загрузить', tone: 'process' })
         .then(function (yes) { if (yes) { loadModelNow(modelKey, rowId); } });
 }
 
@@ -246,14 +263,16 @@ function loadModelNow(modelKey, rowId) {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i> Загрузка...';
 
-    fetch('<?php echo Route::url("default", ["controller" => "llm_admin", "action" => "load"]); ?>?model=' + encodeURIComponent(modelKey), {
+    fetch('<?php echo Route::url("default", ["controller" => "llm_admin", "action" => "load"]); ?>', {
+        method: 'POST',
+        body: new URLSearchParams({model: modelKey, csrf: <?php echo json_encode(Security::token()); ?>}),
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
             const actionCell = btn.parentElement;
-            actionCell.innerHTML = '<button onclick="unloadModel(\'' + modelKey + '\', \'' + rowId + '\')" class="unload-btn n2j-btn-danger n2j-btn-sm"><i class="fas fa-eject mr-1.5"></i> <span>Выгрузить</span></button>';
+            actionCell.innerHTML = '<button onclick="unloadModel(\'' + modelKey + '\', \'' + rowId + '\')" class="unload-btn prl-btn-danger prl-btn-sm"><i class="fas fa-eject mr-1.5"></i> <span>Выгрузить</span></button>';
             row.classList.add('bg-emerald-50/30', 'dark:bg-emerald-900/10');
             const icon = row.querySelector('.fa-robot, .fa-font');
             if (icon) {
@@ -262,19 +281,19 @@ function loadModelNow(modelKey, rowId) {
             }
             const nameSpan = row.querySelector('.font-medium');
             if (nameSpan) {
-                nameSpan.insertAdjacentHTML('afterend', '<span data-llm-loaded class="n2j-badge n2j-badge-ok ml-2 uppercase tracking-wide">Loaded</span>');
+                nameSpan.insertAdjacentHTML('afterend', '<span data-llm-loaded class="prl-badge prl-badge-ok ml-2"><span class="prl-dot"></span>Загружена</span>');
             }
 
-            N2J.toast('Модель загружена', 0, 'ok');
+            PRL.toast('Модель загружена', 0, 'ok');
         } else {
-            N2J.toast('Ошибка: ' + (data.message || 'Неизвестная ошибка'), 0, 'err');
+            PRL.toast('Ошибка: ' + (data.message || 'Неизвестная ошибка'), 0, 'err');
             btn.disabled = false;
             btn.innerHTML = originalContent;
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        N2J.toast('Не удалось отправить запрос — проверьте сеть', 0, 'err');
+        PRL.toast('Не удалось отправить запрос — проверьте сеть', 0, 'err');
         btn.disabled = false;
         btn.innerHTML = originalContent;
     });

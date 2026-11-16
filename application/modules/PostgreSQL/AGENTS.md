@@ -22,7 +22,7 @@
   * UPDATE/DELETE без RETURNING → число строк (int);
   * INSERT → `array($insert_id, $rows)`.
   Если нужен RETURNING от UPDATE/INSERT — выполняйте с типом
-  `Database::SELECT`, чтобы получить выборку (паттерн модуля nj120_jobs).
+  `Database::SELECT`, чтобы получить выборку (паттерн модуля prl120_jobs).
 - Конфиг БД: `application/config/database.php`, переменные `DB_DEFAULT_*`.
 
 ## Не трогать
