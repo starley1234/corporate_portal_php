@@ -392,11 +392,13 @@ class Service_Prl391_Documents
         if (array_key_exists('amount', $input))
         {
             $new = self::_amount_or_null($input['amount']);
-            $old = $doc['amount'] === NULL ? '' : (string) $doc['amount'];
-            if ((string) $new !== $old)
+            // numeric из PostgreSQL приходит строкой «1245000.00»; сравниваем
+            // числа, иначе каждое сохранение давало ложное изменение.
+            $old = $doc['amount'] === NULL ? NULL : round((float) $doc['amount'], 2);
+            if ($new !== $old)
             {
                 $sets[] = "amount = ".($new === NULL ? 'NULL' : (string) $new);
-                $events[] = ['amount', $old, (string) $new];
+                $events[] = ['amount', $old === NULL ? '' : (string) $old, (string) $new];
             }
         }
 

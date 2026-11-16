@@ -126,7 +126,9 @@ class Service_Prl393_Workflow
                 reg_no = EXCLUDED.reg_no, subject = EXCLUDED.subject,
                 department = EXCLUDED.department, source = EXCLUDED.source,
                 due_at = EXCLUDED.due_at, started_at = EXCLUDED.started_at,
-                status = CASE WHEN prl_393_deadlines.status = 'open' THEN 'open' ELSE prl_393_deadlines.status END,
+                // Документ снова в работе — и срок снова открыт. Иначе после
+                // reopen он навсегда оставался 'met' и пропадал из контроля.
+                status = 'open',
                 business_days = EXCLUDED.business_days, note = EXCLUDED.note, updated_at = now()
         ");
 
