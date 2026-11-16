@@ -1,0 +1,18 @@
+code: P-04
+name: Ответы первой линии поддержки и контакт-центра
+function: Сервис / ИТ-поддержка
+owner: Руководитель сервисной службы
+volume: 4200
+minutes: 8
+error_cost: 2
+strategic: 3
+data_ready: 3
+rules_maturity: 2
+llm_share: 0.50
+data_class: internal
+regulatory: 2
+integration_effort: 2
+write_to_source: false
+golden_set: true
+sources: [ ITSM, база знаний ]
+notes: "Максимальный объём в холдинге, но и максимальная цена ошибки ответа клиенту — нужен контроль выборки."

@@ -1,0 +1,9 @@
+id: INV-002
+title: Песочницы и инструменты не имеют прямой связи с внешним миром
+status: active
+severity: error
+rule: no-edge
+tabs: [ asis/09-security, tobe/03-request-path ]
+from: [ term, p-tool ]
+to: [ prov, xr, p-dest ]
+why: "Код из песочницы не должен уметь ходить в интернет: выход только через broker и с проверкой прав."

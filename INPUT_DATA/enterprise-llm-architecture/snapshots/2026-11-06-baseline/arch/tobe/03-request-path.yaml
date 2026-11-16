@@ -1,0 +1,77 @@
+# TO-BE · Путь запроса
+# Формат: docs/FORMAT.md. Сборка: npm run build
+
+title: Путь запроса
+overview:
+  lead: "**Сквозной маршрут для всех входных каналов.** Новый путь заменяет цепочку AS-IS «Open WebUI → gateway → DLP → LiteLLM». Дополнены ingress adapters, external RAG, parallel Guard и Output Gate. Уточнение: OCR — отдельный путь для загрузки файлов, а не синхронный блок каждого LLM-вызова."
+  blocks:
+    - scheme:
+        size: [ 1560, 565 ]
+        groups:
+          - [ 12, 35, 200, 390, Клиенты ]
+          - [ 230, 35, 625, 390, Платформа ]
+          - [ 880, 35, 665, 390, Исполнение ]
+        nodes:
+          - { id: p-clients, at: [ 115, 115, 155 ], label: Open WebUI, sub: пользовательский чат, kind: app }
+          - { id: p-others, at: [ 115, 240, 155 ], label: API / IDE / Bots, sub: "agents, scripts, pipelines", kind: app }
+          - { id: p-ing, at: [ 330, 145, 175 ], label: Ingress / adapters, sub: auth identity + schema, kind: edge }
+          - { id: p-gw, at: [ 535, 145, 175 ], label: Gateway, sub: "tenant, team, budgets", kind: core }
+          - { id: p-dlp, at: [ 740, 145, 175 ], label: Regex-DLP, sub: sync, kind: sec }
+          - { id: p-policy, at: [ 950, 145, 195 ], label: Policy/Response Gate, sub: fork + buffer + verdict, kind: dec }
+          - { id: p-ll, at: [ 1155, 145, 170 ], label: LiteLLM, sub: router, kind: core }
+          - { id: p-dest, at: [ 1400, 145, 190 ], label: Cloud / Qwen3, sub: Xray / LAN GPU, kind: local }
+          - { id: p-fast, at: [ 950, 320, 185 ], label: Fast Guards, sub: PG2 + Qwen3Guard, kind: sec }
+          - { id: p-deep, at: [ 1235, 320, 200 ], label: Safety Reasoner, sub: only suspicious, kind: sec }
+          - { id: p-output, at: [ 1430, 320, 190 ], label: Output Guard, sub: DLP + conditional deep, kind: sec }
+          - { id: p-rag, at: [ 530, 515, 185 ], label: RAG API, sub: remote vector + ACL, kind: data }
+          - { id: p-doc, at: [ 260, 515, 185 ], label: OCR / Docling, sub: local/remote job, kind: app }
+          - { id: p-tool, at: [ 760, 515, 205 ], label: Tools / Sandbox, sub: permission + jobs, kind: term }
+        edges:
+          - p-clients -> p-ing
+          - p-others -> p-ing
+          - p-ing -> p-gw
+          - p-gw -> p-dlp: { rel: uses }
+          - p-dlp -> p-policy: { label: ALLOW/MASK, rel: carries }
+          - p-policy -> p-ll: { label: model branch, rel: uses }
+          - p-ll -> p-dest: { rel: uses }
+          - p-policy --> p-fast: { label: parallel, rel: uses }
+          - p-fast --> p-deep: { label: suspect, rel: uses }
+          - p-deep --> p-policy: { label: verdict, via: [ [ 1235, 345 ], [ 1235, 400 ], [ 950, 400 ], [ 950, 170 ] ] }
+          - p-dest -> p-output: { rel: carries, label: response, via: [ [ 1400, 170 ], [ 1400, 290 ] ] }
+          - p-output --> p-policy: { rel: carries, label: hold/release, via: [ [ 1430, 345 ], [ 1430, 450 ], [ 950, 450 ], [ 950, 170 ] ] }
+          - p-gw --> p-rag: { rel: uses, label: RAG retrieval, via: [ [ 535, 170 ], [ 535, 490 ] ] }
+          - p-clients --> p-doc: { rel: carries, label: uploaded docs, via: [ [ 115, 140 ], [ 115, 485 ], [ 260, 485 ] ] }
+          - p-tool --> p-doc: { label: OCR job, rel: uses }
+          - p-policy --> p-tool: { label: tool broker, via: [ [ 950, 170 ], [ 950, 475 ], [ 760, 475 ], [ 760, 490 ] ] }
+        routes:
+          Облачная/локальная: p-clients -> p-ing -> p-gw -> p-dlp -> p-policy -> p-ll -> p-dest -> p-output
+          Fast→Deep: p-policy -> p-fast -> p-deep
+          RAG: p-ing -> p-gw -> p-rag
+        hint: "LiteLLM не вызывает guard напрямую: решение оркестрирует Policy/Response Gate. Все клиенты проходят одинаковую цепочку. Разрешение tool calls обеспечивается отдельным broker."
+    - title: Что проходит в путь, а что — отдельная задача
+      table:
+        head: [ Тип операции, Способ вызова, Очередь ]
+        rows:
+          - [ Текстовый LLM chat/completions, HTTP/SSE через Gateway → Gate → LiteLLM, Внешняя RabbitMQ/Redis-очередь не требуется ]
+          - [ Локальный Qwen3 inference, LiteLLM → vLLM/SGLang, Встроенный GPU scheduler + ограниченный admission ]
+          - [ Fast Guard и Reasoner, Асинхронные параллельные вызовы сервиса безопасности, Bounded pending + приоритет для блокирующих output проверок ]
+          - [ OCR файла, "Задача по task_id, клиент опрашивает результат", "Да, локальные OCR workers; распределённая при росте" ]
+          - [ RAG retrieval, Синхронный API с ACL, Нет ]
+          - [ RAG ingestion/reindex, Асинхронная фоновая задача, "Да, durable job queue" ]
+          - [ Долгие agent/tool jobs, Подписанный tool call → tool broker, "Да, только для долгих задач" ]
+detail:
+  lead: "**Служебные контракты и транспорт.** Сравнивай с AS-IS 3 «Путь запроса». Ни один новый адаптер не обращается напрямую к LiteLLM или облаку. Web search и retrieval должны проходить through trusted tool/data adapters."
+  blocks:
+    - table:
+        head: [ Связь, Контракт, Инвариант безопасности ]
+        rows:
+          - [ Adapter → gateway, "Canonical OpenAI-compatible API, scoped service JWT, user context", Не принимать роль/группу из непроверяемого пользовательского JSON ]
+          - [ gateway → DLP, "POST /v1/scan, sync", BLOCK до любых отправок в модель ]
+          - [ Gateway/Policy Gate → Fast Guard, "Internal HTTP/gRPC, request_id, deadline", "Изоляция секретов, mask before guard" ]
+          - [ Policy Gate → Stage 2, Policy+input+verified metadata, Решение model не переопределяет RBAC ]
+          - [ Policy Gate → LiteLLM, Team key + end-user + correlation ID, Access group и budgets остаются в LiteLLM ]
+          - [ LiteLLM → local Qwen3, OpenAI-compatible API vLLM/SGLang on GPU private LAN, GPU server недоступен напрямую IDE/браузеру ]
+          - [ RAG adapter → remote RAG, HTTPS/mTLS + scoped ACL filters, Tenant/document ACL в retriever ]
+          - [ Tool broker → OCR, Async task API; status/result/idempotency, Не принимать произвольные внешние URL ]
+          - [ Policy Gate → caller, Buffered SSE after applicable checks, Ни один запрещённый токен не покидает platform boundary ]
+    - warn: Веб-поиск старого Open WebUI сейчас минует gateway. Его необходимо перевести на централизованный tool/search adapter либо исключить из перечня защищённых маршрутов до завершения миграции.

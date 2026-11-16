@@ -1,0 +1,158 @@
+# AS-IS · Управление конфигурацией
+# Формат: docs/FORMAT.md. Сборка: npm run build
+
+title: Управление конфигурацией
+overview:
+  lead: "**Откуда берутся настройки.** Администратор меняет их в консоли → они сохраняются в БД `platform` → движок reconcile приводит сервисы к этому состоянию (сразу и затем каждый тик). YAML из Git — только начальное заполнение."
+  blocks:
+    - scheme:
+        size: [ 1200, 400 ]
+        nodes:
+          - { id: admu, at: [ 80, 170, 130 ], label: Администратор }
+          - { id: adm, at: [ 250, 170, 130 ], label: Консоль, sub: /console/, kind: ctrl }
+          - {
+              id: pg,
+              at: [ 450, 170, 170 ],
+              label: БД platform,
+              sub: "документы + ревизии
+
+                аудит, роли консоли",
+              kind: data
+            }
+          - { id: rec, at: [ 660, 170, 160 ], label: reconciler, sub: "сразу после сохранения\nи каждый тик", kind: ctrl }
+          - {
+              id: tow,
+              at: [ 960, 45, 220 ],
+              label: Open WebUI,
+              sub: "группы, модели, папки,
+
+                базы знаний, каналы",
+              kind: app
+            }
+          - {
+              id: tll,
+              at: [ 960, 140, 220 ],
+              label: LiteLLM,
+              sub: "ключи, команды, бюджеты,
+
+                модели, fallbacks",
+              kind: core
+            }
+          - {
+              id: tgw,
+              at: [ 960, 235, 220 ],
+              label: gateway,
+              sub: "gateway-map: группы → ключи,
+
+                блокировки, бюджет, DLP",
+              kind: core
+            }
+          - { id: txr, at: [ 960, 330, 220 ], label: Xray · cliproxy, sub: "маршруты выхода,\nаккаунты CLI", kind: egress }
+          - { id: yaml, at: [ 450, 330, 170 ], label: config/*.yaml, sub: seed из Git (ro), kind: ext }
+          - { id: exp, at: [ 250, 330, 170 ], label: config-export/*.yaml, sub: снимок для аудита/Git, kind: ext }
+        edges:
+          - admu -> adm
+          - adm -> pg: сохранить
+          - pg -> rec: "желаемое\nсостояние"
+          - rec -> tow: { out: r, in: l }
+          - rec -> tll: { out: r, in: l }
+          - rec -> tgw: { out: r, in: l }
+          - rec -> txr: { out: r, in: l }
+          - yaml --> pg: первый запуск
+          - adm --> exp: экспорт
+        routes:
+          Изменение в консоли: admu -> adm -> pg -> rec -> tll
+          Первая установка: yaml -> pg -> rec -> tow
+detail:
+  lead: "**Control plane подробно.** Консоль и reconciler используют один движок (`bootstrap/app`). Порядок применения: egress → Open WebUI → членство в группах → LiteLLM → gateway-map → статус. Одновременно работает только один проход (лок `/state/reconcile.lock`)."
+  blocks:
+    - scheme:
+        size: [ 1280, 600 ]
+        nodes:
+          - { id: admu, at: [ 70, 170, 120 ], label: Администратор }
+          - { id: adm, at: [ 240, 170, 130 ], label: admin, sub: консоль, kind: ctrl }
+          - { id: yaml, at: [ 70, 350, 120 ], label: config/*.yaml, sub: "Git, ro", kind: ext }
+          - { id: boot, at: [ 240, 350, 130 ], label: bootstrap, sub: apply при установке, kind: ctrl, dash: true }
+          - {
+              id: pg,
+              at: [ 445, 170, 180 ],
+              label: БД platform,
+              sub: "groups · models · budgets
+
+                egress · cliproxy · dlp
+
+                console-roles · аудит",
+              kind: data
+            }
+          - { id: rec, at: [ 660, 170, 150 ], label: reconciler, sub: "reconcile --loop\nлок reconcile.lock", kind: ctrl }
+          - {
+              id: st,
+              at: [ 660, 330, 170 ],
+              label: том platform_state,
+              sub: "ids.json · keys.json (0600)
+
+                ключ админа OWUI · статус",
+              kind: data
+            }
+          - { id: exp, at: [ 445, 470, 180 ], label: config-export/*.yaml, sub: "снимок после каждого\nсохранения", kind: ext }
+          - {
+              id: tow,
+              at: [ 950, 45, 230 ],
+              label: Open WebUI API,
+              sub: "owui.config · connection · group
+
+                knowledge · model · folder · channel",
+              kind: app
+            }
+          - {
+              id: tll,
+              at: [ 950, 140, 230 ],
+              label: LiteLLM API,
+              sub: "credential · budget · model · router
+
+                team · key · customer",
+              kind: core
+            }
+          - { id: gm, at: [ 950, 240, 230 ], label: том gateway_map, sub: gateway-map.json (0640), kind: data }
+          - { id: gw, at: [ 1185, 240, 130 ], label: gateway, sub: "перечитывает\nкаждые 2 с", kind: core }
+          - { id: egc, at: [ 950, 335, 230 ], label: том egress_config, sub: config.json · key-router.conf, kind: data }
+          - { id: xr, at: [ 1185, 335, 130 ], label: xray, sub: "супервизор, 3 с", kind: egress }
+          - { id: cpm, at: [ 950, 430, 230 ], label: cliproxy /v0/management, sub: "стратегия ротации,\nпрокси аккаунтов", kind: core }
+          - { id: dlp, at: [ 950, 530, 230 ], label: dlp, sub: правила из config-export, kind: sec }
+        edges:
+          - admu -> adm
+          - adm -> pg: "сохранить\n(ревизия + аудит)"
+          - adm --> rec: { label: применить сразу (тот же движок), via: [ [ 240, 145 ], [ 240, 100 ], [ 660, 100 ], [ 660, 135 ] ], label_at: [ 450, 100 ] }
+          - yaml -> boot: seed
+          - boot -> pg: { label: первый импорт, out: r, in: b }
+          - pg -> rec: желаемое
+          - rec -> st: { out: b, in: t }
+          - rec -> tow: { out: r, in: l }
+          - rec -> tll: { out: r, in: l }
+          - rec -> gm: { out: r, in: l }
+          - gm -> gw: ro
+          - rec -> egc: { out: r, in: l }
+          - egc -> xr: ro
+          - rec -> cpm: { out: r, in: l }
+          - adm --> exp: { label: экспорт, via: [ [ 305, 182 ], [ 385, 182 ], [ 385, 445 ] ], label_at: [ 385, 400 ] }
+          - exp -> dlp: { label: ro, out: r, in: l }
+          - tow --> rec: { label: пользователи, via: [ [ 835, 55 ], [ 760, 55 ], [ 760, 150 ], [ 735, 150 ] ], label_at: [ 790, 55 ] }
+        routes:
+          Изменение тарифа:
+            path: admu -> adm -> pg -> rec -> tll
+            note: Сохранение тарифа в консоли добавляет в access group модели тарифа и их fallbacks (скрытые резервные модели) и сразу применяет изменения в LiteLLM.
+          Новый сотрудник → карта:
+            path: tow -> rec -> gm -> gw
+            note: Reconciler читает пользователей Open WebUI, достраивает производные группы (AI-тариф, FEATURE-*, MGR-*) и записывает в gateway-map, к какой команде LiteLLM относится пользователь. До ближайшего тика gateway определяет группу по заголовку X-OpenWebUI-User-Group-Ids.
+          Смена канала Xray: admu -> adm -> pg -> rec -> egc -> xr
+          Первая установка: yaml -> boot -> pg -> rec -> tow
+    - title: Что считается источником истины
+      table:
+        head: [ Что, Где, Кто меняет ]
+        rows:
+          - [ Конфигурация платформы, БД `platform` (документы с ревизиями), консоль; `bootstrap import-config` ]
+          - [ Начальная конфигурация, "`config/*.yaml` в Git (ro в контейнерах)", разработчики; читается только при первом заполнении ]
+          - [ Снимок для аудита, "`config-export/*.yaml` (не в Git)", консоль/reconciler после каждого сохранения ]
+          - [ Состояние Open WebUI и LiteLLM, их собственные БД, только через их HTTP API (прямой SQL запрещён) ]
+          - [ Секреты ключей LiteLLM, "`/state/secrets/keys.json` (0600)", движок генерирует до создания ключа ]
+          - [ Карта gateway, "`gateway_map/gateway-map.json`", reconciler/консоль; gateway — только чтение ]

@@ -1,0 +1,11 @@
+# Инвариант: правило, которое проверяется само (см. docs/FORMAT.md, раздел «Инварианты»).
+id: INV-001
+title: Модель вызывается только через ingress, gateway и DLP
+status: active
+severity: error
+rule: no-bypass
+tabs: [ tobe/01-platform, tobe/03-request-path ]
+from: [ webclient, pipe, agents, clients, p-clients, p-others ]
+to: [ router-v2, providers-v2, qwenlocal-v2, others-v2, p-ll, p-dest ]
+through: [ gw-v2, dlp-v2, p-gw, p-dlp ]
+why: "Обход gateway — это запрос без лимитов и без класса данных; обход DLP — утечка чувствительного текста наружу."

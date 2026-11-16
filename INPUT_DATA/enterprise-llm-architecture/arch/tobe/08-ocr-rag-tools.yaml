@@ -1,0 +1,62 @@
+# TO-BE · OCR, RAG и Tools
+# Формат: docs/FORMAT.md. Сборка: npm run build
+
+title: OCR, RAG и Tools
+overview:
+  lead: "**Вынесенные данные и долгие задачи.** Для OCR, ingestion и продолжительных агентских операций поддерживаются асинхронные jobs; онлайн-поиск по RAG остаётся синхронным. Очереди не обязаны быть на Redis/RabbitMQ: возможны локальные работники Docling или durable jobs в PostgreSQL."
+  blocks:
+    - scheme:
+        size: [ 1530, 545 ]
+        groups:
+          - [ 20, 20, 290, 465, Источники / адаптеры ]
+          - [ 330, 20, 580, 465, Job plane · асинхронные операции ]
+          - [ 930, 20, 570, 465, Knowledge plane ]
+        nodes:
+          - { id: k-web, at: [ 155, 95, 235 ], label: Open WebUI / files, sub: PDF · images · documents, kind: app }
+          - { id: k-tool, at: [ 155, 235, 235 ], label: Agents / Tool Broker, sub: долгие операции, kind: term }
+          - { id: k-ing, at: [ 470, 95, 220 ], label: Upload intake, sub: "validate, ACL, idempotency", kind: edge }
+          - { id: k-jobs, at: [ 740, 95, 220 ], label: Durable Job Store, sub: state / retries / TTL, kind: data }
+          - { id: k-ocr, at: [ 465, 260, 220 ], label: Docling OCR, sub: local или remote CPU VM, kind: app }
+          - { id: k-chunk, at: [ 740, 260, 220 ], label: Embedding / Indexer, sub: "chunk, embed, index", kind: data }
+          - { id: k-api, at: [ 1085, 95, 245 ], label: RAG Retrieval API, sub: "synchronous, tenant ACL", kind: data }
+          - { id: k-vec, at: [ 1350, 260, 235 ], label: Qdrant / Index, sub: vector + snapshots, kind: data }
+          - { id: k-llm, at: [ 1090, 405, 255 ], label: Gateway context, sub: scoped chunks → input DLP, kind: core }
+          - { id: k-exec, at: [ 465, 420, 220 ], label: Tool Workers, sub: sandboxes / limits, kind: term }
+        edges:
+          - k-web -> k-ing
+          - k-ing -> k-jobs: create task
+          - k-jobs -> k-ocr: OCR if needed
+          - k-jobs -> k-chunk: ingest
+          - k-ocr -> k-chunk: clean text
+          - k-chunk -> k-vec: index
+          - k-api -> k-vec: search
+          - k-api -> k-llm: approved chunks
+          - k-tool -> k-exec
+          - k-exec --> k-ocr: OCR job
+          - k-web --> k-api: { label: query, via: [ [ 155, 120 ], [ 155, 180 ], [ 1085, 180 ], [ 1085, 70 ] ] }
+        routes:
+          Загрузка и индекс: k-web -> k-ing -> k-jobs -> k-chunk -> k-vec
+          OCR: k-web -> k-ing -> k-jobs -> k-ocr -> k-chunk -> k-vec
+          Поиск: k-web -> k-api -> k-vec
+    - title: Граница фоновых операций
+      table:
+        head: [ Действие, Sync / Async, Очередь, Гарантии ]
+        rows:
+          - [ RAG retrieval top-k, Sync HTTP, Нет, "ACL на каждую выборку, deadline" ]
+          - [ OCR 300 страниц, Async job, Да, status / idempotency / retries / backpressure ]
+          - [ Перестроение индекса KB, Async job, Да, "Повторная индексация, atomic publish, snapshot" ]
+          - [ Короткий tool call, Sync, Нет, scope + timeout + sandbox ]
+          - [ Долгий tool/agent task, Async job, Да, status/cancel + per-user quotas ]
+          - [ Guard и интерактивная LLM, Async parallel calls, "Bounded queue, а не долговременная очередь", Deadline + hold release ]
+detail:
+  lead: "**Безопасность документов.** Исходный Open WebUI RAG перестаёт быть владельцем векторного индекса; ACL и права на документы должны применяться в удалённом RAG API. OCR и ingestion нельзя превращать в способ обхода DLP/Guard."
+  blocks:
+    - table:
+        head: [ Сервис, Изоляция, Защита ]
+        rows:
+          - [ Remote OCR, "Private endpoint, scoped service credentials", "MIME sniffing, размер/страницы, отказ от remote URL fetch" ]
+          - [ Durable Job Store, Postgres или выделенный брокер при росте, "Job ownership, retries, encrypted payload refs" ]
+          - [ RAG API, "Private knowledge subnet, mTLS", "Verified tenant/document ACL, traceable source references" ]
+          - [ Vector DB, Без прямых пользовательских соединений, "Backups, snapshots, quotas" ]
+          - [ Tool Executor, "Per-user sandboxes, no direct LiteLLM credentials", "Allowlisted tools, approval for side effects, output screening" ]
+          - [ Web-search adapter, Единый tool egress path, Ни один запрос не обходит security policy / audit ]

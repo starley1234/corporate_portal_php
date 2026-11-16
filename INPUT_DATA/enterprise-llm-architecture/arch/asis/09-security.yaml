@@ -1,0 +1,107 @@
+# AS-IS · Безопасность
+# Формат: docs/FORMAT.md. Сборка: npm run build
+
+title: Безопасность
+overview:
+  lead: "**Зоны доверия.** Каждый переход между зонами проверяется: TLS на входе, подписанная личность на gateway, ключ команды в LiteLLM, kill switch на выходе. Песочницы изолированы отдельно."
+  blocks:
+    - scheme:
+        size: [ 1240, 360 ]
+        groups:
+          - [ 20, 40, 150, 150, Недоверенная ]
+          - [ 185, 40, 150, 150, Вход ]
+          - [ 350, 40, 150, 150, Приложение ]
+          - [ 515, 40, 150, 150, Граница доверия ]
+          - [ 680, 40, 150, 150, Ядро ]
+          - [ 845, 40, 150, 150, Выход ]
+          - [ 1010, 40, 215, 150, Внешние ]
+        nodes:
+          - { id: user, at: [ 95, 125, 130 ], label: Браузер, sub: любой в сети }
+          - { id: proxy, at: [ 260, 125, 130 ], label: proxy, sub: "TLS, HSTS\nединственный порт", kind: edge }
+          - { id: ow, at: [ 425, 125, 130 ], label: Open WebUI, sub: "сессия, права групп\nJWT на запрос", kind: app }
+          - { id: gw, at: [ 590, 125, 130 ], label: gateway + DLP, sub: "JWT, группа, лимиты\nallowlist, DLP", kind: sec }
+          - { id: ll, at: [ 755, 125, 130 ], label: LiteLLM, sub: "ключ команды\nтариф, бюджеты", kind: core }
+          - { id: xr, at: [ 920, 125, 130 ], label: Xray, sub: "kill switch\nfail-closed", kind: egress }
+          - { id: prov, at: [ 1117, 125, 180 ], label: Провайдеры, sub: ключи в БД зашифрованы }
+          - {
+              id: term,
+              at: [ 425, 290, 200 ],
+              label: Песочницы,
+              sub: "internal-сеть /28, без интернета
+
+                read-only, ключ HMAC",
+              kind: term
+            }
+          - {
+              id: secrets,
+              at: [ 755, 290, 220 ],
+              label: Секреты,
+              sub: ".env 0600 · ключи провайдеров
+
+                зашифрованы PLATFORM_SECRET_KEY",
+              kind: sec
+            }
+          - {
+              id: logs,
+              at: [ 1060, 290, 220 ],
+              label: Логи,
+              sub: "JSON без промптов, ключей, JWT
+
+                редакция sk-…, Bearer, eyJ…",
+              kind: mon
+            }
+          - {
+              id: cons,
+              at: [ 150, 290, 200 ],
+              label: Консоль,
+              sub: "роли и область групп,
+
+                аудит, защита от эскалации",
+              kind: ctrl,
+              info: "{adm}"
+            }
+        edges: [ user -> proxy, proxy -> ow, ow -> gw, gw -> ll, ll -> xr, xr -> prov, ow --> term,
+                 proxy --> secrets: { label: TLS-сертификаты }, ll --> secrets: { label: ключи провайдеров } ]
+detail:
+  lead: "**Кто чем аутентифицируется** на каждом участке и какие ограничения действуют на контейнеры."
+  blocks:
+    - title: Аутентификация по участкам
+      table:
+        head: [ Участок, Механизм, Секрет / где хранится ]
+        rows:
+          - [ Браузер → proxy, TLS (selfsigned / files / ca), "`secrets/tls/`" ]
+          - [ Браузер → Open WebUI, сессия Open WebUI (или OIDC), "`WEBUI_SECRET_KEY` (.env, неизменяем)" ]
+          - [ Браузер → консоль, сессия Open WebUI → роли консоли, документ `console-roles` ]
+          - [ Open WebUI → gateway, Bearer + JWT HS256 на каждый запрос (iat ≤ 600 с), "`GATEWAY_CLIENT_TOKEN`, `IDENTITY_JWT_SECRET`" ]
+          - [ gateway → LiteLLM, "ключ команды (рабочей группы), end-user из JWT", "`gateway-map.json` (ro), `/state/secrets/keys.json`" ]
+          - [ gateway → DLP, только внутренняя сеть backend, — ]
+          - [ LiteLLM → провайдер, ключ провайдера, "БД, зашифрован `PLATFORM_SECRET_KEY`" ]
+          - [ LiteLLM → xray (/k/…), HTTP внутри сети egress; наружу TLS сквозной, порт не опубликован ]
+          - [ xray → VPN-сервер, "VLESS UUID, REALITY/TLS", "документ `egress`, UUID зашифрован" ]
+          - [ LiteLLM → cliproxy, "`CLIPROXY_API_KEY`", .env ]
+          - [ admin / reconciler → cliproxy, "`CLIPROXY_MANAGEMENT_KEY`", .env; OAuth-токены — том cliproxy_data (не в бэкапе) ]
+          - [ reconciler → Open WebUI, API-ключ администратора, "`/state/secrets/owui-admin.key` (0600)" ]
+          - [ reconciler / admin → LiteLLM, "`LITELLM_MASTER_KEY`", .env ]
+          - [ Open WebUI → broker, Bearer `TERMINALS_API_KEY` + X-User-Id, доверие обеспечено сетью terminals ]
+          - [ broker → песочница, свой ключ = HMAC(TERMINALS_API_KEY), "не хранится, вычисляется" ]
+          - [ Open WebUI → docling, "`X-Api-Key`", "`DOCLING_API_KEY`" ]
+    - title: Ограничения контейнеров
+      cards:
+        - title: Минимум привилегий
+          color: "#e11d48"
+          chips: [ "cap_drop: ALL", no-new-privileges, "read-only корень (gateway, dlp, xray, cliproxy…)", "uid 10001–10005, не root" ]
+        - title: Сети
+          color: "#3b82f6"
+          chips: [ опубликован только proxy, "backend, database, terminals, docker_api, metrics — internal", строгий режим egress_internal ]
+        - title: gateway
+          color: "#f59e0b"
+          chips: [ "только 4 маршрута, остальное 404", заголовки к LiteLLM строятся заново, "allowlist полей тела, защита от SSRF", ошибки LiteLLM обезличены ]
+        - title: Данные
+          color: "#ec4899"
+          chips: [ промпты не пишутся в spend logs, бэкап без secrets/ и cliproxy_data, restore сверяет отпечатки ключей ]
+        - title: Песочницы
+          color: "#14b8a6"
+          chips: [ своя internal-сеть /28, "tmpfs, лимиты CPU/памяти/процессов", docker.sock только через socket-proxy ]
+        - title: Логи
+          color: "#0ea5e9"
+          chips: [ JSON-строки, "запрещены ключи, пароли, JWT, тексты", редакция по шаблонам ]

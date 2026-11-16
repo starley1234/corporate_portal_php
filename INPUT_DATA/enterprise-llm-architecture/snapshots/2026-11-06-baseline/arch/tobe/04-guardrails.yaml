@@ -1,0 +1,142 @@
+# TO-BE · Guardrails
+# Формат: docs/FORMAT.md. Сборка: npm run build
+
+title: Guardrails
+overview:
+  lead: "**Синхронный DLP → параллельные LLM и Guards.** Два уровня guard-проверок выполняются асинхронно относительно генерации, но последовательно друг относительно друга: Fast Guard → Safety Reasoner (по подозрению). Ответы не выпускаются до соответствующего решения. Если первичный риск был, но запрос всё же допущен, готовый ответ проходит тяжёлый повторный анализ."
+  blocks:
+    - scheme:
+        size: [ 1480, 665 ]
+        nodes:
+          - { id: start, at: [ 110, 85, 170 ], label: Запрос, sub: нормализованный prompt, kind: app }
+          - { id: auth, at: [ 340, 85, 180 ], label: Identity / ACL, sub: подпись · группа · лимит, kind: edge }
+          - { id: regex, at: [ 580, 85, 190 ], label: Regex DLP, sub: sync BLOCK / MASK / ALLOW, kind: sec }
+          - { id: block, at: [ 580, 225, 150 ], label: BLOCK, sub: без вызова LLM, kind: err }
+          - { id: fork, at: [ 810, 85, 160 ], label: Async fork, sub: request_id · deadline, kind: core }
+          - { id: fast, at: [ 1030, 205, 230 ], label: Stage 1 · Fast, sub: Qwen3Guard + PromptGuard2, kind: sec }
+          - { id: deep, at: [ 1290, 205, 230 ], label: Stage 2 · Deep, sub: gpt-oss-safeguard-20b, kind: sec }
+          - { id: llm, at: [ 1045, 85, 210 ], label: LiteLLM → LLM, sub: генерация спекулятивно, kind: core }
+          - { id: reconcile, at: [ 810, 375, 205 ], label: Decision Gate, sub: ALLOW / HOLD / BLOCK, kind: dec }
+          - { id: abort, at: [ 560, 375, 170 ], label: Cancel / deny, sub: "отмена, удаление буфера", kind: err }
+          - { id: outfast, at: [ 1070, 520, 190 ], label: Output Regex DLP, sub: каждый ответ, kind: sec }
+          - { id: outheavy, at: [ 1310, 520, 245 ], label: Heavy Output Guard, sub: если suspect-but-allowed, kind: sec }
+          - { id: release, at: [ 820, 590, 210 ], label: Release SSE, sub: после всех применимых проверок, kind: ok }
+          - { id: log, at: [ 560, 575, 205 ], label: Audit / SIEM, sub: вердикт + latency · no plaintext, kind: mon }
+        edges:
+          - start -> auth
+          - auth -> regex
+          - regex -> block: { label: BLOCK, kind: err }
+          - regex -> fork: { label: ALLOW / MASK, rel: carries }
+          - fork -> llm: { label: start generation, rel: uses }
+          - fork -> fast: { rel: uses, label: async, via: [ [ 810, 105 ], [ 810, 205 ], [ 915, 205 ] ] }
+          - fast -> deep: { label: suspect / uncertainty, rel: uses }
+          - fast --> reconcile: { label: low risk, via: [ [ 1030, 229 ], [ 1030, 315 ], [ 810, 315 ], [ 810, 351 ] ] }
+          - deep -> reconcile: { label: policy verdict, via: [ [ 1290, 229 ], [ 1290, 340 ], [ 810, 340 ], [ 810, 351 ] ] }
+          - llm -> reconcile: { rel: carries, label: hold token buffer, via: [ [ 1045, 109 ], [ 1045, 275 ], [ 810, 275 ], [ 810, 351 ] ] }
+          - reconcile -> abort: { label: BLOCK, kind: err }
+          - reconcile -> outfast: { rel: carries, label: input allowed, via: [ [ 810, 399 ], [ 810, 475 ], [ 1070, 475 ], [ 1070, 496 ] ] }
+          - outfast --> outheavy: { label: suspect flag, rel: uses }
+          - outfast -> release: { rel: carries, label: no flag / pass, via: [ [ 1070, 544 ], [ 1070, 568 ], [ 820, 568 ] ] }
+          - outheavy -> release: { rel: carries, label: ALLOW, via: [ [ 1310, 544 ], [ 1310, 610 ], [ 925, 610 ] ] }
+          - reconcile --> log: { label: audit, rel: carries }
+          - outheavy --> log: { label: audit, via: [ [ 1187, 520 ], [ 1180, 640 ], [ 560, 640 ], [ 560, 599 ] ] }
+        routes:
+          Обычный запрос: start -> auth -> regex -> fork -> fast -> reconcile -> outfast -> release
+          Эскалация подозрения:
+            path: start -> auth -> regex -> fork -> fast -> deep -> reconcile -> outfast -> outheavy -> release
+            note: Подозрение сохраняется во флаге request_risk=suspect даже если Safety Reasoner разрешил входной запрос. Это флаг для обязательной тяжёлой проверки выходного ответа.
+          Блокировка DLP: start -> auth -> regex -> block
+          Отмена по Guard: fork -> fast -> deep -> reconcile -> abort
+        hint: Политика безопасности требует различать «генерация уже началась» и «ответ был отдан пользователю». До release наружу не уходят токены, но при облачном маршруте сам запрос уже мог уйти провайдеру.
+    - cards:
+        - title: Инвариант №1
+          text: DLP BLOCK запрещает запуск модели. DLP MASK заменяет данные **до** отправки в LiteLLM и guard.
+          color: "#e11d48"
+        - title: Инвариант №2
+          text: Guards запускаются в фоне относительно LLM, но публичный SSE находится под контролем Response Gate; начало генерации ≠ выдача ответа.
+          color: "#f59e0b"
+        - title: Инвариант №3
+          text: fast=suspect → deep input. Если deep разрешил, флаг suspect остаётся до тяжёлой проверки ответа. Все ответы проходят быстрый output DLP.
+        - title: Инвариант №4
+          text: Для cloud LLM параллельный старт **не предотвращает передачу исходного текста провайдеру**. Для чувствительных данных требуется input preflight перед LiteLLM.
+          color: "#e11d48"
+detail:
+  lead: "**Полная последовательность.** Сначала синхронный Regex DLP. Затем запускаются две асинхронные ветки: запрос к модели и скрининг, который при подозрении вызывает более дорогой Reasoner. Ожидание решения переносится к Response Gate, чтобы скрыть задержку guard за временем генерации."
+  blocks:
+    - sequence:
+        width: 1720
+        actors:
+          - { id: s-user, label: Клиент, kind: app }
+          - { id: s-gw, label: Gateway, kind: core }
+          - { id: s-dlp, label: Regex DLP, kind: sec }
+          - { id: s-gate, label: Policy Gate, kind: dec }
+          - { id: s-fast, label: Fast Guard, kind: sec }
+          - { id: s-deep, label: Safety Reasoner, kind: sec }
+          - { id: s-lit, label: LiteLLM, kind: core }
+          - { id: s-model, label: Qwen3 / Cloud, kind: local }
+          - { id: s-out, label: Output Scan, kind: sec }
+        messages:
+          - s-user -> s-gw:
+              label: prompt + scoped identity
+              note: Все адаптеры проходят общую проверку личности, контекста команды и нормализации.
+          - s-gw -> s-dlp:
+              label: POST /v1/scan (sync)
+              note: DLP проверяет собранный prompt, включая RAG-фрагменты. BLOCK → 400 без обращения к модели.
+          - s-dlp --> s-gw:
+              label: ALLOW / MASK
+              note: MASK меняет исходящее сообщение; решение LOG сохраняется только в метаданных.
+          - s-gw -> s-gate:
+              label: create request_id + risk state
+              note: Точка синхронизации guard и LLM, а также выпуск SSE.
+          - s-gate -> s-fast:
+              label: "ASYNC: Qwen3Guard + Prompt Guard 2"
+              note: Запускаются две быстрые классификации; используют общий request_id.
+          - s-gate -> s-lit:
+              label: "ASYNC: model call"
+              note: Модель начинает работу, пока guard проверяет запрос. Для confidential режима вместо этого действует обязательный preflight.
+          - s-lit -> s-model:
+              label: inference / provider
+              note: Qwen3 — в локальной GPU VM; облако — через Xray/CLIProxy.
+          - s-fast --> s-gate:
+              label: "risk: normal / suspect / block"
+              note: При suspect отправляем текст на более глубокую проверку; сохраняем флаг suspect. Явный high-confidence block можно отменить сразу.
+          - s-gate -> s-deep:
+              label: "if suspect: full policy + context"
+              note: Safety Reasoner разбирает контекст, категории и пользовательские корпоративные правила.
+          - s-deep --> s-gate:
+              label: ALLOW / REVIEW / BLOCK
+              note: Даже при ALLOW request_risk=suspect сохраняется для тяжёлой выходной проверки.
+          - s-model --> s-lit:
+              label: SSE tokens
+              note: Токены от основной модели.
+          - s-lit --> s-gate:
+              label: buffered SSE
+              note: Наружу токены не отправляются, пока входная проверка не даст разрешение и не пройдёт нужный output guard.
+          - s-gate -> s-out:
+              label: output DLP; heavy if suspect
+              note: Для всех ответов — deterministic DLP; для suspect-but-allowed — deep scan полного ответа.
+          - s-out --> s-gate:
+              label: output verdict
+              note: "BLOCK: буфер уничтожается, возвращается нейтральный отказ. ALLOW: выпуск ответа."
+          - s-gate --> s-user:
+              label: release SSE / policy denial
+              note: Если требовался полный анализ ответа, истинный стриминг для этого запроса задерживается; можно отправлять только безопасные heartbeat/статус.
+        phases:
+          - [ 1, 4, Синхронные обязательные проверки ]
+          - [ 5, 11, Генерация и safety screening перекрываются ]
+          - [ 12, 15, Буферизация и итоговое решение ]
+        hint: "Нажмите шаг в диаграмме или «Вперёд». Часть событий выполняется одновременно: нумерация отражает логическую модель, а не гарантированный порядок завершения."
+    - title: Переходы состояний
+      table:
+        head: [ Сигнал / состояние, Входной маршрут, Выходная проверка, Действие ]
+        rows:
+          - [ DLP=BLOCK, Не запускать LLM, —, 400 / policy denied; аудит только метаданных ]
+          - [ DLP=MASK, Промпт уже замаскирован, Regex DLP, Обычный pipeline + guards ]
+          - [ Fast=normal, Stage 2 не обязателен (с выборочным аудитом), DLP / секреты для всех, Release после базовых проверок ]
+          - [ "Fast=suspect, Deep=ALLOW", LLM может генерировать параллельно, Обязательный тяжелый output scan, Буфер до вердикта; выдача только при ALLOW ]
+          - [ "Fast=suspect, Deep=BLOCK", Отмена generation, —, "Пустой буфер уничтожить, заблокировать" ]
+          - [ Fast/Deep timeout, Риск не разрешён, Не выдавать ответ, Fail-closed для confidential; иной режим — только по утверждённой политике ]
+          - [ Output=BLOCK, Вход был допущен, —, Отмена выдачи и безопасный текст отказа ]
+          - [ Cloud + high confidentiality, Не запускать Cloud до решения guard, Обычные выходные проверки, "Preflight до провайдера, либо запрет cloud route" ]
+    - title: События и метрики
+      note: "`request_id`, `tenant_id`, `source_adapter`, `dlp_action`, `fast_score`, `deep_verdict`, `suspect_input`, `output_scan`, `policy_version`, `model_route`, `ttfb_guard_ms`, `llm_first_token_ms`, `release_wait_ms`, `cancel_reason`. Запрещено логировать сырой prompt, PII, ответы и секреты по умолчанию."

@@ -1,0 +1,18 @@
+code: P-08
+name: Протоколы совещаний и контроль поручений
+function: Аппарат управления
+owner: Руководитель аппарата
+volume: 700
+minutes: 35
+error_cost: 2
+strategic: 2
+data_ready: 3
+rules_maturity: 1
+llm_share: 0.70
+data_class: internal
+regulatory: 2
+integration_effort: 1
+write_to_source: false
+golden_set: true
+sources: [ ВКС, СЭД ]
+notes: "Быстро и дёшево, но проверить «правильно ли поняли» трудно: оценка качества субъективна."

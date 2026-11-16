@@ -1,0 +1,1708 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>enterprise · целевая и текущая архитектура</title>
+<style>
+:root{--fg:#1f2328;--muted:#6b7280;--line:#d0d7de;--accent:#2563eb;--bg:#ffffff;--soft:#f6f8fa;--band:rgba(37,99,235,.045)}
+@media (prefers-color-scheme: dark){:root{--fg:#e6e6e6;--muted:#9aa0a6;--line:#3a3f47;--accent:#4c8dff;--bg:#1f2023;--soft:#26282c;--band:rgba(76,141,255,.07)}}
+*{box-sizing:border-box}
+body{margin:0;padding:20px 16px 40px;font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:var(--fg);background:var(--bg);font-size:13px;line-height:1.45}
+.wrap{max-width:1300px;margin:0 auto}
+header{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:flex-end;justify-content:space-between;margin-bottom:12px}
+h1{font-size:19px;margin:0}
+.subt{color:var(--muted);font-size:12.5px;margin-top:3px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;padding:7px 14px;font-size:13px}
+.seg button+button{border-left:1px solid var(--line)}
+.tabs,.bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}
+.tabs{border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:12px}
+button{padding:6px 11px;border:1px solid var(--line);background:transparent;color:var(--fg);border-radius:7px;cursor:pointer;font-size:12.5px;font-family:inherit}
+button:hover{border-color:var(--accent)}
+button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.tabs button{font-size:13px;padding:7px 12px}
+.tabs button.legacy-hidden{display:none}
+.tabs button.legacy-toggle{border-style:dashed;color:var(--muted)}
+.bar .cap{color:var(--muted);margin-right:2px}
+label.tg{display:flex;gap:4px;align-items:center;font-size:12.5px;color:var(--muted);margin-left:6px;cursor:pointer}
+.lead{background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:9px 12px;margin-bottom:10px}
+.lead b{font-weight:600}
+h3{font-size:14px;margin:18px 0 6px}
+.blk{margin-bottom:14px}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+svg.dg{width:100%;height:auto;display:block;min-width:880px}
+.hide{display:none!important}
+.info{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-top:6px}
+.info:empty{display:none}
+.bar .dl{margin-left:auto}
+.info code,.lead code,td code,li code,.card code{font-size:11.5px;background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:0 3px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:6px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.node{cursor:pointer;transition:opacity .15s}
+.node .lb{font-size:13px;font-weight:600;fill:var(--fg)}
+.node .sb{font-size:10.5px;fill:var(--muted)}
+.nbg{fill:var(--bg)}
+.edge,.elg,.msg{transition:opacity .15s}
+.edge path.l{fill:none;stroke:var(--muted);stroke-width:1.6}
+.edge.dash path.l{stroke-dasharray:5 4}
+.edge.hi path.l{stroke:var(--accent)!important;stroke-width:2.6}
+.edge.flow path.l,.msg.hi path.l{stroke-dasharray:8 6;animation:mv .7s linear infinite}
+@keyframes mv{to{stroke-dashoffset:-14}}
+.elb{font-size:10.5px;fill:var(--fg)}
+.elbg{fill:var(--bg);stroke:var(--line)}
+.dim{opacity:.13}
+.grp{fill:none;stroke:var(--line);stroke-dasharray:6 4}
+.host{fill:none;stroke:var(--line);stroke-width:1.6}
+.glb{font-size:11.5px;fill:var(--muted);font-weight:600}
+.note{font-size:11px;fill:var(--muted)}
+.life{stroke:var(--line);stroke-dasharray:4 4}
+.msg path.l{fill:none;stroke:var(--muted);stroke-width:1.5}
+.msg.ret path.l{stroke-dasharray:5 4}
+.msg.hi path.l{stroke:var(--accent);stroke-width:2.4}
+.msg{cursor:pointer}
+.badge{fill:var(--accent)}
+.badget{font-size:10px;fill:#fff;font-weight:700}
+.band{fill:var(--band);stroke:none}
+.bandl{font-size:11px;fill:var(--muted);font-weight:600}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:9px}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{padding:6px 9px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{background:var(--soft);font-weight:600;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.c,th.c{text-align:center}
+.y{color:#16a34a;font-weight:700}.p{color:#ca8a04;font-weight:700}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.card{border:1px solid var(--line);border-radius:10px;padding:10px 12px;border-left:4px solid var(--c,var(--accent))}
+.card h4{margin:0 0 6px;font-size:13.5px}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{border:1px solid var(--line);border-radius:12px;padding:2px 8px;font-size:12px;background:var(--soft)}
+ol.steps{margin:0;padding-left:22px}
+ol.steps li{margin:4px 0}
+.warn{border-left:4px solid #dc2626}
+@media print{
+  :root{--fg:#1f2328;--muted:#6b7280;--line:#d0d7de;--accent:#2563eb;--bg:#ffffff;--soft:#f6f8fa;--band:rgba(37,99,235,.045)}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{padding:0;font-size:11.5px}
+  .wrap{max-width:none}
+  .seg,.bar,.tabs button:not(.on){display:none!important}
+  .tabs{border:0;padding:0;margin:0 0 8px}
+  .tabs button.on{background:none;border:0;color:var(--fg);padding:0;font-size:16px;font-weight:600}
+  .scroll,.tw{overflow:visible}
+  svg.dg{min-width:0;break-inside:avoid;page-break-inside:avoid}
+  .blk{break-inside:avoid-page}
+  .dim{opacity:1}
+  .edge.flow path.l,.msg.hi path.l{animation:none}
+  .card{break-inside:avoid}
+  tr{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>enterprise — архитектура платформы</h1>
+      <div class="subt">TO-BE: распределённый стек, Guardrails, OCR/RAG, локальная Qwen3 и sizing · AS-IS: исходная платформа v1.7.x</div>
+    </div>
+    <div class="seg" id="lvl"><button data-l="o" class="on">Общий вид</button><button data-l="d">Подробно</button></div>
+  </header>
+  <nav class="tabs" id="tabs"></nav>
+  <main id="main"></main>
+</div>
+<script>
+'use strict';
+const NS='http://www.w3.org/2000/svg';
+function el(t,a,p){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(p)p.appendChild(e);return e}
+function h(tag,cls,html){const e=document.createElement(tag);if(cls)e.className=cls;if(html!=null)e.innerHTML=html;return e}
+function tl(parent,x,y,str,cls,anchor,lh){const t=el('text',{x,y,'text-anchor':anchor||'middle',class:cls},parent);
+  String(str).split('\n').forEach((s,i)=>{el('tspan',{x,dy:i?lh:0},t).textContent=s});return t}
+const K={ext:'#8a93a3',edge:'#3b82f6',app:'#8b5cf6',core:'#f59e0b',sec:'#e11d48',egress:'#22c55e',term:'#14b8a6',data:'#ec4899',ctrl:'#6366f1',mon:'#0ea5e9',local:'#64748b',dec:'#ca8a04',err:'#dc2626',ok:'#16a34a'};
+const KN={ext:'Внешние',edge:'Вход / сеть',app:'Приложения',core:'LLM-ядро',sec:'Безопасность',egress:'Выход / Xray',term:'Песочницы',data:'Данные',ctrl:'Управление',mon:'Мониторинг',local:'Хост / LAN',dec:'Проверка / решение',err:'Отказ / ошибка',ok:'Успех'};
+
+/* ---------- описания узлов (общие для всех схем) ---------- */
+const D={
+user:'<b>Сотрудник</b> в браузере. Открывает <code>https://&lt;хост&gt;/</code> (в проде — <code>ai.servers.local</code>) и входит учётной записью Open WebUI (или через OIDC, если включён).',
+admu:'<b>Администратор / руководитель / офицер ИБ.</b> Работает в консоли <code>/console/</code>; что доступно — решают роли консоли (platform_admin, access_admin, security_officer, auditor, manager).',
+proxy:'<b>proxy</b> — nginx 1.28, единственный сервис с опубликованными портами: <code>443</code> и <code>80</code> (→ 301 на https). TLS: <code>TLS_MODE=selfsigned|files|ca|off</code>. Маршруты: <code>/</code> и <code>/ws/</code> → openwebui:8080, <code>/console/</code> → admin:8000, <code>/grafana/</code> → grafana:3000. Во время обновления отдаёт страницу обслуживания.',
+ow:'<b>openwebui</b> — Open WebUI v0.11.4 с патчами (образ <code>aiplatform/openwebui</code>). Чат, группы, базы знаний (RAG, эмбеддинги <code>multilingual-e5-small</code> вшиты в образ), общие папки, каналы. Все модели получает через одно подключение <code>http://gateway:4100/v1</code> и к каждому запросу прикладывает подписанный JWT пользователя. Веб-поиск ходит в интернет напрямую (минуя gateway и DLP).',
+gw:'<b>gateway</b> — identity gateway (Python, Starlette) <code>:4100</code>, граница доверия между Open WebUI и LiteLLM. Проверяет токен клиента и JWT пользователя, по <code>gateway-map.json</code> выбирает ключ команды (рабочей группы), применяет общий бюджет и RPM/TPM, пропускает только разрешённые маршруты и поля тела, вызывает DLP, принудительно ставит end-user <code>owui:&lt;uuid&gt;</code>, стримит SSE и автоматически продолжает обрезанные ответы.',
+dlp:'<b>dlp</b> — DLP-сервис (Python) <code>:4200</code>. <code>POST /v1/scan</code>: нормализация (NFKC, невидимые символы, кириллические двойники латиницы) и правила → <code>ALLOW / LOG / MASK / BLOCK</code>; обфускация повышает действие до BLOCK. Правила редактируются в консоли. <code>/v1/redact</code> скрывает совпадения при просмотре чатов в консоли. Журнал — том <code>dlp_events</code>.',
+ll:'<b>litellm</b> — LiteLLM v1.103.2 <code>:4000</code>, роутер моделей. Модели и ключи провайдеров — в БД (<code>STORE_MODEL_IN_DB</code>); команды = рабочие группы с бюджетами и лимитами; customers = пользователи <code>owui:&lt;uuid&gt;</code>; access groups = тарифы; fallbacks = скрытые резервные модели. Стоимость пишет в БД <code>litellm</code> (без текста запросов).',
+cp:'<b>cliproxy</b> — CLIProxyAPI 8.0.38 (Go) <code>:8317</code>, профиль <code>cliproxy</code>. Подписки Codex / Claude Code / Antigravity / Kimi / xAI как OpenAI-совместимый провайдер. Хранит OAuth-токены (том <code>cliproxy_data</code>). Комплекты аккаунтов = балансировщики (round-robin / fill-first). Выходит через xray <code>cli-in :11200</code> — у каждого аккаунта свой канал.',
+xr:'<b>xray</b> — Xray 26.9.9 + nginx + supervisor (профиль <code>egress-proxy</code>). Входы: <code>:10809</code> HTTP-прокси с доменными маршрутами, <code>:10880</code> маршрутизатор ключей (<code>/k/&lt;provider&gt;</code>), <code>:11200</code> cli-in, <code>:10810+</code> тестовые, <code>:10808</code> метрики. Выходы: VPN-серверы (VLESS REALITY/TLS), пулы, <code>direct</code>, <code>block</code>. Маршруты через сервер/пул — fail-closed (kill switch).',
+vpn:'<b>VPN-серверы Xray</b> (VLESS REALITY/TLS) — внешний IP в нужной стране для провайдеров, недоступных из РФ. Пул из нескольких серверов балансируется по проверкам <code>burstObservatory</code>; <code>fallbackTag</code> = первый сервер пула.',
+openai:'<b>OpenAI API</b> — <code>api.openai.com</code>, через VPN-сервер/пул Xray.',
+anthropic:'<b>Anthropic API</b> — <code>api.anthropic.com</code>, через VPN-сервер/пул Xray. Для Claude LiteLLM добавляет точки кэширования промпта (<code>cache_control</code>).',
+cli:'<b>Серверы подписок CLI</b> (OpenAI Codex, Anthropic Claude Code, Google Antigravity, Kimi, xAI). Трафик каждого аккаунта — через свой маршрут Xray.',
+odi:'<b>OdiRouter</b> — OpenAI-совместимый агрегатор; seed-конфигурация ведёт облачные модели через него. Обычно в списке «Разрешено напрямую» (direct).',
+lm:'<b>Локальная LLM</b> — <code>LOCAL_LLM_API_BASE</code>, обычно <code>host.docker.internal</code>. Идёт мимо прокси (NO_PROXY); в строгом режиме — через прямой маршрут xray.',
+search:'<b>Поисковый сервис</b> веб-поиска Open WebUI. Запросы идут из openwebui напрямую (сеть frontend) и не проходят gateway и DLP — известное ограничение.',
+idp:'<b>Корпоративный IdP (OIDC)</b> — опционально (<code>auth.mode: oidc</code>). Синхронизация групп из claims — в следующей версии.',
+doc:'<b>docling</b> — docling-serve-cpu v1.37 + Tesseract rus, <code>:5001</code>, профиль <code>docling</code>. OCR и структура PDF / сканов / изображений для Open WebUI (<code>X-Api-Key</code>). Без интернета: модели вшиты в образ. В проде 6 ГБ памяти.',
+adm:'<b>admin</b> — консоль <code>:8000</code> (FastAPI + React 19 / Mantine). Сотрудники, группы, тарифы, модели и ключи (зашифрованы), DLP, исходящий трафик, CLI-аккаунты, аналитика, аудит. Источник истины — БД <code>platform</code>; сохранение сразу применяется (тот же движок reconcile) и экспортируется в <code>config-export/*.yaml</code>.',
+rec:'<b>reconciler</b> — образ bootstrap, <code>reconcile --loop</code>. Каждый тик приводит Open WebUI и LiteLLM к желаемому состоянию из БД <code>platform</code> (группы, модели, папки, каналы, базы знаний, ключи, бюджеты, customers), пишет <code>gateway-map.json</code>, конфиг xray, настройки cliproxy, публикует отчёты руководителям. Эксклюзивный лок <code>/state/reconcile.lock</code>.',
+boot:'<b>bootstrap</b> — разовый инструмент (профиль <code>tools</code>): <code>apply</code> при установке/обновлении, <code>check</code> (дрейф), <code>doctor</code>, <code>smoke</code>, <code>report</code>, <code>import-config</code>. Первый apply выпускает API-ключ администратора Open WebUI.',
+tb:'<b>terminal-broker</b> <code>:8000</code> (профиль <code>terminals</code>). Для Open WebUI выглядит как сервер Open Terminal («Песочница»). На пользователя создаёт internal-сеть /28, том с папками чатов и контейнер open-terminal; ключ песочницы = HMAC от <code>TERMINALS_API_KEY</code>. Сам останавливает простаивающие песочницы и удаляет старые папки.',
+dapi:'<b>docker-api</b> — tecnativa/docker-socket-proxy v0.5.0 <code>:2375</code>. Разрешены только containers, networks, volumes — брокер не получает <code>docker.sock</code> напрямую.',
+term:'<b>Песочницы</b> <code>&lt;project&gt;-term-&lt;hash&gt;</code> (open-terminal 0.14.0): по одной на активного пользователя (не больше <code>TERMINALS_MAX_ACTIVE</code>=20). Без интернета и доступа к платформе, read-only ФС, tmpfs <code>/home/user</code>, том <code>/home/user/chats</code>, cap_drop ALL, лимиты CPU/памяти/процессов.',
+pg:'<b>postgres</b> — PostgreSQL 17.6, один кластер (том <code>pg_data</code>): БД <code>openwebui</code> (пользователи, чаты, знания), <code>litellm</code> (ключи, команды, бюджеты, spend), <code>platform</code> (документы конфигурации с ревизиями, аудит, роли консоли).',
+redis:'<b>redis</b> — Redis 7.4, профиль <code>redis</code> (опционально): общий кэш/координация LiteLLM.',
+pr:'<b>prometheus</b> — Prometheus 3.5, всегда включён. Каждые 15 с забирает <code>/metrics</code> у gateway, dlp, litellm. Сети <code>backend</code> + <code>metrics</code>.',
+gr:'<b>grafana</b> — Grafana 12.1.1, профиль <code>observability</code>. Открывается через proxy <code>/grafana/</code>; видит только Prometheus (сеть <code>metrics</code>).',
+backup:'<b>backup</b> — образ postgres, профиль <code>tools</code>. <code>pg_dump</code> трёх БД + <code>openwebui_data</code> (без cache) + <code>platform_state</code> (без secrets/) + config → архив с manifest и хешами.'
+};
+
+/* ---------- движок схем ---------- */
+const DIR={r:[1,0],l:[-1,0],t:[0,-1],b:[0,1]};
+function anc(n,s){return s==='r'?[n.x+n.w/2,n.y]:s==='l'?[n.x-n.w/2,n.y]:s==='t'?[n.x,n.y-n.h/2]:[n.x,n.y+n.h/2]}
+let UID=0;
+function scheme(S,box){
+  const p='s'+(UID++);
+  const bar=h('div','bar');box.appendChild(bar);
+  const sc=h('div','scroll');box.appendChild(sc);
+  const svg=el('svg',{viewBox:'0 0 '+S.vb.join(' '),class:'dg'},sc);
+  const info=h('div','info',S.hint||'');box.appendChild(info);
+  const lg=h('div','legend');box.appendChild(lg);
+  const defs=el('defs',{},svg),MK={};
+  const marker=col=>{if(MK[col])return MK[col];const id=p+'m'+Object.keys(MK).length;
+    const m=el('marker',{id,viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:7,markerHeight:7,orient:'auto-start-reverse'},defs);
+    el('path',{d:'M0,0 L10,5 L0,10 z',style:'fill:'+col},m);return MK[col]=id};
+  if(S.host){const o=S.host;el('rect',{x:o.x,y:o.y,width:o.w,height:o.h,rx:14,class:'host'},svg);el('text',{x:o.x+12,y:o.y+17,class:'glb'},svg).textContent=o.label}
+  (S.groups||[]).forEach(g=>{el('rect',{x:g.x,y:g.y,width:g.w,height:g.h,rx:10,class:'grp'},svg);el('text',{x:g.x+9,y:g.y+16,class:'glb'},svg).textContent=g.label});
+  (S.notes||[]).forEach(t=>tl(svg,t.x,t.y,t.t,'note',t.a||'start',13));
+  const N={};S.nodes.forEach(n=>{n.k=n.k||'ext';n.w=n.w||110;const sl=n.sub?String(n.sub).split('\n').length:0;n.sl=sl;n.h=n.h||(sl?34+12*sl:38);N[n.id]=n});
+  const LE=el('g',{},svg),LN=el('g',{},svg),LL=el('g',{},svg);
+  S.edges.forEach(e=>{
+    e.id=e.f+'>'+e.t;const A=N[e.f],B=N[e.t];if(!A||!B){console.warn('edge',e.id);return}let d,mid;
+    if(e.pts){d='M'+e.pts.map(q=>q.join(',')).join(' L');const q=e.pts;mid=q.length%2?q[(q.length-1)/2]:[(q[q.length/2-1][0]+q[q.length/2][0])/2,(q[q.length/2-1][1]+q[q.length/2][1])/2]}
+    else{let fs=e.fs,ts=e.ts;const dx=B.x-A.x,dy=B.y-A.y;
+      if(!fs){if(Math.abs(dx)>=Math.abs(dy)){fs=dx>0?'r':'l'}else{fs=dy>0?'b':'t'}}
+      if(!ts){if(fs==='r'||fs==='l'){ts=Math.abs(dx)>=Math.abs(dy)?(dx>0?'l':'r'):(dy>0?'t':'b')}else{ts=Math.abs(dy)>=Math.abs(dx)?(dy>0?'t':'b'):(dx>0?'l':'r')}}
+      const P0=anc(A,fs),P3=anc(B,ts),k=Math.max(25,Math.hypot(P3[0]-P0[0],P3[1]-P0[1])*.4);
+      const P1=[P0[0]+DIR[fs][0]*k,P0[1]+DIR[fs][1]*k],P2=[P3[0]+DIR[ts][0]*k,P3[1]+DIR[ts][1]*k];
+      d=`M${P0} C${P1} ${P2} ${P3}`;mid=[(P0[0]+3*P1[0]+3*P2[0]+P3[0])/8,(P0[1]+3*P1[1]+3*P2[1]+P3[1])/8]}
+    e.col=e.k?K[e.k]:'var(--muted)';
+    e.g=el('g',{class:'edge'+(e.d?' dash':'')},LE);
+    e.p=el('path',{d,class:'l'},e.g);
+    if(e.l){const lp=e.lp||mid,g=el('g',{class:'elg'},LL);e.lg=g;const nl=e.l.split('\n').length;
+      const t=tl(g,lp[0],lp[1]+3.5-(nl-1)*6,e.l,'elb','middle',12);const bb=t.getBBox();
+      g.insertBefore(el('rect',{x:bb.x-5,y:bb.y-2,width:bb.width+10,height:bb.height+4,rx:7,class:'elbg'}),t)}
+  });
+  S.nodes.forEach(n=>{
+    const g=el('g',{class:'node'},LN),c=K[n.k]||K.ext,x=n.x-n.w/2,y=n.y-n.h/2,rx=n.pill?Math.min(n.h/2,20):9;n.g=g;
+    if(n.stack)[10,5].forEach(o=>{el('rect',{x:x+o,y:y-o,width:n.w,height:n.h,rx,class:'nbg'},g);
+      el('rect',{x:x+o,y:y-o,width:n.w,height:n.h,rx,fill:c,'fill-opacity':.1,stroke:c,'stroke-width':1.2},g)});
+    el('rect',{x,y,width:n.w,height:n.h,rx,class:'nbg'},g);
+    const r=el('rect',{x,y,width:n.w,height:n.h,rx,fill:c,'fill-opacity':.15,stroke:c,'stroke-width':1.6},g);
+    if(n.dash||n.k==='local')r.setAttribute('stroke-dasharray','5 3');
+    const top=n.y-(15+n.sl*12)/2;
+    el('text',{x:n.x,y:top+11.5,'text-anchor':'middle',class:'lb'},g).textContent=n.label;
+    if(n.sl)tl(g,n.x,top+15+9.5,n.sub,'sb','middle',12);
+    g.onmouseenter=()=>{st.hover=n.id;apply()};g.onmouseleave=()=>{st.hover=null;apply()};
+    g.onclick=()=>{info.innerHTML=n.i||D[n.id]||('<b>'+n.label+'</b>'+(n.sub?' — '+n.sub.replace(/\n/g,' '):''))};
+  });
+  const st={hover:null,route:null,tog:{}};
+  for(const k in (S.toggles||{}))st.tog[k]=S.toggles[k].on!==false;
+  const vis=e=>e.g&&!(e.cat&&st.tog[e.cat]===false);
+  function apply(){
+    let ns=null,es=null,flow=false;
+    if(st.hover){es=new Set();ns=new Set([st.hover]);
+      S.edges.forEach(e=>{if(vis(e)&&(e.f===st.hover||e.t===st.hover)){es.add(e.id);ns.add(e.f);ns.add(e.t)}})}
+    else if(st.route){const r=S.routes[st.route];ns=new Set(r);es=new Set();flow=true;
+      for(let i=0;i<r.length-1;i++){const e=S.edges.find(e=>(e.f===r[i]&&e.t===r[i+1])||(e.t===r[i]&&e.f===r[i+1]));if(e)es.add(e.id);else console.warn('route gap',r[i],r[i+1])}}
+    S.edges.forEach(e=>{if(!e.g)return;const v=vis(e),on=!!es&&es.has(e.id);
+      e.g.style.display=v?'':'none';if(e.lg)e.lg.style.display=v?'':'none';
+      e.g.classList.toggle('hi',on);e.g.classList.toggle('flow',on&&flow);
+      e.g.classList.toggle('dim',!!es&&!on);if(e.lg)e.lg.classList.toggle('dim',!!es&&!on);
+      const col=on?'var(--accent)':e.col;e.p.style.stroke=on?'':(e.k?e.col:'');
+      e.p.setAttribute('marker-end','url(#'+marker(col)+')');
+      if(e.both)e.p.setAttribute('marker-start','url(#'+marker(col)+')')});
+    S.nodes.forEach(n=>n.g.classList.toggle('dim',!!ns&&!ns.has(n.id)));
+  }
+  if(S.routes){const btns=[];bar.appendChild(h('span','cap','Маршрут:'));
+    Object.keys(S.routes).forEach(name=>{const b=h('button',null,name);bar.appendChild(b);btns.push(b);
+      b.onclick=()=>{st.route=st.route===name?null:name;btns.forEach(x=>x.classList.toggle('on',x===b&&st.route===name));
+        if(st.route&&S.ri&&S.ri[name])info.innerHTML=S.ri[name];apply()}})}
+  for(const k in (S.toggles||{})){const l=h('label','tg');l.innerHTML=`<input type="checkbox" ${st.tog[k]?'checked':''}> ${S.toggles[k].l}`;
+    l.querySelector('input').onchange=ev=>{st.tog[k]=ev.target.checked;apply()};bar.appendChild(l)}
+  dlBtn(bar,svg,()=>{const s0={hover:st.hover,route:st.route};st.hover=st.route=null;apply();return()=>{st.hover=s0.hover;st.route=s0.route;apply()}});
+  const used=[...new Set(S.nodes.map(n=>n.k))];
+  lg.innerHTML=used.map(k=>`<span><i style="background:${K[k]}"></i>${KN[k]}</span>`).join('')+'<span>── основная связь</span><span>- - - опционально / служебное</span>';
+  apply();
+}
+
+/* ---------- движок диаграмм последовательности ---------- */
+function seq(Q,box){
+  const bar=h('div','bar');box.appendChild(bar);
+  const sc=h('div','scroll');box.appendChild(sc);
+  const A=Q.actors,n=A.length,W=Q.w||1240,px=Q.px||80,cw=(W-2*px)/(n-1),X=i=>px+i*cw,I={};A.forEach((a,i)=>I[a.id]=i);
+  let y=96;const rows=Q.msgs.map(m=>{const nl=m.l.split('\n').length,self=m.f===m.t,r={m,nl,self,y0:y};
+    if(self){r.ay=y+6;y=Math.max(r.ay+24,y+12*nl)+18}else{r.ay=y+12*nl+11;y=r.ay+14}r.y1=y;return r});
+  const H=y+16;
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,class:'dg'},sc);
+  const info=h('div','info',Q.hint||'');box.appendChild(info);
+  const defs=el('defs',{},svg);
+  [['a','var(--muted)'],['b','var(--accent)']].forEach(([id,c])=>{const m=el('marker',{id:'q'+UID+id,viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:7,markerHeight:7,orient:'auto'},defs);el('path',{d:'M0,0 L10,5 L0,10 z',style:'fill:'+c},m)});
+  const mid='q'+(UID++);
+  (Q.ph||[]).forEach(ph=>{const a=rows[ph.a],b=rows[ph.b];el('rect',{x:4,y:a.y0-6,width:W-8,height:b.y1-a.y0+2,rx:8,class:'band'},svg);
+    el('text',{x:W-10,y:a.y0+8,'text-anchor':'end',class:'bandl'},svg).textContent=ph.l});
+  A.forEach((a,i)=>{const x=X(i),w=Math.min(cw-12,138);el('line',{x1:x,y1:66,x2:x,y2:H-6,class:'life'},svg);
+    const g=el('g',{class:'node'},svg),c=K[a.k]||K.ext;el('rect',{x:x-w/2,y:20,width:w,height:46,rx:9,class:'nbg'},g);
+    el('rect',{x:x-w/2,y:20,width:w,height:46,rx:9,fill:c,'fill-opacity':.15,stroke:c,'stroke-width':1.6},g);
+    el('text',{x,y:a.sub?40:47,'text-anchor':'middle',class:'lb'},g).textContent=a.label;
+    if(a.sub)el('text',{x,y:55,'text-anchor':'middle',class:'sb'},g).textContent=a.sub;
+    g.onclick=()=>{info.innerHTML=D[a.id]||a.label}});
+  rows.forEach((r,i)=>{const m=r.m,g=el('g',{class:'msg'+(m.ret?' ret':'')},svg);r.g=g;const xf=X(I[m.f]),xt=X(I[m.t]);let d;
+    if(r.self){d=`M${xf},${r.ay} h36 v22 h-34`;tl(g,xf+46,r.ay+6,m.l,'elb','start',12)}
+    else{d=`M${xf},${r.ay} L${xt+(xt>xf?-2:2)},${r.ay}`;const lx=(xf+xt)/2;
+      const t=tl(g,lx,r.ay-6-(r.nl-1)*12,m.l,'elb','middle',12);const bb=t.getBBox();
+      g.insertBefore(el('rect',{x:bb.x-4,y:bb.y-1,width:bb.width+8,height:bb.height+2,rx:5,class:'elbg',style:'stroke:none'}),t)}
+    r.p=el('path',{d,class:'l','marker-end':`url(#${mid}a)`},g);g.insertBefore(r.p,g.firstChild);
+    el('circle',{cx:xf,cy:r.ay,r:8.5,class:'badge'},g);el('text',{x:xf,y:r.ay+3.5,'text-anchor':'middle',class:'badget'},g).textContent=i+1;
+    el('rect',{x:Math.min(xf,xt)-10,y:r.y0-4,width:Math.abs(xt-xf)+(r.self?260:20),height:r.y1-r.y0,fill:'transparent'},g);
+    g.onclick=()=>{cur=i;upd()}});
+  let cur=-1,timer=null;
+  function upd(){rows.forEach((r,i)=>{r.g.classList.toggle('hi',i===cur);r.g.classList.toggle('dim',cur>=0&&i>cur);
+      r.p.setAttribute('marker-end',`url(#${mid}${i===cur?'b':'a'})`)});
+    cnt.textContent=cur<0?`шагов: ${rows.length}`:`шаг ${cur+1} из ${rows.length}`;
+    if(cur>=0)info.innerHTML=`<b>Шаг ${cur+1}.</b> ${rows[cur].m.d||rows[cur].m.l.replace(/\n/g,' ')}`}
+  const stop=()=>{if(timer){clearInterval(timer);timer=null;play.textContent='▶ Проиграть'}};
+  const mkb=(t,f)=>{const b=h('button',null,t);b.onclick=f;bar.appendChild(b);return b};
+  mkb('⏮ Сначала',()=>{stop();cur=-1;upd();info.innerHTML=Q.hint||''});
+  mkb('◀ Назад',()=>{stop();cur=Math.max(0,cur-1);upd()});
+  mkb('Вперёд ▶',()=>{stop();cur=Math.min(rows.length-1,cur+1);upd()});
+  const play=mkb('▶ Проиграть',()=>{if(timer){stop();return}play.textContent='⏸ Пауза';if(cur>=rows.length-1)cur=-1;
+    timer=setInterval(()=>{if(cur>=rows.length-1){stop();return}cur++;upd()},1700);cur++;upd()});
+  const cnt=h('span','cap');cnt.style.marginLeft='8px';bar.appendChild(cnt);upd();
+  dlBtn(bar,svg,()=>{stop();const c0=cur;cur=-1;upd();return()=>{cur=c0;upd()}});
+}
+
+/* ---------- экспорт SVG ---------- */
+const LIGHT={fg:'#1f2328',muted:'#6b7280',line:'#d0d7de',accent:'#2563eb',bg:'#ffffff',soft:'#f6f8fa',band:'rgba(37,99,235,.045)'};
+const SVG_CSS=`text{font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif}
+.node .lb{font-size:13px;font-weight:600;fill:var(--fg)}.node .sb{font-size:10.5px;fill:var(--muted)}.nbg{fill:var(--bg)}
+.edge path.l{fill:none;stroke:var(--muted);stroke-width:1.6}.edge.dash path.l{stroke-dasharray:5 4}
+.elb{font-size:10.5px;fill:var(--fg)}.elbg{fill:var(--bg);stroke:var(--line)}
+.grp{fill:none;stroke:var(--line);stroke-dasharray:6 4}.host{fill:none;stroke:var(--line);stroke-width:1.6}
+.glb{font-size:11.5px;fill:var(--muted);font-weight:600}.note{font-size:11px;fill:var(--muted)}
+.life{stroke:var(--line);stroke-dasharray:4 4}.msg path.l{fill:none;stroke:var(--muted);stroke-width:1.5}.msg.ret path.l{stroke-dasharray:5 4}
+.badge{fill:var(--accent)}.badget{font-size:10px;fill:#fff;font-weight:700}.band{fill:var(--band);stroke:none}.bandl{font-size:11px;fill:var(--muted);font-weight:600}`;
+let DLN=0;
+function dlBtn(bar,svg,reset){
+  const n=++DLN,b=h('button','dl','⤓ Скачать SVG');bar.appendChild(b);
+  b.onclick=()=>{
+    const restore=reset();
+    const c=svg.cloneNode(true),vb=svg.getAttribute('viewBox').split(' ');
+    c.setAttribute('xmlns',NS);c.setAttribute('width',vb[2]);c.setAttribute('height',vb[3]);c.removeAttribute('class');
+    c.querySelectorAll('.dim,.hi,.flow').forEach(e=>e.classList.remove('dim','hi','flow'));
+    const st=document.createElementNS(NS,'style');st.textContent=SVG_CSS;c.insertBefore(st,c.firstChild);
+    const bg=document.createElementNS(NS,'rect');['x','y'].forEach((k,i)=>bg.setAttribute(k,vb[i]));
+    bg.setAttribute('width',vb[2]);bg.setAttribute('height',vb[3]);bg.setAttribute('fill','#ffffff');c.insertBefore(bg,st.nextSibling);
+    restore();
+    const txt='<?xml version="1.0" encoding="UTF-8"?>\n'+new XMLSerializer().serializeToString(c).replace(/var\(--([a-z]+)\)/g,(m,k)=>LIGHT[k]||m);
+    const view=b.closest('section'),all=view?[...view.querySelectorAll('button.dl')]:[b],idx=all.indexOf(b)+1;
+    const T=TABS[cur],name=(T.t+(lvl==='d'?' подробно':'')).replace(/[^\p{L}\p{N}]+/gu,'-').replace(/^-|-$/g,'');
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'image/svg+xml'}));
+    a.download='architecture-'+name+(all.length>1?'-'+idx:'')+'.svg';document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+}
+
+/* ---------- таблицы ---------- */
+function table(head,rows,cls){return '<div class="tw"><table><thead><tr>'+head.map((x,i)=>`<th${cls&&cls[i]?' class="'+cls[i]+'"':''}>${x}</th>`).join('')+'</tr></thead><tbody>'+
+  rows.map(r=>'<tr>'+r.map((x,i)=>`<td${cls&&cls[i]?' class="'+cls[i]+'"':''}>${x}</td>`).join('')+'</tr>').join('')+'</tbody></table></div>'}
+</script>
+
+<script>
+'use strict';
+/* =================== ДАННЫЕ ВКЛАДОК =================== */
+const TABS=[];
+
+/* ---------- 1. Контекст ---------- */
+TABS.push({t:'1. Контекст',
+o:{lead:'<b>Что это и с кем взаимодействует.</b> Сотрудники и администраторы работают через браузер; платформа сама ходит к провайдерам моделей: облачным (через VPN-туннель Xray), подпискам CLI, агрегатору OdiRouter и локальной модели.',
+ blocks:[{t:'scheme',S:{vb:[1200,420],
+  nodes:[
+   {id:'user',x:110,y:140,w:150,label:'Сотрудники',sub:'браузер, чат'},
+   {id:'admu',x:110,y:290,w:150,label:'Администраторы',sub:'консоль /console/'},
+   {id:'plat',x:530,y:215,w:320,h:150,label:'AI-платформа enterprise',sub:'чат с моделями · базы знаний\nпесочницы для файлов · DLP\nбюджеты и лимиты · консоль',k:'app',
+    i:'<b>Платформа</b> — набор Docker-контейнеров на одном сервере (compose-проект <code>enterprise</code>). Подробности — вкладки «Контейнеры» и «Путь запроса».'},
+   {id:'cloud',x:1010,y:70,w:200,label:'Облачные модели',sub:'OpenAI · Anthropic',i:D.openai+'<br>'+D.anthropic},
+   {id:'odi',x:1010,y:165,w:200,label:'OdiRouter',sub:'OpenAI-совместимый агрегатор'},
+   {id:'cli',x:1010,y:265,w:200,label:'Подписки CLI',sub:'Codex · Claude Code · Kimi …'},
+   {id:'lm',x:1010,y:360,w:200,label:'Локальная LLM',sub:'хост / локальная сеть',k:'local'}],
+  edges:[
+   {f:'user',t:'plat',l:'HTTPS :443',ts:'l'},{f:'admu',t:'plat',l:'HTTPS /console/',ts:'l'},
+   {f:'plat',t:'cloud',l:'через VPN Xray',fs:'r'},{f:'plat',t:'odi',l:'напрямую',fs:'r'},
+   {f:'plat',t:'cli',l:'cliproxy + Xray',fs:'r'},{f:'plat',t:'lm',l:'LAN, без Xray',fs:'r'}]}}]},
+d:{lead:'<b>Границы и внешние системы.</b> Пользователи и админы — в корпоративной сети; на сервере — контейнеры платформы; в интернет выходят только Xray (провайдеры) и Open WebUI (веб-поиск).',
+ blocks:[{t:'scheme',S:{vb:[1300,480],
+  groups:[{x:20,y:40,w:155,h:410,label:'Корпоративная сеть'},{x:200,y:40,w:730,h:410,label:'Сервер платформы (Docker)'},{x:955,y:30,w:330,h:420,label:'Интернет'}],
+  nodes:[
+   {id:'user',x:97,y:130,w:130,label:'Сотрудники',sub:'браузер'},
+   {id:'admu',x:97,y:240,w:130,label:'Администраторы',sub:'консоль, Grafana'},
+   {id:'idp',x:97,y:370,w:130,label:'IdP (OIDC)',sub:'опционально',dash:1},
+   {id:'proxy',x:285,y:185,w:100,label:'proxy',sub:'nginx :443',k:'edge'},
+   {id:'ow',x:415,y:130,w:120,label:'Open WebUI',sub:'чат, RAG',k:'app'},
+   {id:'adm',x:415,y:250,w:120,label:'Консоль',sub:'admin',k:'ctrl'},
+   {id:'term',x:415,y:380,w:120,label:'Песочницы',sub:'terminal-broker',k:'term',stack:1},
+   {id:'gw',x:555,y:130,w:110,label:'gateway',sub:'личность, DLP',k:'core'},
+   {id:'ll',x:695,y:130,w:110,label:'LiteLLM',sub:'роутер моделей',k:'core'},
+   {id:'lm',x:695,y:280,w:120,label:'Локальная LLM',sub:'host / LAN',k:'local'},
+   {id:'xr',x:845,y:130,w:110,label:'Xray',sub:'выход, kill switch',k:'egress'},
+   {id:'cp',x:845,y:280,w:110,label:'cliproxy',sub:'подписки CLI',k:'core'},
+   {id:'search',x:1185,y:70,w:170,label:'Поисковик',sub:'веб-поиск Open WebUI'},
+   {id:'vpn',x:1030,y:205,w:120,label:'VPN-серверы',sub:'VLESS REALITY',k:'egress',stack:1},
+   {id:'openai',x:1195,y:150,w:150,label:'OpenAI API',sub:'api.openai.com'},
+   {id:'anthropic',x:1195,y:215,w:150,label:'Anthropic API',sub:'api.anthropic.com'},
+   {id:'cli',x:1195,y:280,w:150,label:'Подписки CLI',sub:'Codex, Claude Code…'},
+   {id:'odi',x:1195,y:385,w:150,label:'OdiRouter',sub:'агрегатор'}],
+  edges:[
+   {f:'user',t:'proxy',l:'HTTPS'},{f:'admu',t:'proxy',l:'/console/'},
+   {f:'proxy',t:'ow',fs:'r',ts:'l'},{f:'proxy',t:'adm',fs:'r',ts:'l'},
+   {f:'ow',t:'gw',l:'JWT'},{f:'gw',t:'ll'},{f:'ll',t:'xr'},{f:'ll',t:'cp',fs:'r',ts:'l'},{f:'cp',t:'xr',fs:'t',ts:'b',l:'cli-in'},
+   {f:'ll',t:'lm',l:'direct'},
+   {f:'xr',t:'vpn',l:'VLESS',fs:'r',ts:'l'},{f:'vpn',t:'openai'},{f:'vpn',t:'anthropic'},{f:'vpn',t:'cli'},
+   {f:'xr',t:'odi',pts:[[900,140],[930,140],[930,385],[1120,385]],l:'direct',lp:[1030,385]},
+   {f:'ow',t:'search',pts:[[415,105],[415,70],[1100,70]],l:'веб-поиск напрямую (без DLP)',lp:[760,70],d:1},
+   {f:'ow',t:'term',pts:[[355,145],[343,145],[343,380],[355,380]]},
+   {f:'idp',t:'admu',d:1,l:'OIDC (опц.)'}],
+  routes:{'OpenAI / Anthropic':['user','proxy','ow','gw','ll','xr','vpn','openai'],'Подписка CLI':['user','proxy','ow','gw','ll','cp','xr','vpn','cli'],'OdiRouter':['user','proxy','ow','gw','ll','xr','odi'],'Локальная LLM':['user','proxy','ow','gw','ll','lm'],'Веб-поиск':['user','proxy','ow','search']},
+  ri:{'Веб-поиск':'Веб-поиск Open WebUI идёт в интернет <b>напрямую</b> из openwebui, минуя gateway и DLP (известное ограничение, README).'}}}]}
+});
+
+/* ---------- 2. Контейнеры ---------- */
+TABS.push({t:'2. Контейнеры',
+o:{lead:'<b>Слои платформы.</b> Запрос проходит слева направо: вход → интерфейс → шлюз доверия → роутер моделей → выход → провайдер. Снизу — службы, которые настраивают, хранят и наблюдают.',
+ blocks:[{t:'scheme',S:{vb:[1200,400],
+  nodes:[
+   {id:'user',x:70,y:140,w:110,label:'Пользователи'},
+   {id:'in',x:215,y:140,w:130,label:'Вход',sub:'proxy · nginx · TLS',k:'edge',i:D.proxy},
+   {id:'ui',x:385,y:140,w:150,label:'Интерфейс',sub:'Open WebUI · Docling',k:'app',i:D.ow+'<br><br>'+D.doc},
+   {id:'gwb',x:565,y:140,w:150,label:'Шлюз доверия',sub:'gateway + DLP',k:'sec',i:D.gw+'<br><br>'+D.dlp},
+   {id:'rt',x:745,y:140,w:150,label:'Роутер моделей',sub:'LiteLLM (+ Redis опц.)',k:'core',i:D.ll},
+   {id:'out',x:925,y:140,w:150,label:'Выход',sub:'Xray · cliproxy',k:'egress',i:D.xr+'<br><br>'+D.cp},
+   {id:'prov',x:1110,y:140,w:150,label:'Провайдеры',sub:'облако · CLI · LAN'},
+   {id:'sbx',x:385,y:300,w:150,label:'Песочницы',sub:'broker · docker-api · term-*',k:'term',i:D.tb+'<br><br>'+D.term},
+   {id:'ctrl',x:600,y:300,w:170,label:'Управление',sub:'консоль + reconciler',k:'ctrl',i:D.adm+'<br><br>'+D.rec},
+   {id:'data',x:820,y:300,w:150,label:'Данные',sub:'PostgreSQL · 3 БД',k:'data',i:D.pg},
+   {id:'mon',x:1030,y:300,w:150,label:'Мониторинг',sub:'Prometheus · Grafana',k:'mon',i:D.pr+'<br><br>'+D.gr}],
+  edges:[
+   {f:'user',t:'in',l:'HTTPS'},{f:'in',t:'ui'},{f:'ui',t:'gwb',l:'JWT'},{f:'gwb',t:'rt',l:'ключ\nкоманды'},{f:'rt',t:'out'},{f:'out',t:'prov'},
+   {f:'ui',t:'sbx',l:'файлы, команды'},
+   {f:'ctrl',t:'ui',d:1,k:'ctrl'},{f:'ctrl',t:'gwb',d:1,k:'ctrl'},{f:'ctrl',t:'rt',d:1,k:'ctrl',l:'настраивает'},{f:'ctrl',t:'data',k:'data'},
+   {f:'rt',t:'data',d:1,k:'data',l:'spend'},{f:'mon',t:'rt',d:1,k:'mon',l:'метрики'}],
+  routes:{'Запрос к модели':['user','in','ui','gwb','rt','out','prov'],'Песочница':['user','in','ui','sbx']}}}]},
+d:{lead:'<b>Все контейнеры compose-проекта</b> и связи между ними. Пунктир — опциональный профиль или служебная связь. Переключатели скрывают связи с БД, управление и мониторинг.',
+ blocks:[{t:'scheme',S:{vb:[1300,770],host:{x:120,y:30,w:800,h:725,label:'Хост Docker · compose-проект enterprise'},
+  groups:[{x:130,y:150,w:110,h:100,label:'Вход'},{x:262,y:60,w:140,h:345,label:'Приложения'},{x:420,y:60,w:300,h:345,label:'LLM-ядро и безопасность'},
+   {x:740,y:60,w:165,h:345,label:'Выход'},{x:262,y:440,w:460,h:150,label:'Песочницы (профиль terminals)'},{x:740,y:440,w:165,h:300,label:'Данные · мониторинг'},
+   {x:975,y:30,w:320,h:270,label:'Интернет'},{x:975,y:340,w:320,h:90,label:'LAN / хост'}],
+  nodes:[
+   {id:'user',x:60,y:200,w:90,label:'Браузер'},
+   {id:'proxy',x:185,y:200,w:100,label:'proxy',sub:'nginx :443/:80',k:'edge'},
+   {id:'ow',x:332,y:110,w:120,label:'openwebui',sub:':8080',k:'app'},
+   {id:'doc',x:332,y:230,w:120,label:'docling',sub:':5001 · OCR',k:'app',dash:1},
+   {id:'adm',x:332,y:350,w:120,label:'admin',sub:':8000 · консоль',k:'ctrl'},
+   {id:'gw',x:490,y:110,w:120,label:'gateway',sub:':4100',k:'core'},
+   {id:'dlp',x:490,y:230,w:120,label:'dlp',sub:':4200',k:'sec'},
+   {id:'rec',x:490,y:350,w:130,label:'reconciler',sub:'reconcile --loop',k:'ctrl'},
+   {id:'ll',x:645,y:110,w:120,label:'litellm',sub:':4000',k:'core'},
+   {id:'xr',x:820,y:110,w:120,label:'xray',sub:'egress-proxy',k:'egress',dash:1},
+   {id:'cp',x:820,y:230,w:120,label:'cliproxy',sub:':8317',k:'core',dash:1},
+   {id:'tb',x:332,y:515,w:120,label:'terminal-broker',sub:':8000',k:'term',dash:1},
+   {id:'dapi',x:490,y:515,w:110,label:'docker-api',sub:':2375',k:'term',dash:1},
+   {id:'term',x:645,y:515,w:110,label:'term-*',sub:'≤ 20 песочниц',k:'term',stack:1},
+   {id:'pg',x:820,y:490,w:150,label:'postgres',sub:'openwebui · litellm · platform',k:'data'},
+   {id:'redis',x:820,y:560,w:130,label:'redis',sub:'профиль redis',k:'data',dash:1},
+   {id:'pr',x:820,y:630,w:130,label:'prometheus',sub:':9090',k:'mon'},
+   {id:'gr',x:820,y:700,w:130,label:'grafana',sub:'/grafana/',k:'mon',dash:1},
+   {id:'vpn',x:1045,y:135,w:110,label:'VPN-серверы',sub:'VLESS',k:'egress',stack:1},
+   {id:'openai',x:1215,y:75,w:140,label:'OpenAI API'},
+   {id:'anthropic',x:1215,y:135,w:140,label:'Anthropic API'},
+   {id:'cli',x:1215,y:195,w:140,label:'Подписки CLI'},
+   {id:'odi',x:1215,y:265,w:140,label:'OdiRouter'},
+   {id:'lm',x:1100,y:385,w:150,label:'Локальная LLM',sub:'host.docker.internal',k:'local'}],
+  edges:[
+   {f:'user',t:'proxy',l:'HTTPS'},
+   {f:'proxy',t:'ow',fs:'r',ts:'l',l:'/ , /ws/'},{f:'proxy',t:'adm',fs:'r',ts:'l',l:'/console/'},
+   {f:'proxy',t:'gr',pts:[[185,225],[185,710],[755,710]],d:1,l:'/grafana/',lp:[470,710]},
+   {f:'ow',t:'gw',l:'JWT'},{f:'gw',t:'ll',l:'ключ команды'},{f:'gw',t:'dlp',l:'/v1/scan'},
+   {f:'ow',t:'doc',d:1},
+   {f:'ow',t:'tb',pts:[[272,118],[252,118],[252,515],[272,515]],d:1,l:'Open Terminal',lp:[252,465]},
+   {f:'tb',t:'dapi'},{f:'dapi',t:'term',l:'создаёт'},{f:'tb',t:'term',pts:[[332,540],[332,572],[645,572],[645,540]],l:'команды · сеть /28',lp:[490,572]},
+   {f:'ll',t:'xr',l:':10809 / :10880'},{f:'ll',t:'cp',fs:'r',ts:'l'},{f:'cp',t:'xr',fs:'t',ts:'b',l:'cli-in'},
+   {f:'xr',t:'vpn',l:'VLESS',fs:'r',ts:'l'},{f:'vpn',t:'openai'},{f:'vpn',t:'anthropic'},{f:'vpn',t:'cli'},
+   {f:'xr',t:'odi',pts:[[880,125],[950,125],[950,265],[1145,265]],l:'direct',lp:[1050,265]},
+   {f:'ll',t:'lm',pts:[[700,135],[700,385],[1025,385]],l:'без Xray',lp:[960,385]},
+   {f:'ow',t:'pg',cat:'db',k:'data',pts:[[392,125],[410,125],[410,425],[820,425],[820,467]]},
+   {f:'adm',t:'pg',cat:'db',k:'data',pts:[[332,375],[332,425],[820,425],[820,467]]},
+   {f:'rec',t:'pg',cat:'db',k:'data',pts:[[490,375],[490,425],[820,425],[820,467]]},
+   {f:'ll',t:'pg',cat:'db',k:'data',pts:[[645,135],[645,425],[820,425],[820,467]]},
+   {f:'ll',t:'redis',cat:'db',k:'data',d:1,pts:[[655,135],[655,415],[728,415],[728,560],[755,560]]},
+   {f:'rec',t:'ow',cat:'ctrl',k:'ctrl',d:1,fs:'l',ts:'r'},
+   {f:'rec',t:'gw',cat:'ctrl',k:'ctrl',d:1,pts:[[555,340],[567,340],[567,155],[520,155],[520,135]],l:'gateway-map',lp:[567,290]},
+   {f:'rec',t:'ll',cat:'ctrl',k:'ctrl',d:1,pts:[[555,355],[600,355],[600,135]]},
+   {f:'rec',t:'xr',cat:'ctrl',k:'ctrl',d:1,pts:[[555,362],[620,362],[620,172],[850,172],[850,135]],l:'egress_config',lp:[760,172]},
+   {f:'rec',t:'cp',cat:'ctrl',k:'ctrl',d:1,pts:[[555,368],[790,368],[790,255]],l:'management',lp:[750,368]},
+   {f:'pr',t:'ll',cat:'mon',k:'mon',d:1,pts:[[755,625],[732,625],[732,100],[705,100]],l:'scrape',lp:[732,300]},
+   {f:'gr',t:'pr',k:'mon'}],
+  toggles:{db:{l:'Связи с БД'},ctrl:{l:'Управление (reconciler)'},mon:{l:'Мониторинг',on:false}},
+  routes:{'OpenAI/Anthropic':['user','proxy','ow','gw','ll','xr','vpn','openai'],'OdiRouter':['user','proxy','ow','gw','ll','xr','odi'],'Подписка CLI':['user','proxy','ow','gw','ll','cp','xr','vpn','cli'],'Локальная LLM':['user','proxy','ow','gw','ll','lm'],'DLP':['user','proxy','ow','gw','dlp'],'Документ (OCR)':['user','proxy','ow','doc'],'Терминал':['user','proxy','ow','tb','term'],'Консоль':['user','proxy','adm','pg']},
+  ri:{'Консоль':'Консоль работает с БД <code>platform</code> и при сохранении сама применяет изменения в Open WebUI / LiteLLM / gateway-map тем же движком, что и reconciler.'}}},
+ {t:'html',html:'<div class="lead" style="margin-top:4px">Также в compose: <code>bootstrap</code> (разовый apply/doctor/smoke), <code>backup</code>, <code>volume-init</code> (права на тома), <code>open-terminal</code> (только сборка образа) — все в профиле <code>tools</code>, постоянно не работают.</div>'}]}
+});
+
+/* ---------- 3. Путь запроса ---------- */
+TABS.push({t:'3. Путь запроса',
+o:{lead:'<b>Как сообщение из чата доходит до модели.</b> Выберите маршрут — подсветится путь. Ответ возвращается тем же путём потоком (SSE).',
+ blocks:[{t:'scheme',S:{vb:[1200,370],
+  nodes:[
+   {id:'user',x:70,y:160,w:100,label:'Браузер'},
+   {id:'proxy',x:200,y:160,w:100,label:'proxy',sub:'TLS',k:'edge'},
+   {id:'ow',x:340,y:160,w:130,label:'Open WebUI',sub:'сессия · RAG · JWT',k:'app'},
+   {id:'gw',x:495,y:160,w:130,label:'gateway',sub:'проверки · лимиты',k:'core'},
+   {id:'dlp',x:495,y:290,w:130,label:'DLP',sub:'проверка текста',k:'sec'},
+   {id:'ll',x:650,y:160,w:130,label:'LiteLLM',sub:'бюджет · модель',k:'core'},
+   {id:'xr',x:815,y:100,w:120,label:'Xray',sub:'туннель / direct',k:'egress'},
+   {id:'cp',x:815,y:220,w:120,label:'cliproxy',sub:'подписки CLI',k:'core'},
+   {id:'cloud',x:1060,y:45,w:190,label:'OpenAI / Anthropic',sub:'через VPN-сервер',i:D.openai+'<br>'+D.anthropic},
+   {id:'odi',x:1060,y:125,w:190,label:'OdiRouter',sub:'напрямую (разрешено)'},
+   {id:'cli',x:1060,y:205,w:190,label:'Подписки CLI',sub:'Codex · Claude Code …'},
+   {id:'lm',x:1060,y:310,w:190,label:'Локальная LLM',sub:'host.docker.internal',k:'local'}],
+  edges:[
+   {f:'user',t:'proxy',l:'HTTPS'},{f:'proxy',t:'ow'},{f:'ow',t:'gw',l:'JWT'},{f:'gw',t:'dlp',l:'/v1/scan',both:1},{f:'gw',t:'ll',l:'ключ команды'},
+   {f:'ll',t:'xr',fs:'r',ts:'l'},{f:'ll',t:'cp',fs:'r',ts:'l'},{f:'cp',t:'xr',fs:'t',ts:'b',l:'cli-in'},
+   {f:'xr',t:'cloud',l:'VLESS'},{f:'xr',t:'odi',l:'direct'},{f:'xr',t:'cli',l:'VLESS',fs:'r',ts:'l'},
+   {f:'ll',t:'lm',pts:[[650,185],[650,310],[965,310]],l:'без Xray',lp:[820,310]}],
+  routes:{'OpenAI / Anthropic':['user','proxy','ow','gw','ll','xr','cloud'],'OdiRouter':['user','proxy','ow','gw','ll','xr','odi'],'Подписка CLI':['user','proxy','ow','gw','ll','cp','xr','cli'],'Локальная LLM':['user','proxy','ow','gw','ll','lm'],'Проверка DLP':['user','proxy','ow','gw','dlp']},
+  ri:{'OpenAI / Anthropic':'LiteLLM шлёт запрос на маршрутизатор ключей xray (<code>/k/&lt;provider&gt;</code>) или через HTTP-прокси <code>:10809</code>; xray уводит его в VPN-сервер/пул. TLS до провайдера сквозной.',
+      'OdiRouter':'OdiRouter обычно в «Разрешено напрямую»: xray отправляет трафик через <code>direct</code>, без туннеля.',
+      'Подписка CLI':'LiteLLM видит cliproxy как провайдера <code>openai/&lt;комплект&gt;/&lt;модель&gt;</code>; cliproxy выбирает аккаунт комплекта и выходит через вход xray <code>cli-in :11200</code> с маршрутом этого аккаунта.',
+      'Локальная LLM':'Локальная модель в <code>NO_PROXY</code> — LiteLLM обращается к ней напрямую. В строгом режиме — через прямой маршрут xray.',
+      'Проверка DLP':'Перед отправкой в LiteLLM gateway отдаёт сообщения в DLP. BLOCK — ответ 400, MASK — текст заменяется, LOG/ALLOW — без изменений.'}}},
+  {t:'html',html:`<h3>Коротко по шагам</h3><ol class="steps">
+<li><b>Браузер → proxy.</b> HTTPS, nginx проксирует в Open WebUI.</li>
+<li><b>Open WebUI.</b> Проверяет сессию и доступ к модели (по группам), ищет в базах знаний (RAG), собирает промпт и подписывает JWT пользователя.</li>
+<li><b>gateway.</b> Проверяет токен и JWT, определяет рабочую группу, общий бюджет и лимиты, фильтрует поля запроса, вызывает DLP.</li>
+<li><b>LiteLLM.</b> По ключу команды проверяет доступ к модели и бюджеты, выбирает провайдера (или резервную модель).</li>
+<li><b>Выход.</b> Облако — через Xray и VPN-сервер; CLI — через cliproxy и Xray; OdiRouter — direct; локальная модель — напрямую.</li>
+<li><b>Ответ.</b> Поток токенов идёт обратно; gateway при обрыве по длине сам продолжает ответ; LiteLLM пишет стоимость, Open WebUI — сообщение.</li></ol>`}]},
+d:{lead:'<b>Диаграмма последовательности</b> для запроса к облачной модели (например, Claude через Xray). Нажимайте «Вперёд» или «Проиграть» — справа от стрелки описание каждого шага.',
+ blocks:[{t:'seq',Q:{w:1260,
+  actors:[{id:'user',label:'Браузер',k:'ext'},{id:'proxy',label:'proxy',sub:'nginx',k:'edge'},{id:'ow',label:'Open WebUI',k:'app'},{id:'gw',label:'gateway',k:'core'},{id:'dlp',label:'DLP',k:'sec'},
+   {id:'ll',label:'LiteLLM',k:'core'},{id:'xr',label:'Xray',k:'egress'},{id:'anthropic',label:'Провайдер',sub:'через VPN',k:'ext'},{id:'pg',label:'PostgreSQL',k:'data'}],
+  ph:[{a:0,b:2,l:'Вход и Open WebUI'},{a:3,b:6,l:'gateway: личность и политики'},{a:7,b:10,l:'LiteLLM и выход'},{a:11,b:17,l:'Ответ и учёт'}],
+  msgs:[
+   {f:'user',t:'proxy',l:'POST /api/chat/completions',d:'Браузер отправляет сообщение по HTTPS (порт 443) с токеном сессии Open WebUI. Статусы и поток ответа идут по WebSocket <code>/ws/</code>.'},
+   {f:'proxy',t:'ow',l:'proxy_pass :8080',d:'nginx снимает TLS и проксирует в <code>openwebui:8080</code> (сеть frontend). Заголовки безопасности (HSTS в проде) добавляет proxy.'},
+   {f:'ow',t:'ow',l:'сессия и доступ к модели,\nRAG по базам знаний, файлы',d:'Open WebUI проверяет сессию и что модель доступна группам пользователя; ищет фрагменты в базах знаний (гибридный поиск BM25 + эмбеддинги e5-small, TOP_K=5); добавляет системный промпт и пресет; при большом контексте — сжатие истории.'},
+   {f:'ow',t:'gw',l:'POST /v1/chat/completions\nBearer токен + JWT пользователя',d:'Подключение «gateway»: <code>Authorization: Bearer GATEWAY_CLIENT_TOKEN</code>, <code>X-OpenWebUI-User-Jwt</code> (HS256: sub, email, role, iss=open-webui, exp, iat), <code>X-OpenWebUI-User-Group-Ids</code>, <code>X-OpenWebUI-Chat-Id</code>, <code>X-OpenWebUI-Message-Id</code>.'},
+   {f:'gw',t:'gw',l:'токен → маршрут → JWT → команда\n→ общий бюджет → RPM/TPM → поля',d:'По порядку: токен клиента (постоянное время) → allowlist маршрутов → JWT (iat не старше 600 с) → рабочая группа: <code>users[sub]</code> из gateway-map или первая ORG-группа из заголовка → <code>global_budget.blocked</code> → token bucket RPM/TPM → allowlist полей тела, <code>tools[].type=function</code>, только <code>data:</code>-URL картинок (защита от SSRF).'},
+   {f:'gw',t:'dlp',l:'POST /v1/scan',d:'Сообщения целиком (все строки, включая аргументы tool_calls) уходят в DLP. Если DLP недоступен — 503, если не включён fail_open.'},
+   {f:'dlp',t:'gw',l:'ALLOW · LOG · MASK · BLOCK',ret:1,d:'Итог по максимальной строгости. <b>BLOCK</b> → gateway отвечает 400 <code>dlp_blocked</code>; <b>MASK</b> → gateway подставляет замаскированные сообщения; <b>LOG</b> → событие в журнал, запрос идёт дальше.'},
+   {f:'gw',t:'ll',l:'ключ команды + end-user owui:<uuid>\n+ x-request-id',d:'Заголовки строятся заново (ничего от клиента не пересылается): <code>Bearer &lt;ключ команды&gt;</code>, <code>x-litellm-end-user-id: owui:&lt;uuid&gt;</code>, серверный <code>x-request-id</code>. В тело принудительно: <code>user</code> и <code>metadata</code> (чат, сообщение, группа).'},
+   {f:'ll',t:'ll',l:'доступ к модели, бюджеты команды\nи пользователя, RPM/TPM, deployment',d:'LiteLLM проверяет ключ и что модель в access group команды (тариф), бюджет команды и бюджет пользователя (customer → budget_id профиля), лимиты модели; выбирает deployment; для Claude добавляет <code>cache_control</code> (кэш промпта).'},
+   {f:'ll',t:'xr',l:'http://xray:10880/k/<provider>/…\nили CONNECT через :10809',d:'Если у ключа провайдера есть маршрут — <code>api_base</code> указывает на маршрутизатор ключей xray (обычный HTTP внутри сети egress, порт не опубликован). Иначе HTTPS через прокси <code>:10809</code> с доменными правилами.'},
+   {f:'xr',t:'anthropic',l:'VLESS → сервер / пул\nTLS до провайдера',d:'nginx в xray открывает TLS к провайдеру (SNI и проверка сертификата) через вход <code>key-&lt;provider&gt;</code>; routing отправляет его в выбранный сервер или пул. Туннель недоступен — ошибка соединения, не прямой выход (fail-closed).'},
+   {f:'anthropic',t:'ll',l:'SSE: поток токенов (через туннель)',ret:1,d:'Провайдер стримит ответ. При ошибке провайдера LiteLLM пробует резервную модель тарифа (fallback).'},
+   {f:'ll',t:'pg',l:'spend log (без текста)',d:'Стоимость, токены, команда, пользователь — в БД <code>litellm</code>. Тексты запросов и ответов не сохраняются (<code>store_prompts_in_spend_logs: false</code>, <code>turn_off_message_logging</code>).'},
+   {f:'ll',t:'gw',l:'SSE + x-litellm-call-id',ret:1,d:'Поток идёт без буферизации (таймауты: connect 10 с, read 600 с). Ошибки LiteLLM gateway обезличивает (без id команд и хешей ключей).'},
+   {f:'gw',t:'gw',l:'обрыв по длине → автопродолжение;\nучёт TPM, метрики, лог',d:'Если ответ оборвался с <code>finish_reason=length</code>, gateway сам запрашивает продолжение (до <code>LENGTH_CONTINUE_MAX_ATTEMPTS</code>=4) и склеивает поток. Пишет JSON-лог (request_id, user, team, model, status, latency) и метрики.'},
+   {f:'gw',t:'ow',l:'SSE',ret:1,d:'Open WebUI получает поток в формате OpenAI.'},
+   {f:'ow',t:'pg',l:'чат и сообщение',d:'Сообщение сохраняется в БД <code>openwebui</code>.'},
+   {f:'ow',t:'user',l:'поток ответа (socket.io /ws/)',ret:1,d:'Ответ доходит до браузера по WebSocket через proxy; интерфейс показывает статус, таймер и индикатор ответа.'}]}}]}
+});
+
+/* ---------- 4. Жизненный цикл ---------- */
+TABS.push({t:'4. Жизненный цикл запроса',
+o:{lead:'<b>Этапы запроса и где он может остановиться.</b> Сверху — этапы по порядку, снизу — возможные отказы.',
+ blocks:[{t:'scheme',S:{vb:[1220,330],
+  nodes:[
+   {id:'s1',x:85,y:90,w:135,label:'1. Приём',sub:'proxy · TLS\nсессия Open WebUI',k:'edge'},
+   {id:'s2',x:235,y:90,w:135,label:'2. Подготовка',sub:'RAG, файлы,\nсистемный промпт',k:'app'},
+   {id:'s3',x:385,y:90,w:135,label:'3. Личность',sub:'токен + JWT\n→ рабочая группа',k:'core'},
+   {id:'s4',x:535,y:90,w:135,label:'4. Политики',sub:'бюджет платформы,\nRPM/TPM, поля',k:'core'},
+   {id:'s5',x:685,y:90,w:135,label:'5. DLP',sub:'ALLOW · LOG\nMASK · BLOCK',k:'sec'},
+   {id:'s6',x:835,y:90,w:135,label:'6. Маршрут',sub:'LiteLLM: доступ,\nбюджеты, модель',k:'core'},
+   {id:'s7',x:985,y:90,w:135,label:'7. Генерация',sub:'Xray / cliproxy /\nLAN → провайдер',k:'egress'},
+   {id:'s8',x:1135,y:90,w:135,label:'8. Ответ и учёт',sub:'SSE, продолжение,\nspend, метрики',k:'ok'},
+   {id:'e3',x:385,y:240,w:135,label:'401 / 403',sub:'нет токена или JWT,\nнет группы, блок',k:'err'},
+   {id:'e4',x:535,y:240,w:135,label:'429',sub:'бюджет платформы\nили лимит запросов',k:'err'},
+   {id:'e5',x:685,y:240,w:135,label:'400 / 503',sub:'dlp_blocked /\nDLP недоступен',k:'err'},
+   {id:'e6',x:835,y:240,w:135,label:'отказ LiteLLM',sub:'нет доступа к модели,\nбюджет исчерпан',k:'err'},
+   {id:'e7',x:985,y:240,w:135,label:'ошибка провайдера',sub:'→ резервная модель\n→ иначе 5xx',k:'dec'}],
+  edges:[{f:'s1',t:'s2'},{f:'s2',t:'s3'},{f:'s3',t:'s4'},{f:'s4',t:'s5'},{f:'s5',t:'s6'},{f:'s6',t:'s7'},{f:'s7',t:'s8'},
+   {f:'s3',t:'e3',d:1,k:'err'},{f:'s4',t:'e4',d:1,k:'err'},{f:'s5',t:'e5',d:1,k:'err'},{f:'s6',t:'e6',d:1,k:'err'},{f:'s7',t:'e7',d:1,k:'dec'}]}}]},
+d:{lead:'<b>Решения по шагам.</b> Каждая проверка gateway и LiteLLM и что получает пользователь при отказе. Коды — из docs/CONTRACTS.md §5 и docs/gateway.md.',
+ blocks:[{t:'scheme',S:{vb:[1080,1010],
+  nodes:[
+   {id:'f0',x:330,y:35,w:420,label:'Запрос Open WebUI → gateway:4100',sub:'после сессии, RAG и подписи JWT',k:'app'},
+   {id:'f1',x:330,y:105,w:420,pill:1,label:'Bearer GATEWAY_CLIENT_TOKEN совпадает?',k:'dec'},
+   {id:'f2',x:330,y:170,w:420,pill:1,label:'Маршрут разрешён?',sub:'chat/completions · completions · embeddings · models',k:'dec'},
+   {id:'f3',x:330,y:240,w:420,pill:1,label:'gateway-map загружена?',k:'dec'},
+   {id:'f4',x:330,y:305,w:420,pill:1,label:'JWT валиден?',sub:'HS256 · iss=open-webui · exp ±30 с · iat ≤ 600 с',k:'dec'},
+   {id:'f5',x:330,y:375,w:420,pill:1,label:'Есть рабочая группа и пользователь не заблокирован?',sub:'users[sub] → иначе первая ORG-группа из заголовка',k:'dec'},
+   {id:'f6',x:330,y:445,w:420,pill:1,label:'Общий бюджет платформы не исчерпан?',k:'dec'},
+   {id:'f7',x:330,y:510,w:420,pill:1,label:'Лимиты RPM / TPM не превышены?',sub:'общий и на пользователя (token bucket)',k:'dec'},
+   {id:'f8',x:330,y:580,w:420,pill:1,label:'Тело допустимо?',sub:'поля из allowlist · tools=function · URL только data:',k:'dec'},
+   {id:'f9',x:330,y:650,w:420,pill:1,label:'DLP: итог проверки',sub:'MASK — текст заменяется и запрос идёт дальше',k:'sec'},
+   {id:'f10',x:330,y:720,w:420,pill:1,label:'LiteLLM: ключ, модель в тарифе, бюджеты?',sub:'бюджет команды · бюджет пользователя · RPM/TPM модели',k:'dec'},
+   {id:'f11',x:330,y:790,w:420,pill:1,label:'Провайдер ответил?',k:'dec'},
+   {id:'f12',x:330,y:860,w:420,pill:1,label:'Ответ оборван по длине (finish_reason=length)?',k:'dec'},
+   {id:'f13',x:330,y:950,w:420,label:'Ответ в Open WebUI → браузер',sub:'сообщение в БД · spend в LiteLLM · метрики и JSON-лог',k:'ok'},
+   {id:'x1',x:880,y:105,w:330,label:'401',sub:'любой путь без токена',k:'err'},
+   {id:'x2',x:880,y:170,w:330,label:'404',sub:'/key/generate, /spend/… и т. п. недоступны',k:'err'},
+   {id:'x3',x:880,y:240,w:330,label:'503',sub:'карта ещё не записана reconciler',k:'err'},
+   {id:'x4',x:880,y:305,w:330,label:'401',sub:'нет JWT, чужая подпись, старый iat',k:'err'},
+   {id:'x5',x:880,y:375,w:330,label:'403 no_workgroup / user_blocked',sub:'«пользователь не назначен в рабочую группу»',k:'err'},
+   {id:'x6',x:880,y:445,w:330,label:'429 global_budget_exceeded',sub:'«Исчерпан общий бюджет платформы»',k:'err'},
+   {id:'x7',x:880,y:510,w:330,label:'429 rate_limit_error',k:'err'},
+   {id:'x8',x:880,y:580,w:330,label:'400',sub:'неизвестные поля отброшены, недопустимые — отказ',k:'err'},
+   {id:'x9',x:880,y:650,w:330,label:'400 dlp_blocked · 503',sub:'«Запрос заблокирован политикой DLP: …»\n503 — DLP недоступен (если не fail_open)',k:'err'},
+   {id:'x10',x:880,y:720,w:330,label:'ошибка LiteLLM (обезличенная)',sub:'401/403 → общий permission_error',k:'err'},
+   {id:'x11',x:880,y:790,w:330,label:'fallback → резервная модель тарифа',sub:'повтор на резерве; нет резерва или он тоже упал → 5xx',k:'dec'},
+   {id:'x12',x:880,y:860,w:330,label:'Автопродолжение',sub:'новый запрос-продолжение (до 4 раз) → снова к провайдеру',k:'core'}],
+  edges:[
+   {f:'f0',t:'f1'},{f:'f1',t:'f2',l:'да',lp:[350,137]},{f:'f2',t:'f3',l:'да',lp:[350,207]},{f:'f3',t:'f4',l:'да',lp:[350,272]},{f:'f4',t:'f5',l:'да',lp:[350,340]},
+   {f:'f5',t:'f6',l:'да',lp:[350,410]},{f:'f6',t:'f7',l:'да',lp:[350,477]},{f:'f7',t:'f8',l:'да',lp:[350,545]},{f:'f8',t:'f9',l:'да',lp:[350,615]},
+   {f:'f9',t:'f10',l:'ALLOW · LOG · MASK',lp:[330,685]},{f:'f10',t:'f11',l:'да',lp:[350,755]},{f:'f11',t:'f12',l:'да, SSE',lp:[355,825]},{f:'f12',t:'f13',l:'нет',lp:[350,900]},
+   {f:'f1',t:'x1',l:'нет',k:'err'},{f:'f2',t:'x2',l:'нет',k:'err'},{f:'f3',t:'x3',l:'нет',k:'err'},{f:'f4',t:'x4',l:'нет',k:'err'},{f:'f5',t:'x5',l:'нет',k:'err'},
+   {f:'f6',t:'x6',l:'нет',k:'err'},{f:'f7',t:'x7',l:'нет',k:'err'},{f:'f8',t:'x8',l:'нет',k:'err'},{f:'f9',t:'x9',l:'BLOCK',k:'err'},{f:'f10',t:'x10',l:'нет',k:'err'},
+   {f:'f11',t:'x11',l:'ошибка',k:'dec'},{f:'f12',t:'x12',l:'да',k:'core'}]}}]}
+});
+
+/* ---------- 5. Маршрутизация и выход ---------- */
+TABS.push({t:'5. Модели и выход (Xray)',
+o:{lead:'<b>Куда LiteLLM отправляет запрос в зависимости от провайдера модели.</b> Облако — через Xray и VPN; подписки CLI — через cliproxy и Xray; OdiRouter — через Xray напрямую; локальная модель — без Xray. Всё, что не попало в маршруты, при включённом kill switch блокируется.',
+ blocks:[{t:'scheme',S:{vb:[1200,420],
+  nodes:[
+   {id:'ll',x:110,y:200,w:130,label:'LiteLLM',sub:'провайдер модели',k:'core'},
+   {id:'p1',x:330,y:70,w:150,label:'openai / anthropic',sub:'ключ API провайдера',k:'core',i:'Провайдеры типа <code>openai</code> / <code>anthropic</code>. Ключ хранится зашифрованным в БД, у каждого ключа можно задать канал выхода.'},
+   {id:'p2',x:330,y:160,w:150,label:'odirouter',sub:'openai_compatible',k:'core',i:D.odi},
+   {id:'p3',x:330,y:250,w:150,label:'cliproxy',sub:'комплект аккаунтов',k:'core',i:D.cp},
+   {id:'p4',x:330,y:350,w:150,label:'local',sub:'LOCAL_LLM_API_BASE',k:'core',i:D.lm},
+   {id:'cp',x:560,y:250,w:130,label:'cliproxy :8317',sub:'аккаунт из комплекта',k:'core'},
+   {id:'xr',x:560,y:115,w:130,h:70,label:'Xray',sub:'маршруты\nkill switch',k:'egress'},
+   {id:'vpn',x:790,y:70,w:150,label:'VPN-сервер / пул',sub:'VLESS REALITY/TLS',k:'egress'},
+   {id:'dir',x:790,y:165,w:150,label:'direct',sub:'«Разрешено напрямую»',k:'egress',i:'<b>direct</b> — прямой выход в интернет с IP сервера. Используется для хостов из списка «Разрешено напрямую» и маршрутов «Напрямую».'},
+   {id:'blk',x:790,y:250,w:150,label:'block',sub:'всё остальное',k:'err',i:'<b>block</b> — обработчик по умолчанию. При включённом kill switch всё, что не попало в маршруты, блокируется; маршруты через сервер/пул всегда fail-closed.'},
+   {id:'cloud',x:1060,y:45,w:190,label:'OpenAI · Anthropic',sub:'API провайдеров',i:D.openai+'<br>'+D.anthropic},
+   {id:'cli',x:1060,y:110,w:190,label:'Подписки CLI',sub:'серверы провайдеров'},
+   {id:'odi',x:1060,y:165,w:190,label:'OdiRouter'},
+   {id:'lm',x:1060,y:350,w:190,label:'Локальная LLM',sub:'host.docker.internal',k:'local'}],
+  edges:[
+   {f:'ll',t:'p1',fs:'r',ts:'l'},{f:'ll',t:'p2',fs:'r',ts:'l'},{f:'ll',t:'p3',fs:'r',ts:'l'},{f:'ll',t:'p4',fs:'r',ts:'l'},
+   {f:'p1',t:'xr',l:'/k/<provider>',fs:'r',ts:'l'},{f:'p2',t:'xr',l:'HTTPS_PROXY',fs:'r',ts:'l'},
+   {f:'p3',t:'cp'},{f:'cp',t:'xr',fs:'t',ts:'b',l:'cli-in :11200'},
+   {f:'xr',t:'vpn',fs:'r',ts:'l'},{f:'xr',t:'dir',fs:'r',ts:'l'},{f:'xr',t:'blk',fs:'r',ts:'l',d:1,k:'err'},
+   {f:'vpn',t:'cloud'},{f:'vpn',t:'cli',fs:'r',ts:'l'},{f:'dir',t:'odi'},
+   {f:'p4',t:'lm',l:'напрямую (NO_PROXY)'}],
+  routes:{'OpenAI / Anthropic':['ll','p1','xr','vpn','cloud'],'OdiRouter':['ll','p2','xr','dir','odi'],'Подписка CLI':['ll','p3','cp','xr','vpn','cli'],'Локальная LLM':['ll','p4','lm'],'Kill switch':['ll','p2','xr','blk']},
+  ri:{'Kill switch':'Если хост не попал ни в один маршрут и kill switch включён — соединение блокируется. Без строгого режима kill switch действует только на трафик, идущий через прокси.'}}}]},
+d:{lead:'<b>Устройство контейнера xray.</b> Три входа для разных клиентов, единая таблица маршрутов и выходы. Конфиг рендерят консоль и reconciler в том <code>egress_config</code>; супервизор применяет его без перезапуска остальных сервисов.',
+ blocks:[{t:'scheme',S:{vb:[1280,640],
+  groups:[{x:225,y:30,w:655,h:600,label:'xray (aiplatform/xray) · сети egress + egress_internal'},{x:960,y:30,w:310,h:330,label:'Интернет'}],
+  nodes:[
+   {id:'ll',x:110,y:130,w:130,label:'litellm',sub:'ключи провайдеров',k:'core'},
+   {id:'cp',x:110,y:370,w:130,label:'cliproxy',sub:'аккаунты CLI',k:'core'},
+   {id:'adm',x:110,y:470,w:130,label:'admin',sub:'«Проверить»',k:'ctrl'},
+   {id:'egc',x:110,y:580,w:150,label:'том egress_config',sub:'config.json\nkey-router.conf',k:'data',i:'Том <code>egress_config</code>: рендерят консоль (при сохранении) и reconciler (каждый тик), атомарно и только при изменении. xray монтирует его только для чтения.'},
+   {id:'in1',x:345,y:85,w:200,label:'HTTP-прокси :10809',sub:'HTTPS_PROXY · доменные правила',k:'egress',i:'Основной вход: <code>EGRESS_HTTPS_PROXY=http://xray:10809</code> у litellm и admin. Решение — по доменным правилам. В строгом режиме сюда же идёт и обычный HTTP.'},
+   {id:'kr',x:345,y:180,w:200,label:'маршрутизатор ключей :10880',sub:'nginx: /k/<provider>/…',k:'egress',i:'nginx внутри xray. LiteLLM получает <code>api_base=http://xray:10880/k/&lt;provider&gt;/…</code>; nginx открывает TLS к провайдеру (Host/SNI, <code>proxy_ssl_verify</code>) через свой вход <code>key-&lt;provider&gt;</code>. Неизвестный путь — 404 JSON.'},
+   {id:'dk',x:345,y:275,w:200,label:'key-<provider>',sub:'dokodemo 127.0.0.1:11000+i',k:'egress',stack:1,i:'Вход <code>dokodemo-door</code> на каждый ключ провайдера. Его правило стоит раньше доменных и ведёт в выбранный сервер / пул / direct / block.'},
+   {id:'cli',x:345,y:375,w:200,label:'cli-in :11200',sub:'отдельный пользователь на аккаунт',k:'egress',i:'HTTP-вход для аккаунтов cliproxy: reconciler прописывает этот прокси в файл аккаунта, пользователь входа определяет маршрут аккаунта. Вход в аккаунт (обмен OAuth-кода) — через пользователя <code>login.&lt;цель&gt;</code>.'},
+   {id:'tst',x:345,y:470,w:200,label:'тест-входы :10810+',sub:'по одному на сервер и пул',k:'egress',i:'Кнопка «Проверить» в консоли: через тестовый вход запрашивает <code>https://ipinfo.io/json</code> (IP и страна выхода) и главную страницу каждого провайдера.'},
+   {id:'rt',x:600,y:280,w:150,h:120,label:'routing',sub:'по порядку:\n1) ключи API\n2) CLI-аккаунты\n3) домены\n4) catch-all',k:'dec',i:'Правила проверяются по порядку; цель — сервер, пул, <code>direct</code> или <code>block</code>. Маршрут по ключу важнее доменных правил. Набор всегда заканчивается явным catch-all.'},
+   {id:'sup',x:600,y:580,w:200,label:'supervisor.sh',sub:'раз в 3 с: хеш → xray -test → рестарт\nnginx -t → HUP',k:'ctrl',i:'Супервизор сравнивает хеш конфига раз в 3 с. Новый файл проверяется <code>xray run -test</code> и только потом применяется (обрыв соединений на доли секунды). Отклонённый не загружается — работает последняя рабочая копия (том <code>egress_status</code>). key-router проверяется <code>nginx -t</code> и перезагружается по HUP без обрыва.'},
+   {id:'ob',x:800,y:85,w:130,label:'block',sub:'по умолчанию',k:'err'},
+   {id:'os',x:800,y:200,w:130,label:'сервер',sub:'VLESS REALITY/TLS',k:'egress'},
+   {id:'op',x:800,y:300,w:130,label:'пул',sub:'burstObservatory\nfallbackTag',k:'egress',i:'Пул — балансировщик Xray по проверкам <code>burstObservatory</code>: минимальная задержка, приоритет, по кругу, случайно. <code>fallbackTag</code> = первый сервер пула — иначе при «все недоступны» Xray ушёл бы в маршрут по умолчанию.'},
+   {id:'od',x:800,y:420,w:130,label:'direct',sub:'«Разрешено напрямую»',k:'egress'},
+   {id:'met',x:800,y:500,w:130,label:':10808',sub:'метрики, observatory',k:'mon',i:'<code>/debug/vars</code> — доступность серверов для консоли и healthcheck. Также отдаёт <code>/debug/pprof</code>; доступен только из сетей egress/egress_internal.'},
+   {id:'vpn',x:1020,y:210,w:100,label:'VPN',sub:'серверы',k:'egress',stack:1},
+   {id:'prov',x:1185,y:150,w:150,label:'OpenAI · Anthropic',i:D.openai+'<br>'+D.anthropic},
+   {id:'clip',x:1185,y:260,w:150,label:'Подписки CLI'},
+   {id:'odi',x:1110,y:420,w:190,label:'OdiRouter · хосты direct',i:D.odi},
+   {id:'lm',x:1110,y:500,w:190,label:'Локальная LLM',sub:'в строгом режиме',k:'local'}],
+  edges:[
+   {f:'ll',t:'in1',fs:'r',ts:'l',l:'CONNECT'},{f:'ll',t:'kr',fs:'r',ts:'l',l:'HTTP /k/…'},{f:'cp',t:'cli',l:'HTTP proxy'},{f:'adm',t:'tst'},
+   {f:'kr',t:'dk',l:'TLS к провайдеру'},
+   {f:'in1',t:'rt',fs:'r',ts:'t'},{f:'dk',t:'rt',fs:'r',ts:'l'},{f:'cli',t:'rt',fs:'r',ts:'l'},{f:'tst',t:'rt',fs:'r',ts:'b'},
+   {f:'rt',t:'ob',fs:'r',ts:'l',k:'err',d:1},{f:'rt',t:'os',fs:'r',ts:'l'},{f:'rt',t:'op',fs:'r',ts:'l'},{f:'rt',t:'od',fs:'r',ts:'l'},
+   {f:'os',t:'vpn',l:'VLESS'},{f:'op',t:'vpn'},{f:'vpn',t:'prov'},{f:'vpn',t:'clip'},{f:'od',t:'odi'},{f:'od',t:'lm',fs:'r',ts:'l'},
+   {f:'adm',t:'egc',k:'ctrl'},{f:'egc',t:'sup',l:'читает (ro)',k:'ctrl'},{f:'sup',t:'rt',d:1,k:'ctrl',l:'применяет',pts:[[600,555],[600,340]],lp:[600,470]}],
+  routes:{'Ключ API → сервер':['ll','kr','dk','rt','os','vpn','prov'],'Доменное правило → пул':['ll','in1','rt','op','vpn','prov'],'CLI-аккаунт':['cp','cli','rt','os','vpn','clip'],'Напрямую':['ll','in1','rt','od','odi'],'Kill switch':['ll','in1','rt','ob'],'Проверка из консоли':['adm','tst','rt','op','vpn']},
+  ri:{'Ключ API → сервер':'Ключ провайдера идёт обычным HTTP только внутри сети egress (порт не опубликован), дальше TLS до провайдера сквозной.','Kill switch':'Первый outbound — <code>block</code> (обработчик по умолчанию). Kill switch включён → блокируется всё, кроме маршрутов и «Разрешено напрямую».'}}},
+ {t:'html',html:`<h3>Режимы выхода</h3>`+table(['Режим','Как включается','Что происходит'],[
+  ['Без xray','<code>EGRESS_HTTPS_PROXY</code> пуст','litellm/admin ходят в интернет напрямую из сети <code>egress</code>.'],
+  ['xray включён','<code>scripts/egress-proxy.sh enable \'vless://…\'</code>','litellm и admin всегда шлют HTTPS через <code>xray:10809</code>; что идёт в туннель, напрямую или блокируется — решает документ <code>egress</code> в консоли, без пересоздания контейнеров.'],
+  ['Строгий режим','<code>scripts/egress-proxy.sh strict on</code>','litellm, admin, cliproxy переходят в сеть <code>egress_internal</code> (internal) — без маршрута наружу, кроме xray. Обычный HTTP тоже через xray, <code>host.docker.internal</code> убран из NO_PROXY; локальная модель — через direct xray. Отсутствие конфига = «всё блокировать».'],
+  ['Маршруты по ключам','консоль → «Исходящий трафик» → ключи','<code>api_base</code> провайдера меняется на <code>http://xray:10880/k/&lt;provider&gt;</code>; канал: сервер, пул, напрямую или блок. Только в режиме БД.']])}]}
+});
+
+/* ---------- 6. Сети ---------- */
+const NETS=['frontend','backend','database','egress','egress_internal','terminals','docker_api','metrics','term-&lt;hash&gt;','ocr'];
+const Y='<span class="y">●</span>',P='<span class="p">◐</span>';
+const NM={proxy:[0],openwebui:[0,1,2,5],gateway:[1],litellm:[1,2,'3s'],postgres:[2],redis:[2],dlp:[1],docling:[1,9],'terminal-broker':[5,6,8,9],'docker-api':[6],cliproxy:[1,'3s'],reconciler:[1,2],bootstrap:[1,2],admin:[0,1,2,'3s'],xray:[3,4],backup:[2],prometheus:[1,7],grafana:[0,7],'term-* (песочница)':[8]};
+function netRows(){return Object.keys(NM).map(s=>{const r=[`<b>${s}</b>`];for(let i=0;i<NETS.length;i++){let v='';
+  NM[s].forEach(x=>{if(x===i)v=Y;if(x==='3s'&&i===3)v=P;if(x==='3s'&&i===4)v=P});r.push(v)}return r})}
+TABS.push({t:'6. Сети',
+o:{lead:'<b>Сетевые зоны.</b> Снаружи доступен только proxy (443/80). Почти все внутренние сети Docker — <code>internal</code> (без выхода в интернет); наружу ходят только сети <code>frontend</code> и <code>egress</code>.',
+ blocks:[{t:'scheme',S:{vb:[1260,560],
+  groups:[{x:20,y:40,w:160,h:400,label:'Корпоративная сеть'},{x:200,y:40,w:1040,h:420,label:'Сервер VM-for-AI-Iron · eno1.3170 = 172.31.70.118/24, шлюз 172.31.70.1'},{x:560,y:70,w:670,h:380,label:'Сети Docker (bip 10.244.255.1/24 · пулы 10.244.0.0/17 по /24)'}],
+  nodes:[
+   {id:'lan',x:100,y:120,w:140,label:'Пользователи',sub:'VLAN 3170 и др.'},
+   {id:'admpc',x:100,y:240,w:140,label:'Админ-ПК',sub:'192.168.200.0/24'},
+   {id:'wz',x:100,y:350,w:140,label:'Wazuh',sub:'172.31.70.9 / .19'},
+   {id:'nic',x:300,y:150,w:150,label:'eno1.3170',sub:'VLAN 3170 (trunk)',k:'edge',i:'Порт коммутатора — trunk, VLAN 3170 тегирован; <code>eno1</code> без адреса, <code>eno1.3170</code> = 172.31.70.118/24, шлюз 172.31.70.1. Сеть настраивается ifupdown. Подробно — docs/incidents/2026-10-26-network-vlan-docker.md.'},
+   {id:'ufw',x:300,y:300,w:150,label:'ufw',sub:'22, 443 — с админ-ПК\n22 — с Wazuh',k:'sec'},
+   {id:'dkr',x:460,y:150,w:150,label:'dockerd :443 / :80',sub:'опубликованные порты\n(в обход ufw)',k:'edge',i:'Опубликованные порты Docker обходят ufw (цепочка DOCKER-USER пуста) — 443/80 доступны всем, кто достаёт до сервера. Ограничение доступа к 443 — отдельное решение (DOCKER-USER).'},
+   {id:'ssh',x:460,y:300,w:150,label:'sshd :22',k:'local'},
+   {id:'fe',x:680,y:150,w:200,label:'frontend',sub:'proxy · openwebui · admin · grafana\nесть выход в интернет',k:'edge'},
+   {id:'be',x:680,y:270,w:200,label:'backend (internal)',sub:'gateway · litellm · dlp · docling\nreconciler · cliproxy · prometheus',k:'core'},
+   {id:'db',x:680,y:385,w:200,label:'database (internal)',sub:'postgres · redis · backup\n+ openwebui · litellm · admin',k:'data'},
+   {id:'eg',x:920,y:270,w:190,label:'egress',sub:'litellm · admin · cliproxy · xray\nвыход в интернет',k:'egress'},
+   {id:'egi',x:920,y:385,w:190,label:'egress_internal',sub:'строгий режим: только\nчерез xray',k:'egress',dash:1},
+   {id:'tm',x:920,y:130,w:190,label:'terminals (internal)',sub:'openwebui ↔ broker\n10.242.0.0/24',k:'term'},
+   {id:'da',x:1130,y:130,w:170,label:'docker_api (internal)',sub:'broker ↔ docker-api',k:'term'},
+   {id:'ut',x:1130,y:250,w:170,label:'term-<hash> × N',sub:'/28 на пользователя\nиз 10.241.0.0/16',k:'term',stack:1},
+   {id:'mt',x:1130,y:385,w:170,label:'metrics (internal)',sub:'prometheus ↔ grafana',k:'mon'},
+   {id:'inet',x:920,y:515,w:190,label:'Интернет',sub:'через NAT хоста'}],
+  edges:[
+   {f:'lan',t:'nic',l:'HTTPS 443'},{f:'admpc',t:'nic',l:'443 / 22'},{f:'wz',t:'ufw',l:'22'},
+   {f:'nic',t:'dkr',l:'443/80'},{f:'nic',t:'ufw',l:'22'},{f:'ufw',t:'ssh'},
+   {f:'dkr',t:'fe',l:'→ proxy'},{f:'fe',t:'be',l:'openwebui, admin',fs:'b',ts:'t'},{f:'be',t:'db',fs:'b',ts:'t',l:'openwebui, litellm, admin,\nreconciler'},
+   {f:'be',t:'eg',l:'litellm, cliproxy'},{f:'eg',t:'egi',d:1,l:'xray в обеих'},
+   {f:'fe',t:'tm',l:'openwebui'},{f:'tm',t:'da',l:'broker'},{f:'da',t:'ut',l:'создаёт'},{f:'be',t:'mt',pts:[[780,285],[1045,285],[1045,385]],d:1,l:'prometheus',lp:[1000,330]},
+   {f:'eg',t:'inet'},{f:'fe',t:'inet',d:1,pts:[[580,150],[580,515],[825,515]],l:'веб-поиск OWUI',lp:[640,500]}]}}]},
+d:{lead:'<b>Какой контейнер в какой сети.</b> ● — подключён; ◐ — <code>egress</code> в обычном режиме или <code>egress_internal</code> в строгом (<code>EGRESS_CLIENT_NETWORK</code>). Сети с internal не имеют маршрута наружу.',
+ blocks:[{t:'html',html:table(['Сервис'].concat(NETS),netRows(),['','c','c','c','c','c','c','c','c','c','c'])},
+ {t:'html',html:'<h3>Сети</h3>'+table(['Сеть','internal','Кто внутри','Зачем'],[
+  ['frontend','нет','proxy, openwebui, admin, grafana','вход из proxy; у Open WebUI отсюда веб-поиск'],
+  ['backend','да','openwebui, gateway, litellm, dlp, docling, reconciler, bootstrap, admin, cliproxy, prometheus','внутренние API платформы'],
+  ['database','да','postgres, redis, openwebui, litellm, reconciler, bootstrap, admin, backup','доступ к БД только тем, кому нужно'],
+  ['egress','нет','litellm, admin, cliproxy, xray','выход к провайдерам (через xray, если включён)'],
+  ['egress_internal','да','xray + litellm/admin/cliproxy в строгом режиме','обойти прокси нельзя даже коду, игнорирующему HTTPS_PROXY'],
+  ['terminals','да, 10.242.0.0/24','openwebui, terminal-broker','брокер доверяет X-User-Id, потому что достучаться может только Open WebUI'],
+  ['docker_api','да','terminal-broker, docker-api','доступ к Docker API только у брокера'],
+  ['metrics','да','prometheus, grafana','Grafana не видит сервисы backend'],
+  ['ocr','да, 10.242.1.0/28','terminal-broker, docling','распознавание сканов из песочницы (ocr_document); брокер не попадает в backend'],
+  ['term-&lt;hash&gt;','да, /28 из 10.241.0.0/16','одна песочница + broker','песочницы изолированы друг от друга и от платформы']])},
+ {t:'html',html:'<h3>Порты</h3>'+table(['Сервис','Порт','Кто подключается'],[
+  ['proxy','<b>443, 80 (опубликованы)</b>','браузеры; 80 → 301 на https'],['openwebui','8080','proxy'],['admin','8000','proxy (/console/)'],['grafana','3000','proxy (/grafana/)'],
+  ['gateway','4100','openwebui; prometheus (/metrics)'],['dlp','4200','gateway, admin; prometheus'],['litellm','4000','gateway, reconciler, admin; prometheus (/metrics/)'],
+  ['docling','5001','openwebui'],['cliproxy','8317','litellm (API), admin/reconciler (/v0/management)'],['terminal-broker','8000','openwebui'],['docker-api','2375','terminal-broker'],
+  ['xray','10809 · 10880 · 11200 · 10810+ · 10808','litellm, admin, cliproxy'],['postgres','5432','openwebui, litellm, admin, reconciler, backup'],['redis','6379','litellm'],['prometheus','9090','grafana, admin']])},
+ {t:'html',html:'<h3>Путь пакета от пользователя до контейнера</h3>'+table(['#','Где','Что происходит'],[
+  ['1','ПК пользователя','DNS <code>ai.servers.local</code> → 172.31.70.118; TCP 443'],
+  ['2','коммутатор','порт сервера — trunk, кадр приходит с тегом VLAN 3170'],
+  ['3','eno1 → eno1.3170','VLAN-интерфейс 172.31.70.118/24 (ifupdown); eno1 без адреса'],
+  ['4','iptables nat (Docker)','DNAT 443/80 → контейнер proxy в сети frontend; правила ufw INPUT сюда не применяются (FORWARD, DOCKER-USER пуст)'],
+  ['5','мост frontend','proxy (nginx) снимает TLS'],
+  ['6','внутренние мосты','openwebui (frontend+backend) → gateway → litellm (backend); БД — через мост database'],
+  ['7','выход','litellm → xray (мост egress) → MASQUERADE хоста → шлюз 172.31.70.1 → интернет / VPN-сервер'],
+  ['8','ответ','обратный путь по conntrack; правило <code>pref 799 lookup main suppress_prefixlength 0</code> держит ответы в свою подсеть мимо шлюза']])},
+ {t:'html',html:'<h3>Хост (прод)</h3><div class="lead warn">Опубликованные порты Docker обходят ufw: цепочка <code>DOCKER-USER</code> пуста, поэтому 443/80 доступны всем, кто достаёт до сервера. Правила ufw (22/443 с админ-ПК, 22 с Wazuh) действуют только на сервисы хоста. Подсети Docker закреплены (<code>daemon.json</code>: bip 10.244.255.1/24, пулы 10.244.0.0/17), чтобы не пересекаться с корпоративными 172.x.</div>'}]}
+});
+
+/* ---------- 7. Управление ---------- */
+TABS.push({t:'7. Управление конфигурацией',
+o:{lead:'<b>Откуда берутся настройки.</b> Администратор меняет их в консоли → они сохраняются в БД <code>platform</code> → движок reconcile приводит сервисы к этому состоянию (сразу и затем каждый тик). YAML из Git — только начальное заполнение.',
+ blocks:[{t:'scheme',S:{vb:[1200,400],
+  nodes:[
+   {id:'admu',x:80,y:170,w:130,label:'Администратор'},
+   {id:'adm',x:250,y:170,w:130,label:'Консоль',sub:'/console/',k:'ctrl'},
+   {id:'pg',x:450,y:170,w:170,label:'БД platform',sub:'документы + ревизии\nаудит, роли консоли',k:'data'},
+   {id:'rec',x:660,y:170,w:160,label:'reconciler',sub:'сразу после сохранения\nи каждый тик',k:'ctrl'},
+   {id:'tow',x:960,y:45,w:220,label:'Open WebUI',sub:'группы, модели, папки,\nбазы знаний, каналы',k:'app'},
+   {id:'tll',x:960,y:140,w:220,label:'LiteLLM',sub:'ключи, команды, бюджеты,\nмодели, fallbacks',k:'core'},
+   {id:'tgw',x:960,y:235,w:220,label:'gateway',sub:'gateway-map: группы → ключи,\nблокировки, бюджет, DLP',k:'core'},
+   {id:'txr',x:960,y:330,w:220,label:'Xray · cliproxy',sub:'маршруты выхода,\nаккаунты CLI',k:'egress'},
+   {id:'yaml',x:450,y:330,w:170,label:'config/*.yaml',sub:'seed из Git (ro)',k:'ext'},
+   {id:'exp',x:250,y:330,w:170,label:'config-export/*.yaml',sub:'снимок для аудита/Git',k:'ext'}],
+  edges:[{f:'admu',t:'adm'},{f:'adm',t:'pg',l:'сохранить'},{f:'pg',t:'rec',l:'желаемое\nсостояние'},
+   {f:'rec',t:'tow',fs:'r',ts:'l'},{f:'rec',t:'tll',fs:'r',ts:'l'},{f:'rec',t:'tgw',fs:'r',ts:'l'},{f:'rec',t:'txr',fs:'r',ts:'l'},
+   {f:'yaml',t:'pg',d:1,l:'первый запуск'},{f:'adm',t:'exp',d:1,l:'экспорт'}],
+  routes:{'Изменение в консоли':['admu','adm','pg','rec','tll'],'Первая установка':['yaml','pg','rec','tow']}}}]},
+d:{lead:'<b>Control plane подробно.</b> Консоль и reconciler используют один движок (<code>bootstrap/app</code>). Порядок применения: egress → Open WebUI → членство в группах → LiteLLM → gateway-map → статус. Одновременно работает только один проход (лок <code>/state/reconcile.lock</code>).',
+ blocks:[{t:'scheme',S:{vb:[1280,600],
+  nodes:[
+   {id:'admu',x:70,y:170,w:120,label:'Администратор'},
+   {id:'adm',x:240,y:170,w:130,label:'admin',sub:'консоль',k:'ctrl'},
+   {id:'yaml',x:70,y:350,w:120,label:'config/*.yaml',sub:'Git, ro',k:'ext'},
+   {id:'boot',x:240,y:350,w:130,label:'bootstrap',sub:'apply при установке',k:'ctrl',dash:1},
+   {id:'pg',x:445,y:170,w:180,label:'БД platform',sub:'groups · models · budgets\negress · cliproxy · dlp\nconsole-roles · аудит',k:'data'},
+   {id:'rec',x:660,y:170,w:150,label:'reconciler',sub:'reconcile --loop\nлок reconcile.lock',k:'ctrl'},
+   {id:'st',x:660,y:330,w:170,label:'том platform_state',sub:'ids.json · keys.json (0600)\nключ админа OWUI · статус',k:'data'},
+   {id:'exp',x:445,y:470,w:180,label:'config-export/*.yaml',sub:'снимок после каждого\nсохранения',k:'ext'},
+   {id:'tow',x:950,y:45,w:230,label:'Open WebUI API',sub:'owui.config · connection · group\nknowledge · model · folder · channel',k:'app'},
+   {id:'tll',x:950,y:140,w:230,label:'LiteLLM API',sub:'credential · budget · model · router\nteam · key · customer',k:'core'},
+   {id:'gm',x:950,y:240,w:230,label:'том gateway_map',sub:'gateway-map.json (0640)',k:'data'},
+   {id:'gw',x:1185,y:240,w:130,label:'gateway',sub:'перечитывает\nкаждые 2 с',k:'core'},
+   {id:'egc',x:950,y:335,w:230,label:'том egress_config',sub:'config.json · key-router.conf',k:'data'},
+   {id:'xr',x:1185,y:335,w:130,label:'xray',sub:'супервизор, 3 с',k:'egress'},
+   {id:'cpm',x:950,y:430,w:230,label:'cliproxy /v0/management',sub:'стратегия ротации,\nпрокси аккаунтов',k:'core'},
+   {id:'dlp',x:950,y:530,w:230,label:'dlp',sub:'правила из config-export',k:'sec'}],
+  edges:[
+   {f:'admu',t:'adm'},{f:'adm',t:'pg',l:'сохранить\n(ревизия + аудит)'},{f:'adm',t:'rec',pts:[[240,145],[240,100],[660,100],[660,135]],l:'применить сразу (тот же движок)',lp:[450,100],d:1},
+   {f:'yaml',t:'boot',l:'seed'},{f:'boot',t:'pg',l:'первый импорт',fs:'r',ts:'b'},
+   {f:'pg',t:'rec',l:'желаемое'},{f:'rec',t:'st',fs:'b',ts:'t'},
+   {f:'rec',t:'tow',fs:'r',ts:'l'},{f:'rec',t:'tll',fs:'r',ts:'l'},{f:'rec',t:'gm',fs:'r',ts:'l'},{f:'gm',t:'gw',l:'ro'},
+   {f:'rec',t:'egc',fs:'r',ts:'l'},{f:'egc',t:'xr',l:'ro'},{f:'rec',t:'cpm',fs:'r',ts:'l'},
+   {f:'adm',t:'exp',pts:[[305,182],[385,182],[385,445]],d:1,l:'экспорт',lp:[385,400]},{f:'exp',t:'dlp',l:'ro',fs:'r',ts:'l'},
+   {f:'tow',t:'rec',d:1,pts:[[835,55],[760,55],[760,150],[735,150]],l:'пользователи',lp:[790,55]}],
+  routes:{'Изменение тарифа':['admu','adm','pg','rec','tll'],'Новый сотрудник → карта':['tow','rec','gm','gw'],'Смена канала Xray':['admu','adm','pg','rec','egc','xr'],'Первая установка':['yaml','boot','pg','rec','tow']},
+  ri:{'Новый сотрудник → карта':'Reconciler читает пользователей Open WebUI, достраивает производные группы (AI-тариф, FEATURE-*, MGR-*) и записывает в gateway-map, к какой команде LiteLLM относится пользователь. До ближайшего тика gateway определяет группу по заголовку X-OpenWebUI-User-Group-Ids.',
+      'Изменение тарифа':'Сохранение тарифа в консоли добавляет в access group модели тарифа и их fallbacks (скрытые резервные модели) и сразу применяет изменения в LiteLLM.'}}},
+ {t:'html',html:'<h3>Что считается источником истины</h3>'+table(['Что','Где','Кто меняет'],[
+  ['Конфигурация платформы','БД <code>platform</code> (документы с ревизиями)','консоль; <code>bootstrap import-config</code>'],
+  ['Начальная конфигурация','<code>config/*.yaml</code> в Git (ro в контейнерах)','разработчики; читается только при первом заполнении'],
+  ['Снимок для аудита','<code>config-export/*.yaml</code> (не в Git)','консоль/reconciler после каждого сохранения'],
+  ['Состояние Open WebUI и LiteLLM','их собственные БД','только через их HTTP API (прямой SQL запрещён)'],
+  ['Секреты ключей LiteLLM','<code>/state/secrets/keys.json</code> (0600)','движок генерирует до создания ключа'],
+  ['Карта gateway','<code>gateway_map/gateway-map.json</code>','reconciler/консоль; gateway — только чтение']])}]}
+});
+
+/* ---------- 8. Песочницы ---------- */
+TABS.push({t:'8. Песочницы',
+o:{lead:'<b>Терминал с файлами в чате.</b> Open WebUI вызывает брокер; брокер через ограниченный Docker API поднимает личную песочницу пользователя без интернета; файлы чатов лежат в отдельном томе и переживают перезапуск.',
+ blocks:[{t:'scheme',S:{vb:[1200,320],
+  nodes:[
+   {id:'user',x:80,y:150,w:120,label:'Пользователь',sub:'чат + файлы'},
+   {id:'ow',x:270,y:150,w:150,label:'Open WebUI',sub:'подключение «Песочница»',k:'app'},
+   {id:'tb',x:480,y:150,w:150,label:'terminal-broker',sub:'по одной песочнице\nна пользователя',k:'term'},
+   {id:'dapi',x:700,y:60,w:150,label:'docker-api',sub:'только containers,\nnetworks, volumes',k:'term'},
+   {id:'term',x:900,y:150,w:170,label:'песочница',sub:'open-terminal\nбез интернета',k:'term',stack:1},
+   {id:'vol',x:900,y:270,w:170,label:'том папок чатов',sub:'/home/user/chats',k:'data'}],
+  edges:[{f:'user',t:'ow'},{f:'ow',t:'tb',l:'ключ + X-User-Id'},{f:'tb',t:'dapi',l:'создать',fs:'r',ts:'l'},{f:'dapi',t:'term',fs:'r',ts:'t',l:'docker'},
+   {f:'tb',t:'term',l:'команды, файлы (сеть /28)'},{f:'term',t:'vol'}],
+  routes:{'Запуск команды':['user','ow','tb','term','vol']}}}]},
+d:{lead:'<b>Изоляция и жизненный цикл песочниц.</b> У каждого пользователя своя internal-сеть /28, свой ключ (HMAC) и свой том. Контейнер одноразовый, данные чатов — нет.',
+ blocks:[{t:'h',text:'Устройство'},{t:'scheme',S:{vb:[1240,470],
+  groups:[{x:560,y:35,w:330,h:140,label:'сеть enterprise-term-a1b2 (/28, internal)'},{x:560,y:195,w:330,h:140,label:'сеть enterprise-term-c3d4 (/28, internal)'}],
+  nodes:[
+   {id:'ow',x:110,y:150,w:150,label:'openwebui',sub:'сеть terminals',k:'app'},
+   {id:'tb',x:360,y:150,w:160,label:'terminal-broker',sub:'terminals + docker_api\n+ сеть каждой песочницы',k:'term'},
+   {id:'dapi',x:360,y:320,w:160,label:'docker-api',sub:'socket-proxy',k:'term'},
+   {id:'dock',x:110,y:320,w:150,label:'dockerd',sub:'/var/run/docker.sock',k:'local'},
+   {id:'sa',x:740,y:110,w:200,label:'term-a1b2',sub:'open-terminal · uid 1000\nread-only · tmpfs /home/user',k:'term',i:D.term},
+   {id:'sb',x:740,y:270,w:200,label:'term-c3d4',sub:'другой пользователь',k:'term',i:D.term},
+   {id:'va',x:1080,y:110,w:200,label:'том term-a1b2',sub:'папки чатов → /home/user/chats',k:'data'},
+   {id:'vb',x:1080,y:270,w:200,label:'том term-c3d4',sub:'квота, срок хранения',k:'data'},
+   {id:'led',x:360,y:425,w:200,label:'том terminal_broker_state',sub:'ledger последнего использования',k:'data'},
+   {id:'more',x:740,y:390,w:200,label:'…ещё песочницы',sub:'всего ≤ TERMINALS_MAX_ACTIVE (20)',k:'term',dash:1}],
+  edges:[{f:'ow',t:'tb',l:'Bearer TERMINALS_API_KEY\n+ X-User-Id + X-Session-Id'},{f:'tb',t:'dapi',l:'сеть docker_api'},{f:'dapi',t:'dock',l:'фильтр API'},
+   {f:'tb',t:'sa',l:'ключ = HMAC',fs:'r',ts:'l'},{f:'tb',t:'sb',fs:'r',ts:'l'},{f:'sa',t:'va'},{f:'sb',t:'vb'},{f:'tb',t:'led',pts:[[440,172],[455,172],[455,400]],d:1},{f:'tb',t:'more',d:1,fs:'r',ts:'l'}],
+  hint:'Песочница видит только брокер: нет интернета, нет доступа к сервисам платформы и чужим песочницам. Даже достучавшись, чужой ключ не подойдёт — он вычисляется HMAC от TERMINALS_API_KEY.'}},
+ {t:'h',text:'Жизненный цикл'},{t:'scheme',S:{vb:[1240,340],
+  nodes:[
+   {id:'z0',x:100,y:170,w:150,label:'Нет песочницы',k:'ext'},
+   {id:'z1',x:330,y:170,w:190,label:'Создание',sub:'сеть /28 + том + контейнер\nключ = HMAC',k:'term'},
+   {id:'z2',x:580,y:170,w:180,label:'Работает',sub:'команды, файлы,\nпубликация файлов',k:'ok'},
+   {id:'z3',x:830,y:170,w:180,label:'Простой',sub:'нет запросов\nи открытых терминалов',k:'dec'},
+   {id:'z4',x:1100,y:170,w:200,label:'Остановлена',sub:'контейнер и сеть удалены,\nтом с чатами остаётся',k:'local'},
+   {id:'zb',x:330,y:290,w:190,label:'«Все терминалы заняты»',sub:'MAX_ACTIVE и нет простоя ≥ 15 мин',k:'err'},
+   {id:'zv',x:1100,y:290,w:200,label:'Папки / том удалены',sub:'через CHAT_RETENTION_DAYS (30)\nбез использования',k:'err'}],
+  edges:[{f:'z0',t:'z1',l:'первый запрос'},{f:'z1',t:'z2'},{f:'z2',t:'z3',l:'тишина'},
+   {f:'z3',t:'z2',pts:[[830,197],[830,225],[580,225],[580,197]],l:'новый запрос',lp:[705,225]},
+   {f:'z3',t:'z4',l:'24 ч простоя\nили вытеснение'},
+   {f:'z2',t:'z4',pts:[[600,143],[600,70],[1080,70],[1080,143]],l:'168 ч жизни · OOM · рестарт брокера',lp:[840,70]},
+   {f:'z4',t:'z1',pts:[[1120,143],[1120,30],[330,30],[330,143]],l:'новый запрос (папки чатов на месте)',lp:[720,30],d:1},
+   {f:'z4',t:'zv',d:1,k:'err'},{f:'z0',t:'zb',d:1,k:'err',l:'лимит',fs:'b',ts:'l'}]}},
+ {t:'html',html:table(['Параметр','По умолчанию','Смысл'],[
+  ['TERMINALS_IDLE_TIMEOUT_MINUTES','1440','остановка после суток без запросов и открытых терминалов'],
+  ['TERMINALS_MAX_LIFETIME_HOURS','168','предельный срок жизни контейнера (подхватывает новый образ)'],
+  ['TERMINALS_MAX_ACTIVE','20','одновременно запущенных песочниц; сверх — вытеснение простаивающей'],
+  ['TERMINALS_EVICT_IDLE_MINUTES','15','минимальный простой для вытеснения'],
+  ['TERMINALS_CHAT_RETENTION_DAYS','30','удаление неиспользуемых папок чатов и томов (0 — не удалять)']])}]}
+});
+
+/* ---------- 9. Безопасность ---------- */
+TABS.push({t:'9. Безопасность',
+o:{lead:'<b>Зоны доверия.</b> Каждый переход между зонами проверяется: TLS на входе, подписанная личность на gateway, ключ команды в LiteLLM, kill switch на выходе. Песочницы изолированы отдельно.',
+ blocks:[{t:'scheme',S:{vb:[1240,360],
+  groups:[{x:20,y:40,w:150,h:150,label:'Недоверенная'},{x:185,y:40,w:150,h:150,label:'Вход'},{x:350,y:40,w:150,h:150,label:'Приложение'},{x:515,y:40,w:150,h:150,label:'Граница доверия'},
+   {x:680,y:40,w:150,h:150,label:'Ядро'},{x:845,y:40,w:150,h:150,label:'Выход'},{x:1010,y:40,w:215,h:150,label:'Внешние'}],
+  nodes:[
+   {id:'user',x:95,y:125,w:130,label:'Браузер',sub:'любой в сети'},
+   {id:'proxy',x:260,y:125,w:130,label:'proxy',sub:'TLS, HSTS\nединственный порт',k:'edge'},
+   {id:'ow',x:425,y:125,w:130,label:'Open WebUI',sub:'сессия, права групп\nJWT на запрос',k:'app'},
+   {id:'gw',x:590,y:125,w:130,label:'gateway + DLP',sub:'JWT, группа, лимиты\nallowlist, DLP',k:'sec'},
+   {id:'ll',x:755,y:125,w:130,label:'LiteLLM',sub:'ключ команды\nтариф, бюджеты',k:'core'},
+   {id:'xr',x:920,y:125,w:130,label:'Xray',sub:'kill switch\nfail-closed',k:'egress'},
+   {id:'prov',x:1117,y:125,w:180,label:'Провайдеры',sub:'ключи в БД зашифрованы'},
+   {id:'term',x:425,y:290,w:200,label:'Песочницы',sub:'internal-сеть /28, без интернета\nread-only, ключ HMAC',k:'term'},
+   {id:'sec',x:755,y:290,w:220,label:'Секреты',sub:'.env 0600 · ключи провайдеров\nзашифрованы PLATFORM_SECRET_KEY',k:'sec'},
+   {id:'logs',x:1060,y:290,w:220,label:'Логи',sub:'JSON без промптов, ключей, JWT\nредакция sk-…, Bearer, eyJ…',k:'mon'},
+   {id:'cons',x:150,y:290,w:200,label:'Консоль',sub:'роли и область групп,\nаудит, защита от эскалации',k:'ctrl',i:D.adm}],
+  edges:[{f:'user',t:'proxy'},{f:'proxy',t:'ow'},{f:'ow',t:'gw'},{f:'gw',t:'ll'},{f:'ll',t:'xr'},{f:'xr',t:'prov'},{f:'ow',t:'term',d:1}]}}]},
+d:{lead:'<b>Кто чем аутентифицируется</b> на каждом участке и какие ограничения действуют на контейнеры.',
+ blocks:[{t:'html',html:'<h3>Аутентификация по участкам</h3>'+table(['Участок','Механизм','Секрет / где хранится'],[
+  ['Браузер → proxy','TLS (selfsigned / files / ca)','<code>secrets/tls/</code>'],
+  ['Браузер → Open WebUI','сессия Open WebUI (или OIDC)','<code>WEBUI_SECRET_KEY</code> (.env, неизменяем)'],
+  ['Браузер → консоль','сессия Open WebUI → роли консоли','документ <code>console-roles</code>'],
+  ['Open WebUI → gateway','Bearer + JWT HS256 на каждый запрос (iat ≤ 600 с)','<code>GATEWAY_CLIENT_TOKEN</code>, <code>IDENTITY_JWT_SECRET</code>'],
+  ['gateway → LiteLLM','ключ команды (рабочей группы), end-user из JWT','<code>gateway-map.json</code> (ro), <code>/state/secrets/keys.json</code>'],
+  ['gateway → DLP','только внутренняя сеть backend','—'],
+  ['LiteLLM → провайдер','ключ провайдера','БД, зашифрован <code>PLATFORM_SECRET_KEY</code>'],
+  ['LiteLLM → xray (/k/…)','HTTP внутри сети egress; наружу TLS сквозной','порт не опубликован'],
+  ['xray → VPN-сервер','VLESS UUID, REALITY/TLS','документ <code>egress</code>, UUID зашифрован'],
+  ['LiteLLM → cliproxy','<code>CLIPROXY_API_KEY</code>','.env'],
+  ['admin / reconciler → cliproxy','<code>CLIPROXY_MANAGEMENT_KEY</code>','.env; OAuth-токены — том cliproxy_data (не в бэкапе)'],
+  ['reconciler → Open WebUI','API-ключ администратора','<code>/state/secrets/owui-admin.key</code> (0600)'],
+  ['reconciler / admin → LiteLLM','<code>LITELLM_MASTER_KEY</code>','.env'],
+  ['Open WebUI → broker','Bearer <code>TERMINALS_API_KEY</code> + X-User-Id','доверие обеспечено сетью terminals'],
+  ['broker → песочница','свой ключ = HMAC(TERMINALS_API_KEY)','не хранится, вычисляется'],
+  ['Open WebUI → docling','<code>X-Api-Key</code>','<code>DOCLING_API_KEY</code>']])},
+ {t:'html',html:'<h3>Ограничения контейнеров</h3><div class="cards">'+[
+  ['Минимум привилегий','#e11d48',['cap_drop: ALL','no-new-privileges','read-only корень (gateway, dlp, xray, cliproxy…)','uid 10001–10005, не root']],
+  ['Сети','#3b82f6',['опубликован только proxy','backend, database, terminals, docker_api, metrics — internal','строгий режим egress_internal']],
+  ['gateway','#f59e0b',['только 4 маршрута, остальное 404','заголовки к LiteLLM строятся заново','allowlist полей тела, защита от SSRF','ошибки LiteLLM обезличены']],
+  ['Данные','#ec4899',['промпты не пишутся в spend logs','бэкап без secrets/ и cliproxy_data','restore сверяет отпечатки ключей']],
+  ['Песочницы','#14b8a6',['своя internal-сеть /28','tmpfs, лимиты CPU/памяти/процессов','docker.sock только через socket-proxy']],
+  ['Логи','#0ea5e9',['JSON-строки','запрещены ключи, пароли, JWT, тексты','редакция по шаблонам']]].map(([t,c,a])=>`<div class="card" style="--c:${c}"><h4>${t}</h4><div class="chips">${a.map(x=>`<span class="chip">${x}</span>`).join('')}</div></div>`).join('')+'</div>'}]}
+});
+
+/* ---------- 10. Данные ---------- */
+TABS.push({t:'10. Данные',
+o:{lead:'<b>Где лежат данные.</b> Один кластер PostgreSQL с тремя базами плюс несколько томов Docker. Резервная копия — три дампа БД, данные Open WebUI и состояние платформы.',
+ blocks:[{t:'scheme',S:{vb:[1200,380],
+  groups:[{x:640,y:20,w:270,h:300,label:'PostgreSQL 17.6 · том pg_data'}],
+  nodes:[
+   {id:'ow',x:320,y:80,w:170,label:'Open WebUI',k:'app'},
+   {id:'ll',x:320,y:175,w:170,label:'LiteLLM',k:'core'},
+   {id:'ctl',x:320,y:270,w:170,label:'консоль + reconciler',k:'ctrl',i:D.adm+'<br><br>'+D.rec},
+   {id:'dow',x:775,y:80,w:210,label:'БД openwebui',sub:'пользователи, группы, чаты,\nзнания, папки, каналы',k:'data'},
+   {id:'dll',x:775,y:175,w:210,label:'БД litellm',sub:'ключи, команды, бюджеты,\nмодели, spend',k:'data'},
+   {id:'dpl',x:775,y:270,w:210,label:'БД platform',sub:'документы конфигурации,\nревизии, аудит, роли',k:'data'},
+   {id:'bk',x:1080,y:175,w:150,label:'backup',sub:'pg_dump + tar\n+ manifest',k:'ctrl',i:D.backup},
+   {id:'vol',x:100,y:175,w:150,label:'тома',sub:'файлы OWUI, состояние,\nтокены CLI, метрики'}],
+  edges:[{f:'ow',t:'dow'},{f:'ll',t:'dll'},{f:'ctl',t:'dpl'},{f:'dow',t:'bk',d:1,fs:'r',ts:'l'},{f:'dll',t:'bk',d:1},{f:'dpl',t:'bk',d:1,fs:'r',ts:'l'},{f:'vol',t:'ll',d:1,l:'см. «Подробно»'}]}}]},
+d:{lead:'<b>Все тома и что в них.</b> «Бэкап» — попадает ли в архив <code>scripts/backup.sh</code>. Производные тома не бэкапятся: их заново пишет <code>bootstrap apply</code>.',
+ blocks:[{t:'html',html:table(['Том / путь','Пишет','Читает','Содержимое','Бэкап'],[
+  ['<code>pg_data</code>','postgres','—','БД openwebui, litellm, platform','<span class="y">да</span> (pg_dump каждой БД)'],
+  ['<code>openwebui_data</code>','openwebui','backup','загрузки, векторный индекс, кэш','<span class="y">да</span>, без cache/'],
+  ['<code>platform_state</code>','bootstrap, reconciler, admin','—','ids.json, secrets/keys.json, owui-admin.key, статус, отчёты','<span class="y">да</span>, без secrets/'],
+  ['<code>./config</code>, <code>./config-export</code>','Git / консоль','bootstrap, reconciler, admin, dlp','seed YAML / снимок конфигурации','<span class="y">да</span> (config.tar.gz)'],
+  ['<code>gateway_map</code>','bootstrap, reconciler, admin','gateway (ro)','gateway-map.json','нет (производный)'],
+  ['<code>litellm_config</code>','bootstrap','litellm (ro), admin (ro)','config.yaml LiteLLM','нет (производный)'],
+  ['<code>gateway_state</code>','gateway','—','служебное состояние gateway','—'],
+  ['<code>dlp_events</code>','dlp','admin (ro)','журнал срабатываний DLP','—'],
+  ['<code>egress_config</code>','reconciler, admin','xray (ro)','config.json, key-router.conf','—'],
+  ['<code>egress_status</code>','xray','admin (ro)','статус супервизора, последняя рабочая конфигурация','—'],
+  ['<code>terminal_broker_state</code>','terminal-broker','admin (ro)','ledger использования песочниц','—'],
+  ['<code>&lt;project&gt;-term-&lt;hash&gt;</code>','terminal-broker (вне compose)','песочница пользователя','папки чатов пользователя','—'],
+  ['<code>cliproxy_data</code>','cliproxy','—','config.yaml, OAuth-файлы аккаунтов (открытым текстом)','<span class="p">нет</span> (намеренно)'],
+  ['<code>prometheus_data</code>, <code>grafana_data</code>, <code>redis_data</code>','сервисы','—','метрики, дашборды, кэш','—']])},
+ {t:'html',html:'<h3>Резервное копирование</h3><ol class="steps"><li><code>scripts/backup.sh</code> (или по расписанию <code>schedule-backup.sh</code>) запускает сервис <code>backup</code>.</li><li><code>pg_dump -Fc</code> для openwebui, litellm, platform; tar <code>openwebui_data</code> (без cache), <code>platform_state</code> (без secrets/), config + config-export.</li><li>manifest.json с хешами файлов и отпечатками <code>LITELLM_SALT_KEY</code> / <code>WEBUI_SECRET_KEY</code> — restore откажется при несовпадении (кроме <code>--force</code>).</li><li>После restore <code>bootstrap apply</code> заново выпускает ключи; ключи LiteLLM без секрета в состоянии ротируются автоматически.</li></ol>'}]}
+});
+
+/* ---------- 11. Стек ---------- */
+TABS.push({t:'11. Стек',
+o:{lead:'<b>Технологии по слоям.</b> Всё работает в Docker Compose на одном сервере (прод — Ubuntu 24.04; пилот — Windows 10 + WSL2).',
+ blocks:[{t:'html',html:'<div class="cards">'+[
+  ['Интерфейсы','#8b5cf6',['Open WebUI v0.11.4 (Svelte + Python) + патчи','Консоль: React 19, Mantine 9, Vite 8, TypeScript 6','Grafana 12.1.1']],
+  ['Сервисы платформы','#f59e0b',['Python 3.12','gateway, dlp, terminal-broker — Starlette + uvicorn','admin — FastAPI','bootstrap / reconciler — httpx, pydantic, psycopg']],
+  ['LLM','#e11d48',['LiteLLM v1.103.2 (litellm-database)','CLIProxyAPI 8.0.38 (Go)','Docling (docling-serve-cpu v1.37) + Tesseract rus','эмбеддинги multilingual-e5-small']],
+  ['Сеть и выход','#22c55e',['nginx 1.28 (proxy)','Xray 26.9.9 + nginx (key-router)','VLESS REALITY / TLS']],
+  ['Данные','#ec4899',['PostgreSQL 17.6','Redis 7.4 (опционально)','тома Docker']],
+  ['Наблюдаемость','#0ea5e9',['Prometheus 3.5','Grafana 12.1.1','JSON-логи (json-file, 20 МБ × 5)']],
+  ['Песочницы','#14b8a6',['open-terminal 0.14.0','docker-socket-proxy v0.5.0']],
+  ['Эксплуатация','#6366f1',['install.sh / install.ps1','upgrade.sh, backup.sh, doctor.sh','egress-proxy.sh']]].map(([t,c,a])=>`<div class="card" style="--c:${c}"><h4>${t}</h4><div class="chips">${a.map(x=>`<span class="chip">${x}</span>`).join('')}</div></div>`).join('')+'</div>'}]},
+d:{lead:'<b>Каждый контейнер:</b> образ, язык, порт, профиль compose и лимит памяти в проде (<code>compose.prod.yml</code>). «—» в профиле — сервис запущен всегда.',
+ blocks:[{t:'html',html:table(['Контейнер','Роль','Образ / основа','Версия','Язык / фреймворк','Порт','Профиль','Память (prod)'],[
+  ['proxy','вход, TLS','aiplatform/proxy (nginx)','1.28-alpine','nginx + entrypoint','443, 80','—','—'],
+  ['openwebui','чат, RAG','open-webui + патчи','v0.11.4','Python, Svelte','8080','—','4 ГБ'],
+  ['gateway','личность, лимиты, DLP-вызов','python:3.12-slim','PLATFORM_VERSION','Starlette, httpx, PyJWT','4100','—','512 МБ'],
+  ['dlp','проверка утечек','python:3.12-slim','PLATFORM_VERSION','Starlette','4200','— (с v1.3 всегда)','512 МБ'],
+  ['litellm','роутер моделей','ghcr.io/berriai/litellm-database','v1.103.2','Python','4000','—','2 ГБ'],
+  ['admin','консоль','python 3.12 + сборка фронтенда','PLATFORM_VERSION','FastAPI; React 19, Mantine 9','8000','—','512 МБ'],
+  ['reconciler','сверка конфигурации','aiplatform/bootstrap','PLATFORM_VERSION','Python, httpx, pydantic, psycopg','—','—','256 МБ'],
+  ['bootstrap','apply, doctor, smoke','aiplatform/bootstrap','PLATFORM_VERSION','Python','—','tools','—'],
+  ['postgres','БД','postgres','17.6-alpine','—','5432','—','2 ГБ'],
+  ['redis','кэш LiteLLM','redis','7.4-alpine','—','6379','redis','—'],
+  ['docling','OCR документов','docling-serve-cpu + Tesseract rus','v1.37.0','Python','5001','docling','6 ГБ'],
+  ['terminal-broker','песочницы','python:3.12-slim','PLATFORM_VERSION','Starlette, websockets','8000','terminals','256 МБ'],
+  ['docker-api','фильтр Docker API','tecnativa/docker-socket-proxy','v0.5.0','HAProxy','2375','terminals','64 МБ'],
+  ['open-terminal','образ песочницы','aiplatform/open-terminal','0.14.0','—','—','tools (только сборка)','лимиты брокера'],
+  ['cliproxy','подписки CLI','eceasy/cli-proxy-api','8.0.38','Go','8317','cliproxy','512 МБ'],
+  ['xray','исходящий трафик','teddysun/xray + nginx + supervisor','26.9.9','—','10809, 10880, 11200, 10810+, 10808','egress-proxy','—'],
+  ['prometheus','метрики','prom/prometheus','v3.5.0','—','9090','—','—'],
+  ['grafana','дашборды','grafana/grafana','12.1.1','—','3000','observability','—'],
+  ['backup','резервные копии','postgres','17.6-alpine','sh','—','tools','—']])}]}
+});
+
+/* ---------- 12. Развёртывание ---------- */
+TABS.push({t:'12. Установка и обновление',
+o:{lead:'<b>Как платформа появляется на сервере и обновляется.</b> Установка идемпотентна: повторный запуск доделывает прерванное. Обновление само откатывается при ошибке.',
+ blocks:[{t:'scheme',S:{vb:[1240,380],
+  notes:[{x:20,y:28,t:'Установка'},{x:20,y:178,t:'Обновление'}],
+  nodes:[
+   {id:'i1',x:100,y:80,w:160,label:'git clone',sub:'/opt/ai-platform',k:'ext'},
+   {id:'i2',x:300,y:80,w:160,label:'.env',sub:'PLATFORM_ENV=prod\nхост, TLS_MODE',k:'ext'},
+   {id:'i3',x:500,y:80,w:160,label:'install.sh',sub:'секреты, Docker,\nсборка образов',k:'ctrl'},
+   {id:'i4',x:700,y:80,w:160,label:'compose up',sub:'по healthcheck,\nс overlay prod',k:'ctrl'},
+   {id:'i5',x:900,y:80,w:160,label:'bootstrap apply',sub:'конфиг → OWUI, LiteLLM,\ngateway-map',k:'ctrl'},
+   {id:'i6',x:1110,y:80,w:170,label:'smoke + manifest',sub:'URL и пароль админа',k:'ok'},
+   {id:'u1',x:100,y:230,w:160,label:'upgrade.sh --check',sub:'код 10 — есть версия',k:'ext'},
+   {id:'u2',x:300,y:230,w:160,label:'бэкап',sub:'перед изменениями',k:'data'},
+   {id:'u3',x:500,y:230,w:160,label:'git checkout',sub:'новый тег / ветка',k:'ctrl'},
+   {id:'u4',x:700,y:230,w:160,label:'install.sh',sub:'пересборка изменённого,\nстраница обслуживания',k:'ctrl'},
+   {id:'u5',x:900,y:230,w:160,pill:1,label:'doctor',sub:'всё здорово?',k:'dec'},
+   {id:'u6',x:1110,y:230,w:170,label:'готово',k:'ok'},
+   {id:'u7',x:900,y:335,w:300,label:'откат',sub:'прежний код + install.sh\n(+ restore бэкапа с --restore-on-failure)',k:'err'}],
+  edges:[{f:'i1',t:'i2'},{f:'i2',t:'i3'},{f:'i3',t:'i4'},{f:'i4',t:'i5'},{f:'i5',t:'i6'},
+   {f:'u1',t:'u2'},{f:'u2',t:'u3'},{f:'u3',t:'u4'},{f:'u4',t:'u5'},{f:'u5',t:'u6',l:'да'},{f:'u5',t:'u7',l:'нет',k:'err'}]}},
+ {t:'html',html:'<div class="lead warn">На проде compose всегда вызывается с overlay: <code>docker compose --env-file .env -f compose.yml -f compose.prod.yml …</code> — порты 443/80 и лимиты памяти заданы только в <code>compose.prod.yml</code>.</div>'}]},
+d:{lead:'<b>Шаги установщика по порядку</b> (docs/CONTRACTS.md §10). Каждый шаг повторяется, только если изменились его входы.',
+ blocks:[{t:'html',html:'<div class="cards">'+[
+  ['prerequisites','ОС, права, место'],['docker','установка/проверка Docker'],['env','.env, флаги HAS_* провайдеров'],['secrets','генерация паролей и ключей (не перезаписывает)'],
+  ['tls','secrets/tls; самоподписанный создаёт сам proxy'],['images','сборка образов по хешу контекста'],['compose_validate','проверка compose-файлов'],['volumes','volume-init: владельцы томов'],
+  ['postgres','старт БД, создание баз и ролей'],['egress','импорт старого конфига xray, рендер (если включён)'],['litellm_config','render-litellm → том litellm_config'],['litellm','старт, ожидание /health/readiness'],
+  ['gateway','старт, /healthz'],['openwebui','старт, /ready; админ создаётся из env'],['proxy','старт только после здорового Open WebUI'],['migrations','миграции данных платформы'],
+  ['bootstrap','bootstrap apply: весь конфиг'],['smoke','сквозная проверка: пользователь → модель'],['manifest','deployment-manifest.json']]
+  .map(([a,b],i)=>`<div class="card" style="--c:${i<8?'#64748b':i<15?'#6366f1':'#16a34a'}"><h4>${i+1}. ${a}</h4>${b}</div>`).join('')+'</div>'},
+ {t:'h',text:'Обновление (scripts/upgrade.sh)'},
+ {t:'seq',Q:{w:1100,actors:[{id:'admu',label:'Оператор',k:'ext'},{id:'up',label:'upgrade.sh',k:'ctrl'},{id:'git',label:'Git',k:'ext'},{id:'bk',label:'backup',k:'data'},{id:'inst',label:'install.sh',k:'ctrl'},{id:'doc',label:'doctor',k:'dec'}],
+  msgs:[
+   {f:'admu',t:'up',l:'sudo bash scripts/upgrade.sh [--ref vX]',d:'Запуск обновления; <code>--check</code> только сообщает, есть ли версия (код 10).'},
+   {f:'up',t:'up',l:'проверка рабочей копии',d:'Изменённые отслеживаемые файлы или мешающие неотслеживаемые → отказ до любых изменений.'},
+   {f:'up',t:'git',l:'git fetch --tags',d:'Получение новых тегов и веток.'},
+   {f:'up',t:'bk',l:'бэкап перед обновлением',d:'Не удался — ничего не меняется (можно пропустить <code>--no-backup</code>).'},
+   {f:'up',t:'git',l:'checkout новой версии',d:'Fast-forward ветки или переход на тег.'},
+   {f:'up',t:'inst',l:'install.sh',d:'Пересобирает только изменившиеся образы и пересоздаёт только изменившиеся контейнеры; пока идёт обновление, proxy показывает страницу обслуживания.'},
+   {f:'up',t:'doc',l:'doctor',d:'Проверка здоровья сервисов и конфигурации.'},
+   {f:'doc',t:'up',l:'ok → готово / ошибка → откат',ret:1,d:'При ошибке: <code>git checkout</code> предыдущего коммита и повторный install.sh; с <code>--restore-on-failure</code> — ещё и восстановление бэкапа БД (миграции только вперёд).'}]}}]}
+});
+
+/* ---------- 13. Наблюдаемость ---------- */
+TABS.push({t:'13. Наблюдаемость',
+o:{lead:'<b>Как понять, что всё работает.</b> Prometheus собирает метрики gateway, DLP и LiteLLM; Grafana и консоль их показывают; диагностику делают doctor и smoke.',
+ blocks:[{t:'scheme',S:{vb:[1200,330],
+  nodes:[
+   {id:'gw',x:150,y:70,w:150,label:'gateway',sub:'/metrics',k:'core'},
+   {id:'dlp',x:150,y:160,w:150,label:'dlp',sub:'/metrics',k:'sec'},
+   {id:'ll',x:150,y:250,w:150,label:'litellm',sub:'/metrics/',k:'core'},
+   {id:'pr',x:470,y:160,w:160,label:'prometheus',sub:'scrape каждые 15 с',k:'mon'},
+   {id:'gr',x:740,y:100,w:160,label:'grafana',sub:'дашборды',k:'mon'},
+   {id:'adm',x:740,y:230,w:160,label:'консоль',sub:'статистика, состояние',k:'ctrl'},
+   {id:'proxy',x:980,y:100,w:150,label:'proxy',sub:'/grafana/',k:'edge'},
+   {id:'admu',x:1120,y:230,w:130,label:'Администратор'}],
+  edges:[{f:'pr',t:'gw',l:'scrape',fs:'l',ts:'r'},{f:'pr',t:'dlp',fs:'l',ts:'r'},{f:'pr',t:'ll',fs:'l',ts:'r'},{f:'gr',t:'pr',fs:'l',ts:'r'},{f:'adm',t:'pr',l:'PromQL',fs:'l',ts:'r'},
+   {f:'proxy',t:'gr'},{f:'admu',t:'proxy',fs:'t',ts:'r'},{f:'admu',t:'adm'}]}}]},
+d:{lead:'<b>Метрики, логи и инструменты диагностики.</b>',
+ blocks:[{t:'html',html:'<h3>Метрики</h3>'+table(['Источник','Метрики','Сбор'],[
+  ['gateway :4100/metrics','requests_total{status,team,model} · request_seconds · dlp_actions_total{rule,action} · ratelimited_total','prometheus'],
+  ['dlp :4200/metrics','dlp_scans_total · dlp_findings_total · dlp_scan_seconds','prometheus'],
+  ['litellm :4000/metrics/','callback prometheus LiteLLM: запросы, токены, стоимость, задержки','prometheus'],
+  ['xray :10808','/debug/vars — observatory (доступность серверов)','консоль, healthcheck'],
+  ['healthcheck’и','postgres pg_isready · litellm /health/readiness · openwebui /ready · gateway /healthz · dlp /healthz · admin /console/api/healthz','Docker (10 с × 12)']])},
+ {t:'html',html:'<h3>Логи</h3><div class="lead">JSON-строки <code>{ts, level, service, event, request_id, user_id, group_id, model, status, latency_ms…}</code>; драйвер json-file, 20 МБ × 5 файлов на контейнер. Запрещены ключи, пароли, заголовки Authorization, JWT, найденные DLP значения и тексты запросов. gateway пишет <code>litellm_call_id</code> для связи с записью LiteLLM.</div>'},
+ {t:'html',html:'<h3>Диагностика</h3>'+table(['Команда','Что делает','Коды'],[
+  ['<code>scripts/doctor.sh [--json]</code>','здоровье сервисов, дрейф, предупреждения конфигурации','0 / 20 / 21'],
+  ['<code>bootstrap check</code>','дрейф: чем текущее состояние отличается от желаемого','0 / 10 / 1'],
+  ['<code>bootstrap smoke</code>','сквозной тест: временный пользователь → модель через Open WebUI','0 / 30'],
+  ['<code>bootstrap status</code>','последний apply, last_tick reconciler, публикация отчётов','—'],
+  ['<code>scripts/report.sh [--group id]</code>','отчёты по использованию; reconciler публикует их руководителям в KB-Reports-*','—'],
+  ['<code>scripts/egress-proxy.sh status|test</code>','состояние xray, документ egress, проверка каналов','—']])}]}
+});
+
+/* ---------- 14. Инструменты ---------- */
+const cards=a=>'<div class="cards">'+a.map(([t,c,items,txt])=>`<div class="card" style="--c:${c}"><h4>${t}</h4>${txt?'<div style="margin-bottom:6px">'+txt+'</div>':''}<div class="chips">${items.map(x=>`<span class="chip">${x}</span>`).join('')}</div></div>`).join('')+'</div>';
+TABS.push({t:'14. Инструменты',
+o:{lead:'<b>Что умеет модель в чате.</b> Работает с файлами и кодом в личной песочнице, отдаёт файлы карточками, рисует живые графики и схемы, ищет в интернете и базах знаний, помнит факты о пользователе. Сканы распознаёт Docling: в обычном чате — сам Open WebUI, в чате с песочницей — инструмент <code>ocr_document</code>. Песочница и Docling включаются флагами установки (<code>ENABLE_TERMINALS</code>, <code>ENABLE_DOCLING</code>); когда включены — работают у всех по умолчанию. Code Interpreter и генерация картинок выключены.',
+ blocks:[{t:'scheme',S:{vb:[1240,470],
+  nodes:[
+   {id:'user',x:80,y:235,w:120,label:'Пользователь',sub:'сообщение + файлы'},
+   {id:'ow',x:270,y:235,w:150,label:'Open WebUI',sub:'native function calling',k:'app'},
+   {id:'mdl',x:470,y:235,w:150,label:'Модель',sub:'решает, какой\nинструмент вызвать',k:'core',i:'Модель получает инструменты через native function calling Open WebUI 0.11 и сама решает, что вызвать. Блоки вызовов и рассуждений пользователю не показываются (patch_minimal_ui) — он видит ответ, индикатор и таймер.'},
+   {id:'sbx',x:760,y:60,w:230,label:'Песочница',sub:'run_command, файлы, Python,\nнавыки, MCP git/time/thinking',k:'term',i:D.term+'<br><br>Инструменты Open Terminal: выполнение команд, чтение/запись/поиск файлов, интерактивный терминал; навыки <code>config/skills</code> и MCP-серверы git, time, sequentialthinking (через mcpo внутри песочницы).'},
+   {id:'pub',x:1070,y:60,w:200,label:'publish_file',sub:'карточка файла\n+ автовыдача в конце',k:'term'},
+   {id:'vis',x:760,y:160,w:230,label:'Визуализации',sub:'mermaid · vega-lite\ngraph · chart · ui · app',k:'app'},
+   {id:'web',x:760,y:255,w:230,label:'Веб-поиск',sub:'search_web · fetch_url\nбез переключателя',k:'ext',i:D.search},
+   {id:'rag',x:760,y:340,w:230,label:'Базы знаний (RAG)',sub:'Focused Retrieval, TOP_K=5',k:'data'},
+   {id:'mem',x:760,y:425,w:230,label:'Память',sub:'факты и указания\nпользователя',k:'ctrl'},
+   {id:'doc',x:470,y:400,w:150,label:'Docling (OCR)',sub:'PDF, сканы, картинки',k:'app'},
+   {id:'img',x:1070,y:255,w:200,label:'Code Interpreter,\nгенерация картинок',sub:'выключены по умолчанию',k:'local',dash:1,
+    i:'<b>Code Interpreter</b> (Pyodide/Jupyter Open WebUI) — только группе <code>FEATURE-CodeInterpreter</code>; код обычно выполняется в песочнице. <b>Генерация изображений</b> выключена (<code>features.image_generation: false</code>).'}],
+  edges:[{f:'user',t:'ow'},{f:'ow',t:'mdl'},{f:'mdl',t:'sbx',fs:'r',ts:'l'},{f:'sbx',t:'pub'},{f:'mdl',t:'vis',fs:'r',ts:'l'},{f:'mdl',t:'web',fs:'r',ts:'l'},{f:'mdl',t:'rag',fs:'r',ts:'l'},{f:'mdl',t:'mem',fs:'r',ts:'l'},
+   {f:'ow',t:'doc',d:1,l:'вложение без песочницы'}]}}]},
+d:{lead:'<b>Каждый инструмент:</b> где выполняется, кто включает и какие ограничения.',
+ blocks:[{t:'html',html:table(['Инструмент','Где выполняется','Включение','Ограничения и детали'],[
+  ['<b>Песочница</b> (Open Terminal)','контейнер пользователя <code>term-&lt;hash&gt;</code>','для всех: <code>features.direct_tool_servers</code>, включена по умолчанию (patch_terminal_default + _backend)','без интернета, папка на каждый чат <code>/home/user/chats/&lt;id&gt;</code>, квота, таймауты и усечение вывода вызовов'],
+  ['<b>Выполнение кода</b>','в песочнице: Python 3 + pandas, openpyxl, xlsxwriter, python-docx, python-pptx, pypdf, pdfplumber, matplotlib, duckdb, odfpy, reportlab; zip/7z, poppler-utils, ripgrep, sqlite3, ctags, Node.js','вместе с песочницей','LibreOffice и OCR в образе нет (сканы — через <code>ocr_document</code>). Code Interpreter Open WebUI — отдельно, только <code>FEATURE-CodeInterpreter</code>'],
+  ['<b>Навыки</b> (skills)','скрипты в образе песочницы','<code>config/skills/*</code>','xlsx-analysis, csv-clean, pdf-extract, docx-report, zip-unpack, codebase-map, codebase-audit, dependency-review, git-changelog; правила остановки при повторных ошибках'],
+  ['<b>MCP в песочнице</b>','mcpo на 127.0.0.1 внутри песочницы','всегда с песочницей','только офлайн git, time, sequentialthinking; fetch и memory исключены; пользователь достаёт только свои'],
+  ['<b>publish_file</b>','terminal-broker','<code>TERMINALS_PUBLISH_ENABLED</code>','карточка с кнопкой «Скачать», неизменяемая копия, ≤ 100 МБ, исполняемые файлы запрещены (по расширению и сигнатуре), журнал выдач'],
+  ['<b>Автовыдача файлов</b>','broker + patch_autopublish','<code>TERMINALS_AUTOPUBLISH</code>','в конце ответа выдаются изменённые документы (xlsx, docx, pdf, png, zip…); больше 5 — одним архивом'],
+  ['<b>Живые визуализации</b>','браузер, двойной sandbox-iframe','для всех; подсказка модели — <code>AIPLATFORM_CHAT_VISUALS</code>','<code>```graph</code>, <code>```chart</code>, <code>```ui</code>, <code>```app</code>; без сети, без доступа к странице и токену, CSP default-src none'],
+  ['<b>Диаграммы</b>','браузер (Open WebUI)','для всех','<code>```mermaid</code> (корпоративная тема в «Платформе»), <code>```vega-lite</code>; статичные графики — matplotlib в песочнице + publish_file'],
+  ['<b>Веб-поиск</b>','openwebui → поисковик напрямую','для всех (<code>features.web_search</code>), переключатель не нужен (patch_web_search_tools)','поисковик по умолчанию — DuckDuckGo (<code>WEB_SEARCH_ENGINE</code>); модель сама решает, искать ли; трафик не проходит DLP'],
+  ['<b>Базы знаний (RAG)</b>','openwebui, эмбеддинги e5-small локально','группы, KB-* создаёт reconciler','только Focused Retrieval (гибрид BM25 + векторы, TOP_K 5); «весь документ» — только админам (patch_focused_retrieval)'],
+  ['<b>Память</b>','openwebui, по пользователю','всегда включена (patch_memory_always)','search/add/update_memory, фоновое сохранение важного; личная, другим не видна'],
+  ['<b>OCR / документы</b>','docling :5001','<code>ENABLE_DOCLING</code>','в чате без песочницы вложение разбирает Open WebUI: в Docling идут PDF, изображения, doc/ppt (patch_docling_ocr_only), xlsx/docx/pptx/csv — встроенные загрузчики. В чате с песочницей файл кладётся в папку как есть, а скан модель распознаёт инструментом <code>ocr_document</code> (см. ниже). Tesseract rus+eng, ≤ 500 стр., ≤ 100 МБ'],
+  ['<b>ocr_document</b>','terminal-broker → docling (сеть <code>ocr</code>)','вместе с <code>ENABLE_DOCLING</code>','PDF и изображения из папки чата → <code>&lt;файл&gt;.ocr.md</code> рядом; модели — путь, сводка и начало текста; долгий скан: <code>running</code>, повторный вызов ждёт дальше; по одному распознаванию за раз, очередь 8, у пользователя ≤ 2'],
+  ['<b>Генерация изображений</b>','—','выключена','<code>features.image_generation: false</code>'],
+  ['<b>API-ключи пользователя</b>','openwebui','только <code>FEATURE-ApiKeys</code>','по умолчанию нет ни у кого']])},
+ {t:'h',text:'Как обрабатывается вложение'},
+ {t:'scheme',S:{vb:[1240,330],
+  nodes:[
+   {id:'f',x:90,y:165,w:140,label:'Файл в чате'},
+   {id:'q',x:290,y:165,w:180,pill:1,label:'В чате песочница?',k:'dec'},
+   {id:'sb',x:540,y:70,w:220,label:'Папка чата в песочнице',sub:'/home/user/chats/<id>/файл',k:'term'},
+   {id:'pt',x:840,y:70,w:240,label:'Модели — только путь',sub:'[Приложенные файлы в песочнице: …]\n(patch_filesystem_files)',k:'core'},
+   {id:'res',x:1120,y:70,w:180,label:'Обработка инструментами',sub:'pandas, навыки → publish_file\nскан → ocr_document (Docling)',k:'term'},
+   {id:'q2',x:540,y:240,w:200,pill:1,label:'Нужен OCR?',sub:'PDF, картинки, doc/ppt',k:'dec'},
+   {id:'dl',x:840,y:190,w:240,label:'Docling',sub:'tesseract rus+eng, таблицы',k:'app'},
+   {id:'bl',x:840,y:290,w:240,label:'Встроенные загрузчики',sub:'xlsx, xls, csv, docx, pptx, odt',k:'app'},
+   {id:'kb',x:1120,y:240,w:180,label:'Текст → RAG',sub:'фрагменты → эмбеддинги\nFocused Retrieval',k:'data'}],
+  edges:[{f:'f',t:'q'},{f:'q',t:'sb',l:'да',fs:'r',ts:'l'},{f:'sb',t:'pt'},{f:'pt',t:'res'},{f:'q',t:'q2',l:'нет',fs:'r',ts:'l'},{f:'q2',t:'dl',l:'да',fs:'r',ts:'l'},{f:'q2',t:'bl',l:'нет',fs:'r',ts:'l'},{f:'dl',t:'kb',fs:'r',ts:'l'},{f:'bl',t:'kb',fs:'r',ts:'l'},{f:'res',t:'dl',d:1,l:'ocr_document → .ocr.md',fs:'b',ts:'r'}]}},
+ {t:'h',text:'Сценарий: «загрузил таблицу — получил отчёт»'},
+ {t:'seq',Q:{w:1240,actors:[{id:'user',label:'Пользователь',k:'ext'},{id:'ow',label:'Open WebUI',k:'app'},{id:'ll',label:'Модель',sub:'через gateway/LiteLLM',k:'core'},{id:'tb',label:'terminal-broker',k:'term'},{id:'term',label:'Песочница',k:'term'}],
+  msgs:[
+   {f:'user',t:'ow',l:'отчёт.xlsx + «сделай сводку»',d:'Файл загружается прямо в папку чата песочницы (через брокер), в сообщении остаётся путь.'},
+   {f:'ow',t:'tb',l:'загрузка файла (X-Session-Id = чат)',d:'Брокер создаёт папку чата при первом обращении и делает её текущей.'},
+   {f:'ow',t:'ll',l:'сообщение + путь файла + инструменты',d:'patch_filesystem_files дописывает путь; модель получает спецификацию инструментов песочницы, навыки и подсказку про визуализации.'},
+   {f:'ll',t:'tb',l:'run_command: xlsx_profile.py',d:'Модель вызывает навык xlsx-analysis; брокер проксирует вызов в песочницу пользователя с его ключом (HMAC).'},
+   {f:'tb',t:'term',l:'выполнение в папке чата',d:'Python в изолированном контейнере без сети; вывод усекается, слишком долгие вызовы прерываются.'},
+   {f:'term',t:'ll',l:'результат',ret:1},
+   {f:'ll',t:'tb',l:'md_to_docx.py → Сводка.docx',d:'Отчёт Word с таблицами и графиками matplotlib.'},
+   {f:'ll',t:'ow',l:'ответ + ```chart',ret:1,d:'Модель отвечает текстом и живой диаграммой; Open WebUI показывает её в sandbox-iframe.'},
+   {f:'ow',t:'tb',l:'POST /publish/turn',d:'Конец ответа: брокер находит изменённые документы и публикует их (patch_autopublish).'},
+   {f:'ow',t:'user',l:'ответ, диаграмма, карточка «Сводка.docx»',ret:1,d:'Пользователь видит ответ, диаграмму и карточку файла с кнопкой «Скачать» — ссылка работает только для него.'}]}}]}
+});
+
+/* ---------- 15. Наши доработки ---------- */
+TABS.push({t:'15. Доработки платформы',
+o:{lead:'<b>Чем платформа отличается от «голого» Open WebUI + LiteLLM.</b> Патчи применяются при сборке образа; каждый привязан к точному фрагменту кода — после смены версии Open WebUI сборка падает, а не выпускает образ без патча.',
+ blocks:[{t:'html',html:cards([
+  ['Контроль доступа','#e11d48',['gateway: личность по JWT, ключ команды','регистрация выключена, новые — pending','модели видны только по тарифу группы','workspace и публичный шеринг закрыты','API-ключи только FEATURE-ApiKeys','администраторы скрыты из каналов','роли консоли с областью групп']],
+  ['Чаты и данные','#ec4899',['временные чаты — отдельное право\n(вкл / выкл / только временные)','«весь документ» в RAG — только админам','просмотр чатов в консоли — только админ, через DLP','DLP на каждый запрос к модели','тексты не пишутся в журналы стоимости']],
+  ['Инструменты по умолчанию','#14b8a6',['песочница включена у всех','веб-поиск без переключателя','память всегда включена','автовыдача файлов','путь вложения сообщается модели','Docling только для OCR']],
+  ['Интерфейс','#8b5cf6',['видно ответ, а не «кухню»: скрыты вызовы,\nрассуждения, терминал','индикатор ответа и таймер','живые графики, схемы, мини-приложения','тема «Платформа»: логотип, колокольчик,\nстатус чата, Mermaid','страница обслуживания при обновлении']],
+  ['Стоимость и контекст','#f59e0b',['бюджеты: платформа, группа, пользователь','скрытые резервные модели тарифа','сжатие истории при 50 % окна','кэш промпта Claude','автопродолжение обрезанных ответов']],
+  ['Сеть и выход','#22c55e',['Xray с kill switch, маршрут на каждый ключ','отдельный канал на каждый аккаунт CLI','строгий режим egress_internal','закреплённые подсети Docker']]])}]},
+d:{lead:'<b>Все доработки по файлам.</b> Патчи Open WebUI — <code>openwebui/patch_*.py</code>; управляемые настройки — reconciler (<code>owui.config</code>, <code>owui.default_permissions</code>); права по умолчанию — <code>config/permissions.yaml</code> (seed) и консоль.',
+ blocks:[{t:'h',text:'Контроль доступа'},
+ {t:'html',html:table(['Что','Как сделано','Зачем'],[
+  ['Регистрация закрыта','<code>ENABLE_SIGNUP=false</code>, <code>DEFAULT_USER_ROLE=pending</code> (reconciler держит)','учётки создаёт администратор или импорт; pending не получает ни групп, ни моделей'],
+  ['Доступ к моделям по тарифу','группы AI-&lt;тариф&gt; в Open WebUI + access group в LiteLLM; <code>BYPASS_MODEL_ACCESS_CONTROL=false</code>','двойная проверка: интерфейс не покажет, LiteLLM не пропустит'],
+  ['Рабочие группы → команды LiteLLM','gateway выбирает ключ команды по gateway-map','бюджет и лимиты группы нельзя обойти с клиента'],
+  ['Производные группы','reconciler: AI-*, FEATURE-*, MGR-* — добавляет и убирает сам','права следуют из членства в ORG-группе; ORG-членство reconciler не трогает'],
+  ['Workspace закрыт','<code>workspace.models/knowledge/prompts/tools: false</code>','пользователи не создают свои модели, базы, инструменты, функции (tools/functions запрещены валидацией)'],
+  ['Публичный шеринг выключен','<code>sharing.public_*: false</code>, <code>ENABLE_COMMUNITY_SHARING=false</code>','нельзя опубликовать модель/знания/промпт для всех'],
+  ['Прямые подключения выключены','<code>ENABLE_DIRECT_CONNECTIONS=false</code>, Ollama выключена','пользователь не подключит свой API в обход gateway'],
+  ['API-ключи','<code>features.api_keys: false</code>, только группа FEATURE-ApiKeys','программный доступ — по списку'],
+  ['Каналы без администраторов','<code>patch_channels.py</code>: админы не видны в участниках и упоминаниях','каналы создаёт reconciler от имени админа — иначе админ «член» каждого канала'],
+  ['Консоль','роли platform_admin / access_admin / security_officer / auditor / manager, область групп, защита от повышения прав, аудит','руководитель видит только свою группу; раскрытие текста DLP — отдельная запись аудита'],
+  ['OIDC без слияния учёток','<code>OAUTH_MERGE_ACCOUNTS_BY_EMAIL=false</code>','нельзя захватить локальную учётку через IdP с тем же email']])},
+ {t:'h',text:'Чаты, документы и данные'},
+ {t:'html',html:table(['Что','Как сделано','Зачем'],[
+  ['Временные чаты','право <code>chat.temporary</code> + <code>temporary_enforced</code> («только временные») по группам — в консоли; в seed включены','где история не нужна или запрещена — выключить или сделать все чаты временными; в песочнице их файлы в <code>chats/temp-…</code>'],
+  ['Удаление и правка','права <code>chat.delete</code>, <code>delete_message</code>, <code>edit</code>, <code>continue/regenerate</code> и др. — матрица в консоли','политика по группам'],
+  ['Focused Retrieval для всех','<code>patch_focused_retrieval.py</code> + <code>RAG_FULL_CONTEXT=false</code>','«весь документ на каждый ход» дорог — доступно только админам'],
+  ['Эмбеддинги офлайн','multilingual-e5-small вшита в образ (пин коммита + SHA-256)','RAG без интернета и Hugging Face'],
+  ['Docling только для OCR','<code>patch_docling_ocr_only.py</code>','таблицы и Office-документы быстрее и точнее разбирают встроенные загрузчики'],
+  ['Файлы песочницы видны модели','<code>patch_filesystem_files.py</code>','иначе Open WebUI 0.11.4 молча убирает их, и модель отвечает «файла нет»'],
+  ['Просмотр чатов в консоли','<code>/console/chats</code>: только platform_admin, тексты через DLP <code>/v1/redact</code>, аудит chat.view/export','отладка и разбор инцидентов без раскрытия чувствительных данных'],
+  ['Отчёты руководителям','reconciler публикует <code>report-&lt;группа&gt;-latest.md</code> в KB-Reports-* (читает только MGR-группа)','статистика группы без доступа к консоли']])},
+ {t:'h',text:'Инструменты по умолчанию и интерфейс'},
+ {t:'html',html:table(['Патч / настройка','Что меняет'],[
+  ['<code>patch_terminal_default.py</code> + <code>_backend.py</code>','песочница выбрана по умолчанию в браузере и на сервере, если чат не назвал терминал (права и доступ к подключению по-прежнему проверяются)'],
+  ['<code>patch_web_search_tools.py</code>','search_web / fetch_url доступны модели без переключателя в чате; описание инструмента подсказывает, когда искать'],
+  ['<code>patch_memory_always.py</code>','личная память работает в каждом чате без переключателя'],
+  ['<code>patch_autopublish.py</code>','в конце ответа брокер выдаёт созданные документы карточками'],
+  ['<code>patch_chat_visuals.py</code> + <code>chat_visuals.js</code>','живые <code>graph / chart / ui / app</code> в двойном sandbox-iframe; фиксированный фрагмент системного промпта (не ломает кэш)'],
+  ['<code>patch_mermaid_theme.py</code>','Mermaid в корпоративной палитре в теме «Платформа»'],
+  ['<code>patch_minimal_ui.py</code>','скрыты лог вызовов инструментов, рассуждения и чёрная панель терминала (сборка падает, если разметка изменилась)'],
+  ['<code>patch_thinking_indicator.py</code>, <code>patch_answer_timer.py</code>','анимированный индикатор вместо мигающей полоски; время ответа — живой таймер и сохранённое значение'],
+  ['<code>patch_redesign.py</code> + <code>aip_theme.*</code>','палитра для всех; тема «Платформа» (логотип, колокольчик уведомлений, статус чата, баннер связи, метка DLP, общие папки)'],
+  ['<code>patch_maintenance_reload.py</code>','при 502/503/504 открытая вкладка переходит на страницу «Ведутся технические работы» и сама возвращается']])},
+ {t:'h',text:'Стоимость, контекст и надёжность'},
+ {t:'html',html:table(['Что','Где','Эффект'],[
+  ['Бюджеты на трёх уровнях','LiteLLM (команда, customer) + gateway (общий бюджет без рестарта)','429 вместо перерасхода'],
+  ['Скрытые резервные модели','console <code>PUT /profiles</code>: fallbacks тарифа в access group','упал провайдер — отвечает резерв, пользователь видит только модели тарифа'],
+  ['Сжатие истории','<code>CONTEXT_COMPACTION</code>, порог 500 000 токенов (50 % окна 1M)','длинные чаты не упираются в окно'],
+  ['Кэш промпта','<code>cache_control</code> для Claude; неизменный фрагмент визуализаций','дешевле повторные ходы'],
+  ['Автопродолжение','gateway, <code>LENGTH_CONTINUE_MAX_ATTEMPTS=4</code>','ответ, оборванный по длине, дописывается сам'],
+  ['Сборка падает при смене версии','каждый патч ищет точный фрагмент ровно один раз','никогда не выходит образ без патча']])}]}
+});
+
+/* =================== TO-BE · РАСПРЕДЕЛЁННАЯ АРХИТЕКТУРА v2 =================== */
+/* Исходные 15 вкладок сохранены как AS-IS: они описывают реализацию v1.7.x. */
+const ASIS_TABS = TABS.slice();
+ASIS_TABS.forEach((t, i) => {
+  t.t = 'AS-IS · ' + t.t;
+  for (const mode of ['o','d']) {
+    const v = t[mode];
+    v.lead = '<b>ТЕКУЩЕЕ СОСТОЯНИЕ (AS-IS, v1.7.x).</b> Эта вкладка оставлена для сравнения с предлагаемой архитектурой. В ней могут сохраняться локальные OCR, RAG и прямой веб-поиск; целевое состояние и требования описаны во вкладках TO-BE. ' + (v.lead || '');
+  }
+});
+const TN = (id,x,y,label,k='core',sub='',w=150,extra={})=>({id,x,y,label,k,sub,w,...extra});
+const TE = (f,t,l='',extra={})=>({f,t,...(l?{l}:{}),...extra});
+const th=(heading, rows)=>table(heading,rows);
+const tCard=(heading, text, col='#2563eb')=>`<div class="card" style="--c:${col}"><h4>${heading}</h4>${text}</div>`;
+const toBe = [];
+
+/* 01 · Главный контур */
+toBe.push({t:'TO-BE · 01. Платформа',
+ o:{lead:'<b>Целевой контур.</b> Все каналы — Open WebUI, pipelines, агенты, боты, скрипты и IDE — проходят через общий ingress, gateway, синхронный Regex-DLP и единый Policy/Response Gate. После DLP модель вызывается <b>параллельно</b> с двухуровневой оценкой риска. OCR и RAG выделены в самостоятельные сервисы (OCR при необходимости остаётся локальным).',blocks:[
+  {t:'scheme',S:{vb:[1600,715],groups:[
+    {x:14,y:25,w:235,h:390,label:'Каналы / адаптеры'},
+    {x:270,y:25,w:470,h:390,label:'Платформа / control + data plane'},
+    {x:760,y:25,w:385,h:390,label:'LLM и safety orchestration'},
+    {x:1170,y:25,w:410,h:390,label:'Провайдеры / исполнение'},
+    {x:270,y:455,w:600,h:225,label:'Знания и документы · отдельные узлы'},
+    {x:895,y:455,w:685,h:225,label:'Контур безопасности / наблюдаемость'}],
+    nodes:[TN('webclient',120,90,'Open WebUI','app','браузер / сессия',175),TN('pipe',120,165,'Pipelines','app','API / automation',175),TN('agents',120,240,'Агенты / MCP','app','tool calls / workflow',175),TN('clients',120,315,'Скрипты · боты · IDE','app','адаптеры / REST',175),
+      TN('edge-v2',365,165,'Ingress / Identity','edge','nginx · OIDC · mTLS / JWT',165),TN('gw-v2',560,165,'Gateway','core','идентичность · лимиты · tenant',170),TN('dlp-v2',560,305,'Regex DLP','sec','SYNC: ALLOW / MASK / BLOCK',170),
+      TN('policy-v2',830,165,'Policy & Response Gate','sec','асинхронная оценка + release',190),TN('router-v2',1050,165,'LiteLLM','core','маршрутизация / бюджеты',160),
+      TN('providers-v2',1380,87,'OpenAI · Anthropic','ext','Xray / CLIProxy / cloud',220),TN('qwenlocal-v2',1380,185,'Qwen3 · local LLM','local','GPU-инференс в LAN',220),TN('others-v2',1380,286,'Другие модели','ext','OdiRouter · CLI / fallback',220),
+      TN('ocr-v2',405,540,'Docling + OCR','app','локально или OCR VM',215),TN('rag-v2',695,540,'RAG Service + Qdrant','data','отдельный сервер, ACL, embeddings',260),
+      TN('fast-v2',1040,540,'Fast Guard','sec','Qwen3Guard 0.6B + Prompt Guard 2',240),TN('heavy-v2',1345,540,'Safety Reasoner','sec','gpt-oss-safeguard-20b',230),TN('out-v2',1345,635,'Output Gate','sec','подозрение → heavy output scan',230),
+      TN('audit-v2',1030,635,'Audit / Metrics','mon','без сырых текстов и секретов',225)],
+    edges:[TE('webclient','edge-v2'),TE('pipe','edge-v2'),TE('agents','edge-v2'),TE('clients','edge-v2'),TE('edge-v2','gw-v2','JWT'),TE('gw-v2','dlp-v2','sync'),TE('dlp-v2','policy-v2','ALLOW / MASK', {pts:[[650,305],[725,305],[725,165],[735,165]]}),
+      TE('policy-v2','router-v2','старт LLM сразу'),TE('router-v2','providers-v2','Xray / VPN'),TE('router-v2','qwenlocal-v2','LAN / mTLS'),TE('router-v2','others-v2','egress'),
+      TE('webclient','ocr-v2','файлы', {d:1,pts:[[120,112],[120,440],[405,440],[405,515]]}),
+      TE('gw-v2','rag-v2','RAG retrieval', {d:1,pts:[[560,189],[560,437],[695,437],[695,515]]}),
+      TE('policy-v2','fast-v2','parallel',{d:1,pts:[[830,189],[830,460],[1040,460],[1040,516]]}),
+      TE('fast-v2','heavy-v2','suspicious',{d:1}),TE('heavy-v2','policy-v2','verdict',{d:1,pts:[[1345,516],[1345,427],[800,427],[800,189]]}),
+      TE('router-v2','out-v2','ответ / SSE buffer',{d:1,pts:[[1050,189],[1160,189],[1160,635],[1230,635]]}),
+      TE('out-v2','policy-v2','release',{d:1,pts:[[1230,635],[885,635],[885,189]]}),TE('policy-v2','audit-v2','метрики',{d:1,pts:[[830,189],[830,660],[918,660]]})],
+    routes:{'Локальная Qwen3':['webclient','edge-v2','gw-v2','dlp-v2','policy-v2','router-v2','qwenlocal-v2'],'Облачная модель':['clients','edge-v2','gw-v2','dlp-v2','policy-v2','router-v2','providers-v2'],'Двухуровневый Guard':['policy-v2','fast-v2','heavy-v2'],'RAG':['gw-v2','rag-v2']},
+    ri:{'Двухуровневый Guard':'<b>Параллельно основному запросу:</b> первичный Fast Guard; при риске — Safety Reasoner с корпоративной политикой. Результат приходит в Policy/Response Gate. Для чувствительных маршрутов до получения разрешающего вердикта ответ наружу не выдаётся. Сами запросы при speculative routing уже могут поступить провайдеру.'}}},
+  {t:'html',html:`<div class="cards">${tCard('OCR вынесен опционально','<b>Режим local:</b> существующий контейнер Docling. <b>Режим remote:</b> отдельная OCR VM и закрытый HTTPS endpoint. Один стабильный сервисный адрес; смена размещения — конфигурацией.','#8b5cf6')}${tCard('RAG всегда отдельно','RAG API, векторное хранилище Qdrant/pgvector, embedding worker и индексация на отдельном узле. Open WebUI хранит интерфейс/чаты, а не рабочий векторный индекс.','#ec4899')}${tCard('Входы независимы','Все адаптеры нормализуют вызовы к OpenAI-compatible контракту и выпускают проверяемый identity context; ни одна точка входа не попадает напрямую в LiteLLM.','#3b82f6')}${tCard('Локальная Qwen3','Выбирается LiteLLM наравне с OpenAI, Anthropic и CLI. Развёртывание vLLM/SGLang на выделенном GPU-хосте; LAN-маршрут без VPN.','#64748b')}</div>`}
+ ]},
+ d:{lead:'<b>Границы ответственности.</b> Переход к распределённому стеку не означает пересылку всей базы знаний из Open WebUI в другую VM без API. Нужна миграция индексов, обеспечение единого embeddings-пространства, ACL и подключение retrieval к Open WebUI / gateway.',blocks:[
+ {t:'html',html:th(['Компонент','Текущая реализация','Целевое изменение / контракт'],[
+  ['Open WebUI','UI, RAG и внутренний индекс','Только UI/чаты/привязка знаний; внешний RAG endpoint и общий retrieval-путь'],
+  ['Входные API','Open WebUI → gateway','WebUI + pipelines + агенты/MCP + боты + IDE + скрипты → единый ingress/API adapter → gateway'],
+  ['Gateway','JWT, gateway-map, DLP, лимиты','Identity + tenant и Policy/Response Gate: корреляция request_id, запуск guard задач, блокировка release'],
+  ['Regex DLP','Синхронный POST /v1/scan','Остаётся синхронным. MASK применяется до передачи провайдеру и guard-моделям; BLOCK немедленно отклоняет'],
+  ['Fast Guard','Отсутствует','Qwen3Guard-Gen-0.6B и Prompt Guard 2 86M, параллельный скрининг. Подозрение / низкая уверенность → stage 2'],
+  ['Safety Reasoner','Отсутствует','gpt-oss-safeguard-20b: семантическая оценка с корпоративной политикой'],
+  ['Output Guard','Отсутствует','Для suspect-but-allowed: обязательный heavy output scan; базовый output Regex/DLP для всех'],
+  ['Модели','cloud / CLI / локальный endpoint без закреплённой модели','Добавить Qwen3 (предлагается Qwen3-32B с 4-bit для sizing) через LAN inference endpoint'],
+  ['OCR','docling:5001 рядом с Open WebUI','Локально или remote: OCR_API_BASE_URL + auth + mTLS + очередь / ограничение объёма'],
+  ['RAG','multilingual-e5-small и внутренний векторный индекс','Отдельная RAG VM: API, embeddings, Qdrant/PGVector, ACL, ingest; Open WebUI backend integration'],
+  ['Интернет-поиск','Open WebUI обходит gateway/DLP','Вывести в egress/tool broker с DLP и аудитом, прямой web_search отключить после миграции']])},
+ {t:'html',html:'<h3>Интерфейсы и точки интеграции</h3>'+th(['Порт / сервис','Клиент','Безопасность'],[
+ ['Ingress HTTPS :443','WebUI, API adapters, IDE, боты','OIDC, сервисные scoped tokens, mTLS для сервисов, rate-limit'],
+ ['Gateway :4100','Ingress/adapters','JWT validation, team budgets, обязательный Regex DLP'],
+ ['Safety API (внутренний)','Policy/Response Gate','signed request_id, bounded concurrency, deadline, audit verdict без raw payload'],
+ ['RAG API :8443 (проектно)','OWUI/retrieval adapter, ingest workers','mTLS, ACL по документам / tenant, signed identity (не headers пользователя)'],
+ ['OCR API :5001 (внутр. сеть)','OWUI и terminal-broker','X-Api-Key + mTLS / VPN; запрет произвольных URL и SSRF'],
+ ['vLLM :8000 (внутр. сеть)','LiteLLM','API key/service identity, TLS private VLAN; нет прямого доступа с пользовательских подсетей']])}
+ ]}
+});
+
+/* 02 · Security architecture */
+toBe.push({t:'TO-BE · 02. Guardrails',
+ o:{lead:'<b>Синхронный DLP → параллельные LLM и Guards.</b> Два уровня guard-проверок выполняются асинхронно относительно генерации, но последовательно друг относительно друга: Fast Guard → Safety Reasoner (по подозрению). Ответы не выпускаются до соответствующего решения. Если первичный риск был, но запрос всё же допущен, готовый ответ проходит тяжёлый повторный анализ.',blocks:[
+  {t:'scheme',S:{vb:[1480,665],nodes:[
+    TN('start',110,85,'Запрос','app','нормализованный prompt',170),TN('auth',340,85,'Identity / ACL','edge','подпись · группа · лимит',180),TN('regex',580,85,'Regex DLP','sec','sync BLOCK / MASK / ALLOW',190),TN('block',580,225,'BLOCK','err','без вызова LLM',150),
+    TN('fork',810,85,'Async fork','core','request_id · deadline',160),TN('fast',1030,205,'Stage 1 · Fast','sec','Qwen3Guard + PromptGuard2',230),TN('deep',1290,205,'Stage 2 · Deep','sec','gpt-oss-safeguard-20b',230),
+    TN('llm',1045,85,'LiteLLM → LLM','core','генерация спекулятивно',210),TN('reconcile',810,375,'Decision Gate','dec','ALLOW / HOLD / BLOCK',205),TN('abort',560,375,'Cancel / deny','err','отмена, удаление буфера',170),
+    TN('outfast',1070,520,'Output Regex DLP','sec','каждый ответ',190),TN('outheavy',1310,520,'Heavy Output Guard','sec','если suspect-but-allowed',245),
+    TN('release',820,590,'Release SSE','ok','после всех применимых проверок',210),TN('log',560,575,'Audit / SIEM','mon','вердикт + latency · no plaintext',205)],
+    edges:[TE('start','auth'),TE('auth','regex'),TE('regex','block','BLOCK',{k:'err'}),TE('regex','fork','ALLOW / MASK'),TE('fork','llm','start generation'),TE('fork','fast','async',{pts:[[810,105],[810,205],[915,205]]}),TE('fast','deep','suspect / uncertainty'),TE('fast','reconcile','low risk',{d:1,pts:[[1030,229],[1030,315],[810,315],[810,351]]}),
+      TE('deep','reconcile','policy verdict',{pts:[[1290,229],[1290,340],[810,340],[810,351]]}),TE('llm','reconcile','hold token buffer',{pts:[[1045,109],[1045,275],[810,275],[810,351]]}),TE('reconcile','abort','BLOCK',{k:'err'}),TE('reconcile','outfast','input allowed',{pts:[[810,399],[810,475],[1070,475],[1070,496]]}),TE('outfast','outheavy','suspect flag',{d:1}),TE('outfast','release','no flag / pass',{pts:[[1070,544],[1070,568],[820,568]]}),TE('outheavy','release','ALLOW',{pts:[[1310,544],[1310,610],[925,610]]}),TE('reconcile','log','audit',{d:1}),TE('outheavy','log','audit',{d:1,pts:[[1187,520],[1180,640],[560,640],[560,599]]})],
+    routes:{'Обычный запрос':['start','auth','regex','fork','fast','reconcile','outfast','release'],'Эскалация подозрения':['start','auth','regex','fork','fast','deep','reconcile','outfast','outheavy','release'],'Блокировка DLP':['start','auth','regex','block'],'Отмена по Guard':['fork','fast','deep','reconcile','abort']},
+    ri:{'Эскалация подозрения':'Подозрение сохраняется во флаге request_risk=suspect даже если Safety Reasoner разрешил входной запрос. Это флаг для обязательной тяжёлой проверки выходного ответа.'},
+    hint:'Политика безопасности требует различать «генерация уже началась» и «ответ был отдан пользователю». До release наружу не уходят токены, но при облачном маршруте сам запрос уже мог уйти провайдеру.'}},
+ {t:'html',html:`<div class="cards">${tCard('Инвариант №1','DLP BLOCK запрещает запуск модели. DLP MASK заменяет данные <b>до</b> отправки в LiteLLM и guard.','#e11d48')}${tCard('Инвариант №2','Guards запускаются в фоне относительно LLM, но публичный SSE находится под контролем Response Gate; начало генерации ≠ выдача ответа.','#f59e0b')}${tCard('Инвариант №3','fast=suspect → deep input. Если deep разрешил, флаг suspect остаётся до тяжёлой проверки ответа. Все ответы проходят быстрый output DLP.','#2563eb')}${tCard('Инвариант №4','Для cloud LLM параллельный старт <b>не предотвращает передачу исходного текста провайдеру</b>. Для чувствительных данных требуется input preflight перед LiteLLM.','#e11d48')}</div>`}
+ ]},
+ d:{lead:'<b>Полная последовательность.</b> Сначала синхронный Regex DLP. Затем запускаются две асинхронные ветки: запрос к модели и скрининг, который при подозрении вызывает более дорогой Reasoner. Ожидание решения переносится к Response Gate, чтобы скрыть задержку guard за временем генерации.',blocks:[
+  {t:'seq',Q:{w:1720,actors:[{id:'s-user',label:'Клиент',k:'app'},{id:'s-gw',label:'Gateway',k:'core'},{id:'s-dlp',label:'Regex DLP',k:'sec'},{id:'s-gate',label:'Policy Gate',k:'dec'},{id:'s-fast',label:'Fast Guard',k:'sec'},{id:'s-deep',label:'Safety Reasoner',k:'sec'},{id:'s-lit',label:'LiteLLM',k:'core'},{id:'s-model',label:'Qwen3 / Cloud',k:'local'},{id:'s-out',label:'Output Scan',k:'sec'}],msgs:[
+   {f:'s-user',t:'s-gw',l:'prompt + scoped identity',d:'Все адаптеры проходят общую проверку личности, контекста команды и нормализации.'},
+   {f:'s-gw',t:'s-dlp',l:'POST /v1/scan (sync)',d:'DLP проверяет собранный prompt, включая RAG-фрагменты. BLOCK → 400 без обращения к модели.'},
+   {f:'s-dlp',t:'s-gw',l:'ALLOW / MASK',ret:1,d:'MASK меняет исходящее сообщение; решение LOG сохраняется только в метаданных.'},
+   {f:'s-gw',t:'s-gate',l:'create request_id + risk state',d:'Точка синхронизации guard и LLM, а также выпуск SSE.'},
+   {f:'s-gate',t:'s-fast',l:'ASYNC: Qwen3Guard + Prompt Guard 2',d:'Запускаются две быстрые классификации; используют общий request_id.'},
+   {f:'s-gate',t:'s-lit',l:'ASYNC: model call',d:'Модель начинает работу, пока guard проверяет запрос. Для confidential режима вместо этого действует обязательный preflight.'},
+   {f:'s-lit',t:'s-model',l:'inference / provider',d:'Qwen3 — в локальной GPU VM; облако — через Xray/CLIProxy.'},
+   {f:'s-fast',t:'s-gate',l:'risk: normal / suspect / block',ret:1,d:'При suspect отправляем текст на более глубокую проверку; сохраняем флаг suspect. Явный high-confidence block можно отменить сразу.'},
+   {f:'s-gate',t:'s-deep',l:'if suspect: full policy + context',d:'Safety Reasoner разбирает контекст, категории и пользовательские корпоративные правила.'},
+   {f:'s-deep',t:'s-gate',l:'ALLOW / REVIEW / BLOCK',ret:1,d:'Даже при ALLOW request_risk=suspect сохраняется для тяжёлой выходной проверки.'},
+   {f:'s-model',t:'s-lit',l:'SSE tokens',ret:1,d:'Токены от основной модели.'},
+   {f:'s-lit',t:'s-gate',l:'buffered SSE',ret:1,d:'Наружу токены не отправляются, пока входная проверка не даст разрешение и не пройдёт нужный output guard.'},
+   {f:'s-gate',t:'s-out',l:'output DLP; heavy if suspect',d:'Для всех ответов — deterministic DLP; для suspect-but-allowed — deep scan полного ответа.'},
+   {f:'s-out',t:'s-gate',l:'output verdict',ret:1,d:'BLOCK: буфер уничтожается, возвращается нейтральный отказ. ALLOW: выпуск ответа.'},
+   {f:'s-gate',t:'s-user',l:'release SSE / policy denial',ret:1,d:'Если требовался полный анализ ответа, истинный стриминг для этого запроса задерживается; можно отправлять только безопасные heartbeat/статус.'}
+  ],ph:[{a:0,b:3,l:'Синхронные обязательные проверки'},{a:4,b:10,l:'Генерация и safety screening перекрываются'},{a:11,b:14,l:'Буферизация и итоговое решение'}],hint:'Нажмите шаг в диаграмме или «Вперёд». Часть событий выполняется одновременно: нумерация отражает логическую модель, а не гарантированный порядок завершения.'}},
+  {t:'html',html:'<h3>Переходы состояний</h3>'+th(['Сигнал / состояние','Входной маршрут','Выходная проверка','Действие'],[
+   ['DLP=BLOCK','Не запускать LLM','—','400 / policy denied; аудит только метаданных'],
+   ['DLP=MASK','Промпт уже замаскирован','Regex DLP','Обычный pipeline + guards'],
+   ['Fast=normal','Stage 2 не обязателен (с выборочным аудитом)','DLP / секреты для всех','Release после базовых проверок'],
+   ['Fast=suspect, Deep=ALLOW','LLM может генерировать параллельно','Обязательный тяжелый output scan','Буфер до вердикта; выдача только при ALLOW'],
+   ['Fast=suspect, Deep=BLOCK','Отмена generation','—','Пустой буфер уничтожить, заблокировать'],
+   ['Fast/Deep timeout','Риск не разрешён','Не выдавать ответ','Fail-closed для confidential; иной режим — только по утверждённой политике'],
+   ['Output=BLOCK','Вход был допущен','—','Отмена выдачи и безопасный текст отказа'],
+   ['Cloud + high confidentiality','Не запускать Cloud до решения guard','Обычные выходные проверки','Preflight до провайдера, либо запрет cloud route']])},
+  {t:'html',html:'<h3>События и метрики</h3><div class="lead"><code>request_id</code>, <code>tenant_id</code>, <code>source_adapter</code>, <code>dlp_action</code>, <code>fast_score</code>, <code>deep_verdict</code>, <code>suspect_input</code>, <code>output_scan</code>, <code>policy_version</code>, <code>model_route</code>, <code>ttfb_guard_ms</code>, <code>llm_first_token_ms</code>, <code>release_wait_ms</code>, <code>cancel_reason</code>. Запрещено логировать сырой prompt, PII, ответы и секреты по умолчанию.</div>'}
+ ]}
+});
+
+/* 03 · Layered logical map */
+toBe.push({t:'TO-BE · 03. Слои',
+ o:{lead:'<b>Слоистая модель.</b> Разделяем <b>точки входа</b>, <b>адаптацию протоколов</b>, <b>границу доверия</b>, <b>политику безопасности</b>, <b>маршрутизацию моделей</b>, <b>исполнение</b> и <b>данные/знания</b>. Control plane и observability — сквозные сервисы, а не обходной путь для запросов.',blocks:[
+  {t:'scheme',S:{vb:[1550,790],groups:[
+   {x:14,y:25,w:1520,h:88,label:'L0 · КАНАЛЫ / ПОТРЕБИТЕЛИ'},
+   {x:14,y:122,w:1520,h:85,label:'L1 · АДАПТЕРЫ / EDGE'},
+   {x:14,y:216,w:1520,h:91,label:'L2 · TRUST / IDENTITY / DLP'},
+   {x:14,y:316,w:1520,h:102,label:'L3 · POLICY / RESPONSE GATE / GUARDS'},
+   {x:14,y:427,w:1520,h:90,label:'L4 · ROUTER / PROVIDER ADAPTERS'},
+   {x:14,y:526,w:1520,h:95,label:'L5 · EXECUTION / TOOL PLANE'},
+   {x:14,y:630,w:1520,h:140,label:'L6 · KNOWLEDGE / DATA / OPERATIONS'}],
+   nodes:[TN('l0-web',265,77,'Open WebUI','app','пользовательский интерфейс',245),TN('l0-ag',610,77,'Агенты · Pipelines','app','workflow, MCP',245),TN('l0-api',955,77,'Боты · Скрипты','app','REST/webhooks',245),TN('l0-ide',1300,77,'IDE / CLI','app','OpenAI-совместимый API',245),
+   TN('l1-edge',460,165,'Ingress · OIDC · mTLS','edge','nginx · WAF · квоты',350),TN('l1-adapt',1050,165,'Unified API Adapter','edge','identity context · canonical schema',355),
+   TN('l2-gw',450,262,'Identity Gateway','core','scoped JWT · RBAC · budgets',340),TN('l2-dlp',1050,262,'Regex DLP (sync)','sec','нормализация · BLOCK/MASK/ALLOW',355),
+   TN('l3-pg',345,369,'Policy + Release Gate','dec','async fork · risk · SSE buffer',335),TN('l3-fast',820,369,'Fast Guard','sec','Qwen3Guard 0.6B + PG2',265),TN('l3-deep',1255,369,'Safety Reasoner','sec','policy model · output heavy scan',280),
+   TN('l4-lite',460,475,'LiteLLM / Budget Router','core','модели · tenant · fallback',355),TN('l4-egress',1090,475,'Egress & Provider Adapter','egress','Xray / CLIProxy / direct LAN',390),
+   TN('l5-cloud',310,575,'Cloud LLMs','ext','OpenAI · Anthropic',215),TN('l5-qwen',730,575,'Local Qwen3','local','vLLM on GPU VM',250),TN('l5-tools',1190,575,'Tool Executor','term','песочницы / web tools',310),
+   TN('l6-rag',320,687,'RAG / embeddings','data','отдельная VM + ACL',290),TN('l6-ocr',720,687,'OCR / Document AI','app','local или OCR VM',290),TN('l6-db',1105,687,'Postgres / Redis','data','метаданные · управление',270),TN('l6-obs',1105,744,'SIEM / Prometheus','mon','аудит и метрики',270)],
+   edges:[TE('l0-web','l1-edge'),TE('l0-ag','l1-adapt'),TE('l0-api','l1-adapt'),TE('l0-ide','l1-adapt'),TE('l1-edge','l2-gw'),TE('l1-adapt','l2-gw'),TE('l2-gw','l2-dlp'),TE('l2-dlp','l3-pg'),TE('l3-pg','l3-fast','async',{d:1}),TE('l3-fast','l3-deep','suspect',{d:1}),TE('l3-pg','l4-lite'),TE('l4-lite','l4-egress'),TE('l4-egress','l5-cloud'),TE('l4-egress','l5-qwen'),TE('l4-lite','l5-tools','tools',{d:1}),TE('l2-gw','l6-rag','retrieval',{d:1}),TE('l5-tools','l6-ocr','OCR',{d:1}),TE('l3-pg','l6-obs','audit',{d:1})],
+   hint:'Порядок слоёв — логическое разделение ответственности, а не отдельная VM на каждый слой. Прямой вызов L4/L5 из L0/L1 без L2/L3 запрещён.'}},
+  {t:'html',html:th(['Слой','Зона ответственности','Сервисы / контракты','Что запрещено'],[
+  ['L0 · Channels','Инициируют запросы','Open WebUI, агенты, pipelines, scripts, bots, IDE','Прямые токены LiteLLM и провайдеров'],
+  ['L1 · Adapters','Приводят входы к общему API','REST/WS, OpenAI-compatible / MCP, identity propagation','Доверять присланным пользователем user_id и role'],
+  ['L2 · Trust','Проверяют полномочия, DLP, лимиты','Gateway, OIDC, policies, Regex DLP sync','Обойти DLP через tool/RAG/API route'],
+  ['L3 · Safety','Оценивают семантику и решают, можно ли отдать ответ','Fast Guard, Reasoner, Response Gate, state machine','Выпускать SSE до обязательного вердикта'],
+  ['L4 · Routing','Выбирают модель и канал доставки','LiteLLM, CLIProxy, Xray, budgets','Прямой трафик через провайдера вне egress policy'],
+  ['L5 · Execution','Генерируют ответ и выполняют ограниченные инструменты','Qwen3, cloud LLMs, sandbox, tool broker','Подменять RBAC решением языковой модели'],
+  ['L6 · Data / Knowledge','Индексируют документы, хранят состояние','RAG API, Qdrant, OCR, Postgres, Redis','Делать retrieval без tenant/document ACL'],
+  ['Cross-cutting','Конфигурация, аудит, SRE','Console, reconciler, Prometheus, Grafana, Wazuh','Хранить чувствительные тексты в общих логах']])}
+ ]},
+ d:{lead:'<b>Принципы проектирования.</b> Логические слои независимы от физического размещения. Можно менять Docling с local на remote или масштабировать Qwen3 без изменения клиентского API. Каждая граница имеет проверяемый контракт.',blocks:[
+  {t:'html',html:th(['Граница','Договорённость','Тест / контроль'],[
+   ['L0 → L1','Для каждого источника есть адаптер + service credential','API из IDE/бота не может обратиться к LiteLLM напрямую'],
+   ['L1 → L2','Bearer scoped token; подпись и срок, tenant id из verified issuer','Подмена tenant/user_id в JSON/header не меняет principal'],
+   ['L2 → L3','normalized_request, masked_text, request_id, data_classification','DLP BLOCK всегда завершается до вызова Guard или LiteLLM'],
+   ['L3 → L4','speculative_call_id, policy_mode=guarded|preflight','Смена policy_version не приводит к необъяснимым отказам'],
+   ['L4 → L5','route model_alias → provider endpoint; local Qwen3 private LAN','Нет прямого Internet egress кроме разрешённых правил'],
+   ['L5 → L3','Streaming SSE всё время под управлением release gate','Ни один запрещённый токен не попадает клиенту до окончательной проверки'],
+   ['L2/L5 → L6','RAG и OCR по service identity, ACL и signed metadata','Нельзя получить чужие KB через вызов агента'],
+   ['Все → observability','Только метрики и редактированные event records','Trace и метрики не содержат JWT, ключей, промптов']])},
+  {t:'html',html:`<div class="cards">${tCard('Data plane','Путь пользовательских сообщений, документов, retrieval, обращений к моделям и инструментария. Масштабируется горизонтально.','#f59e0b')}${tCard('Control plane','Admin + reconciler + конфигурация политик, тарифов, моделей, каналов и версий guard. Не должен быть единственной точкой постоянной обработки промптов.','#6366f1')}${tCard('Security plane','Синхронный Regex DLP, быстрые guard-модели, тяжёлый policy reasoner и response release. Правила fail-open/fail-closed определяются чувствительностью.','#e11d48')}${tCard('Knowledge plane','OCR, ingest, текстовые и векторные индексы, поиск, авторизация документов, срок хранения и versioned embeddings.','#ec4899')}</div>`}
+ ]}
+});
+
+/* 04 · VM and physical sizing */
+const deployHosts=[
+ ['VM-01 · Platform','Frontend, Open WebUI, gateway, DLP, Policy Gate, LiteLLM, console, reconciler, Xray/CLIProxy','16 vCPU','64 GiB','250 GiB NVMe','—','постоянно'],
+ ['VM-02 · RAG','RAG API, Qdrant, индексация/embeddings e5-small, документный ACL, object cache','16 vCPU','64 GiB','2 TiB NVMe','—','постоянно, отдельно'],
+ ['VM-03 · OCR','Docling-serve CPU + Tesseract rus/eng, очередь OCR','16 vCPU','32 GiB','300 GiB SSD','—','опционально / remote'],
+ ['VM-04 · Guards','Qwen3Guard-Gen-0.6B + Prompt Guard 2 + gpt-oss-safeguard-20b','16 vCPU','64 GiB','300 GiB NVMe','1 × 48 GiB VRAM','постоянно'],
+ ['VM-05 · Qwen3','Qwen3-32B 4-bit через vLLM/SGLang; отдельный model service','24 vCPU','128 GiB','500 GiB NVMe','1 × 80 GiB VRAM','постоянно'],
+ ['VM-06 · Data/Obs','PostgreSQL (3 DB), Redis, Prometheus, Grafana, backup agent','8 vCPU','32 GiB','1 TiB NVMe','—','рекомендуется'],
+ ['VM-07 · Sandboxes','terminal-broker, socket-proxy, isolated user sandbox workers','16 vCPU','48 GiB','500 GiB SSD','—','рекомендуется']
+];
+function deploymentTable(){return th(['Узел','Состав','CPU','RAM','SSD','GPU','Размещение'],deployHosts)}
+const capacityExamples=[
+ ['Пилот','25–50','3–5','~6 RPM','Платформа+OCR+Sandboxes: 16/64; RAG: 12/48; Guards: 12/48 + 24–48 GB GPU; Qwen3: 16/96 + 48–80 GB GPU','4 VM (DB на платформе; OCR локально)'],
+ ['Базовый','~100','~10','20 RPM','Разделённые VM-01…VM-07, Qwen3 32B 4-bit; 48 GB guard + 80 GB LLM','6–7 VM; OCR VM опциональна'],
+ ['Рост / HA','300–500','30–50','60–100 RPM','2× ingress/gateway; 2× guard workers; 2–4× Qwen3 inference replica; DB standby; RAG replicas + storage','10–15 VM; измерять TPS и SLO']
+];
+toBe.push({t:'TO-BE · 04. VM / ресурсы',
+ o:{lead:'<b>Физическое разнесение и масштабирование.</b> Пример расчёта для ~100 пользователей, 10 одновременно активных генераций и пика 20 запросов/мин. Это <b>проектный sizing, не измеренная производительность</b>. Здесь VM — роли: GPU-узлы могут быть физическими машинами с выделенными видеокартами или VM с GPU passthrough.',blocks:[
+  {t:'scheme',S:{vb:[1560,655],groups:[
+    {x:15,y:20,w:730,h:270,label:'CPU-контур: приложения и служебные VM'},
+    {x:770,y:20,w:775,h:270,label:'GPU-контур: специализированные модели'},
+    {x:15,y:315,w:730,h:315,label:'Knowledge / OCR / Sandboxes'},
+    {x:770,y:315,w:775,h:315,label:'State / egress / доступ'}],
+    nodes:[TN('vm-edge',230,115,'VM-01 · Platform','core','16 vCPU · 64 GB · 250 GB',275),TN('vm-api',570,115,'Ingress / Gateway','edge','WebUI + adapters + LiteLLM',250),TN('vm-audit',400,225,'Policy Gate + DLP','sec','sync/async, no SSE bypass',290),
+      TN('vm-guards',965,115,'VM-04 · Guards','sec','16 vCPU · 64 GB RAM',285),TN('vm-guardgpu',1335,115,'1 × GPU 48 GB','sec','fast + reasoner 20B',300),TN('vm-llm',965,235,'VM-05 · Qwen3','local','24 vCPU · 128 GB RAM',285),TN('vm-llmgpu',1335,235,'1 × GPU 80 GB','local','Qwen3-32B 4-bit',300),
+      TN('vm-rag',230,405,'VM-02 · RAG','data','16 vCPU · 64 GB · 2 TB NVMe',285),TN('vm-ragapi',570,405,'RAG API / Qdrant','data','ACL · embeddings · ingest',270),
+      TN('vm-ocr',230,540,'VM-03 · OCR','app','16 vCPU · 32 GB · 300 GB',285),TN('vm-ocr-local',570,540,'Альтернатива: local OCR','app','Docling в VM-01',270,{dash:1}),
+      TN('vm-sandbox',930,405,'VM-07 · Sandboxes','term','16 vCPU · 48 GB · 500 GB',305),TN('vm-data',1335,405,'VM-06 · Data / Obs','data','8 vCPU · 32 GB · 1 TB',300),
+      TN('vm-route',930,540,'Xray / CLIProxy','egress','из VM-01 к cloud',270),TN('vm-external',1335,540,'Cloud / Providers','ext','OpenAI · Anthropic · CLI',300)],
+    edges:[TE('vm-edge','vm-api'),TE('vm-edge','vm-audit'),TE('vm-api','vm-guards','safety',{d:1}),TE('vm-guards','vm-guardgpu'),TE('vm-api','vm-llm','local route'),TE('vm-llm','vm-llmgpu'),
+      TE('vm-api','vm-ragapi','retrieval',{pts:[[570,137],[570,300],[570,381]]}),TE('vm-rag','vm-ragapi'),TE('vm-edge','vm-ocr','documents',{d:1,pts:[[230,137],[230,300],[230,516]]}),TE('vm-ocr','vm-ocr-local','toggle',{d:1}),TE('vm-api','vm-sandbox','tool calls',{d:1}),TE('vm-api','vm-data','SQL',{d:1}),TE('vm-route','vm-external','Xray VPN')],
+    hint:'CPU и RAM указаны как проектная квота VM, а VRAM — ёмкость GPU. Для HA, резервирования VRAM, длинных контекстов и высоких TPS может потребоваться больше карт. Межсервисный доступ — приватные VLAN / mTLS, без открытых портов GPU и RAG в сеть сотрудников.'}},
+ {t:'html',html:deploymentTable()},
+ {t:'capacity'},
+ {t:'html',html:'<h3>Сводный бюджет (7 раздельных узлов)</h3><div class="cards">'+tCard('112 vCPU','Сумма квот VM (CPU допускает oversubscription при соблюдении SLO).','#f59e0b')+tCard('432 GiB RAM','64 + 64 + 32 + 64 + 128 + 32 + 48 GiB.','#3b82f6')+tCard('~4.81 TiB SSD/NVMe','250 + 2048 + 300 + 300 + 500 + 1024 + 500 GiB = 4 922 GiB ≈ 4.81 TiB. Требования к RAID/backup дополнительно.','#ec4899')+tCard('2 GPU: 48 + 80 GiB VRAM','VRAM не складывается между узлами; GPU-ресурсы привязаны к конкретным моделям.','#e11d48')+'</div>'},
+ {t:'html',html:'<div class="lead warn"><b>Закупочный бюджет:</b> указанная сумма SSD-квот — <b>4 922 GiB ≈ 4,81 TiB</b> без RAID, snapshots и внешних бэкапов. При необходимости заложить ≥ 6 TiB полезной ёмкости плюс отдельное резервное хранилище. Все ресурсы — оценки под предполагаемую нагрузку.</div>'}
+ ]},
+ d:{lead:'<b>Методика sizing.</b> Нагрузка считается отдельно для токенов LLM, частоты guard-проверок, загрузки документов и объёма RAG. Пропускная способность GPU и время OCR из количества CPU/VRAM не следуют: нужны нагрузочные тесты на реальных моделях и документах.',blocks:[
+  {t:'html',html:th(['Параметр','Принятое допущение','Вычисление / комментарий'],[
+  ['Пользователи','100 named users','Не равно числу параллельных инференсов'],
+  ['Peak RPS','20 RPM','20 / 60 = 0,333 запроса/с'],
+  ['Средний запрос','1 500 input + 750 output tokens','Типовое приложение, контекст и RAG могут увеличить вход'],
+  ['Токены на пике','20 RPM','30 000 input tok/min + 15 000 output tok/min'],
+  ['Суммарный выпуск ответов','750 × 20 / 60','≈250 output tok/s агрегировано; это требование к пулу провайдеров, не подтверждённая скорость одной GPU'],
+  ['Внутренняя конкурентность','10 активных генераций','Little’s Law: при 0,333 req/s и 10 in-flight среднее время пребывания ~30 с'],
+  ['Доля подозрений fast','15% (допущение)','20 × 0,15 = 3 deep input scans/min'],
+  ['Подозрение + разрешение','10% от всех (допущение)','20 × 0,10 = 2 heavy output scans/min'],
+  ['Всего fast-классификаций','100% запросов','20 проверок Qwen3Guard/min + 20 Prompt Guard/min'],
+  ['Кеш / failover','15–25% RAM+VRAM резерва','Для пиков, KV cache, batch и version overlap, уточнить по профилированию']])},
+  {t:'html',html:'<h3>Оценка VRAM на экземпляр</h3>'+th(['Модель','Точность весов (план)','Память под веса','Рекомендуемая ёмкость GPU сервера'],[
+   ['Qwen3Guard-Gen-0.6B','BF16','~1.5 GiB (реальные веса могут отличаться)','Вместе с Reasoner; + runtime / batching'],
+   ['Prompt Guard 2 86M','FP16/BF16','< 0.5 GiB','Вместе с Fast Guard или CPU'],
+   ['gpt-oss-safeguard-20b','MXFP4 / эквивалент','~12–16 GiB, зависит от runtime','48 GiB VRAM на общем guard-узле'],
+   ['Qwen3-32B (локальная)','4-bit','~18–24 GiB, зависит от квантовки','80 GiB GPU для KV cache и конкурентности; сравнить с 48 GiB'],
+   ['Qwen3Guard-Gen-8B (если добавить)','BF16','~16–20 GiB + KV','Опциональная 3-я модель; на guard GPU 48 GB может упереться в память']])},
+  {t:'html',html:'<h3>Варианты масштаба</h3>'+th(['Сценарий','Пользователи','Concurrency','Peak','Ресурсная схема','VM'],capacityExamples)},
+  {t:'html',html:'<h3>RAG: пример объёма индекса</h3>'+th(['Параметр','Допущение','Расчёт'],[
+   ['Объём знаний','1 млн chunks','Это гипотеза, фактическое число определить инвентаризацией'],
+   ['Размер embedding','384 × float32','384 × 4 = 1 536 байт / chunk'],
+   ['Векторные данные','1 млн × 1 536 байт','≈1.54 GB до индексов, payload и реплик'],
+   ['Vector + payload + HNSW','коэффициент 3–6 (оценочно)','≈4.6–9.2 GB, плюс документы и snapshots'],
+   ['Резервирование','реплика/бэкапы/история','2 TiB — запас под исходные PDF/Office, snapshots и рост, не требование для одних векторов']])},
+  {t:'html',html:'<h3>Размещение и отказоустойчивость</h3>'+th(['Сервис','Как масштабируется','Отказ / восстановление'],[
+   ['Gateway + Policy Gate','2+ stateless replicas; sticky не требуется при внешнем state store','Shared state по request_id, deadlines, circuit breaker'],
+   ['Guard 0.6B / PG2','несколько CPU/GPU workers','Неудачная проверка не снимает решение о запрете'],
+   ['Safety Reasoner','GPU worker pool, очередь с priority','При перегрузе hold или deny согласно policy sensitivity'],
+   ['Qwen3','новые GPU replicas, балансировка LiteLLM','Fallback на другую локальную replica / approved cloud'],
+   ['Qdrant / RAG','replica+shard, отдельные ingestion workers','Проверка ACL на каждом retrieval; snapshots'],
+   ['OCR','очередь и CPU replicas; mode local/remote','Retry, idempotency key, ограничение страниц / размера'],
+   ['Postgres','primary+standby, PITR, регулярный restore test','RPO/RTO утверждаются ИБ / владельцем сервиса'],
+   ['Песочницы','новые sandbox worker hosts','Per-user isolation, одноразовые контейнеры и тома']])},
+  {t:'html',html:'<h3>Сегментация сети</h3><div class="lead">Выделить <code>ingress</code>, <code>services</code>, <code>safety</code>, <code>knowledge</code>, <code>gpu-inference</code>, <code>data</code>, <code>egress</code>, <code>sandboxes</code>, <code>metrics</code>. Для remote OCR/RAG транспортный ACL + mTLS; открыты только межсервисные порты из allowlist. Публикация Docker-портов не должна обходить firewall (DOCKER-USER / firewall на гипервизоре).</div>'}
+ ]}
+});
+
+/* 05 · Migration and runbook */
+toBe.push({t:'TO-BE · 05. План внедрения',
+ o:{lead:'<b>Переход без одномоментной перестройки.</b> Старые вкладки AS-IS описывают код/compose v1.7.x. Ниже — последовательность внедрения целевой схемы, технические риски и критерии приёмки.',blocks:[
+  {t:'html',html:th(['Этап','Что меняется','Результат / критерий приёмки'],[
+   ['0 · Baseline','Фиксируем current stack и p95/p99 latency, OCR backlog, RAG retrieval, DLP counters','Сопоставимые до/после метрики; исходная конфигурация сохранена'],
+   ['1 · Единый ingress','Pipelines, агенты, скрипты, IDE, боты → адаптеры → gateway','100% LLM-вызовов авторизованы, нет обхода LiteLLM/DLP'],
+   ['2 · RAG VM','Переносим индекс / ingest / embeddings в RAG API, ACL + embeddings parity','Доступы к чужим KB невозможны, quality parity и roll-back'],
+   ['3 · OCR remote toggle','Добавляем OCR_API_BASE_URL / локальный fallback и сетевые ограничения','Одинаковый API/результаты в local и remote; таймауты / очередь'],
+   ['4 · Local Qwen3','vLLM на GPU VM + model alias в LiteLLM и тарифы','Smoke, streaming и tool-calls, лимиты, модель доступна по группам'],
+   ['5 · Guard shadow','Fast + Reasoner считают риск на копии запросов, не блокируют','Recall/FPR + latency / request_id; отсутствие утечек в логах'],
+   ['6 · Enforce release','Policy Gate + задержка SSE до safety verdict; suspect → output heavy','Ни один заблокированный ответ не виден клиенту; отладка deadline'],
+   ['7 · Scale/HA','Горизонтальный рост gateway, RAG, guards и GPU LLM','Нагрузочные тесты, SLO, восстановление после отказа'],
+   ['8 · Egress fixes','Tool/web search через единый tool broker и DLP','Прямой Open WebUI web search больше не обходит защиту']])},
+  {t:'html',html:`<div class="cards">${tCard('Экспериментальная проверка Guard','Тесты benign, prompt-injection, jailbreak, RAG injection, PII, русскоязычные и многоязычные запросы. Датасет с ожидаемыми ALLOW/REVIEW/BLOCK.','#e11d48')}${tCard('Контроль накладных расходов','Сравнить режимы sync preflight, speculative + buffered response и selective heavy output. Измерить p50/p95/p99 latency и ресурсы GPU.','#f59e0b')}${tCard('Безопасность данных','Внешние облака — только при разрешённой классификации данных, иначе local Qwen3. Отправка в cloud до проверки guard уже является передачей данных.','#3b82f6')}${tCard('Совместимость Open WebUI','При интеграции с external RAG проверить возможности именно закреплённой Open WebUI v0.11.4 и патчей; современные функции внешних KB могли появиться позже.','#8b5cf6')}</div>`},
+  {t:'html',html:'<h3>Открытые решения до запуска</h3>'+th(['Вопрос','Почему важно','Предлагаемое решение'],[
+   ['Реальный Qwen3 checkpoint','Влияет на GPU VRAM / TPS / контекст','Пока sizing рассчитан на Qwen3-32B 4-bit; зафиксировать конкретный checkpoint'],
+   ['Preflight vs speculative cloud','Не допускается неконтролируемая отправка секретов в облако','confidential → preflight + local-only; public/internal → speculative + hold output'],
+   ['Способ подключения external RAG','v0.11.4 могла не иметь нужного external KB контракта','Реализовать RAG adapter/Tool API или обновить OWUI после проверки совместимости'],
+   ['Лимиты guard','Timeout может блокировать release SSE','Политика deadline и fail-closed по классификации данных'],
+   ['Размер KB и rate uploads','Без числа файлов/страниц нельзя оценить OCR/диск','Собрать инвентаризацию и benchmark 100–1000 типовых документов'],
+   ['Multi-tenancy в RAG','Недопустимо смешать ACL разных подразделений','ACL в retriever, а не только фильтры UI']])}
+ ]},
+ d:{lead:'<b>Нагрузочные тесты и ссылки.</b> Требования к CPU/GPU/disk выше — предварительные. Источники ниже используются для проверки возможностей продуктов; численные ресурсы являются инженерными гипотезами для конкретного проекта.',blocks:[
+  {t:'html',html:'<h3>Верификационные сценарии</h3>'+th(['Сценарий','Что проверить','Ожидаемый инвариант'],[
+   ['DLP BLOCK','Попытка передачи секретного токена','Нет вызова LiteLLM / провайдера'],
+   ['DLP MASK','Вход с персональными данными','В model endpoint уходят только замаскированные данные'],
+   ['Fast suspect, Deep BLOCK','Атака на инструкции','Клиент не получает ни одного токена'],
+   ['Fast suspect, Deep ALLOW','Легитимный запрос со словами риска','Обязательный heavy output scan'],
+   ['Slow guard vs fast LLM','Модель закончила раньше проверки','Буфер удерживается до вердикта или timeout'],
+   ['Cloud confidential','Документ confidential + запрос к внешнему провайдеру','Нет Cloud API call до preflight / запрет маршрута'],
+   ['RAG cross-team','Пользователь группы A спрашивает документы B','ACL проверяется в RAG API, чужих результатов нет'],
+   ['OCR local ↔ remote','Одни и те же сканы','Эквивалентная обработка/форматы, ограниченные лимиты'],
+   ['Agent/tool injection','Вредоносная инструкция в tool response','Повторная проверка untrusted tool output и разрешений'],
+   ['Web search egress','Search/fetch из OWUI','Трафик идёт через tool broker с DLP и audit']])},
+  {t:'html',html:`<h3>Документация</h3><div class="lead"><a href="https://github.com/QwenLM/Qwen3Guard" target="_blank" rel="noopener noreferrer">Qwen3Guard</a> · <a href="https://help.openai.com/en/articles/11870455-openai-open-weight-models-gpt-oss" target="_blank" rel="noopener noreferrer">gpt-oss-safeguard</a> · <a href="https://docs.openwebui.com/features/chat-conversations/rag/" target="_blank" rel="noopener noreferrer">Open WebUI RAG и внешние источники</a> · <a href="https://docs.openwebui.com/getting-started/essentials/" target="_blank" rel="noopener noreferrer">Open WebUI deployment essentials</a> · <a href="https://docling.org/serve/" target="_blank" rel="noopener noreferrer">Docling Serve API</a>.</div>`}
+ ]}
+});
+
+
+/* ---------- Дополнение: сквозное обновление зависимых TO-BE представлений ---------- */
+
+/* 06 · Уточнённый жизненный цикл — заменяет логику на старой AS-IS вкладке 4 */
+toBe.push({t:'TO-BE · 06. Жизненный цикл',
+ o:{lead:'<b>ЦЕЛЕВОЙ жизненный цикл — не старый лист AS-IS.</b> Regex-DLP — синхронный, после него запускаются ДВЕ параллельные ветки: LiteLLM/генерация и Fast Guard. При подозрении Fast Guard вызывает Stage 2 (Safety Reasoner). Response Gate удерживает текст до необходимых входных и выходных решений. Защита критичных данных, направляемых в облако, требует preflight до отправки.',blocks:[
+  {t:'scheme',S:{vb:[1540,700],groups:[{x:15,y:20,w:1510,h:155,label:'A · Синхронная подготовка и обязательный допуск'},{x:15,y:185,w:1510,h:245,label:'B · Спекулятивные ПАРАЛЛЕЛЬНЫЕ ветки'},{x:15,y:440,w:1510,h:245,label:'C · Сбор вердиктов / разрешение выдачи'}],nodes:[
+   TN('cy-in',140,85,'1 · Ingress','edge','WebUI · bots · IDE · agents',210), TN('cy-auth',405,85,'2 · Gateway','core','JWT · ACL · budget · limits',210), TN('cy-rag',690,85,'3 · RAG context','data','remote retrieval + document ACL',215), TN('cy-dlp',975,85,'4 · Regex-DLP','sec','sync: BLOCK / MASK / ALLOW',215),TN('cy-pre',1265,85,'5 · Data route','dec','cloud confidentiality policy',225),
+   TN('cy-ll',550,260,'6A · LiteLLM','core','генерация уже идёт',215), TN('cy-gen',550,360,'Cloud / Qwen3','local','Xray либо local vLLM',215), TN('cy-fast',990,255,'6B · Fast Guards','sec','Qwen3Guard 0.6B + PG2',255), TN('cy-deep',1285,355,'7 · Safety Reasoner','sec','только при suspect',235),
+   TN('cy-gate',850,500,'8 · Response Gate','dec','дождаться входного вердикта',245),TN('cy-out',1130,575,'9 · Output DLP','sec','для всех готовых ответов',225),TN('cy-heavy',1400,575,'10 · Heavy output','sec','если suspect-but-allowed',225),
+   TN('cy-release',830,655,'11 · Release / deny','ok','разрешённый ответ клиенту',245),TN('cy-stop',355,570,'BLOCK / Cancel','err','отмена generation, нет SSE',220),
+   TN('cy-ocr',145,365,'OCR task','app','local или отдельная OCR VM',215)],edges:[
+   TE('cy-in','cy-auth'),TE('cy-auth','cy-rag','RAG для KB',{d:1}),TE('cy-rag','cy-dlp'),TE('cy-auth','cy-dlp','без KB',{d:1,pts:[[405,108],[405,145],[975,145],[975,108]]}),TE('cy-dlp','cy-pre','ALLOW / MASK'),
+   TE('cy-pre','cy-ll','branch A',{pts:[[1265,108],[1265,206],[550,206],[550,235]]}),TE('cy-pre','cy-fast','branch B',{pts:[[1265,108],[1400,108],[1400,215],[990,215],[990,230]]}),
+   TE('cy-ll','cy-gen'),TE('cy-fast','cy-deep','suspect',{d:1}),TE('cy-gen','cy-gate','buffered result',{pts:[[550,385],[550,475],[850,475]]}),TE('cy-fast','cy-gate','normal',{pts:[[990,280],[990,440],[850,440],[850,475]]}),TE('cy-deep','cy-gate','policy verdict',{pts:[[1285,380],[1285,455],[900,455],[900,475]]}),
+   TE('cy-gate','cy-out','input ALLOW'),TE('cy-out','cy-heavy','suspect',{d:1}),TE('cy-out','cy-release','normal output',{pts:[[1130,600],[1130,633],[830,633]]}),TE('cy-heavy','cy-release','ALLOW',{pts:[[1400,600],[1400,675],[830,675]]}),
+   TE('cy-dlp','cy-stop','BLOCK',{d:1,pts:[[975,110],[975,180],[355,180],[355,545]]}),TE('cy-gate','cy-stop','input BLOCK',{d:1}),TE('cy-out','cy-stop','output BLOCK',{d:1}),TE('cy-in','cy-ocr','вложение',{d:1,pts:[[140,109],[140,340]]})],
+   routes:{'Нормальный запрос':['cy-in','cy-auth','cy-rag','cy-dlp','cy-pre','cy-ll','cy-gen','cy-gate','cy-out','cy-release'], 'Подозрительный':['cy-pre','cy-fast','cy-deep','cy-gate','cy-out','cy-heavy','cy-release'],'Regex-DLP BLOCK':['cy-in','cy-auth','cy-dlp','cy-stop']},
+   ri:{'Нормальный запрос':'Путь генерации показан отдельно от одновременно исполняющегося Fast Guard. Release возможен только после входного вердикта, даже для normal.', 'Подозрительный':'Для suspect-but-allowed флаг риска сохраняется и принудительно вызывает тяжёлую оценку готового ответа.', 'Regex-DLP BLOCK':'Regex-DLP выполнен синхронно: модель не вызывается.'},
+   hint:'Стрелки branch A и branch B возникают после одной синхронной точки. Две ветки выполняются параллельно, но показаны на одной схеме; исходное содержимое нельзя отправлять во внешнюю LLM до preflight для конфиденциальных запросов.'}},
+  {t:'html',html:'<h3>Контрольные переходы</h3>'+th(['Условие','Запуск модели','Что запускается в Guard','Когда ответ виден клиенту'],[
+   ['Regex-DLP: BLOCK','Никогда','Не требуется','Ошибка policy_denied'],
+   ['Regex-DLP: MASK/ALLOW; обычный маршрут','Сразу после DLP','Fast Guard параллельно','После входного verdict + проверки готового ответа'],
+   ['Fast Guard: suspect','Генерация уже может идти','Stage 2 (Safety Reasoner)','После ALLOW Stage 2 и обязательной тяжёлой проверки выхода'],
+   ['Fast Guard: high-confidence BLOCK','Отменить, если начался','Необязателен Stage 2 по политике','Ответ не выдаётся'],
+   ['Stage 2: BLOCK / REVIEW','Отменить или удержать','Может завершиться аудитом','BLOCK → отказ; REVIEW → утверждённый workflow'],
+   ['Fast/Deep: timeout/error','Может быть уже начат','Проверка не завершена','По default: HOLD / fail-closed; никогда не auto-ALLOW'],
+   ['Данные confidential → cloud','Только после preflight или запрет cloud','Preflight до облачного запроса','По решению политики и выходной проверке']])},
+  {t:'html',html:'<div class="lead warn"><b>Важный технический компромисс:</b> если обязательный Output DLP проверяет весь готовый ответ, реальный токеновый streaming до клиента не гарантируется. Response Gate буферизует и после разрешения воспроизводит поток. Для настоящего SSE во время генерации нужен отдельный chunk-level output policy, способный корректно анализировать границы чанков и останавливать уже начатую выдачу; это иной уровень гарантий.</div>'}
+ ]},
+ d:{lead:'<b>Детальный сценарий целевого запроса.</b> В отличие от AS-IS, между Regex-DLP и LiteLLM есть async fork, а перед клиентом — обязательная точка синхронизации. Нумерация — логическое описание, не точная очередность событий в параллельных ветках.',blocks:[
+  {t:'seq',Q:{w:1620,actors:[{id:'user',label:'Клиент',k:'app'},{id:'gw',label:'Gateway',k:'core'},{id:'rag',label:'RAG API',k:'data'},{id:'dlp',label:'Regex-DLP',k:'sec'},{id:'gate',label:'Policy Gate',k:'dec'},{id:'fast',label:'Fast Guard',k:'sec'},{id:'deep',label:'Reasoner',k:'sec'},{id:'ll',label:'LiteLLM',k:'core'},{id:'mdl',label:'LLM',k:'local'},{id:'out',label:'Output DLP/Guard',k:'sec'}],msgs:[
+   {f:'user',t:'gw',l:'prompt / files + verified identity'},
+   {f:'gw',t:'rag',l:'retrieval + scoped ACL (если RAG)',d:'Недоверенные фрагменты помечаются происхождением; ACL проверяется RAG-сервисом.'},
+   {f:'rag',t:'gw',l:'допустимые фрагменты',ret:1},
+   {f:'gw',t:'dlp',l:'scan собранного контекста (SYNC)',d:'DLP выполняется до запуска модели. Входящие секреты/PII не уходят дальше в случае BLOCK.'},
+   {f:'dlp',t:'gw',l:'ALLOW / MASK / BLOCK',ret:1},
+   {f:'gw',t:'gate',l:'create request_id + policy state'},
+   {f:'gate',t:'fast',l:'ASYNC-A: fast classification'},
+   {f:'gate',t:'ll',l:'ASYNC-B: model generation',d:'Только если preflight не требуется для этого маршрута.'},
+   {f:'ll',t:'mdl',l:'local Qwen3 / cloud inference'},
+   {f:'fast',t:'gate',l:'normal / suspect / block',ret:1},
+   {f:'gate',t:'deep',l:'if suspect: contextual policy check'},
+   {f:'deep',t:'gate',l:'ALLOW / BLOCK / REVIEW',ret:1},
+   {f:'mdl',t:'ll',l:'SSE response',ret:1},
+   {f:'ll',t:'gate',l:'buffer response; do not release',ret:1},
+   {f:'gate',t:'out',l:'all: output DLP; suspect: heavy scan'},
+   {f:'out',t:'gate',l:'output allow / block',ret:1},
+   {f:'gate',t:'user',l:'approved response / safe denial',ret:1}
+   ],ph:[{a:0,b:5,l:'Синхронная подготовка'}, {a:6,b:13,l:'Параллельные ветки и ожидание вердикта'}, {a:14,b:16,l:'Output safety и release'}],hint:'События 7 и 8 стартуют без ожидания друг друга. При suspect итоговая проверка ответа вызывается лишь после разрешающего Stage 2.'}},
+  {t:'html',html:'<h3>Политики завершения и метрики</h3>'+th(['Граница','Правило','Метрика'],[
+   ['До DLP','JWT/tenant/ACL/rate limits','auth_denied, rl_denied'],
+   ['После DLP','Если BLOCK — не выполнять LLM; MASK — очищенный prompt','dlp_ms, dlp_action'],
+   ['После fast','Suspect → stage 2; normal → output DLP','fast_ms, suspect_rate'],
+   ['Перед SSE','Дождаться каждого обязательного verdict','release_wait_ms, denial_before_first_byte'],
+   ['Timeout','Fail-closed для чувствительных маршрутов; deadline и circuit breaker','guard_timeout, pending_releases'],
+   ['Отказ провайдера','Fallback только на разрешённый маршрут, повторный safety scope','model_failover, policy_route_denied']])}
+ ]}
+});
+
+/* 07 · Новый единый путь запроса */
+toBe.push({t:'TO-BE · 07. Путь запроса',
+ o:{lead:'<b>Сквозной маршрут для всех входных каналов.</b> Новый путь заменяет цепочку AS-IS «Open WebUI → gateway → DLP → LiteLLM». Дополнены ingress adapters, external RAG, parallel Guard и Output Gate. Уточнение: OCR — отдельный путь для загрузки файлов, а не синхронный блок каждого LLM-вызова.',blocks:[
+  {t:'scheme',S:{vb:[1560,565],groups:[{x:12,y:35,w:200,h:390,label:'Клиенты'},{x:230,y:35,w:625,h:390,label:'Платформа'},{x:880,y:35,w:665,h:390,label:'Исполнение'}],nodes:[
+    TN('p-clients',115,115,'Open WebUI','app','пользовательский чат',155),TN('p-others',115,240,'API / IDE / Bots','app','agents, scripts, pipelines',155),
+    TN('p-ing',330,145,'Ingress / adapters','edge','auth identity + schema',175),TN('p-gw',535,145,'Gateway','core','tenant, team, budgets',175),TN('p-dlp',740,145,'Regex-DLP','sec','sync',175),
+    TN('p-policy',950,145,'Policy/Response Gate','dec','fork + buffer + verdict',195),TN('p-ll',1155,145,'LiteLLM','core','router',170),TN('p-dest',1400,145,'Cloud / Qwen3','local','Xray / LAN GPU',190),
+    TN('p-fast',950,320,'Fast Guards','sec','PG2 + Qwen3Guard',185),TN('p-deep',1235,320,'Safety Reasoner','sec','only suspicious',200),TN('p-output',1430,320,'Output Guard','sec','DLP + conditional deep',190),
+    TN('p-rag',530,515,'RAG API','data','remote vector + ACL',185),TN('p-doc',260,515,'OCR / Docling','app','local/remote job',185),TN('p-tool',760,515,'Tools / Sandbox','term','permission + jobs',205)],edges:[
+     TE('p-clients','p-ing'),TE('p-others','p-ing'),TE('p-ing','p-gw'),TE('p-gw','p-dlp'),TE('p-dlp','p-policy','ALLOW/MASK'),TE('p-policy','p-ll','model branch'),TE('p-ll','p-dest'),
+     TE('p-policy','p-fast','parallel',{d:1}),TE('p-fast','p-deep','suspect',{d:1}),TE('p-deep','p-policy','verdict',{d:1,pts:[[1235,345],[1235,400],[950,400],[950,170]]}),TE('p-dest','p-output','response',{pts:[[1400,170],[1400,290]]}),TE('p-output','p-policy','hold/release',{pts:[[1430,345],[1430,450],[950,450],[950,170]],d:1}),
+     TE('p-gw','p-rag','RAG retrieval',{d:1,pts:[[535,170],[535,490]]}),TE('p-clients','p-doc','uploaded docs',{d:1,pts:[[115,140],[115,485],[260,485]]}),TE('p-tool','p-doc','OCR job',{d:1}),TE('p-policy','p-tool','tool broker',{d:1,pts:[[950,170],[950,475],[760,475],[760,490]]})],
+    routes:{'Облачная/локальная':['p-clients','p-ing','p-gw','p-dlp','p-policy','p-ll','p-dest','p-output'], 'Fast→Deep':['p-policy','p-fast','p-deep'], 'RAG':['p-ing','p-gw','p-rag']},
+    hint:'LiteLLM не вызывает guard напрямую: решение оркестрирует Policy/Response Gate. Все клиенты проходят одинаковую цепочку. Разрешение tool calls обеспечивается отдельным broker.'}},
+  {t:'html',html:'<h3>Что проходит в путь, а что — отдельная задача</h3>'+th(['Тип операции','Способ вызова','Очередь'],[
+   ['Текстовый LLM chat/completions','HTTP/SSE через Gateway → Gate → LiteLLM','Внешняя RabbitMQ/Redis-очередь не требуется'],
+   ['Локальный Qwen3 inference','LiteLLM → vLLM/SGLang','Встроенный GPU scheduler + ограниченный admission'],
+   ['Fast Guard и Reasoner','Асинхронные параллельные вызовы сервиса безопасности','Bounded pending + приоритет для блокирующих output проверок'],
+   ['OCR файла','Задача по task_id, клиент опрашивает результат','Да, локальные OCR workers; распределённая при росте'],
+   ['RAG retrieval','Синхронный API с ACL','Нет'],
+   ['RAG ingestion/reindex','Асинхронная фоновая задача','Да, durable job queue'],
+   ['Долгие agent/tool jobs','Подписанный tool call → tool broker','Да, только для долгих задач']])}
+ ]},
+ d:{lead:'<b>Служебные контракты и транспорт.</b> Сравнивай с AS-IS 3 «Путь запроса». Ни один новый адаптер не обращается напрямую к LiteLLM или облаку. Web search и retrieval должны проходить through trusted tool/data adapters.',blocks:[
+  {t:'html',html:th(['Связь','Контракт','Инвариант безопасности'],[
+    ['Adapter → gateway','Canonical OpenAI-compatible API, scoped service JWT, user context','Не принимать роль/группу из непроверяемого пользовательского JSON'],
+    ['gateway → DLP','POST /v1/scan, sync','BLOCK до любых отправок в модель'],
+    ['Gateway/Policy Gate → Fast Guard','Internal HTTP/gRPC, request_id, deadline','Изоляция секретов, mask before guard'],
+    ['Policy Gate → Stage 2','Policy+input+verified metadata','Решение model не переопределяет RBAC'],
+    ['Policy Gate → LiteLLM','Team key + end-user + correlation ID','Access group и budgets остаются в LiteLLM'],
+    ['LiteLLM → local Qwen3','OpenAI-compatible API vLLM/SGLang on GPU private LAN','GPU server недоступен напрямую IDE/браузеру'],
+    ['RAG adapter → remote RAG','HTTPS/mTLS + scoped ACL filters','Tenant/document ACL в retriever'],
+    ['Tool broker → OCR','Async task API; status/result/idempotency','Не принимать произвольные внешние URL'],
+    ['Policy Gate → caller','Buffered SSE after applicable checks','Ни один запрещённый токен не покидает platform boundary']])},
+  {t:'html',html:'<div class="lead warn">Веб-поиск старого Open WebUI сейчас минует gateway. Его необходимо перевести на централизованный tool/search adapter либо исключить из перечня защищённых маршрутов до завершения миграции.</div>'}
+ ]}
+});
+
+/* 08 · Контейнеры и узлы TO-BE */
+toBe.push({t:'TO-BE · 08. Сервисы и узлы',
+ o:{lead:'<b>Сервисная топология целевой платформы.</b> Не один общий Docker-хост: API/ядро, безопасность, данные/знания, OCR и локальная Qwen3 разделяются по узлам. Конкретное число VM и CPU/GPU — во вкладке «VM / ресурсы».',blocks:[
+  {t:'scheme',S:{vb:[1560,590],groups:[{x:20,y:30,w:360,h:515,label:'VM-A · EDGE / APP'},{x:390,y:30,w:410,h:515,label:'VM-B · CORE / POLICY'},{x:820,y:30,w:350,h:255,label:'VM-C · GUARD GPU'},{x:820,y:300,w:350,h:245,label:'VM-D · KNOWLEDGE'},{x:1190,y:30,w:350,h:255,label:'VM-E · LOCAL GPU'},{x:1190,y:300,w:350,h:245,label:'OCR / TOOLS'}],nodes:[
+    TN('h-web',185,110,'Open WebUI + Ingress','app','nginx / UI / adapters',285),TN('h-clients',185,220,'Pipelines / IDE adapters','edge','bots + agents',285),TN('h-admin',185,360,'Admin / Reconciler','ctrl','configuration + RBAC',285),
+    TN('h-gw',595,100,'Gateway','core','identity, limits',285),TN('h-dlp',595,190,'Regex-DLP','sec','sync / redaction',285),TN('h-gate',595,290,'Policy + Response Gate','dec','async guard fork + hold',285),TN('h-lite',595,400,'LiteLLM / Xray','core','provider routing',285),
+    TN('h-fast',995,100,'Fast Guards','sec','PG2 86M + Qwen3Guard 0.6B',280),TN('h-deep',995,205,'Safety Reasoner','sec','gpt-oss-safeguard-20b',280),
+    TN('h-rag',995,370,'RAG API / Indexer','data','embeddings + ACL',280),TN('h-qdr',995,465,'Qdrant / knowledge store','data','vector DB + snapshots',280),
+    TN('h-qwen',1365,130,'Qwen3 + vLLM','local','local inference GPU',285),
+    TN('h-ocr',1365,365,'Docling / Tesseract','app','local compose или OCR VM',285),TN('h-tools',1365,460,'Terminal / Tool Executor','term','sandboxes + async jobs',285)],edges:[
+    TE('h-web','h-gw'),TE('h-clients','h-gw'),TE('h-gw','h-dlp'),TE('h-dlp','h-gate'),TE('h-gate','h-fast','async',{d:1}),TE('h-fast','h-deep','suspect',{d:1}),TE('h-gate','h-lite'),TE('h-lite','h-qwen','LAN'),TE('h-gw','h-rag','scoped retrieval',{d:1}),TE('h-rag','h-qdr'),TE('h-tools','h-ocr','OCR jobs',{d:1}),TE('h-web','h-ocr','files',{d:1}),TE('h-admin','h-gate','policy/config',{d:1})],
+    routes:{'Guard':['h-gw','h-dlp','h-gate','h-fast','h-deep'], 'Local Qwen3':['h-web','h-gw','h-dlp','h-gate','h-lite','h-qwen'], 'OCR':['h-web','h-ocr']}}},
+  {t:'html',html:'<div class="lead">Контейнеры физически могут быть размещены на большем или меньшем количестве VM. Разделение на схеме — логические зоны и предлагаемый вариант развёртывания, а не утверждение о фактической инфраструктуре.</div>'}
+ ]},
+ d:{lead:'<b>Инвентаризация развертывания.</b> Статус сервисов: existing, изменяемые и новые. Таблица также фиксирует границы API и необходимость очередей.',blocks:[
+  {t:'html',html:th(['Сервис','Статус','Хост / роль','Операционное изменение'],[
+   ['proxy / Open WebUI','Existing + integration','Edge/App','Внешние adapter endpoints; отключить прямой web search'],
+   ['gateway','Existing + change','Core','Подключить Policy/Response Gate; сохранить identity/budgets'],
+   ['Regex-DLP','Existing','Core/Policy','Остаётся строго до dispatch; scan final prompt'],
+   ['Policy + Response Gate','NEW','Core','Async parallel fork, deadlines, state machine, output buffer'],
+   ['LiteLLM / Xray / cliproxy','Existing','Core/Egress','Новая local Qwen3 deployment, прежний cloud routing'],
+   ['Qwen3Guard 0.6B + Prompt Guard 2','NEW','Guard GPU/CPU','Быстрые независимые классификаторы'],
+   ['gpt-oss-safeguard-20b','NEW','Guard GPU','Stage 2 и selective output review'],
+   ['Qwen3 / vLLM','NEW','Local GPU','Admission + continuous batching, без RabbitMQ перед каждым токеном'],
+   ['RAG API / Indexer / Qdrant','NEW/migrated','Knowledge VM','Ingestion queue, scoped retrieval'],
+   ['Docling OCR','Existing/migrated','App или OCR VM','Локальный либо удалённый endpoint, async task API'],
+   ['terminal-broker / sandbox','Existing + integration','Tool node','Async jobs только для длинных операций'],
+   ['Postgres / metrics / reconciler','Existing + scale','DB/OPS','Политики, журналы и backups; очередь LLM не вводить']])}
+ ]}
+});
+
+/* 09 · Модели и каналы выхода */
+toBe.push({t:'TO-BE · 09. Модели и выход',
+ o:{lead:'<b>Роутер НЕ управляет общей очередью.</b> LiteLLM выбирает cloud, CLI, агрегаторы или локальную Qwen3. Локальный vLLM/SGLang обслуживает очередь ожидающих запросов внутри inference scheduler; проверка безопасности проходит в отдельной параллельной ветке Policy Gate.',blocks:[
+  {t:'scheme',S:{vb:[1330,430],nodes:[
+    TN('m-gate',140,200,'Policy Gate','sec','input verdict / release',195),TN('m-lite',390,200,'LiteLLM','core','budget, access, fallback',205),
+    TN('m-xray',680,110,'Xray / CLIProxy','egress','VPN, key-specific route',245),TN('m-qwen',680,295,'Qwen3 inference','local','vLLM/SGLang + scheduler',245),
+    TN('m-cloud',1090,65,'OpenAI / Anthropic','ext','approved cloud',285),TN('m-cli',1090,152,'CLI / OdiRouter','ext','existing provider adapters',285),TN('m-gpu',1090,295,'GPU pool / replicas','local','bounded admission, batching',285)],edges:[
+    TE('m-gate','m-lite'),TE('m-lite','m-xray','cloud / CLI'),TE('m-xray','m-cloud'),TE('m-xray','m-cli'),TE('m-lite','m-qwen','LAN API'),TE('m-qwen','m-gpu','schedule')],routes:{'Облако':['m-gate','m-lite','m-xray','m-cloud'],'Локальная Qwen3':['m-gate','m-lite','m-qwen','m-gpu']}}},
+  {t:'html',html:'<h3>Почему очередь не нужна в LiteLLM</h3>'+th(['Участок','Механизм контроля нагрузки','Внешний брокер'],[
+   ['OpenAI / Anthropic','HTTP/SSE; provider rate limits, budget, retry/backoff','Не требуется для интерактивного ответа'],
+   ['LiteLLM','Маршрутизатор и policy-based access','Не ставить в синхронную цепочку'],
+   ['Qwen3 на vLLM','Continuous batching, limits/concurrency/admission','Не нужен при одном GPU-пуле'],
+   ['Fast / Deep Guards','Bounded concurrency + reserve for blocking verdicts','Отдельные worker pools, без обязательного RabbitMQ'],
+   ['OCR / ingestion','Durable task store + workers','Нужен, если задачи долгие / распределённые']])}
+ ]},
+ d:{lead:'<b>Политики routing и fallback.</b> Маршрутизация — не только производительность, но и data residency. Успешное прохождение Guard не разрешает отправку конфиденциальных материалов провайдеру, если запрещает data policy.',blocks:[
+  {t:'html',html:th(['Класс данных','Разрешённые модели','Когда делать input preflight','Fallback'],[
+    ['Public','Cloud и local в рамках тарифа','По risk policy','Только approved provider'],
+    ['Internal','Cloud при явном разрешении data policy; иначе local','Перед выходом в cloud при необходимости','Только того же/строже data tier'],
+    ['Confidential','По умолчанию local-only','До любого потенциально внешнего перенаправления','Никакого Cloud fallback'],
+    ['Restricted / secrets','Отклонять либо строго изолированный локальный маршрут','Нужен предварительный допуск до LLM','Без автоматического fallback']])}
+ ]}
+});
+
+/* 10 · Данные / документы / инструменты / очереди */
+toBe.push({t:'TO-BE · 10. OCR, RAG и Tools',
+ o:{lead:'<b>Вынесенные данные и долгие задачи.</b> Для OCR, ingestion и продолжительных агентских операций поддерживаются асинхронные jobs; онлайн-поиск по RAG остаётся синхронным. Очереди не обязаны быть на Redis/RabbitMQ: возможны локальные работники Docling или durable jobs в PostgreSQL.',blocks:[
+  {t:'scheme',S:{vb:[1530,545],groups:[{x:20,y:20,w:290,h:465,label:'Источники / адаптеры'},{x:330,y:20,w:580,h:465,label:'Job plane · асинхронные операции'},{x:930,y:20,w:570,h:465,label:'Knowledge plane'}],nodes:[
+   TN('k-web',155,95,'Open WebUI / files','app','PDF · images · documents',235),TN('k-tool',155,235,'Agents / Tool Broker','term','долгие операции',235),
+   TN('k-ing',470,95,'Upload intake','edge','validate, ACL, idempotency',220),TN('k-jobs',740,95,'Durable Job Store','data','state / retries / TTL',220),TN('k-ocr',465,260,'Docling OCR','app','local или remote CPU VM',220),TN('k-chunk',740,260,'Embedding / Indexer','data','chunk, embed, index',220),
+   TN('k-api',1085,95,'RAG Retrieval API','data','synchronous, tenant ACL',245),TN('k-vec',1350,260,'Qdrant / Index','data','vector + snapshots',235),TN('k-llm',1090,405,'Gateway context','core','scoped chunks → input DLP',255),TN('k-exec',465,420,'Tool Workers','term','sandboxes / limits',220)],edges:[
+   TE('k-web','k-ing'),TE('k-ing','k-jobs','create task'),TE('k-jobs','k-ocr','OCR if needed'),TE('k-jobs','k-chunk','ingest'),TE('k-ocr','k-chunk','clean text'),TE('k-chunk','k-vec','index'),TE('k-api','k-vec','search'),TE('k-api','k-llm','approved chunks'),TE('k-tool','k-exec'),TE('k-exec','k-ocr','OCR job',{d:1}),TE('k-web','k-api','query',{d:1,pts:[[155,120],[155,180],[1085,180],[1085,70]]})],routes:{'Загрузка и индекс':['k-web','k-ing','k-jobs','k-chunk','k-vec'],'OCR':['k-web','k-ing','k-jobs','k-ocr','k-chunk','k-vec'],'Поиск':['k-web','k-api','k-vec']}}},
+  {t:'html',html:'<h3>Граница фоновых операций</h3>'+th(['Действие','Sync / Async','Очередь','Гарантии'],[
+   ['RAG retrieval top-k','Sync HTTP','Нет','ACL на каждую выборку, deadline'],
+   ['OCR 300 страниц','Async job','Да','status / idempotency / retries / backpressure'],
+   ['Перестроение индекса KB','Async job','Да','Повторная индексация, atomic publish, snapshot'],
+   ['Короткий tool call','Sync','Нет','scope + timeout + sandbox'],
+   ['Долгий tool/agent task','Async job','Да','status/cancel + per-user quotas'],
+   ['Guard и интерактивная LLM','Async parallel calls','Bounded queue, а не долговременная очередь','Deadline + hold release']])}
+ ]},
+ d:{lead:'<b>Безопасность документов.</b> Исходный Open WebUI RAG перестаёт быть владельцем векторного индекса; ACL и права на документы должны применяться в удалённом RAG API. OCR и ingestion нельзя превращать в способ обхода DLP/Guard.',blocks:[
+  {t:'html',html:th(['Сервис','Изоляция','Защита'],[
+   ['Remote OCR','Private endpoint, scoped service credentials','MIME sniffing, размер/страницы, отказ от remote URL fetch'],
+   ['Durable Job Store','Postgres или выделенный брокер при росте','Job ownership, retries, encrypted payload refs'],
+   ['RAG API','Private knowledge subnet, mTLS','Verified tenant/document ACL, traceable source references'],
+   ['Vector DB','Без прямых пользовательских соединений','Backups, snapshots, quotas'],
+   ['Tool Executor','Per-user sandboxes, no direct LiteLLM credentials','Allowlisted tools, approval for side effects, output screening'],
+   ['Web-search adapter','Единый tool egress path','Ни один запрос не обходит security policy / audit']])}
+  ]}
+});
+
+/* 11 · Сквозная безопасность, сеть и состояние */
+toBe.push({t:'TO-BE · 11. Сети и безопасность',
+ o:{lead:'<b>Доверенные зоны и минимальные связи.</b> Проектируемая сегментация дополняет AS-IS сети Docker, но не равна существующей конфигурации. Принудительная безопасность применяется к каждому ingress, RAG, tools, локальной Qwen3 и облачным вызовам.',blocks:[
+  {t:'scheme',S:{vb:[1490,490],groups:[{x:15,y:20,w:260,h:420,label:'Ingress VLAN'},{x:290,y:20,w:330,h:420,label:'Platform services'},{x:640,y:20,w:260,h:420,label:'Safety / GPU zone'},{x:920,y:20,w:260,h:420,label:'Knowledge zone'},{x:1200,y:20,w:275,h:420,label:'Inference / Egress'}],nodes:[
+    TN('n-in',145,140,'Adapters + nginx','edge','user/API auth',225),TN('n-gw',455,140,'Gateway / Regex-DLP','sec','identity and sync policies',280),TN('n-pol',455,310,'Response Gate','dec','hold, decisions, audit',280),
+    TN('n-fast',770,140,'Fast Guard','sec','0.6B + PromptGuard',225),TN('n-deep',770,310,'Safety Reasoner','sec','GPU + bounded pool',225),
+    TN('n-rag',1050,140,'RAG / Qdrant','data','ACL, mTLS',225),TN('n-ocr',1050,310,'Docling / OCR','app','local / remote',225),
+    TN('n-local',1330,140,'Qwen3 / vLLM','local','private GPU subnet',225),TN('n-xray',1330,310,'LiteLLM → Xray','egress','cloud approved routes',225)],edges:[
+    TE('n-in','n-gw'),TE('n-gw','n-pol'),TE('n-pol','n-fast','async',{d:1}),TE('n-fast','n-deep','suspicion',{d:1}),TE('n-gw','n-rag','scoped retrieval',{d:1}),TE('n-in','n-ocr','files',{d:1}),TE('n-pol','n-local'),TE('n-pol','n-xray')],routes:{'Guard':['n-in','n-gw','n-pol','n-fast','n-deep'],'Local':['n-in','n-gw','n-pol','n-local']}}},
+  {t:'html',html:'<h3>Инварианты всей архитектуры</h3>'+th(['Область','Что требуется'],[
+   ['Входы','Ни один API/IDE/бот/агент не обходит Gateway и DLP'],
+   ['Guards','Невозможно отдать ответ до обязательного verdict; error ≠ allow'],
+   ['Транспорт','Private subnets, mTLS для межузловых OCR/RAG/Guard, provider route через Xray'],
+   ['Данные','Confidential/restricted не передавать в облако без специального разрешения'],
+   ['RAG','Серверный ACL, tenant identity только из проверенного токена'],
+   ['Инструменты','Tool-output prompt injection анализируется как untrusted content; RBAC не делегируется LLM'],
+   ['Аудит','Policy/version/request_id/verdict без PII/raw prompt и секретов'],
+   ['Порты Docker','Защита DOCKER-USER и гипервизорный firewall, не полагаться только на ufw']])}
+ ]},
+ d:{lead:'<b>Сервисные связи и сети.</b> Таблица для настройки firewall / микро-сегментации; порты проектные, не результат сканирования фактического сервера.',blocks:[
+  {t:'html',html:th(['Сеть / зона','Кто инициирует','Куда разрешено','Что запрещено'],[
+   ['ingress','Браузеры / IDE / bots','nginx 443 → Adapter','Прямой LiteLLM, Qwen3, RAG, Guard'],
+   ['services','Gateway / Policy Gate','DLP, LiteLLM, private safety API','Прямой выход в cloud без egress policy'],
+   ['safety','Policy Gate','Fast/Deep Guard RPC','Публичный вход на guard inference'],
+   ['knowledge','RAG adapter, OCR tool broker','RAG 8443, OCR 5001','Кросс-tenant retrieval, публичный Qdrant'],
+   ['gpu-inference','LiteLLM только','vLLM 8000 / разрешённый порт','Прямое подключение пользователей'],
+   ['egress','LiteLLM / CLIProxy','Xray / approved providers','Обход Xray на маршрутах kill switch'],
+   ['sandboxes','Broker','Per-user terminal network + scoped APIs','Чужие sandbox/secret/state endpoints'],
+   ['monitoring','Prometheus/collector','/metrics без raw payload','Сырые секреты и полный prompt в логах']])},
+  {t:'html',html:'<h3>Уязвимость старого стека</h3><div class="lead warn">AS-IS сетевой обзор отмечает два реальных долга: Docker published ports обходят ufw при пустой DOCKER-USER и веб-поиск Open WebUI уходит напрямую без Gateway/DLP. Оба пункта сохраняются как задачи миграции и не считаются устранёнными только обновлением HTML-схемы.</div>'}
+ ]}
+});
+
+/* 12 · Увязка управления, данных и наблюдаемости */
+toBe.push({t:'TO-BE · 12. Управление и аудит',
+ o:{lead:'<b>Единый control plane для дополнительных компонентов.</b> Консоль / reconciler теперь управляют не только LiteLLM/Open WebUI/DLP, но и версиями корпоративной policy, порогами guard, OCR mode, RAG API и локальным Qwen3 deployment. Текущая реализация AS-IS этого ещё не делает.',blocks:[
+  {t:'scheme',S:{vb:[1380,440],nodes:[
+    TN('c-admin',160,120,'Console / Admin','ctrl','security officer · platform admin',235),TN('c-db',435,120,'Platform Postgres','data','revisions, policy versions',235),TN('c-rec',720,120,'Reconciler','ctrl','desired state / reconcile',240),
+    TN('c-gw',1120,60,'Gateway / DLP','sec','identity + regex rules',265),TN('c-pg',1120,145,'Policy / Guard Gate','sec','fast thresholds, deep rules',265),TN('c-model',1120,230,'LiteLLM / Qwen3','core','models + local alias',265),TN('c-data',1120,320,'OCR + RAG settings','data','endpoints, ACL, index jobs',265),
+    TN('c-si',600,330,'SIEM / Metrics','mon','request_id, verdict, latency',275)],edges:[
+     TE('c-admin','c-db','new revision'),TE('c-db','c-rec','desired state'),TE('c-rec','c-gw'),TE('c-rec','c-pg'),TE('c-rec','c-model'),TE('c-rec','c-data'),TE('c-pg','c-si','events',{d:1}),TE('c-model','c-si','usage',{d:1})],routes:{'Safety policy':['c-admin','c-db','c-rec','c-pg'],'Qwen3 route':['c-admin','c-db','c-rec','c-model'],'OCR/RAG':['c-admin','c-db','c-rec','c-data']}}},
+  {t:'html',html:'<h3>Контрольные показатели</h3>'+th(['Группа','Показатели'],[
+   ['DLP','ALLOW/MASK/BLOCK, normalization hit, false positives'],
+   ['Guards','fast score, deep verdict, suspect-but-allowed, FNR/FPR на тестовых наборах'],
+   ['User latency','model first token, guard verdict, response release, p50/p95/p99'],
+   ['Local Qwen3','pending requests, running, KV-cache utilization, token throughput, OOM'],
+   ['OCR / RAG','queue depth, task failures, OCR page latency, search p95, stale indices'],
+   ['Security','policy_version, tenant, trace_id, denied tool calls, cloud data-tier violations']])}
+ ]},
+ d:{lead:'<b>Состояние, источники истины и бэкапы.</b> Управляемые политики должны иметь ревизии и поддержку отката; модельные веса и крупные документы не хранятся в основной Postgres.',blocks:[
+  {t:'html',html:th(['Сущность','Источник истины','Резервирование / восстановление'],[
+   ['Policy configs, guard thresholds','platform DB versioned documents','Экспорт ревизий, одобрение/rollback'],
+   ['Tenants, identity and budgets','IdP + platform/LiteLLM DB','PITR, проверка согласованности team key'],
+   ['RAG embeddings / vectors','RAG datastore / Qdrant','Snapshots, checksum, re-index'],
+   ['OCR / Index jobs','Durable task DB (может быть Postgres)','Retry / idempotency / TTL'],
+   ['Model artifacts','Artifact store / approved checkpoints','Pin revision, checksum, model manifest'],
+   ['Audit events','SIEM / immutable event store','Retention policy, redaction, access controls']])}
+ ]}
+});
+
+/* Интерактивный расчёт нагрузочного профиля; не подменяет GPU benchmark. */
+function capacityCalc(parent){
+  const panel=h('div','lead');parent.appendChild(panel);
+  panel.innerHTML='<b>Калькулятор нагрузки</b> — изменяй входные параметры. Показатели токенов вычисляются арифметически; производительность GPU требует замера на выбранных моделях.';
+  const box=h('div','cards');parent.appendChild(box);
+  const specs=[['rpm','Запросов в минуту',20,1,120,1],['inp','Средний вход, токены',1500,250,12000,250],['out','Средний ответ, токены',750,100,4000,50],['risk','Доля подозрительных, %',15,0,100,1],['approved','Подозрительных, допущенных, % от всех',10,0,100,1]];
+  const els={};
+  for(const [id,name,initial,min,max,step] of specs){
+    const cell=h('div','card');cell.innerHTML='<label><b>'+name+'</b> <span class="calc-val" style="float:right">'+initial+'</span></label><input type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+initial+'" style="display:block;width:100%;margin:12px 0 2px">';
+    els[id]=cell.querySelector('input');box.appendChild(cell);
+    els[id].addEventListener('input',render);
+  }
+  const result=h('div','info');result.style.marginTop='10px';parent.appendChild(result);
+  function render(){
+    const a=Object.fromEntries(Object.entries(els).map(([k,v])=>[k,Number(v.value)]));
+    for(const [id,,,,,] of specs){els[id].parentElement.querySelector('.calc-val').textContent=els[id].value}
+    const deep=a.rpm*a.risk/100,heavy=a.rpm*Math.min(a.risk,a.approved)/100;
+    result.innerHTML='<b>Расчёт нагрузки:</b> '+
+      '<code>'+ (a.rpm/60).toFixed(2) +' req/s</code> · '+
+      '<code>'+ (a.rpm*a.inp).toLocaleString('ru-RU') +' входных tok/min</code> · '+
+      '<code>'+ (a.rpm*a.out).toLocaleString('ru-RU') +' выходных tok/min</code> · '+
+      '<code>'+ (a.rpm*a.out/60).toFixed(0) +' output tok/s агрегировано</code> · '+
+      '<code>'+ a.rpm +' fast guard/min на модель</code> · '+
+      '<code>'+ deep.toFixed(1) +' deep input/min</code> · '+
+      '<code>'+ heavy.toFixed(1) +' heavy output/min</code>'+
+      '<p style="margin:8px 0 0">Если все запросы идут на один локальный GPU, требуемая суммарная скорость генерации ориентировочно '+(a.rpm*a.out/60).toFixed(0)+' output tok/s, <b>но это не гарантия достижимости</b> ни для одной конкретной GPU. Если существенная часть запросов идёт в облако, нагрузка на локальный пул уменьшается.</p>';
+  }
+  render();
+}
+
+/* Навигация по целевому процессу: от общего вида и жизненного цикла к реализации. */
+const desiredToBeOrder = [0,5,6,1,2,7,8,9,10,11,3,4];
+const originalToBe = toBe.slice();
+toBe.splice(0,toBe.length,...desiredToBeOrder.map(i=>originalToBe[i]));
+toBe.forEach((tab,i)=>{tab.t=tab.t.replace(/TO-BE · \d{2}\./, `TO-BE · ${String(i+1).padStart(2,'0')}.`)});
+
+TABS.unshift(...toBe);
+
+/* =================== КАРКАС СТРАНИЦЫ =================== */
+const main=document.getElementById('main'),tabsEl=document.getElementById('tabs'),built={};
+let cur=0,lvl='o';
+try{const m=location.hash.match(/t=(\d+)/),l=location.hash.match(/l=([od])/);if(m&&TABS[+m[1]])cur=+m[1];if(l)lvl=l[1]}catch(e){}
+TABS.forEach((T,i)=>{const b=h('button',null,T.t);b.onclick=()=>{cur=i;show()};tabsEl.appendChild(b);T.btn=b});
+let legacyVisible=cur>=toBe.length;
+const legacyBtn=h('button','legacy-toggle','Показать AS-IS (15 вкладок)');tabsEl.appendChild(legacyBtn);
+function setLegacyVisible(){TABS.forEach((t,i)=>{if(i>=toBe.length)t.btn.classList.toggle('legacy-hidden',!legacyVisible)});legacyBtn.textContent=legacyVisible?'Скрыть AS-IS':'Показать AS-IS (15 вкладок)'}
+legacyBtn.onclick=()=>{legacyVisible=!legacyVisible;if(!legacyVisible&&cur>=toBe.length){cur=0;show()}setLegacyVisible()};
+setLegacyVisible();
+document.querySelectorAll('#lvl button').forEach(b=>b.onclick=()=>{lvl=b.dataset.l;show()});
+function build(i,l){const V=TABS[i][l],box=h('section','view');main.appendChild(box);
+  if(V.lead)box.appendChild(h('div','lead',V.lead));
+  V.blocks.forEach(B=>{const d=h('div','blk');box.appendChild(d);
+    if(B.t==='scheme')scheme(B.S,d);else if(B.t==='seq')seq(B.Q,d);else if(B.t==='h'){d.className='';d.appendChild(h('h3',null,B.text))}else if(B.t==='capacity')capacityCalc(d);else d.innerHTML=B.html});
+  return box}
+function show(){
+  TABS.forEach((T,i)=>T.btn.classList.toggle('on',i===cur));
+  document.querySelectorAll('#lvl button').forEach(b=>b.classList.toggle('on',b.dataset.l===lvl));
+  Object.values(built).forEach(v=>v.classList.add('hide'));
+  const key=cur+lvl;if(built[key])built[key].classList.remove('hide');else built[key]=build(cur,lvl);
+  try{history.replaceState(null,'','#t='+cur+'&l='+lvl)}catch(e){}
+}
+show();
+</script>
+</body>
+</html>

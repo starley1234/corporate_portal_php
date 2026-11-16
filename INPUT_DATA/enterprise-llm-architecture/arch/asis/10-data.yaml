@@ -1,0 +1,81 @@
+# AS-IS · Данные
+# Формат: docs/FORMAT.md. Сборка: npm run build
+
+title: Данные
+overview:
+  lead: "**Где лежат данные.** Один кластер PostgreSQL с тремя базами плюс несколько томов Docker. Резервная копия — три дампа БД, данные Open WebUI и состояние платформы."
+  blocks:
+    - scheme:
+        size: [ 1200, 380 ]
+        groups:
+          - [ 640, 20, 270, 300, PostgreSQL 17.6 · том pg_data ]
+        nodes:
+          - { id: ow, at: [ 320, 80, 170 ], label: Open WebUI, kind: app }
+          - { id: ll, at: [ 320, 175, 170 ], label: LiteLLM, kind: core }
+          - { id: ctl, at: [ 320, 270, 170 ], label: консоль + reconciler, kind: ctrl, info: "{adm}<br><br>{rec}" }
+          - {
+              id: dow,
+              at: [ 775, 80, 210 ],
+              label: БД openwebui,
+              sub: "пользователи, группы, чаты,
+
+                знания, папки, каналы",
+              kind: data
+            }
+          - {
+              id: dll,
+              at: [ 775, 175, 210 ],
+              label: БД litellm,
+              sub: "ключи, команды, бюджеты,
+
+                модели, spend",
+              kind: data
+            }
+          - {
+              id: dpl,
+              at: [ 775, 270, 210 ],
+              label: БД platform,
+              sub: "документы конфигурации,
+
+                ревизии, аудит, роли",
+              kind: data
+            }
+          - { id: bk, at: [ 1080, 175, 150 ], label: backup, sub: "pg_dump + tar\n+ manifest", kind: ctrl, info: "{backup}" }
+          - {
+              id: vol,
+              at: [ 100, 175, 150 ],
+              label: тома,
+              sub: "файлы OWUI, состояние,
+
+                токены CLI, метрики"
+            }
+        edges:
+          - ow -> dow
+          - ll -> dll
+          - ctl -> dpl
+          - dow --> bk: { out: r, in: l }
+          - dll --> bk
+          - dpl --> bk: { out: r, in: l }
+          - vol --> ll: см. «Подробно»
+detail:
+  lead: "**Все тома и что в них.** «Бэкап» — попадает ли в архив `scripts/backup.sh`. Производные тома не бэкапятся: их заново пишет `bootstrap apply`."
+  blocks:
+    - table:
+        head: [ Том / путь, Пишет, Читает, Содержимое, Бэкап ]
+        rows:
+          - [ "`pg_data`", postgres, —, "БД openwebui, litellm, platform", <span class="y">да</span> (pg_dump каждой БД) ]
+          - [ "`openwebui_data`", openwebui, backup, "загрузки, векторный индекс, кэш", '<span class="y">да</span>, без cache/' ]
+          - [ "`platform_state`", "bootstrap, reconciler, admin", —, "ids.json, secrets/keys.json, owui-admin.key, статус, отчёты", '<span class="y">да</span>, без secrets/' ]
+          - [ "`./config`, `./config-export`", Git / консоль, "bootstrap, reconciler, admin, dlp", seed YAML / снимок конфигурации, <span class="y">да</span> (config.tar.gz) ]
+          - [ "`gateway_map`", "bootstrap, reconciler, admin", gateway (ro), gateway-map.json, нет (производный) ]
+          - [ "`litellm_config`", bootstrap, "litellm (ro), admin (ro)", config.yaml LiteLLM, нет (производный) ]
+          - [ "`gateway_state`", gateway, —, служебное состояние gateway, — ]
+          - [ "`dlp_events`", dlp, admin (ro), журнал срабатываний DLP, — ]
+          - [ "`egress_config`", "reconciler, admin", xray (ro), "config.json, key-router.conf", — ]
+          - [ "`egress_status`", xray, admin (ro), "статус супервизора, последняя рабочая конфигурация", — ]
+          - [ "`terminal_broker_state`", terminal-broker, admin (ro), ledger использования песочниц, — ]
+          - [ "`<project>-term-<hash>`", terminal-broker (вне compose), песочница пользователя, папки чатов пользователя, — ]
+          - [ "`cliproxy_data`", cliproxy, —, "config.yaml, OAuth-файлы аккаунтов (открытым текстом)", <span class="p">нет</span> (намеренно) ]
+          - [ "`prometheus_data`, `grafana_data`, `redis_data`", сервисы, —, "метрики, дашборды, кэш", — ]
+    - title: Резервное копирование
+      steps: [ "`scripts/backup.sh` (или по расписанию `schedule-backup.sh`) запускает сервис `backup`.", "`pg_dump -Fc` для openwebui, litellm, platform; tar `openwebui_data` (без cache), `platform_state` (без secrets/), config + config-export.", manifest.json с хешами файлов и отпечатками `LITELLM_SALT_KEY` / `WEBUI_SECRET_KEY` — restore откажется при несовпадении (кроме `--force`)., После restore `bootstrap apply` заново выпускает ключи; ключи LiteLLM без секрета в состоянии ротируются автоматически. ]

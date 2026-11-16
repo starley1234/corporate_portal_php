@@ -1,0 +1,151 @@
+# AS-IS · Установка и обновление
+# Формат: docs/FORMAT.md. Сборка: npm run build
+
+title: Установка и обновление
+overview:
+  lead: "**Как платформа появляется на сервере и обновляется.** Установка идемпотентна: повторный запуск доделывает прерванное. Обновление само откатывается при ошибке."
+  blocks:
+    - scheme:
+        size: [ 1240, 380 ]
+        notes:
+          - [ 20, 28, Установка ]
+          - [ 20, 178, Обновление ]
+        nodes:
+          - { id: i1, at: [ 100, 80, 160 ], label: git clone, sub: /opt/ai-platform, kind: ext }
+          - { id: i2, at: [ 300, 80, 160 ], label: .env, sub: "PLATFORM_ENV=prod\nхост, TLS_MODE", kind: ext }
+          - { id: i3, at: [ 500, 80, 160 ], label: install.sh, sub: "секреты, Docker,\nсборка образов", kind: ctrl }
+          - { id: i4, at: [ 700, 80, 160 ], label: compose up, sub: "по healthcheck,\nс overlay prod", kind: ctrl }
+          - { id: i5, at: [ 900, 80, 160 ], label: bootstrap apply, sub: "конфиг → OWUI, LiteLLM,\ngateway-map", kind: ctrl }
+          - { id: i6, at: [ 1110, 80, 170 ], label: smoke + manifest, sub: URL и пароль админа, kind: ok }
+          - { id: u1, at: [ 100, 230, 160 ], label: upgrade.sh --check, sub: код 10 — есть версия, kind: ext }
+          - { id: u2, at: [ 300, 230, 160 ], label: бэкап, sub: перед изменениями, kind: data }
+          - { id: u3, at: [ 500, 230, 160 ], label: git checkout, sub: новый тег / ветка, kind: ctrl }
+          - {
+              id: u4,
+              at: [ 700, 230, 160 ],
+              label: install.sh,
+              sub: "пересборка изменённого,
+
+                страница обслуживания",
+              kind: ctrl
+            }
+          - { id: u5, at: [ 900, 230, 160 ], label: doctor, sub: всё здорово?, kind: dec, pill: true }
+          - { id: u6, at: [ 1110, 230, 170 ], label: готово, kind: ok }
+          - {
+              id: u7,
+              at: [ 900, 335, 300 ],
+              label: откат,
+              sub: "прежний код + install.sh
+
+                (+ restore бэкапа с --restore-on-failure)",
+              kind: err
+            }
+        edges:
+          - i1 -> i2
+          - i2 -> i3
+          - i3 -> i4
+          - i4 -> i5
+          - i5 -> i6
+          - u1 -> u2
+          - u2 -> u3
+          - u3 -> u4
+          - u4 -> u5
+          - u5 -> u6: да
+          - u5 -> u7: { label: нет, kind: err }
+    - warn: "На проде compose всегда вызывается с overlay: `docker compose --env-file .env -f compose.yml -f compose.prod.yml …` — порты 443/80 и лимиты памяти заданы только в `compose.prod.yml`."
+detail:
+  lead: "**Шаги установщика по порядку** (docs/CONTRACTS.md §10). Каждый шаг повторяется, только если изменились его входы."
+  blocks:
+    - cards:
+        - title: 1. prerequisites
+          text: ОС, права, место
+          color: "#64748b"
+        - title: 2. docker
+          text: установка/проверка Docker
+          color: "#64748b"
+        - title: 3. env
+          text: .env, флаги HAS_* провайдеров
+          color: "#64748b"
+        - title: 4. secrets
+          text: генерация паролей и ключей (не перезаписывает)
+          color: "#64748b"
+        - title: 5. tls
+          text: secrets/tls; самоподписанный создаёт сам proxy
+          color: "#64748b"
+        - title: 6. images
+          text: сборка образов по хешу контекста
+          color: "#64748b"
+        - title: 7. compose_validate
+          text: проверка compose-файлов
+          color: "#64748b"
+        - title: 8. volumes
+          text: "volume-init: владельцы томов"
+          color: "#64748b"
+        - title: 9. postgres
+          text: старт БД, создание баз и ролей
+          color: "#6366f1"
+        - title: 10. egress
+          text: импорт старого конфига xray, рендер (если включён)
+          color: "#6366f1"
+        - title: 11. litellm_config
+          text: render-litellm → том litellm_config
+          color: "#6366f1"
+        - title: 12. litellm
+          text: старт, ожидание /health/readiness
+          color: "#6366f1"
+        - title: 13. gateway
+          text: старт, /healthz
+          color: "#6366f1"
+        - title: 14. openwebui
+          text: старт, /ready; админ создаётся из env
+          color: "#6366f1"
+        - title: 15. proxy
+          text: старт только после здорового Open WebUI
+          color: "#6366f1"
+        - title: 16. migrations
+          text: миграции данных платформы
+          color: "#16a34a"
+        - title: 17. bootstrap
+          text: "bootstrap apply: весь конфиг"
+          color: "#16a34a"
+        - title: 18. smoke
+          text: "сквозная проверка: пользователь → модель"
+          color: "#16a34a"
+        - title: 19. manifest
+          text: deployment-manifest.json
+          color: "#16a34a"
+    - heading: Обновление (scripts/upgrade.sh)
+    - sequence:
+        width: 1100
+        actors:
+          - { id: admu, label: Оператор, kind: ext }
+          - { id: up, label: upgrade.sh, kind: ctrl }
+          - { id: git, label: Git, kind: ext }
+          - { id: bk, label: backup, kind: data }
+          - { id: inst, label: install.sh, kind: ctrl }
+          - { id: doc, label: doctor, kind: dec }
+        messages:
+          - admu -> up:
+              label: sudo bash scripts/upgrade.sh [--ref vX]
+              note: Запуск обновления; `--check` только сообщает, есть ли версия (код 10).
+          - up -> up:
+              label: проверка рабочей копии
+              note: Изменённые отслеживаемые файлы или мешающие неотслеживаемые → отказ до любых изменений.
+          - up -> git:
+              label: git fetch --tags
+              note: Получение новых тегов и веток.
+          - up -> bk:
+              label: бэкап перед обновлением
+              note: Не удался — ничего не меняется (можно пропустить `--no-backup`).
+          - up -> git:
+              label: checkout новой версии
+              note: Fast-forward ветки или переход на тег.
+          - up -> inst:
+              label: install.sh
+              note: Пересобирает только изменившиеся образы и пересоздаёт только изменившиеся контейнеры; пока идёт обновление, proxy показывает страницу обслуживания.
+          - up -> doc:
+              label: doctor
+              note: Проверка здоровья сервисов и конфигурации.
+          - doc --> up:
+              label: ok → готово / ошибка → откат
+              note: "При ошибке: `git checkout` предыдущего коммита и повторный install.sh; с `--restore-on-failure` — ещё и восстановление бэкапа БД (миграции только вперёд)."

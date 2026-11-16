@@ -1,0 +1,52 @@
+# Инвентарь: что существует на самом деле.
+#
+# Зачем: модель отвечает на вопрос «как задумано», инвентарь — «что есть». Их сверка
+# (`arch inventory`) показывает два вида расхождений:
+#   - нарисовано в модели, но в инвентаре нет — обещание, которого нет в жизни;
+#   - есть в инвентаре, но не описано в модели — работа, которую никто не видит.
+#
+# Сейчас здесь заполнен минимум по описанию AS-IS v1.7.x — это стартовый список.
+# Замените его выгрузкой из учётной системы (CMDB, реестр ИС, схема БД) и укажите источник.
+
+title: Инвентарь систем
+source: "AS-IS v1.7.x (описание платформы). Заменить выгрузкой из CMDB"
+
+items:
+  - { id: proxy, entity: ingress, name: "nginx :443", kind: service, owner: ИТ, where: "хост платформы" }
+  - { id: openwebui, entity: openwebui, name: "Open WebUI 0.11.4", kind: service, owner: Платформа, where: "контейнер openwebui" }
+  - { id: gateway, entity: gateway, name: "Gateway :4100", kind: service, owner: Платформа, where: "контейнер gateway" }
+  - { id: dlp, entity: dlp, name: "DLP :4200", kind: service, owner: ИБ, where: "контейнер dlp" }
+  - { id: litellm, entity: litellm, name: "LiteLLM :4000", kind: service, owner: Платформа, where: "контейнер litellm" }
+  - { id: xray, entity: egress-xray, name: "Xray / cliproxy", kind: service, owner: ИТ, where: "хост платформы" }
+  - { id: reconciler, entity: reconciler, name: "reconciler (консоль управления)", kind: service, owner: Платформа, where: "контейнер admin" }
+  - { id: docling, entity: ocr, name: "Docling", kind: service, owner: Платформа, where: "контейнер docling" }
+  - { id: postgres, entity: postgres, name: "PostgreSQL (3 БД)", kind: store, owner: ИТ, where: "контейнер postgres" }
+  - { id: redis, entity: redis, name: "Redis", kind: store, owner: ИТ, where: "контейнер redis" }
+  - { id: prometheus, entity: audit-siem, name: "Prometheus", kind: service, owner: ИТ, where: "контейнер prometheus" }
+  - { id: grafana, entity: audit-siem, name: "Grafana", kind: service, owner: ИТ, where: "контейнер grafana" }
+  - { id: terminal-broker, entity: sandbox, name: "terminal-broker + docker-api", kind: service, owner: Платформа, where: "контейнеры term-*" }
+  - { id: openai, entity: cloud-models, name: "OpenAI API", kind: external, owner: Платформа, where: "внешний сервис" }
+  - { id: anthropic, entity: cloud-models, name: "Anthropic API", kind: external, owner: Платформа, where: "внешний сервис" }
+  - { id: odirouter, entity: odirouter, name: "OdiRouter", kind: external, owner: ИТ, where: "внешний сервис" }
+  - { id: vpn, entity: vpn-pool, name: "VPN-пул", kind: network, owner: ИТ, where: "хост платформы" }
+  - { id: idp, entity: idp, name: "AD / OIDC", kind: service, owner: ИТ, where: "корпоративный каталог" }
+  - { id: local-llm, entity: local-llm, name: "Локальная LLM (LAN)", kind: model, owner: Платформа, where: "хост в локальной сети" }
+  - { id: admin, entity: admin-console, name: "Консоль управления", kind: service, owner: Платформа, where: "контейнер admin" }
+  - { id: db-openwebui, entity: db-openwebui, name: "БД openwebui", kind: store, owner: ИТ, where: "PostgreSQL" }
+  - { id: db-litellm, entity: db-litellm, name: "БД litellm", kind: store, owner: ИТ, where: "PostgreSQL" }
+  - { id: config-files, entity: config-files, name: "config/*.yaml", kind: store, owner: Платформа, where: "каталог config" }
+  - { id: docker-host, entity: container-host, name: "Docker-хост", kind: service, owner: ИТ, where: "хост платформы" }
+  - { id: backups, entity: backup, name: "Резервные копии", kind: store, owner: ИТ, where: "хранилище бэкапов" }
+  - { id: chat-volumes, entity: chat-volumes, name: "Тома чатов", kind: store, owner: Платформа, where: "docker volumes" }
+  - { id: chat-files, entity: chat-files, name: "Файлы чатов", kind: store, owner: Платформа, where: "папки чатов" }
+  - { id: secrets, entity: secrets, name: "Секреты (.env, тома)", kind: store, owner: ИТ, where: "хост платформы" }
+  - { id: firewall, entity: firewall, name: "ufw", kind: network, owner: ИТ, where: "хост платформы" }
+  - { id: platform, entity: platform, name: "AI-платформа v1.7.x (контур)", kind: service, owner: Платформа, where: "хост платформы" }
+  - { id: internet, entity: internet, name: "Интернет (выход)", kind: network, owner: ИТ, where: "внешняя сеть" }
+  - { id: rag-local, entity: rag-service, name: "Локальный RAG (AS-IS)", kind: service, owner: Платформа, where: "контейнер rag" }
+  - { id: web-search, entity: web-search, name: "Веб-поиск Open WebUI", kind: service, owner: Платформа, where: "функция Open WebUI" }
+  - { id: cliproxy, entity: cli-subscriptions, name: "CLIProxyAPI :8317", kind: service, owner: Платформа, where: "хост платформы" }
+  - { id: chat-memory, entity: chat-memory, name: "Память чата (Open WebUI)", kind: store, owner: Платформа, where: "БД openwebui" }
+
+  # Примеры того, что существует, но в модели ещё не описано (раскомментируйте и опишите):
+  # - { id: zabbix, entity: "", name: "Zabbix", kind: service, owner: ИТ, where: "хост мониторинга" }

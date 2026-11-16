@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}}</title>
+<style>
+<!-- @include shells/classic/styles.css -->
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>{{heading}}</h1>
+      <div class="subt">{{subtitle}}</div>
+    </div>
+    <div class="seg" id="lvl"><button data-l="o" class="on">Общий вид</button><button data-l="d">Подробно</button></div>
+  </header>
+  <nav class="tabs" id="tabs"></nav>
+  <main id="main"></main>
+</div>
+<script>
+<!-- @include js/engine/core.js -->
+<!-- @data -->
+<!-- @include js/engine/scheme.js -->
+<!-- @include js/engine/sequence.js -->
+<!-- @include js/engine/svg-export.js -->
+<!-- @include js/engine/capacity.js -->
+<!-- @include shells/classic/app.js -->
+</script>
+</body>
+</html>

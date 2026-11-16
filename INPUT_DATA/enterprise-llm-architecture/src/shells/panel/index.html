@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}}</title>
+<style>
+<!-- @include shells/panel/styles.css -->
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="cols" id="cols">
+    <button class="nvic" id="navtog" title="Свернуть меню" aria-label="Свернуть меню" aria-pressed="true">‹</button>
+    <aside class="nav" id="nav" aria-label="Разделы и вкладки">
+      <div class="nfix">
+        <div class="nbrand">
+          <div class="nbt">{{heading}}</div>
+          <div class="nbs" title="{{subtitle}}">{{subtitle}}</div>
+        </div>
+        <div class="nseg" id="lvl"><button data-l="o" class="on">Общий вид</button><button data-l="d">Подробно</button></div>
+        <input class="nq" id="navq" type="text" placeholder="Поиск по вкладкам" autocomplete="off" aria-label="Поиск по вкладкам">
+        <div class="nfold" role="group" aria-label="Управление разделами меню">
+          <button id="navexpandall" type="button" aria-label="Развернуть все разделы">Развернуть всё</button>
+          <button id="navcollapseall" type="button" aria-label="Свернуть все разделы">Свернуть всё</button>
+        </div>
+        <div class="nno hide" id="navno">Ничего не найдено</div>
+      </div>
+      <div class="nscroll">
+        <div id="navgroups"></div>
+      </div>
+    </aside>
+    <div class="cont">
+      <div class="pdoc"><div class="pdoch">{{heading}}</div><div class="pdocs">{{subtitle}}</div></div>
+      <div class="ptitle" id="ptitle"></div>
+      <main id="main"></main>
+      <div class="pager" id="pager"></div>
+    </div>
+  </div>
+</div>
+<script>
+<!-- @include js/engine/core.js -->
+<!-- @data -->
+<!-- @include js/engine/scheme.js -->
+<!-- @include js/engine/sequence.js -->
+<!-- @include js/engine/svg-export.js -->
+<!-- @include js/engine/capacity.js -->
+<!-- @include shells/panel/app.js -->
+</script>
+</body>
+</html>

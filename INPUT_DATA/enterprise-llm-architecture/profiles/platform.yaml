@@ -1,0 +1,160 @@
+# Профиль домена «платформа ИИ»: тот же словарь, что у этого репозитория,
+# но в минимуме — чтобы новый сервис холдинга описывался теми же словами.
+# Использование: node scripts/arch.mjs init <каталог> --profile platform
+name: platform
+description: "Платформа ИИ: клиенты → ingress → gateway → DLP → модели, guardrails"
+title: "Платформа ИИ · целевая архитектура"
+heading: "Платформа ИИ"
+subtitle: "Единая точка входа, guardrails, локальные и облачные модели"
+sections:
+  - { dir: tobe, label: "TO-BE", role: primary }
+  - { dir: solutions, label: "Решения", role: solution }
+  - { dir: governance, label: "Управление", role: governance }
+  - { dir: asis, label: "AS-IS", role: asis, hidden: true, banner: "**ТЕКУЩЕЕ СОСТОЯНИЕ.** Для сравнения с целевым." }
+kinds:
+  ext: [ "#8a93a3", Внешние ]
+  edge: [ "#3b82f6", Вход / сеть ]
+  app: [ "#8b5cf6", Приложения ]
+  core: [ "#f59e0b", LLM-ядро ]
+  sec: [ "#e11d48", Безопасность ]
+  egress: [ "#22c55e", Выход в облако ]
+  local: [ "#64748b", Локальная модель ]
+  data: [ "#ec4899", Данные ]
+  mon: [ "#0ea5e9", Мониторинг ]
+  term: [ "#14b8a6", Песочницы ]
+components:
+  gateway: "**Gateway.** Проверяет личность, применяет лимиты и бюджет, проставляет класс данных."
+  dlp: "**Regex-DLP.** Синхронная проверка текста: ALLOW / MASK / BLOCK. При BLOCK модель не вызывается."
+  litellm: "**LiteLLM.** Маршрутизация между облачными провайдерами и локальной моделью, ключи команд, бюджеты."
+  qwen: "**Локальная модель.** GPU в закрытом сегменте: чувствительные данные не покидают контур."
+  audit: "**Журнал и метрики.** Кто, когда, что запросил и что решил guard; без сырых текстов и секретов."
+entities:
+  - { id: clients, type: channel, title: "Клиенты платформы", owner: "Платформа ИИ", data_class: internal, aliases: [ user, webclient ] }
+  - { id: gateway, type: control, title: "Gateway: лимиты и класс данных", owner: "Платформа ИИ", data_class: internal }
+  - { id: dlp, type: control, title: "Regex-DLP", owner: "ИБ", data_class: secret, aliases: [ guard ] }
+  - { id: litellm, type: service, title: "LiteLLM: маршрутизация моделей", owner: "Платформа ИИ", data_class: internal }
+  - { id: providers, type: external, title: "Облачные провайдеры", owner: "Внешний поставщик", data_class: public }
+  - { id: qwen, type: model, title: "Локальная Qwen3", owner: "Платформа ИИ", data_class: confidential, aliases: [ local ] }
+  - { id: audit, type: store, title: "Журнал без сырых текстов", owner: "ИБ", data_class: internal }
+tabs:
+  - file: tobe/01-platform.yaml
+    tab:
+      title: Платформа
+      overview:
+        lead: "**Один путь запроса.** Любой клиент входит через ingress, получает личность, проходит DLP и только потом попадает в модель."
+        blocks:
+          - scheme:
+              size: [ 1120, 380 ]
+              groups:
+                - [ 20, 40, 250, 240, Клиенты ]
+                - [ 290, 40, 250, 240, Вход и контроль ]
+                - [ 560, 40, 290, 240, Модели ]
+                - [ 870, 40, 230, 240, Наблюдаемость ]
+              nodes:
+                - { id: webclient, at: [ 145, 110, 200 ], label: Чат, sub: "браузер, сессия", kind: app }
+                - { id: api, at: [ 145, 190, 200 ], label: API и агенты, sub: "скрипты, интеграции", kind: app }
+                - { id: ingress, at: [ 415, 110, 200 ], label: Ingress, sub: "TLS, OIDC, mTLS", kind: edge }
+                - { id: gateway, at: [ 415, 190, 200 ], label: Gateway, sub: "лимиты, класс данных", kind: core, info: "{gateway}" }
+                - { id: dlp, at: [ 415, 270, 200 ], label: Regex-DLP, sub: "ALLOW / MASK / BLOCK", kind: sec, info: "{dlp}" }
+                - { id: litellm, at: [ 705, 150, 200 ], label: LiteLLM, sub: "маршруты и бюджеты", kind: core, info: "{litellm}" }
+                - { id: providers, at: [ 985, 90, 200 ], label: Облачные модели, sub: "Xray, разрешённые маршруты", kind: ext }
+                - { id: qwen, at: [ 985, 210, 200 ], label: Qwen3 локально, sub: "GPU в закрытом сегменте", kind: local, info: "{qwen}" }
+                - { id: audit, at: [ 985, 325, 200 ], label: Журнал и метрики, sub: "без сырых текстов", kind: mon, info: "{audit}" }
+              edges:
+                - webclient -> ingress
+                - api -> ingress
+                - ingress -> gateway
+                - gateway -> dlp: текст и класс данных
+                - dlp -> litellm: ALLOW / MASK
+                - dlp -> audit: BLOCK
+                - litellm -> providers
+                - litellm -> qwen
+                - litellm -> audit
+              routes:
+                Чувствительный запрос: webclient -> ingress -> gateway -> dlp -> litellm -> qwen
+                Обычный запрос: api -> ingress -> gateway -> dlp -> litellm -> providers
+              hint: "Граница доверия — между ingress и gateway; всё, что правее, уже внутри контура."
+          - note: "Схема отвечает на вопрос «как запрос доходит до модели». Правила, которые нельзя нарушать, — `arch/invariants/`."
+      detail:
+        lead: "**Кто за что отвечает.** У каждого узла есть владелец и класс данных — иначе разговор об ИБ начинается с нуля."
+        blocks:
+          - table:
+              head: [ Узел, Что делает, Владелец ]
+              rows:
+                - [ "«Gateway»", "Личность, лимиты, класс данных", "Платформа ИИ" ]
+                - [ "«Regex-DLP»", "Синхронная проверка и маскирование", "ИБ" ]
+                - [ "«LiteLLM»", "Маршрут, бюджет, fallback", "Платформа ИИ" ]
+              center: []
+  - file: tobe/02-guardrails.yaml
+    tab:
+      title: Guardrails
+      overview:
+        lead: "**Проверка до и после ответа.** DLP — всегда; смысловые проверки — параллельно генерации, но ответ не выдаётся до вердикта."
+        blocks:
+          - scheme:
+              size: [ 1040, 300 ]
+              nodes:
+                - { id: g1, at: [ 90, 110, 170 ], label: Запрос, sub: "нормализованный prompt", kind: app }
+                - { id: g2, at: [ 320, 110, 190 ], label: Regex-DLP, sub: "sync: BLOCK / MASK", kind: sec }
+                - { id: g3, at: [ 560, 110, 190 ], label: Fast Guard, sub: "малая модель", kind: sec }
+                - { id: g4, at: [ 800, 110, 190 ], label: Safety Reasoner, sub: "только подозрительное", kind: sec }
+                - { id: g5, at: [ 800, 230, 190 ], label: Response Gate, sub: "вердикт и выпуск", kind: core }
+              edges:
+                - g1 -> g2
+                - g2 -> g3: ALLOW / MASK
+                - g3 -> g4: подозрение
+                - g4 -> g5: вердикт
+                - g5 -> g1: release
+              hint: "Ошибка или таймаут проверки ≠ разрешение: для чувствительных маршрутов ответ не выпускается."
+      detail:
+        lead: "**Что решаем отдельно.** Политика таймаутов и список запрещённых тем — это решение, а не настройка по умолчанию."
+        blocks:
+          - steps:
+              - "DLP синхронный: при BLOCK модель не вызывается вовсе."
+              - "Смысловые проверки идут параллельно генерации, но клиент ждёт вердикт."
+              - "Для confidential-маршрутов — preflight до вызова модели, без спекулятивного старта."
+invariants:
+  - file: 01-model-through-gateway.yaml
+    rule:
+      id: INV-001
+      title: "Модель вызывается только через ingress, gateway и DLP"
+      rule: no-bypass
+      severity: error
+      tabs: [ tobe/01-platform ]
+      from: [ webclient, api ]
+      to: [ litellm, providers, qwen ]
+      through: [ ingress, gateway, dlp ]
+      why: "Обход gateway — запрос без лимитов и класса данных; обход DLP — утечка текста наружу."
+decisions:
+  - file: 01-local-first.yaml
+    adr:
+      id: ADR-001
+      title: "Чувствительные данные — только на локальной модели"
+      status: proposed
+      owner: "ИБ совместно с владельцем платформы"
+      due: "2026-12-15"
+      need:
+        - "Классификация данных: что считаем чувствительным."
+        - "Замер задержки локальной модели на типовых запросах."
+      links: [ tobe/01-platform ]
+      context: "Облачные модели быстрее, но получают текст за пределами контура."
+      decision: "Для confidential-маршрутов — только локальная модель; облако — для public/internal."
+      consequences:
+        - "Плюс: утечка исключена конструктивно, а не обещаниями."
+        - "Минус: качество локальной модели ниже; часть задач придётся упростить."
+controls:
+  - file: 01-ib.yaml
+    control:
+      id: IB-01
+      title: "Текст проверяется до вызова модели"
+      area: ИБ
+      source: "Внутренняя политика ИБ"
+      satisfied_by: [ dlp, gateway ]
+      evidence: "Синхронный DLP на входе; при BLOCK модель не вызывается."
+  - file: 01-ib.yaml
+    control:
+      id: IB-02
+      title: "Данные на диске зашифрованы"
+      area: Эксплуатация
+      satisfied_by: []
+      note: "Не сделано: шифрование томов не внедрено. Пробел виден в arch controls --missing."

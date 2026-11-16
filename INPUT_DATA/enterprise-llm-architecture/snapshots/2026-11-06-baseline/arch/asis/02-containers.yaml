@@ -1,0 +1,126 @@
+# AS-IS · Контейнеры
+# Формат: docs/FORMAT.md. Сборка: npm run build
+
+title: Контейнеры
+overview:
+  lead: "**Слои платформы.** Запрос проходит слева направо: вход → интерфейс → шлюз доверия → роутер моделей → выход → провайдер. Снизу — службы, которые настраивают, хранят и наблюдают."
+  blocks:
+    - scheme:
+        size: [ 1200, 400 ]
+        nodes:
+          - { id: user, at: [ 70, 140, 110 ], label: Пользователи }
+          - { id: in, at: [ 215, 140, 130 ], label: Вход, sub: proxy · nginx · TLS, kind: edge, info: "{proxy}" }
+          - { id: ui, at: [ 385, 140, 150 ], label: Интерфейс, sub: Open WebUI · Docling, kind: app, info: "{ow}<br><br>{doc}" }
+          - { id: gwb, at: [ 565, 140, 150 ], label: Шлюз доверия, sub: gateway + DLP, kind: sec, info: "{gw}<br><br>{dlp}" }
+          - { id: rt, at: [ 745, 140, 150 ], label: Роутер моделей, sub: LiteLLM (+ Redis опц.), kind: core, info: "{ll}" }
+          - { id: out, at: [ 925, 140, 150 ], label: Выход, sub: Xray · cliproxy, kind: egress, info: "{xr}<br><br>{cp}" }
+          - { id: prov, at: [ 1110, 140, 150 ], label: Провайдеры, sub: облако · CLI · LAN }
+          - { id: sbx, at: [ 385, 300, 150 ], label: Песочницы, sub: broker · docker-api · term-*, kind: term, info: "{tb}<br><br>{term}" }
+          - { id: ctrl, at: [ 600, 300, 170 ], label: Управление, sub: консоль + reconciler, kind: ctrl, info: "{adm}<br><br>{rec}" }
+          - { id: data, at: [ 820, 300, 150 ], label: Данные, sub: PostgreSQL · 3 БД, kind: data, info: "{pg}" }
+          - { id: mon, at: [ 1030, 300, 150 ], label: Мониторинг, sub: Prometheus · Grafana, kind: mon, info: "{pr}<br><br>{gr}" }
+        edges:
+          - user -> in: HTTPS
+          - in -> ui
+          - ui -> gwb: JWT
+          - gwb -> rt: "ключ\nкоманды"
+          - rt -> out
+          - out -> prov
+          - ui -> sbx: файлы, команды
+          - ctrl --> ui: { kind: ctrl }
+          - ctrl --> gwb: { kind: ctrl }
+          - ctrl --> rt: { label: настраивает, kind: ctrl }
+          - ctrl -> data: { kind: data }
+          - rt --> data: { label: spend, kind: data }
+          - mon --> rt: { label: метрики, kind: mon }
+        routes:
+          Запрос к модели: user -> in -> ui -> gwb -> rt -> out -> prov
+          Песочница: user -> in -> ui -> sbx
+detail:
+  lead: "**Все контейнеры compose-проекта** и связи между ними. Пунктир — опциональный профиль или служебная связь. Переключатели скрывают связи с БД, управление и мониторинг."
+  blocks:
+    - scheme:
+        size: [ 1300, 770 ]
+        host: [ 120, 30, 800, 725, Хост Docker · compose-проект enterprise ]
+        groups:
+          - [ 130, 150, 110, 100, Вход ]
+          - [ 262, 60, 140, 345, Приложения ]
+          - [ 420, 60, 300, 345, LLM-ядро и безопасность ]
+          - [ 740, 60, 165, 345, Выход ]
+          - [ 262, 440, 460, 150, Песочницы (профиль terminals) ]
+          - [ 740, 440, 165, 300, Данные · мониторинг ]
+          - [ 975, 30, 320, 270, Интернет ]
+          - [ 975, 340, 320, 90, LAN / хост ]
+        nodes:
+          - { id: user, at: [ 60, 200, 90 ], label: Браузер }
+          - { id: proxy, at: [ 185, 200, 100 ], label: proxy, sub: nginx :443/:80, kind: edge }
+          - { id: ow, at: [ 332, 110, 120 ], label: openwebui, sub: :8080, kind: app }
+          - { id: doc, at: [ 332, 230, 120 ], label: docling, sub: :5001 · OCR, kind: app, dash: true }
+          - { id: adm, at: [ 332, 350, 120 ], label: admin, sub: :8000 · консоль, kind: ctrl }
+          - { id: gw, at: [ 490, 110, 120 ], label: gateway, sub: :4100, kind: core }
+          - { id: dlp, at: [ 490, 230, 120 ], label: dlp, sub: :4200, kind: sec }
+          - { id: rec, at: [ 490, 350, 130 ], label: reconciler, sub: reconcile --loop, kind: ctrl }
+          - { id: ll, at: [ 645, 110, 120 ], label: litellm, sub: :4000, kind: core }
+          - { id: xr, at: [ 820, 110, 120 ], label: xray, sub: egress-proxy, kind: egress, dash: true }
+          - { id: cp, at: [ 820, 230, 120 ], label: cliproxy, sub: :8317, kind: core, dash: true }
+          - { id: tb, at: [ 332, 515, 120 ], label: terminal-broker, sub: :8000, kind: term, dash: true }
+          - { id: dapi, at: [ 490, 515, 110 ], label: docker-api, sub: :2375, kind: term, dash: true }
+          - { id: term, at: [ 645, 515, 110 ], label: term-*, sub: ≤ 20 песочниц, kind: term, stack: true }
+          - { id: pg, at: [ 820, 490, 150 ], label: postgres, sub: openwebui · litellm · platform, kind: data }
+          - { id: redis, at: [ 820, 560, 130 ], label: redis, sub: профиль redis, kind: data, dash: true }
+          - { id: pr, at: [ 820, 630, 130 ], label: prometheus, sub: :9090, kind: mon }
+          - { id: gr, at: [ 820, 700, 130 ], label: grafana, sub: /grafana/, kind: mon, dash: true }
+          - { id: vpn, at: [ 1045, 135, 110 ], label: VPN-серверы, sub: VLESS, kind: egress, stack: true }
+          - { id: openai, at: [ 1215, 75, 140 ], label: OpenAI API }
+          - { id: anthropic, at: [ 1215, 135, 140 ], label: Anthropic API }
+          - { id: cli, at: [ 1215, 195, 140 ], label: Подписки CLI }
+          - { id: odi, at: [ 1215, 265, 140 ], label: OdiRouter }
+          - { id: lm, at: [ 1100, 385, 150 ], label: Локальная LLM, sub: host.docker.internal, kind: local }
+        edges:
+          - user -> proxy: HTTPS
+          - proxy -> ow: { label: "/ , /ws/", out: r, in: l }
+          - proxy -> adm: { label: /console/, out: r, in: l }
+          - proxy --> gr: { label: /grafana/, via: [ [ 185, 225 ], [ 185, 710 ], [ 755, 710 ] ], label_at: [ 470, 710 ] }
+          - ow -> gw: JWT
+          - gw -> ll: ключ команды
+          - gw -> dlp: /v1/scan
+          - ow --> doc
+          - ow --> tb: { label: Open Terminal, via: [ [ 272, 118 ], [ 252, 118 ], [ 252, 515 ], [ 272, 515 ] ], label_at: [ 252, 465 ] }
+          - tb -> dapi
+          - dapi -> term: создаёт
+          - tb -> term: { label: команды · сеть /28, via: [ [ 332, 540 ], [ 332, 572 ], [ 645, 572 ], [ 645, 540 ] ], label_at: [ 490, 572 ] }
+          - ll -> xr: :10809 / :10880
+          - ll -> cp: { out: r, in: l }
+          - cp -> xr: { label: cli-in, out: t, in: b }
+          - xr -> vpn: { label: VLESS, out: r, in: l }
+          - vpn -> openai
+          - vpn -> anthropic
+          - vpn -> cli
+          - xr -> odi: { label: direct, via: [ [ 880, 125 ], [ 950, 125 ], [ 950, 265 ], [ 1145, 265 ] ], label_at: [ 1050, 265 ] }
+          - ll -> lm: { label: без Xray, via: [ [ 700, 135 ], [ 700, 385 ], [ 1025, 385 ] ], label_at: [ 960, 385 ] }
+          - ow -> pg: { kind: data, via: [ [ 392, 125 ], [ 410, 125 ], [ 410, 425 ], [ 820, 425 ], [ 820, 467 ] ], tag: db }
+          - adm -> pg: { kind: data, via: [ [ 332, 375 ], [ 332, 425 ], [ 820, 425 ], [ 820, 467 ] ], tag: db }
+          - rec -> pg: { kind: data, via: [ [ 490, 375 ], [ 490, 425 ], [ 820, 425 ], [ 820, 467 ] ], tag: db }
+          - ll -> pg: { kind: data, via: [ [ 645, 135 ], [ 645, 425 ], [ 820, 425 ], [ 820, 467 ] ], tag: db }
+          - ll --> redis: { kind: data, via: [ [ 655, 135 ], [ 655, 415 ], [ 728, 415 ], [ 728, 560 ], [ 755, 560 ] ], tag: db }
+          - rec --> ow: { kind: ctrl, out: l, in: r, tag: ctrl }
+          - rec --> gw: { label: gateway-map, kind: ctrl, via: [ [ 555, 340 ], [ 567, 340 ], [ 567, 155 ], [ 520, 155 ], [ 520, 135 ] ], label_at: [ 567, 290 ], tag: ctrl }
+          - rec --> ll: { kind: ctrl, via: [ [ 555, 355 ], [ 600, 355 ], [ 600, 135 ] ], tag: ctrl }
+          - rec --> xr: { label: egress_config, kind: ctrl, via: [ [ 555, 362 ], [ 620, 362 ], [ 620, 172 ], [ 850, 172 ], [ 850, 135 ] ], label_at: [ 760, 172 ], tag: ctrl }
+          - rec --> cp: { label: management, kind: ctrl, via: [ [ 555, 368 ], [ 790, 368 ], [ 790, 255 ] ], label_at: [ 750, 368 ], tag: ctrl }
+          - pr --> ll: { label: scrape, kind: mon, via: [ [ 755, 625 ], [ 732, 625 ], [ 732, 100 ], [ 705, 100 ] ], label_at: [ 732, 300 ], tag: mon }
+          - gr -> pr: { kind: mon }
+        routes:
+          OpenAI/Anthropic: user -> proxy -> ow -> gw -> ll -> xr -> vpn -> openai
+          OdiRouter: user -> proxy -> ow -> gw -> ll -> xr -> odi
+          Подписка CLI: user -> proxy -> ow -> gw -> ll -> cp -> xr -> vpn -> cli
+          Локальная LLM: user -> proxy -> ow -> gw -> ll -> lm
+          DLP: user -> proxy -> ow -> gw -> dlp
+          Документ (OCR): user -> proxy -> ow -> doc
+          Терминал: user -> proxy -> ow -> tb -> term
+          Консоль:
+            path: user -> proxy -> adm -> pg
+            note: Консоль работает с БД `platform` и при сохранении сама применяет изменения в Open WebUI / LiteLLM / gateway-map тем же движком, что и reconciler.
+        toggles: { db: Связи с БД, ctrl: Управление (reconciler), mon: { label: Мониторинг, on: false } }
+    - note: "Также в compose: `bootstrap` (разовый apply/doctor/smoke), `backup`, `volume-init` (права на тома), `open-terminal` (только сборка образа) — все в профиле `tools`, постоянно не работают."
+      style: margin-top:4px

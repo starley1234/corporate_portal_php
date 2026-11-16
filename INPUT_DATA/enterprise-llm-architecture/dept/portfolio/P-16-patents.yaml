@@ -1,0 +1,18 @@
+code: P-16
+name: Патентная чистота и поиск аналогов
+function: Инжиниринг / патентный отдел
+owner: ""              # владельца нет: заявка пришла от инженера, а не от руководителя
+volume: 30
+minutes: 300
+error_cost: 4
+strategic: 3
+data_ready: 1
+rules_maturity: 2
+llm_share: 0.40
+data_class: confidential
+regulatory: 4
+integration_effort: 5
+write_to_source: false
+golden_set: false
+sources: [ архивы патентов, СЭД ]
+notes: "Нет ни владельца, ни данных в машиночитаемом виде — держим в очереди, не берём в работу."

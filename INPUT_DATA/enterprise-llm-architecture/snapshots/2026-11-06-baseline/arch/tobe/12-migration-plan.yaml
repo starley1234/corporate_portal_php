@@ -1,0 +1,66 @@
+# TO-BE · План внедрения
+# Формат: docs/FORMAT.md. Сборка: npm run build
+
+title: План внедрения
+overview:
+  lead: "**Переход без одномоментной перестройки.** Старые вкладки AS-IS описывают код/compose v1.7.x. Ниже — последовательность внедрения целевой схемы, технические риски и критерии приёмки."
+  blocks:
+    - table:
+        head: [ Этап, Что меняется, Результат / критерий приёмки ]
+        rows:
+          - [ 0 · Baseline, "Фиксируем current stack и p95/p99 latency, OCR backlog, RAG retrieval, DLP counters", Сопоставимые до/после метрики; исходная конфигурация сохранена ]
+          - [ 1 · Единый ingress, "Pipelines, агенты, скрипты, IDE, боты → адаптеры → gateway", "100% LLM-вызовов авторизованы, нет обхода LiteLLM/DLP" ]
+          - [ 2 · RAG VM, "Переносим индекс / ingest / embeddings в RAG API, ACL + embeddings parity", "Доступы к чужим KB невозможны, quality parity и roll-back" ]
+          - [ 3 · OCR remote toggle, Добавляем OCR_API_BASE_URL / локальный fallback и сетевые ограничения, Одинаковый API/результаты в local и remote; таймауты / очередь ]
+          - [ 4 · Local Qwen3, vLLM на GPU VM + model alias в LiteLLM и тарифы, "Smoke, streaming и tool-calls, лимиты, модель доступна по группам" ]
+          - [ 5 · Guard shadow, "Fast + Reasoner считают риск на копии запросов, не блокируют", Recall/FPR + latency / request_id; отсутствие утечек в логах ]
+          - [ 6 · Enforce release, Policy Gate + задержка SSE до safety verdict; suspect → output heavy, Ни один заблокированный ответ не виден клиенту; отладка deadline ]
+          - [ 7 · Scale/HA, "Горизонтальный рост gateway, RAG, guards и GPU LLM", "Нагрузочные тесты, SLO, восстановление после отказа" ]
+          - [ 8 · Egress fixes, Tool/web search через единый tool broker и DLP, Прямой Open WebUI web search больше не обходит защиту ]
+          - [ 9 · Пайплайны подразделения (предложение), "Инвентаризация TC / 1С / СЭД, коннекторы, граф и гибридный поиск, сценарии (вкладки 13–14)", "Golden set и метрики качества до/после; права источников соблюдены; confidential только local" ]
+    - cards:
+        - title: Экспериментальная проверка Guard
+          text: Тесты benign, prompt-injection, jailbreak, RAG injection, PII, русскоязычные и многоязычные запросы. Датасет с ожидаемыми ALLOW/REVIEW/BLOCK.
+          color: "#e11d48"
+        - title: Контроль накладных расходов
+          text: Сравнить режимы sync preflight, speculative + buffered response и selective heavy output. Измерить p50/p95/p99 latency и ресурсы GPU.
+          color: "#f59e0b"
+        - title: Безопасность данных
+          text: Внешние облака — только при разрешённой классификации данных, иначе local Qwen3. Отправка в cloud до проверки guard уже является передачей данных.
+          color: "#3b82f6"
+        - title: Совместимость Open WebUI
+          text: При интеграции с external RAG проверить возможности именно закреплённой Open WebUI v0.11.4 и патчей; современные функции внешних KB могли появиться позже.
+          color: "#8b5cf6"
+    - note: "**Источник истины — журнал ADR.** Эти же решения записаны в `arch/decisions/*.yaml` и собираются во вкладку управления «Журнал решений (ADR)»; статус меняется там, история — в git. Сводная таблица ниже — краткая выжимка плана: `arch adr --status proposed`."
+    - title: Открытые решения до запуска
+      table:
+        head: [ Вопрос, Почему важно, Предлагаемое решение ]
+        rows:
+          - [ Реальный Qwen3 checkpoint, Влияет на GPU VRAM / TPS / контекст, Пока sizing рассчитан на Qwen3-32B 4-bit; зафиксировать конкретный checkpoint ]
+          - [ Preflight vs speculative cloud, Не допускается неконтролируемая отправка секретов в облако, confidential → preflight + local-only; public/internal → speculative + hold output ]
+          - [ Способ подключения external RAG, v0.11.4 могла не иметь нужного external KB контракта, Реализовать RAG adapter/Tool API или обновить OWUI после проверки совместимости ]
+          - [ Лимиты guard, Timeout может блокировать release SSE, Политика deadline и fail-closed по классификации данных ]
+          - [ Размер KB и rate uploads, Без числа файлов/страниц нельзя оценить OCR/диск, Собрать инвентаризацию и benchmark 100–1000 типовых документов ]
+          - [ Multi-tenancy в RAG, Недопустимо смешать ACL разных подразделений, "ACL в retriever, а не только фильтры UI" ]
+          - [ "Qdrant или pgvector (вкладка 13)", Две реализации RAG дадут два набора прав и два индекса, "Одна Knowledge-подсистема; pgvector по умолчанию, решение после бенчмарка на golden set" ]
+          - [ Источники и права TC / 1С / СЭД (вкладка 13), "Без модели прав RAG обходит ролевую модель источников", "Инвентаризация систем и прав; read-only коннекторы; классы данных на чанках" ]
+          - [ Batch lane для LLM (вкладка 13), Массовая обработка архива конкурирует с чатом и guard за GPU, "Квоты и приоритеты в gateway / LiteLLM, ночные окна" ]
+detail:
+  lead: "**Нагрузочные тесты и ссылки.** Требования к CPU/GPU/disk выше — предварительные. Источники ниже используются для проверки возможностей продуктов; численные ресурсы являются инженерными гипотезами для конкретного проекта."
+  blocks:
+    - title: Верификационные сценарии
+      table:
+        head: [ Сценарий, Что проверить, Ожидаемый инвариант ]
+        rows:
+          - [ DLP BLOCK, Попытка передачи секретного токена, Нет вызова LiteLLM / провайдера ]
+          - [ DLP MASK, Вход с персональными данными, В model endpoint уходят только замаскированные данные ]
+          - [ "Fast suspect, Deep BLOCK", Атака на инструкции, Клиент не получает ни одного токена ]
+          - [ "Fast suspect, Deep ALLOW", Легитимный запрос со словами риска, Обязательный heavy output scan ]
+          - [ Slow guard vs fast LLM, Модель закончила раньше проверки, Буфер удерживается до вердикта или timeout ]
+          - [ Cloud confidential, Документ confidential + запрос к внешнему провайдеру, Нет Cloud API call до preflight / запрет маршрута ]
+          - [ RAG cross-team, Пользователь группы A спрашивает документы B, "ACL проверяется в RAG API, чужих результатов нет" ]
+          - [ OCR local ↔ remote, Одни и те же сканы, "Эквивалентная обработка/форматы, ограниченные лимиты" ]
+          - [ Agent/tool injection, Вредоносная инструкция в tool response, Повторная проверка untrusted tool output и разрешений ]
+          - [ Web search egress, Search/fetch из OWUI, Трафик идёт через tool broker с DLP и audit ]
+    - title: Документация
+      note: "[Qwen3Guard](https://github.com/QwenLM/Qwen3Guard) · [gpt-oss-safeguard](https://help.openai.com/en/articles/11870455-openai-open-weight-models-gpt-oss) · [Open WebUI RAG и внешние источники](https://docs.openwebui.com/features/chat-conversations/rag/) · [Open WebUI deployment essentials](https://docs.openwebui.com/getting-started/essentials/) · [Docling Serve API](https://docling.org/serve/)."

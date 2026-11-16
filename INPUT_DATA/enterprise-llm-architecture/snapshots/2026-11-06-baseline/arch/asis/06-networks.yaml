@@ -1,0 +1,161 @@
+# AS-IS · Сети
+# Формат: docs/FORMAT.md. Сборка: npm run build
+
+title: Сети
+overview:
+  lead: "**Сетевые зоны.** Снаружи доступен только proxy (443/80). Почти все внутренние сети Docker — `internal` (без выхода в интернет); наружу ходят только сети `frontend` и `egress`."
+  blocks:
+    - scheme:
+        size: [ 1260, 560 ]
+        groups:
+          - [ 20, 40, 160, 400, Корпоративная сеть ]
+          - [ 200, 40, 1040, 420, "Сервер VM-for-AI-Iron · eno1.3170 = 172.31.70.118/24, шлюз 172.31.70.1" ]
+          - [ 560, 70, 670, 380, Сети Docker (bip 10.244.255.1/24 · пулы 10.244.0.0/17 по /24) ]
+        nodes:
+          - { id: lan, at: [ 100, 120, 140 ], label: Пользователи, sub: VLAN 3170 и др. }
+          - { id: admpc, at: [ 100, 240, 140 ], label: Админ-ПК, sub: 192.168.200.0/24 }
+          - { id: wz, at: [ 100, 350, 140 ], label: Wazuh, sub: 172.31.70.9 / .19 }
+          - { id: nic, at: [ 300, 150, 150 ], label: eno1.3170, sub: VLAN 3170 (trunk), kind: edge, info: "Порт коммутатора — trunk, VLAN 3170 тегирован; `eno1` без адреса, `eno1.3170` = 172.31.70.118/24, шлюз 172.31.70.1. Сеть настраивается ifupdown. Подробно — docs/incidents/2026-10-26-network-vlan-docker.md." }
+          - { id: ufw, at: [ 300, 300, 150 ], label: ufw, sub: "22, 443 — с админ-ПК\n22 — с Wazuh", kind: sec }
+          - { id: dkr, at: [ 460, 150, 150 ], label: dockerd :443 / :80, sub: "опубликованные порты\n(в обход ufw)", kind: edge, info: "Опубликованные порты Docker обходят ufw (цепочка DOCKER-USER пуста) — 443/80 доступны всем, кто достаёт до сервера. Ограничение доступа к 443 — отдельное решение (DOCKER-USER)." }
+          - { id: ssh, at: [ 460, 300, 150 ], label: sshd :22, kind: local }
+          - {
+              id: fe,
+              at: [ 680, 150, 200 ],
+              label: frontend,
+              sub: "proxy · openwebui · admin · grafana
+
+                есть выход в интернет",
+              kind: edge
+            }
+          - {
+              id: be,
+              at: [ 680, 270, 200 ],
+              label: backend (internal),
+              sub: "gateway · litellm · dlp · docling
+
+                reconciler · cliproxy · prometheus",
+              kind: core
+            }
+          - {
+              id: db,
+              at: [ 680, 385, 200 ],
+              label: database (internal),
+              sub: "postgres · redis · backup
+
+                + openwebui · litellm · admin",
+              kind: data
+            }
+          - {
+              id: eg,
+              at: [ 920, 270, 190 ],
+              label: egress,
+              sub: "litellm · admin · cliproxy · xray
+
+                выход в интернет",
+              kind: egress
+            }
+          - { id: egi, at: [ 920, 385, 190 ], label: egress_internal, sub: "строгий режим: только\nчерез xray", kind: egress, dash: true }
+          - { id: tm, at: [ 920, 130, 190 ], label: terminals (internal), sub: "openwebui ↔ broker\n10.242.0.0/24", kind: term }
+          - { id: da, at: [ 1130, 130, 170 ], label: docker_api (internal), sub: broker ↔ docker-api, kind: term }
+          - { id: ut, at: [ 1130, 250, 170 ], label: term-<hash> × N, sub: "/28 на пользователя\nиз 10.241.0.0/16", kind: term, stack: true }
+          - { id: mt, at: [ 1130, 385, 170 ], label: metrics (internal), sub: prometheus ↔ grafana, kind: mon }
+          - { id: inet, at: [ 920, 515, 190 ], label: Интернет, sub: через NAT хоста }
+        edges:
+          - lan -> nic: HTTPS 443
+          - admpc -> nic: 443 / 22
+          - wz -> ufw: "22"
+          - nic -> dkr: 443/80
+          - nic -> ufw: "22"
+          - ufw -> ssh
+          - dkr -> fe: → proxy
+          - fe -> be: { label: "openwebui, admin", out: b, in: t }
+          - be -> db:
+              {
+                label: "openwebui, litellm, admin,
+
+                  reconciler",
+                out: b,
+                in: t
+              }
+          - be -> eg: litellm, cliproxy
+          - eg --> egi: xray в обеих
+          - fe -> tm: openwebui
+          - tm -> da: broker
+          - da -> ut: создаёт
+          - be --> mt: { label: prometheus, via: [ [ 780, 285 ], [ 1045, 285 ], [ 1045, 385 ] ], label_at: [ 1000, 330 ] }
+          - eg -> inet
+          - fe --> inet: { label: веб-поиск OWUI, via: [ [ 580, 150 ], [ 580, 515 ], [ 825, 515 ] ], label_at: [ 640, 500 ] }
+detail:
+  lead: "**Какой контейнер в какой сети.** ● — подключён; ◐ — `egress` в обычном режиме или `egress_internal` в строгом (`EGRESS_CLIENT_NETWORK`). Сети с internal не имеют маршрута наружу."
+  blocks:
+    - table:
+        head: [ Сервис, frontend, backend, database, egress, egress_internal, terminals, docker_api, metrics, term-&lt;hash&gt;, ocr ]
+        rows:
+          - [ "**proxy**", ●, "", "", "", "", "", "", "", "", "" ]
+          - [ "**openwebui**", ●, ●, ●, "", "", ●, "", "", "", "" ]
+          - [ "**gateway**", "", ●, "", "", "", "", "", "", "", "" ]
+          - [ "**litellm**", "", ●, ●, ◐, ◐, "", "", "", "", "" ]
+          - [ "**postgres**", "", "", ●, "", "", "", "", "", "", "" ]
+          - [ "**redis**", "", "", ●, "", "", "", "", "", "", "" ]
+          - [ "**dlp**", "", ●, "", "", "", "", "", "", "", "" ]
+          - [ "**docling**", "", ●, "", "", "", "", "", "", "", ● ]
+          - [ "**terminal-broker**", "", "", "", "", "", ●, ●, "", ●, ● ]
+          - [ "**docker-api**", "", "", "", "", "", "", ●, "", "", "" ]
+          - [ "**cliproxy**", "", ●, "", ◐, ◐, "", "", "", "", "" ]
+          - [ "**reconciler**", "", ●, ●, "", "", "", "", "", "", "" ]
+          - [ "**bootstrap**", "", ●, ●, "", "", "", "", "", "", "" ]
+          - [ "**admin**", ●, ●, ●, ◐, ◐, "", "", "", "", "" ]
+          - [ "**xray**", "", "", "", ●, ●, "", "", "", "", "" ]
+          - [ "**backup**", "", "", ●, "", "", "", "", "", "", "" ]
+          - [ "**prometheus**", "", ●, "", "", "", "", "", ●, "", "" ]
+          - [ "**grafana**", ●, "", "", "", "", "", "", ●, "", "" ]
+          - [ "**term-* (песочница)**", "", "", "", "", "", "", "", "", ●, "" ]
+        center: [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ]
+    - title: Сети
+      table:
+        head: [ Сеть, internal, Кто внутри, Зачем ]
+        rows:
+          - [ frontend, нет, "proxy, openwebui, admin, grafana", вход из proxy; у Open WebUI отсюда веб-поиск ]
+          - [ backend, да, "openwebui, gateway, litellm, dlp, docling, reconciler, bootstrap, admin, cliproxy, prometheus", внутренние API платформы ]
+          - [ database, да, "postgres, redis, openwebui, litellm, reconciler, bootstrap, admin, backup", "доступ к БД только тем, кому нужно" ]
+          - [ egress, нет, "litellm, admin, cliproxy, xray", "выход к провайдерам (через xray, если включён)" ]
+          - [ egress_internal, да, xray + litellm/admin/cliproxy в строгом режиме, "обойти прокси нельзя даже коду, игнорирующему HTTPS_PROXY" ]
+          - [ terminals, "да, 10.242.0.0/24", "openwebui, terminal-broker", "брокер доверяет X-User-Id, потому что достучаться может только Open WebUI" ]
+          - [ docker_api, да, "terminal-broker, docker-api", доступ к Docker API только у брокера ]
+          - [ metrics, да, "prometheus, grafana", Grafana не видит сервисы backend ]
+          - [ ocr, "да, 10.242.1.0/28", "terminal-broker, docling", распознавание сканов из песочницы (ocr_document); брокер не попадает в backend ]
+          - [ term-&lt;hash&gt;, "да, /28 из 10.241.0.0/16", одна песочница + broker, песочницы изолированы друг от друга и от платформы ]
+    - title: Порты
+      table:
+        head: [ Сервис, Порт, Кто подключается ]
+        rows:
+          - [ proxy, "**443, 80 (опубликованы)**", браузеры; 80 → 301 на https ]
+          - [ openwebui, 8080, proxy ]
+          - [ admin, 8000, proxy (/console/) ]
+          - [ grafana, 3000, proxy (/grafana/) ]
+          - [ gateway, 4100, openwebui; prometheus (/metrics) ]
+          - [ dlp, 4200, "gateway, admin; prometheus" ]
+          - [ litellm, 4000, "gateway, reconciler, admin; prometheus (/metrics/)" ]
+          - [ docling, 5001, openwebui ]
+          - [ cliproxy, 8317, "litellm (API), admin/reconciler (/v0/management)" ]
+          - [ terminal-broker, 8000, openwebui ]
+          - [ docker-api, 2375, terminal-broker ]
+          - [ xray, 10809 · 10880 · 11200 · 10810+ · 10808, "litellm, admin, cliproxy" ]
+          - [ postgres, 5432, "openwebui, litellm, admin, reconciler, backup" ]
+          - [ redis, 6379, litellm ]
+          - [ prometheus, 9090, "grafana, admin" ]
+    - title: Путь пакета от пользователя до контейнера
+      table:
+        head: [ "#", Где, Что происходит ]
+        rows:
+          - [ 1, ПК пользователя, DNS `ai.servers.local` → 172.31.70.118; TCP 443 ]
+          - [ 2, коммутатор, "порт сервера — trunk, кадр приходит с тегом VLAN 3170" ]
+          - [ 3, eno1 → eno1.3170, VLAN-интерфейс 172.31.70.118/24 (ifupdown); eno1 без адреса ]
+          - [ 4, iptables nat (Docker), "DNAT 443/80 → контейнер proxy в сети frontend; правила ufw INPUT сюда не применяются (FORWARD, DOCKER-USER пуст)" ]
+          - [ 5, мост frontend, proxy (nginx) снимает TLS ]
+          - [ 6, внутренние мосты, openwebui (frontend+backend) → gateway → litellm (backend); БД — через мост database ]
+          - [ 7, выход, litellm → xray (мост egress) → MASQUERADE хоста → шлюз 172.31.70.1 → интернет / VPN-сервер ]
+          - [ 8, ответ, обратный путь по conntrack; правило `pref 799 lookup main suppress_prefixlength 0` держит ответы в свою подсеть мимо шлюза ]
+    - title: Хост (прод)
+      warn: "Опубликованные порты Docker обходят ufw: цепочка `DOCKER-USER` пуста, поэтому 443/80 доступны всем, кто достаёт до сервера. Правила ufw (22/443 с админ-ПК, 22 с Wazuh) действуют только на сервисы хоста. Подсети Docker закреплены (`daemon.json`: bip 10.244.255.1/24, пулы 10.244.0.0/17), чтобы не пересекаться с корпоративными 172.x."

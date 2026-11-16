@@ -1,0 +1,46 @@
+# TO-BE · Модели и выход
+# Формат: docs/FORMAT.md. Сборка: npm run build
+
+title: Модели и выход
+overview:
+  lead: "**Роутер НЕ управляет общей очередью.** LiteLLM выбирает cloud, CLI, агрегаторы или локальную Qwen3. Локальный vLLM/SGLang обслуживает очередь ожидающих запросов внутри inference scheduler; проверка безопасности проходит в отдельной параллельной ветке Policy Gate."
+  blocks:
+    - scheme:
+        size: [ 1330, 430 ]
+        nodes:
+          - { id: m-gate, at: [ 140, 200, 195 ], label: Policy Gate, sub: input verdict / release, kind: sec }
+          - { id: m-lite, at: [ 390, 200, 205 ], label: LiteLLM, sub: "budget, access, fallback", kind: core }
+          - { id: m-xray, at: [ 680, 110, 245 ], label: Xray / CLIProxy, sub: "VPN, key-specific route", kind: egress }
+          - { id: m-qwen, at: [ 680, 295, 245 ], label: Qwen3 inference, sub: vLLM/SGLang + scheduler, kind: local }
+          - { id: m-cloud, at: [ 1090, 65, 285 ], label: OpenAI / Anthropic, sub: approved cloud, kind: ext }
+          - { id: m-cli, at: [ 1090, 152, 285 ], label: CLI / OdiRouter, sub: existing provider adapters, kind: ext }
+          - { id: m-gpu, at: [ 1090, 295, 285 ], label: GPU pool / replicas, sub: "bounded admission, batching", kind: local }
+        edges:
+          - m-gate -> m-lite
+          - m-lite -> m-xray: cloud / CLI
+          - m-xray -> m-cloud
+          - m-xray -> m-cli
+          - m-lite -> m-qwen: LAN API
+          - m-qwen -> m-gpu: schedule
+        routes:
+          Облако: m-gate -> m-lite -> m-xray -> m-cloud
+          Локальная Qwen3: m-gate -> m-lite -> m-qwen -> m-gpu
+    - title: Почему очередь не нужна в LiteLLM
+      table:
+        head: [ Участок, Механизм контроля нагрузки, Внешний брокер ]
+        rows:
+          - [ OpenAI / Anthropic, "HTTP/SSE; provider rate limits, budget, retry/backoff", Не требуется для интерактивного ответа ]
+          - [ LiteLLM, Маршрутизатор и policy-based access, Не ставить в синхронную цепочку ]
+          - [ Qwen3 на vLLM, "Continuous batching, limits/concurrency/admission", Не нужен при одном GPU-пуле ]
+          - [ Fast / Deep Guards, Bounded concurrency + reserve for blocking verdicts, "Отдельные worker pools, без обязательного RabbitMQ" ]
+          - [ OCR / ingestion, Durable task store + workers, "Нужен, если задачи долгие / распределённые" ]
+detail:
+  lead: "**Политики routing и fallback.** Маршрутизация — не только производительность, но и data residency. Успешное прохождение Guard не разрешает отправку конфиденциальных материалов провайдеру, если запрещает data policy."
+  blocks:
+    - table:
+        head: [ Класс данных, Разрешённые модели, Когда делать input preflight, Fallback ]
+        rows:
+          - [ Public, Cloud и local в рамках тарифа, По risk policy, Только approved provider ]
+          - [ Internal, Cloud при явном разрешении data policy; иначе local, Перед выходом в cloud при необходимости, Только того же/строже data tier ]
+          - [ Confidential, По умолчанию local-only, До любого потенциально внешнего перенаправления, Никакого Cloud fallback ]
+          - [ Restricted / secrets, Отклонять либо строго изолированный локальный маршрут, Нужен предварительный допуск до LLM, Без автоматического fallback ]

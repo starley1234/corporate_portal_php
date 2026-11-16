@@ -1,0 +1,120 @@
+# TO-BE · Платформа пайплайнов подразделения (предложение)
+# Формат: docs/FORMAT.md. Сборка: npm run build
+
+title: Пайплайны подразделения
+# Контракт слоя: что решение занимает у платформы. Проверяется в check; обзор — arch contract.
+uses: [ edge-v2, gw-v2, dlp-v2, policy-v2, router-v2, providers-v2, qwenlocal-v2, ocr-v2, rag-v2, audit-v2 ]
+# via: к моделям — только через эти узлы схемы. Любой путь в обход = ошибка check.
+via: [ e-gw, e-guard ]
+overview:
+  lead: "**Пайплайны — ещё один канал платформы, а не вторая платформа.** Модульный монолит на Python + PostgreSQL/pgvector читает данные Teamcenter, 1С ERP и документооборота, строит индекс и граф знаний, а к LLM обращается **только** через ingress → gateway → Regex-DLP → Guard → LiteLLM. Вкладка — **предложение подразделения**, не принятое решение."
+  blocks:
+    - scheme:
+        size: [ 1560, 800 ]
+        groups:
+          - [ 20, 20, 250, 760, Корпоративные источники (read-only) ]
+          - [ 290, 20, 840, 760, Pipelines Platform · модульный монолит (Python) ]
+          - [ 1150, 20, 390, 760, "Платформа TO-BE (уже заложена)" ]
+        nodes:
+          - { id: s-tc, at: [ 145, 110, 210 ], label: Teamcenter, sub: "изделия · BOM · изменения · файлы", kind: ext }
+          - { id: s-erp, at: [ 145, 250, 210 ], label: 1С ERP, sub: "номенклатура · заказы · закупки", kind: ext }
+          - { id: s-edo, at: [ 145, 390, 210 ], label: Документооборот, sub: "договоры · письма · протоколы", kind: ext }
+          - { id: s-fs, at: [ 145, 530, 210 ], label: Файловые архивы, sub: "PDF · сканы · Office", kind: ext }
+          - { id: s-idp, at: [ 145, 700, 210 ], label: AD / OIDC, sub: группы и права, kind: ext }
+          - { id: p-jobs, at: [ 420, 110, 230 ], label: Jobs / scheduler, sub: "durable jobs в PostgreSQL", kind: ctrl }
+          - { id: p-conn, at: [ 420, 250, 230 ], label: Connectors, sub: "read-only · инкрементально", kind: app }
+          - { id: p-ing, at: [ 420, 390, 230 ], label: Ingestion, sub: "parse · OCR · chunk · класс/ACL", kind: app }
+          - { id: p-api, at: [ 700, 110, 230 ], label: Platform API, sub: "FastAPI · tools для WebUI", kind: app }
+          - { id: p-pipes, at: [ 700, 250, 230 ], label: Pipelines, sub: "сценарии (use cases)", kind: app }
+          - { id: p-graph, at: [ 700, 390, 230 ], label: Knowledge / Graph, sub: "узлы · связи · entity resolution", kind: data }
+          - { id: p-llm, at: [ 990, 250, 230 ], label: LLM client, sub: "только через gateway", kind: app }
+          - { id: p-ret, at: [ 990, 390, 230 ], label: Retrieval, sub: "hybrid + graph + ACL", kind: data }
+          - { id: p-pg, at: [ 705, 570, 780 ], label: PostgreSQL + pgvector, sub: "схемы: raw · kb (чанки, векторы, FTS) · graph · jobs · audit", kind: data }
+          - { id: p-eval, at: [ 705, 700, 780 ], label: "Evaluation · audit · метрики", sub: "golden sets · без сырых промптов и PII", kind: mon }
+          - { id: e-users, at: [ 1345, 110, 330 ], label: "Open WebUI · боты · IDE", sub: "пользователи", kind: app }
+          - { id: e-adapt, at: [ 1345, 230, 330 ], label: Ingress / adapters, sub: "service JWT + identity", kind: edge }
+          - { id: e-gw, at: [ 1345, 350, 330 ], label: gateway + Regex-DLP, sub: "синхронно; BLOCK = нет вызова", kind: core }
+          - { id: e-guard, at: [ 1345, 470, 330 ], label: Policy / Response Gate + Guards, sub: "fail-closed", kind: sec }
+          - { id: e-llm, at: [ 1345, 590, 330 ], label: LiteLLM, sub: "роутер моделей", kind: core }
+          - { id: e-models, at: [ 1345, 700, 330 ], label: "Local Qwen3 · cloud", sub: "confidential → только local", kind: egress }
+        edges:
+          - s-tc -> p-conn: read-only
+          - s-erp -> p-conn
+          - s-edo -> p-conn
+          - s-fs -> p-conn
+          - s-idp --> p-pg: группы / права
+          - p-jobs --> p-conn: расписание
+          - p-conn -> p-ing: записи, файлы
+          - p-ing -> p-graph: чанки, сущности
+          - p-ing -> p-pg
+          - p-graph -> p-pg
+          - p-ret -> p-pg: hybrid + graph
+          - p-api -> p-pipes
+          - p-pipes -> p-ret: контекст
+          - p-pipes -> p-llm
+          - p-llm -> e-adapt: OpenAI-compatible
+          - e-adapt -> e-gw
+          - e-gw -> e-guard
+          - e-guard -> e-llm
+          - e-llm -> e-models
+          - e-users -> p-api: tools / запросы
+        routes:
+          Индексация: s-tc -> p-conn -> p-ing -> p-graph -> p-pg
+          Вопрос пользователя: e-users -> p-api -> p-pipes -> p-ret -> p-pg
+          "Генерация (всегда через защиту)": p-pipes -> p-llm -> e-adapt -> e-gw -> e-guard -> e-llm -> e-models
+        hint: "Правая колонка — уже существующая TO-BE схема: мы её не меняем, а используем как единственный выход к LLM. Данные источников по умолчанию **confidential** → обработка только локальной моделью."
+    - title: Что уже заложено в TO-BE и как это используем
+      table:
+        head: [ Потребность, Что есть в TO-BE, Вывод ]
+        rows:
+          - [ Вызов LLM из скриптов и пайплайнов, "Pipelines / скрипты → ingress/adapters → gateway → DLP → Guard (вкладки 01, 03, 05)", "Готово: используем как есть, сервисный JWT и бюджет на пайплайн" ]
+          - [ Облако или локально, "cloud + confidential → preflight или local-only; локальная Qwen3 (07)", "Данные TC / 1С / СЭД считать confidential: только local" ]
+          - [ RAG, "RAG API + Qdrant + ACL + embeddings e5-small (08, 11 · VM-02)", Совпадает по роли; наш модуль реализует этот API (см. «Подробно») ]
+          - [ Долгие операции, "Durable Job Store в PostgreSQL, async jobs (08)", "Подходит: очередь на PostgreSQL, без Redis / RabbitMQ" ]
+          - [ OCR, "Docling local / remote (08)", Используем для сканов; чертежи — отдельный вопрос ]
+          - [ Аудит без сырых данных, "Политика логов (04), аудит (10)", Распространяется на пайплайны без изменений ]
+          - [ Подключение TC / 1С / СЭД, —, "**Нет в архитектуре** — добавляем зону коннекторов" ]
+          - [ Права из источников и классы данных, Только общий tenant/document ACL, "**Нет модели** — добавляем (см. «Подробно»)" ]
+detail:
+  lead: "**Что исправить и как устроен монолит.** Пункты ниже — предложения к общей TO-BE; остальные вкладки AS-IS/TO-BE не менялись (кроме строк в «Плане внедрения»)."
+  blocks:
+    - title: Что исправить или дополнить в TO-BE
+      table:
+        head: [ Пункт, Сейчас, Предложение, Почему ]
+        rows:
+          - [ Векторное хранилище, "Qdrant на схемах (01, 06, 08, 11), в тексте «Qdrant/pgvector»", "Для модуля подразделения — **pgvector** в собственном PostgreSQL; Qdrant остаётся вариантом за интерфейсом `VectorIndex`", "Векторы, FTS, граф и права в одной БД и транзакции; один бэкап; фильтр по правам = SQL. Qdrant — при росте до десятков млн векторов, решает бенчмарк" ]
+          - [ Две «RAG-системы», "RAG VM отдельно, пайплайны отдельно", "Одна Knowledge-подсистема: Retrieval API отдаётся и Open WebUI (adapter), и пайплайнам", "Единое место проверки прав; иначе два индекса с разными ACL" ]
+          - [ Источники данных, Нет, "Зона коннекторов: read-only сервисные учётки, инкрементальная выгрузка, отдельный сегмент сети (добавить в 09)", Корпоративные системы нельзя открывать широко ]
+          - [ Права из источников, "tenant/document ACL", "Права TC / 1С / СЭД → группы AD (sync); ACL на документе и на узле графа; default deny; Row-Level Security в PostgreSQL", RAG не должен стать обходом ролевой модели ERP / PLM ]
+          - [ Классификация данных, "Общие правила DLP", "Класс данных (public / internal / confidential) на источнике и на чанке", "Соответствует инварианту cloud + confidential" ]
+          - [ Пакетная нагрузка, "Очередь LLM не вводить (06); локальная Qwen3 делится с guard", "**Batch lane**: приоритеты и квоты в gateway / LiteLLM, ночные окна, отдельный лимит сервисного аккаунта", "Извлечение сущностей из лет документов — тысячи-миллионы вызовов; без лимитов задушит чат и guard" ]
+          - [ Модель эмбеддингов, multilingual-e5-small, "Сравнить на golden set с bge-m3, Qwen3-Embedding, e5-large + reranker", "Русский инженерный текст и коды деталей — **гипотеза**, решает замер" ]
+          - [ Идентификаторы, Не описаны, "Гибридный поиск: точное совпадение по обозначениям (`pg_trgm`) + FTS (`russian`) + вектор", Эмбеддинги плохо различают коды вида «АБВГ.123456.001» ]
+          - [ Запись в источники, "Approval for side effects (08)", "Пайплайны **только читают**; запись в 1С / TC — позже и только через подтверждение человеком", Ошибка LLM в учётной системе дороже ошибки в ответе ]
+          - [ Объём данных, "Открытое решение «размер KB»", "Первый шаг — инвентаризация: объекты, документы, страницы, прирост в год", Без неё sizing VM-02 — гадание ]
+    - title: Модули монолита
+      table:
+        head: [ Модуль, Ответственность, Схема PostgreSQL, Зависит от ]
+        rows:
+          - [ connectors, "Чтение TC / 1С / СЭД / файлов, инкрементальная синхронизация, канонические записи", raw, — ]
+          - [ ingestion, "Парсинг, OCR (Docling), чанкинг, нормализация, класс данных и ACL", "raw, kb", connectors ]
+          - [ knowledge, "Чанки, векторы, FTS, граф (узлы / рёбра), entity resolution, версии", "kb, graph", ingestion ]
+          - [ retrieval, "Гибридный поиск, обход графа, ACL, реранк", чтение kb / graph, knowledge ]
+          - [ llm, "Клиент gateway: сервисный JWT, ретраи, бюджеты, batch lane; прямых вызовов провайдеров нет", —, — ]
+          - [ pipelines, "Сценарии: retrieval + llm + валидация результата", pipelines, "retrieval, llm" ]
+          - [ jobs, "Durable jobs и расписание на `FOR UPDATE SKIP LOCKED`", jobs, — ]
+          - [ api, "FastAPI: tools для Open WebUI, HTTP для ботов, админка", —, "pipelines, retrieval" ]
+          - [ iam / audit, "Токены, группы, аудит без сырых данных, метрики", audit, — ]
+          - [ eval, "Golden sets, регрессия качества, сравнение моделей эмбеддингов", eval, "retrieval, pipelines" ]
+    - note: "**Правила монолита.** Один образ, два режима запуска: `api` и `worker`. Модуль ходит к чужим данным только через публичный интерфейс; у каждого модуля своя схема PostgreSQL; границы проверяются в CI (например, import-linter). Так позже можно вынести `worker` или `ingestion` в отдельный сервис без переписывания."
+    - title: Предлагаемый стек (гипотеза, до PoC)
+      table:
+        head: [ Область, Выбор, Комментарий ]
+        rows:
+          - [ Язык / API, "Python 3.12, FastAPI, Pydantic", Типизация контрактов с gateway и tools ]
+          - [ Доступ к БД, "SQLAlchemy 2, Alembic, psycopg 3", Миграции по схемам модулей ]
+          - [ База, "PostgreSQL 16+ с pgvector", "HNSW для векторов, GIN для FTS, pg_trgm для кодов" ]
+          - [ Граф, "Таблицы узлов и рёбер + рекурсивные CTE", "Apache AGE или отдельная графовая БД — только если обходы станут узким местом" ]
+          - [ Очередь, "Таблица jobs + `SKIP LOCKED` (или библиотека поверх PostgreSQL)", Без Redis / RabbitMQ на старте ]
+          - [ OCR, Docling (из TO-BE 08), "Чертежи и CAD — не OCR, а метаданные из Teamcenter" ]
+    - warn: "**Не решено без данных:** какие именно системы документооборота и версии Teamcenter / 1С используются, как отдаются права, сколько объектов и страниц. От этого зависят коннекторы и размер VM — первый этап работ подразделения."

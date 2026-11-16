@@ -1,0 +1,51 @@
+# AS-IS · Наблюдаемость
+# Формат: docs/FORMAT.md. Сборка: npm run build
+
+title: Наблюдаемость
+overview:
+  lead: "**Как понять, что всё работает.** Prometheus собирает метрики gateway, DLP и LiteLLM; Grafana и консоль их показывают; диагностику делают doctor и smoke."
+  blocks:
+    - scheme:
+        size: [ 1200, 330 ]
+        nodes:
+          - { id: gw, at: [ 150, 70, 150 ], label: gateway, sub: /metrics, kind: core }
+          - { id: dlp, at: [ 150, 160, 150 ], label: dlp, sub: /metrics, kind: sec }
+          - { id: ll, at: [ 150, 250, 150 ], label: litellm, sub: /metrics/, kind: core }
+          - { id: pr, at: [ 470, 160, 160 ], label: prometheus, sub: scrape каждые 15 с, kind: mon }
+          - { id: gr, at: [ 740, 100, 160 ], label: grafana, sub: дашборды, kind: mon }
+          - { id: adm, at: [ 740, 230, 160 ], label: консоль, sub: "статистика, состояние", kind: ctrl }
+          - { id: proxy, at: [ 980, 100, 150 ], label: proxy, sub: /grafana/, kind: edge }
+          - { id: admu, at: [ 1120, 230, 130 ], label: Администратор }
+        edges:
+          - pr -> gw: { label: scrape, out: l, in: r }
+          - pr -> dlp: { out: l, in: r }
+          - pr -> ll: { out: l, in: r }
+          - gr -> pr: { out: l, in: r }
+          - adm -> pr: { label: PromQL, out: l, in: r }
+          - proxy -> gr
+          - admu -> proxy: { out: t, in: r }
+          - admu -> adm
+detail:
+  lead: "**Метрики, логи и инструменты диагностики.**"
+  blocks:
+    - title: Метрики
+      table:
+        head: [ Источник, Метрики, Сбор ]
+        rows:
+          - [ gateway :4100/metrics, "requests_total{status,team,model} · request_seconds · dlp_actions_total{rule,action} · ratelimited_total", prometheus ]
+          - [ dlp :4200/metrics, dlp_scans_total · dlp_findings_total · dlp_scan_seconds, prometheus ]
+          - [ litellm :4000/metrics/, "callback prometheus LiteLLM: запросы, токены, стоимость, задержки", prometheus ]
+          - [ xray :10808, /debug/vars — observatory (доступность серверов), "консоль, healthcheck" ]
+          - [ healthcheck’и, postgres pg_isready · litellm /health/readiness · openwebui /ready · gateway /healthz · dlp /healthz · admin /console/api/healthz, Docker (10 с × 12) ]
+    - title: Логи
+      note: JSON-строки `{ts, level, service, event, request_id, user_id, group_id, model, status, latency_ms…}`; драйвер json-file, 20 МБ × 5 файлов на контейнер. Запрещены ключи, пароли, заголовки Authorization, JWT, найденные DLP значения и тексты запросов. gateway пишет `litellm_call_id` для связи с записью LiteLLM.
+    - title: Диагностика
+      table:
+        head: [ Команда, Что делает, Коды ]
+        rows:
+          - [ "`scripts/doctor.sh [--json]`", "здоровье сервисов, дрейф, предупреждения конфигурации", 0 / 20 / 21 ]
+          - [ "`bootstrap check`", "дрейф: чем текущее состояние отличается от желаемого", 0 / 10 / 1 ]
+          - [ "`bootstrap smoke`", "сквозной тест: временный пользователь → модель через Open WebUI", 0 / 30 ]
+          - [ "`bootstrap status`", "последний apply, last_tick reconciler, публикация отчётов", — ]
+          - [ "`scripts/report.sh [--group id]`", отчёты по использованию; reconciler публикует их руководителям в KB-Reports-*, — ]
+          - [ "`scripts/egress-proxy.sh status|test`", "состояние xray, документ egress, проверка каналов", — ]

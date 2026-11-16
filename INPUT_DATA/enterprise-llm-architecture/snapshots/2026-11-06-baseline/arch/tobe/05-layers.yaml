@@ -1,0 +1,96 @@
+# TO-BE · Слои
+# Формат: docs/FORMAT.md. Сборка: npm run build
+
+title: Слои
+overview:
+  lead: "**Слоистая модель.** Разделяем **точки входа**, **адаптацию протоколов**, **границу доверия**, **политику безопасности**, **маршрутизацию моделей**, **исполнение** и **данные/знания**. Control plane и observability — сквозные сервисы, а не обходной путь для запросов."
+  blocks:
+    - scheme:
+        size: [ 1550, 790 ]
+        groups:
+          - [ 14, 25, 1520, 88, L0 · КАНАЛЫ / ПОТРЕБИТЕЛИ ]
+          - [ 14, 122, 1520, 85, L1 · АДАПТЕРЫ / EDGE ]
+          - [ 14, 216, 1520, 91, L2 · TRUST / IDENTITY / DLP ]
+          - [ 14, 316, 1520, 102, L3 · POLICY / RESPONSE GATE / GUARDS ]
+          - [ 14, 427, 1520, 90, L4 · ROUTER / PROVIDER ADAPTERS ]
+          - [ 14, 526, 1520, 95, L5 · EXECUTION / TOOL PLANE ]
+          - [ 14, 630, 1520, 140, L6 · KNOWLEDGE / DATA / OPERATIONS ]
+        nodes:
+          - { id: l0-web, at: [ 265, 77, 245 ], label: Open WebUI, sub: пользовательский интерфейс, kind: app }
+          - { id: l0-ag, at: [ 610, 77, 245 ], label: Агенты · Pipelines, sub: "workflow, MCP", kind: app }
+          - { id: l0-api, at: [ 955, 77, 245 ], label: Боты · Скрипты, sub: REST/webhooks, kind: app }
+          - { id: l0-ide, at: [ 1300, 77, 245 ], label: IDE / CLI, sub: OpenAI-совместимый API, kind: app }
+          - { id: l1-edge, at: [ 460, 165, 350 ], label: Ingress · OIDC · mTLS, sub: nginx · WAF · квоты, kind: edge }
+          - { id: l1-adapt, at: [ 1050, 165, 355 ], label: Unified API Adapter, sub: identity context · canonical schema, kind: edge }
+          - { id: l2-gw, at: [ 450, 262, 340 ], label: Identity Gateway, sub: scoped JWT · RBAC · budgets, kind: core }
+          - { id: l2-dlp, at: [ 1050, 262, 355 ], label: Regex DLP (sync), sub: нормализация · BLOCK/MASK/ALLOW, kind: sec }
+          - { id: l3-pg, at: [ 345, 369, 335 ], label: Policy + Release Gate, sub: async fork · risk · SSE buffer, kind: dec }
+          - { id: l3-fast, at: [ 820, 369, 265 ], label: Fast Guard, sub: Qwen3Guard 0.6B + PG2, kind: sec }
+          - { id: l3-deep, at: [ 1255, 369, 280 ], label: Safety Reasoner, sub: policy model · output heavy scan, kind: sec }
+          - { id: l4-lite, at: [ 460, 475, 355 ], label: LiteLLM / Budget Router, sub: модели · tenant · fallback, kind: core }
+          - { id: l4-egress, at: [ 1090, 475, 390 ], label: Egress & Provider Adapter, sub: Xray / CLIProxy / direct LAN, kind: egress }
+          - { id: l5-cloud, at: [ 310, 575, 215 ], label: Cloud LLMs, sub: OpenAI · Anthropic, kind: ext }
+          - { id: l5-qwen, at: [ 730, 575, 250 ], label: Local Qwen3, sub: vLLM on GPU VM, kind: local }
+          - { id: l5-tools, at: [ 1190, 575, 310 ], label: Tool Executor, sub: песочницы / web tools, kind: term }
+          - { id: l6-rag, at: [ 320, 687, 290 ], label: RAG / embeddings, sub: отдельная VM + ACL, kind: data }
+          - { id: l6-ocr, at: [ 720, 687, 290 ], label: OCR / Document AI, sub: local или OCR VM, kind: app }
+          - { id: l6-db, at: [ 1105, 687, 270 ], label: Postgres / Redis, sub: метаданные · управление, kind: data }
+          - { id: l6-obs, at: [ 1105, 744, 270 ], label: SIEM / Prometheus, sub: аудит и метрики, kind: mon }
+        edges:
+          - l0-web -> l1-edge
+          - l0-ag -> l1-adapt
+          - l0-api -> l1-adapt
+          - l0-ide -> l1-adapt
+          - l1-edge -> l2-gw
+          - l1-adapt -> l2-gw
+          - l2-gw -> l2-dlp
+          - l2-dlp -> l3-pg
+          - l3-pg --> l3-fast: async
+          - l3-fast --> l3-deep: suspect
+          - l3-pg -> l4-lite
+          - l4-lite -> l4-egress: { rel: uses }
+          - l4-egress -> l5-cloud
+          - l4-egress -> l5-qwen
+          - l4-lite --> l5-tools: { label: tools, rel: uses }
+          - l2-gw --> l6-rag: { label: retrieval, rel: uses }
+          - l5-tools --> l6-ocr: OCR
+          - l3-pg --> l6-obs: { label: audit, rel: carries }
+        hint: Порядок слоёв — логическое разделение ответственности, а не отдельная VM на каждый слой. Прямой вызов L4/L5 из L0/L1 без L2/L3 запрещён.
+    - table:
+        head: [ Слой, Зона ответственности, Сервисы / контракты, Что запрещено ]
+        rows:
+          - [ L0 · Channels, Инициируют запросы, "Open WebUI, агенты, pipelines, scripts, bots, IDE", Прямые токены LiteLLM и провайдеров ]
+          - [ L1 · Adapters, Приводят входы к общему API, "REST/WS, OpenAI-compatible / MCP, identity propagation", Доверять присланным пользователем user_id и role ]
+          - [ L2 · Trust, "Проверяют полномочия, DLP, лимиты", "Gateway, OIDC, policies, Regex DLP sync", Обойти DLP через tool/RAG/API route ]
+          - [ L3 · Safety, "Оценивают семантику и решают, можно ли отдать ответ", "Fast Guard, Reasoner, Response Gate, state machine", Выпускать SSE до обязательного вердикта ]
+          - [ L4 · Routing, Выбирают модель и канал доставки, "LiteLLM, CLIProxy, Xray, budgets", Прямой трафик через провайдера вне egress policy ]
+          - [ L5 · Execution, Генерируют ответ и выполняют ограниченные инструменты, "Qwen3, cloud LLMs, sandbox, tool broker", Подменять RBAC решением языковой модели ]
+          - [ L6 · Data / Knowledge, "Индексируют документы, хранят состояние", "RAG API, Qdrant, OCR, Postgres, Redis", Делать retrieval без tenant/document ACL ]
+          - [ Cross-cutting, "Конфигурация, аудит, SRE", "Console, reconciler, Prometheus, Grafana, Wazuh", Хранить чувствительные тексты в общих логах ]
+detail:
+  lead: "**Принципы проектирования.** Логические слои независимы от физического размещения. Можно менять Docling с local на remote или масштабировать Qwen3 без изменения клиентского API. Каждая граница имеет проверяемый контракт."
+  blocks:
+    - table:
+        head: [ Граница, Договорённость, Тест / контроль ]
+        rows:
+          - [ L0 → L1, Для каждого источника есть адаптер + service credential, API из IDE/бота не может обратиться к LiteLLM напрямую ]
+          - [ L1 → L2, "Bearer scoped token; подпись и срок, tenant id из verified issuer", Подмена tenant/user_id в JSON/header не меняет principal ]
+          - [ L2 → L3, "normalized_request, masked_text, request_id, data_classification", DLP BLOCK всегда завершается до вызова Guard или LiteLLM ]
+          - [ L3 → L4, "speculative_call_id, policy_mode=guarded|preflight", Смена policy_version не приводит к необъяснимым отказам ]
+          - [ L4 → L5, route model_alias → provider endpoint; local Qwen3 private LAN, Нет прямого Internet egress кроме разрешённых правил ]
+          - [ L5 → L3, Streaming SSE всё время под управлением release gate, Ни один запрещённый токен не попадает клиенту до окончательной проверки ]
+          - [ L2/L5 → L6, "RAG и OCR по service identity, ACL и signed metadata", Нельзя получить чужие KB через вызов агента ]
+          - [ Все → observability, Только метрики и редактированные event records, "Trace и метрики не содержат JWT, ключей, промптов" ]
+    - cards:
+        - title: Data plane
+          text: Путь пользовательских сообщений, документов, retrieval, обращений к моделям и инструментария. Масштабируется горизонтально.
+          color: "#f59e0b"
+        - title: Control plane
+          text: Admin + reconciler + конфигурация политик, тарифов, моделей, каналов и версий guard. Не должен быть единственной точкой постоянной обработки промптов.
+          color: "#6366f1"
+        - title: Security plane
+          text: Синхронный Regex DLP, быстрые guard-модели, тяжёлый policy reasoner и response release. Правила fail-open/fail-closed определяются чувствительностью.
+          color: "#e11d48"
+        - title: Knowledge plane
+          text: OCR, ingest, текстовые и векторные индексы, поиск, авторизация документов, срок хранения и versioned embeddings.
+          color: "#ec4899"

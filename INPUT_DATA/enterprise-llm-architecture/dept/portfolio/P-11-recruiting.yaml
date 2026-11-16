@@ -1,0 +1,18 @@
+code: P-11
+name: Первичный скрининг резюме и откликов
+function: Персонал
+owner: Директор по персоналу
+volume: 600
+minutes: 15
+error_cost: 3
+strategic: 2
+data_ready: 3
+rules_maturity: 2
+llm_share: 0.40
+data_class: confidential
+regulatory: 5
+integration_effort: 2
+write_to_source: false
+golden_set: true
+sources: [ ATS, HH ]
+notes: "Персональные данные и требования к недискриминации: высокий регуляторный риск, нужна юридическая проверка."

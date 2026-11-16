@@ -1,0 +1,126 @@
+# TO-BE · VM / ресурсы
+# Формат: docs/FORMAT.md. Сборка: npm run build
+
+title: VM / ресурсы
+overview:
+  lead: "**Физическое разнесение и масштабирование.** Пример расчёта для ~100 пользователей, 10 одновременно активных генераций и пика 20 запросов/мин. Это **проектный sizing, не измеренная производительность**. Здесь VM — роли: GPU-узлы могут быть физическими машинами с выделенными видеокартами или VM с GPU passthrough."
+  blocks:
+    - scheme:
+        size: [ 1560, 655 ]
+        groups:
+          - [ 15, 20, 730, 270, "CPU-контур: приложения и служебные VM" ]
+          - [ 770, 20, 775, 270, "GPU-контур: специализированные модели" ]
+          - [ 15, 315, 730, 315, Knowledge / OCR / Sandboxes ]
+          - [ 770, 315, 775, 315, State / egress / доступ ]
+        nodes:
+          - { id: vm-edge, at: [ 230, 115, 275 ], label: VM-01 · Platform, sub: 16 vCPU · 64 GB · 250 GB, kind: core }
+          - { id: vm-api, at: [ 570, 115, 250 ], label: Ingress / Gateway, sub: WebUI + adapters + LiteLLM, kind: edge }
+          - { id: vm-audit, at: [ 400, 225, 290 ], label: Policy Gate + DLP, sub: "sync/async, no SSE bypass", kind: sec }
+          - { id: vm-guards, at: [ 965, 115, 285 ], label: VM-04 · Guards, sub: 16 vCPU · 64 GB RAM, kind: sec }
+          - { id: vm-guardgpu, at: [ 1335, 115, 300 ], label: 1 × GPU 48 GB, sub: fast + reasoner 20B, kind: sec }
+          - { id: vm-llm, at: [ 965, 235, 285 ], label: VM-05 · Qwen3, sub: 24 vCPU · 128 GB RAM, kind: local }
+          - { id: vm-llmgpu, at: [ 1335, 235, 300 ], label: 1 × GPU 80 GB, sub: Qwen3-32B 4-bit, kind: local }
+          - { id: vm-rag, at: [ 230, 405, 285 ], label: VM-02 · RAG, sub: 16 vCPU · 64 GB · 2 TB NVMe, kind: data }
+          - { id: vm-ragapi, at: [ 570, 405, 270 ], label: RAG API / Qdrant, sub: ACL · embeddings · ingest, kind: data }
+          - { id: vm-ocr, at: [ 230, 540, 285 ], label: VM-03 · OCR, sub: 16 vCPU · 32 GB · 300 GB, kind: app }
+          - { id: vm-ocr-local, at: [ 570, 540, 270 ], label: "Альтернатива: local OCR", sub: Docling в VM-01, kind: app, dash: true }
+          - { id: vm-sandbox, at: [ 930, 405, 305 ], label: VM-07 · Sandboxes, sub: 16 vCPU · 48 GB · 500 GB, kind: term }
+          - { id: vm-data, at: [ 1335, 405, 300 ], label: VM-06 · Data / Obs, sub: 8 vCPU · 32 GB · 1 TB, kind: data }
+          - { id: vm-route, at: [ 930, 540, 270 ], label: Xray / CLIProxy, sub: из VM-01 к cloud, kind: egress }
+          - { id: vm-external, at: [ 1335, 540, 300 ], label: Cloud / Providers, sub: OpenAI · Anthropic · CLI, kind: ext }
+        edges:
+          - vm-edge -> vm-api
+          - vm-edge -> vm-audit
+          - vm-api --> vm-guards: safety
+          - vm-guards -> vm-guardgpu: { rel: runs_on }
+          - vm-api -> vm-llm: local route
+          - vm-llm -> vm-llmgpu: { rel: runs_on }
+          - vm-api -> vm-ragapi: { label: retrieval, via: [ [ 570, 137 ], [ 570, 300 ], [ 570, 381 ] ] }
+          - vm-rag -> vm-ragapi: { rel: runs_on }
+          - vm-edge --> vm-ocr: { label: documents, via: [ [ 230, 137 ], [ 230, 300 ], [ 230, 516 ] ] }
+          - vm-ocr --> vm-ocr-local: toggle
+          - vm-api --> vm-sandbox: tool calls
+          - vm-api --> vm-data: SQL
+          - vm-route -> vm-external: Xray VPN
+        hint: CPU и RAM указаны как проектная квота VM, а VRAM — ёмкость GPU. Для HA, резервирования VRAM, длинных контекстов и высоких TPS может потребоваться больше карт. Межсервисный доступ — приватные VLAN / mTLS, без открытых портов GPU и RAG в сеть сотрудников.
+    - table:
+        head: [ Узел, Состав, CPU, RAM, SSD, GPU, Размещение ]
+        rows:
+          - [ VM-01 · Platform, "Frontend, Open WebUI, gateway, DLP, Policy Gate, LiteLLM, console, reconciler, Xray/CLIProxy", 16 vCPU, 64 GiB, 250 GiB NVMe, —, постоянно ]
+          - [ VM-02 · RAG, "RAG API, Qdrant, индексация/embeddings e5-small, документный ACL, object cache", 16 vCPU, 64 GiB, 2 TiB NVMe, —, "постоянно, отдельно" ]
+          - [ VM-03 · OCR, "Docling-serve CPU + Tesseract rus/eng, очередь OCR", 16 vCPU, 32 GiB, 300 GiB SSD, —, опционально / remote ]
+          - [ VM-04 · Guards, Qwen3Guard-Gen-0.6B + Prompt Guard 2 + gpt-oss-safeguard-20b, 16 vCPU, 64 GiB, 300 GiB NVMe, 1 × 48 GiB VRAM, постоянно ]
+          - [ VM-05 · Qwen3, Qwen3-32B 4-bit через vLLM/SGLang; отдельный model service, 24 vCPU, 128 GiB, 500 GiB NVMe, 1 × 80 GiB VRAM, постоянно ]
+          - [ VM-06 · Data/Obs, "PostgreSQL (3 DB), Redis, Prometheus, Grafana, backup agent", 8 vCPU, 32 GiB, 1 TiB NVMe, —, рекомендуется ]
+          - [ VM-07 · Sandboxes, "terminal-broker, socket-proxy, isolated user sandbox workers", 16 vCPU, 48 GiB, 500 GiB SSD, —, рекомендуется ]
+    - capacity: true
+    - title: Сводный бюджет (7 раздельных узлов)
+      cards:
+        - title: 112 vCPU
+          text: Сумма квот VM (CPU допускает oversubscription при соблюдении SLO).
+          color: "#f59e0b"
+        - title: 432 GiB RAM
+          text: 64 + 64 + 32 + 64 + 128 + 32 + 48 GiB.
+          color: "#3b82f6"
+        - title: ~4.81 TiB SSD/NVMe
+          text: 250 + 2048 + 300 + 300 + 500 + 1024 + 500 GiB = 4 922 GiB ≈ 4.81 TiB. Требования к RAID/backup дополнительно.
+          color: "#ec4899"
+        - title: "2 GPU: 48 + 80 GiB VRAM"
+          text: VRAM не складывается между узлами; GPU-ресурсы привязаны к конкретным моделям.
+          color: "#e11d48"
+    - warn: "**Закупочный бюджет:** указанная сумма SSD-квот — **4 922 GiB ≈ 4,81 TiB** без RAID, snapshots и внешних бэкапов. При необходимости заложить ≥ 6 TiB полезной ёмкости плюс отдельное резервное хранилище. Все ресурсы — оценки под предполагаемую нагрузку."
+detail:
+  lead: "**Методика sizing.** Нагрузка считается отдельно для токенов LLM, частоты guard-проверок, загрузки документов и объёма RAG. Пропускная способность GPU и время OCR из количества CPU/VRAM не следуют: нужны нагрузочные тесты на реальных моделях и документах."
+  blocks:
+    - table:
+        head: [ Параметр, Принятое допущение, Вычисление / комментарий ]
+        rows:
+          - [ Пользователи, 100 named users, Не равно числу параллельных инференсов ]
+          - [ Peak RPS, 20 RPM, "20 / 60 = 0,333 запроса/с" ]
+          - [ Средний запрос, 1 500 input + 750 output tokens, "Типовое приложение, контекст и RAG могут увеличить вход" ]
+          - [ Токены на пике, 20 RPM, 30 000 input tok/min + 15 000 output tok/min ]
+          - [ Суммарный выпуск ответов, 750 × 20 / 60, "≈250 output tok/s агрегировано; это требование к пулу провайдеров, не подтверждённая скорость одной GPU" ]
+          - [ Внутренняя конкурентность, 10 активных генераций, "Little’s Law: при 0,333 req/s и 10 in-flight среднее время пребывания ~30 с" ]
+          - [ Доля подозрений fast, 15% (допущение), "20 × 0,15 = 3 deep input scans/min" ]
+          - [ Подозрение + разрешение, 10% от всех (допущение), "20 × 0,10 = 2 heavy output scans/min" ]
+          - [ Всего fast-классификаций, 100% запросов, 20 проверок Qwen3Guard/min + 20 Prompt Guard/min ]
+          - [ Кеш / failover, 15–25% RAM+VRAM резерва, "Для пиков, KV cache, batch и version overlap, уточнить по профилированию" ]
+    - title: Оценка VRAM на экземпляр
+      table:
+        head: [ Модель, Точность весов (план), Память под веса, Рекомендуемая ёмкость GPU сервера ]
+        rows:
+          - [ Qwen3Guard-Gen-0.6B, BF16, ~1.5 GiB (реальные веса могут отличаться), Вместе с Reasoner; + runtime / batching ]
+          - [ Prompt Guard 2 86M, FP16/BF16, < 0.5 GiB, Вместе с Fast Guard или CPU ]
+          - [ gpt-oss-safeguard-20b, MXFP4 / эквивалент, "~12–16 GiB, зависит от runtime", 48 GiB VRAM на общем guard-узле ]
+          - [ Qwen3-32B (локальная), 4-bit, "~18–24 GiB, зависит от квантовки", 80 GiB GPU для KV cache и конкурентности; сравнить с 48 GiB ]
+          - [ Qwen3Guard-Gen-8B (если добавить), BF16, ~16–20 GiB + KV, Опциональная 3-я модель; на guard GPU 48 GB может упереться в память ]
+    - title: Варианты масштаба
+      table:
+        head: [ Сценарий, Пользователи, Concurrency, Peak, Ресурсная схема, VM ]
+        rows:
+          - [ Пилот, 25–50, 3–5, ~6 RPM, "Платформа+OCR+Sandboxes: 16/64; RAG: 12/48; Guards: 12/48 + 24–48 GB GPU; Qwen3: 16/96 + 48–80 GB GPU", 4 VM (DB на платформе; OCR локально) ]
+          - [ Базовый, ~100, ~10, 20 RPM, "Разделённые VM-01…VM-07, Qwen3 32B 4-bit; 48 GB guard + 80 GB LLM", 6–7 VM; OCR VM опциональна ]
+          - [ Рост / HA, 300–500, 30–50, 60–100 RPM, 2× ingress/gateway; 2× guard workers; 2–4× Qwen3 inference replica; DB standby; RAG replicas + storage, 10–15 VM; измерять TPS и SLO ]
+    - title: "RAG: пример объёма индекса"
+      table:
+        head: [ Параметр, Допущение, Расчёт ]
+        rows:
+          - [ Объём знаний, 1 млн chunks, "Это гипотеза, фактическое число определить инвентаризацией" ]
+          - [ Размер embedding, 384 × float32, 384 × 4 = 1 536 байт / chunk ]
+          - [ Векторные данные, 1 млн × 1 536 байт, "≈1.54 GB до индексов, payload и реплик" ]
+          - [ Vector + payload + HNSW, коэффициент 3–6 (оценочно), "≈4.6–9.2 GB, плюс документы и snapshots" ]
+          - [ Резервирование, реплика/бэкапы/история, "2 TiB — запас под исходные PDF/Office, snapshots и рост, не требование для одних векторов" ]
+    - title: Размещение и отказоустойчивость
+      table:
+        head: [ Сервис, Как масштабируется, Отказ / восстановление ]
+        rows:
+          - [ Gateway + Policy Gate, 2+ stateless replicas; sticky не требуется при внешнем state store, "Shared state по request_id, deadlines, circuit breaker" ]
+          - [ Guard 0.6B / PG2, несколько CPU/GPU workers, Неудачная проверка не снимает решение о запрете ]
+          - [ Safety Reasoner, "GPU worker pool, очередь с priority", При перегрузе hold или deny согласно policy sensitivity ]
+          - [ Qwen3, "новые GPU replicas, балансировка LiteLLM", Fallback на другую локальную replica / approved cloud ]
+          - [ Qdrant / RAG, "replica+shard, отдельные ingestion workers", Проверка ACL на каждом retrieval; snapshots ]
+          - [ OCR, очередь и CPU replicas; mode local/remote, "Retry, idempotency key, ограничение страниц / размера" ]
+          - [ Postgres, "primary+standby, PITR, регулярный restore test", RPO/RTO утверждаются ИБ / владельцем сервиса ]
+          - [ Песочницы, новые sandbox worker hosts, "Per-user isolation, одноразовые контейнеры и тома" ]
+    - title: Сегментация сети
+      note: Выделить `ingress`, `services`, `safety`, `knowledge`, `gpu-inference`, `data`, `egress`, `sandboxes`, `metrics`. Для remote OCR/RAG транспортный ACL + mTLS; открыты только межсервисные порты из allowlist. Публикация Docker-портов не должна обходить firewall (DOCKER-USER / firewall на гипервизоре).

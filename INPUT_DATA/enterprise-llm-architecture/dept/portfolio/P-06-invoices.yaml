@@ -1,0 +1,18 @@
+code: P-06
+name: Проверка входящих счетов и актов
+function: Финансы / расчёты
+owner: Главный бухгалтер
+volume: 3000
+minutes: 6
+error_cost: 3
+strategic: 3
+data_ready: 4
+rules_maturity: 4
+llm_share: 0.15
+data_class: internal
+regulatory: 3
+integration_effort: 2
+write_to_source: false
+golden_set: true
+sources: [ ERP, почта, сканы ]
+notes: "Правила формализуемы, объём большой, в учётную систему только чтение."

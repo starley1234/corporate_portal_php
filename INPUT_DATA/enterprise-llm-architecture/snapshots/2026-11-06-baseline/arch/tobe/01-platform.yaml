@@ -1,0 +1,102 @@
+# TO-BE · Платформа
+# Формат: docs/FORMAT.md. Сборка: npm run build
+
+title: Платформа
+overview:
+  lead: "**Целевой контур.** Все каналы — Open WebUI, pipelines, агенты, боты, скрипты и IDE — проходят через общий ingress, gateway, синхронный Regex-DLP и единый Policy/Response Gate. После DLP модель вызывается **параллельно** с двухуровневой оценкой риска. OCR и RAG выделены в самостоятельные сервисы (OCR при необходимости остаётся локальным)."
+  blocks:
+    - scheme:
+        size: [ 1600, 715 ]
+        groups:
+          - [ 14, 25, 235, 390, Каналы / адаптеры ]
+          - [ 270, 25, 470, 390, Платформа / control + data plane ]
+          - [ 760, 25, 385, 390, LLM и safety orchestration ]
+          - [ 1170, 25, 410, 390, Провайдеры / исполнение ]
+          - [ 270, 455, 600, 225, Знания и документы · отдельные узлы ]
+          - [ 895, 455, 685, 225, Контур безопасности / наблюдаемость ]
+        nodes:
+          - { id: webclient, at: [ 120, 90, 175 ], label: Open WebUI, sub: браузер / сессия, kind: app }
+          - { id: pipe, at: [ 120, 165, 175 ], label: Pipelines, sub: API / automation, kind: app }
+          - { id: agents, at: [ 120, 240, 175 ], label: Агенты / MCP, sub: tool calls / workflow, kind: app }
+          - { id: clients, at: [ 120, 315, 175 ], label: Скрипты · боты · IDE, sub: адаптеры / REST, kind: app }
+          - { id: edge-v2, at: [ 365, 165, 165 ], label: Ingress / Identity, sub: nginx · OIDC · mTLS / JWT, kind: edge }
+          - { id: gw-v2, at: [ 560, 165, 170 ], label: Gateway, sub: идентичность · лимиты · tenant, kind: core }
+          - { id: dlp-v2, at: [ 560, 305, 170 ], label: Regex DLP, sub: "SYNC: ALLOW / MASK / BLOCK", kind: sec }
+          - { id: policy-v2, at: [ 830, 165, 190 ], label: Policy & Response Gate, sub: асинхронная оценка + release, kind: sec }
+          - { id: router-v2, at: [ 1050, 165, 160 ], label: LiteLLM, sub: маршрутизация / бюджеты, kind: core }
+          - { id: providers-v2, at: [ 1380, 87, 220 ], label: OpenAI · Anthropic, sub: Xray / CLIProxy / cloud, kind: ext }
+          - { id: qwenlocal-v2, at: [ 1380, 185, 220 ], label: Qwen3 · local LLM, sub: GPU-инференс в LAN, kind: local }
+          - { id: others-v2, at: [ 1380, 286, 220 ], label: Другие модели, sub: OdiRouter · CLI / fallback, kind: ext }
+          - { id: ocr-v2, at: [ 405, 540, 215 ], label: Docling + OCR, sub: локально или OCR VM, kind: app }
+          - { id: rag-v2, at: [ 695, 540, 260 ], label: RAG Service + Qdrant, sub: "отдельный сервер, ACL, embeddings", kind: data }
+          - { id: fast-v2, at: [ 1040, 540, 240 ], label: Fast Guard, sub: Qwen3Guard 0.6B + Prompt Guard 2, kind: sec }
+          - { id: heavy-v2, at: [ 1345, 540, 230 ], label: Safety Reasoner, sub: gpt-oss-safeguard-20b, kind: sec }
+          - { id: out-v2, at: [ 1345, 635, 230 ], label: Output Gate, sub: подозрение → heavy output scan, kind: sec }
+          - { id: audit-v2, at: [ 1030, 635, 225 ], label: Audit / Metrics, sub: без сырых текстов и секретов, kind: mon }
+        edges:
+          - webclient -> edge-v2
+          - pipe -> edge-v2
+          - agents -> edge-v2
+          - clients -> edge-v2
+          - edge-v2 -> gw-v2: JWT
+          - gw-v2 -> dlp-v2: { label: sync, rel: uses }
+          - dlp-v2 -> policy-v2: { rel: carries, label: ALLOW / MASK, via: [ [ 650, 305 ], [ 725, 305 ], [ 725, 165 ], [ 735, 165 ] ] }
+          - policy-v2 -> router-v2: { label: старт LLM сразу, rel: uses }
+          - router-v2 -> providers-v2: { label: Xray / VPN, rel: uses }
+          - router-v2 -> qwenlocal-v2: { label: LAN / mTLS, rel: uses }
+          - router-v2 -> others-v2: { label: egress, rel: uses }
+          - webclient --> ocr-v2: { rel: carries, label: файлы, via: [ [ 120, 112 ], [ 120, 440 ], [ 405, 440 ], [ 405, 515 ] ] }
+          - gw-v2 --> rag-v2: { rel: uses, label: RAG retrieval, via: [ [ 560, 189 ], [ 560, 437 ], [ 695, 437 ], [ 695, 515 ] ] }
+          - policy-v2 --> fast-v2: { rel: uses, label: parallel, via: [ [ 830, 189 ], [ 830, 460 ], [ 1040, 460 ], [ 1040, 516 ] ] }
+          - fast-v2 --> heavy-v2: { label: suspicious, rel: uses }
+          - heavy-v2 --> policy-v2: { label: verdict, via: [ [ 1345, 516 ], [ 1345, 427 ], [ 800, 427 ], [ 800, 189 ] ] }
+          - router-v2 --> out-v2: { rel: carries, label: ответ / SSE buffer, via: [ [ 1050, 189 ], [ 1160, 189 ], [ 1160, 635 ], [ 1230, 635 ] ] }
+          - out-v2 --> policy-v2: { rel: carries, label: release, via: [ [ 1230, 635 ], [ 885, 635 ], [ 885, 189 ] ] }
+          - policy-v2 --> audit-v2: { rel: carries, label: метрики, via: [ [ 830, 189 ], [ 830, 660 ], [ 918, 660 ] ] }
+        routes:
+          Локальная Qwen3: webclient -> edge-v2 -> gw-v2 -> dlp-v2 -> policy-v2 -> router-v2 -> qwenlocal-v2
+          Облачная модель: clients -> edge-v2 -> gw-v2 -> dlp-v2 -> policy-v2 -> router-v2 -> providers-v2
+          Двухуровневый Guard:
+            path: policy-v2 -> fast-v2 -> heavy-v2
+            note: "**Параллельно основному запросу:** первичный Fast Guard; при риске — Safety Reasoner с корпоративной политикой. Результат приходит в Policy/Response Gate. Для чувствительных маршрутов до получения разрешающего вердикта ответ наружу не выдаётся. Сами запросы при speculative routing уже могут поступить провайдеру."
+          RAG: gw-v2 -> rag-v2
+    - cards:
+        - title: OCR вынесен опционально
+          text: "**Режим local:** существующий контейнер Docling. **Режим remote:** отдельная OCR VM и закрытый HTTPS endpoint. Один стабильный сервисный адрес; смена размещения — конфигурацией."
+          color: "#8b5cf6"
+        - title: RAG всегда отдельно
+          text: RAG API, векторное хранилище Qdrant/pgvector, embedding worker и индексация на отдельном узле. Open WebUI хранит интерфейс/чаты, а не рабочий векторный индекс.
+          color: "#ec4899"
+        - title: Входы независимы
+          text: Все адаптеры нормализуют вызовы к OpenAI-compatible контракту и выпускают проверяемый identity context; ни одна точка входа не попадает напрямую в LiteLLM.
+          color: "#3b82f6"
+        - title: Локальная Qwen3
+          text: Выбирается LiteLLM наравне с OpenAI, Anthropic и CLI. Развёртывание vLLM/SGLang на выделенном GPU-хосте; LAN-маршрут без VPN.
+          color: "#64748b"
+detail:
+  lead: "**Границы ответственности.** Переход к распределённому стеку не означает пересылку всей базы знаний из Open WebUI в другую VM без API. Нужна миграция индексов, обеспечение единого embeddings-пространства, ACL и подключение retrieval к Open WebUI / gateway."
+  blocks:
+    - table:
+        head: [ Компонент, Текущая реализация, Целевое изменение / контракт ]
+        rows:
+          - [ Open WebUI, "UI, RAG и внутренний индекс", Только UI/чаты/привязка знаний; внешний RAG endpoint и общий retrieval-путь ]
+          - [ Входные API, Open WebUI → gateway, WebUI + pipelines + агенты/MCP + боты + IDE + скрипты → единый ingress/API adapter → gateway ]
+          - [ Gateway, "JWT, gateway-map, DLP, лимиты", "Identity + tenant и Policy/Response Gate: корреляция request_id, запуск guard задач, блокировка release" ]
+          - [ Regex DLP, Синхронный POST /v1/scan, Остаётся синхронным. MASK применяется до передачи провайдеру и guard-моделям; BLOCK немедленно отклоняет ]
+          - [ Fast Guard, Отсутствует, "Qwen3Guard-Gen-0.6B и Prompt Guard 2 86M, параллельный скрининг. Подозрение / низкая уверенность → stage 2" ]
+          - [ Safety Reasoner, Отсутствует, "gpt-oss-safeguard-20b: семантическая оценка с корпоративной политикой" ]
+          - [ Output Guard, Отсутствует, "Для suspect-but-allowed: обязательный heavy output scan; базовый output Regex/DLP для всех" ]
+          - [ Модели, cloud / CLI / локальный endpoint без закреплённой модели, Добавить Qwen3 (предлагается Qwen3-32B с 4-bit для sizing) через LAN inference endpoint ]
+          - [ OCR, docling:5001 рядом с Open WebUI, "Локально или remote: OCR_API_BASE_URL + auth + mTLS + очередь / ограничение объёма" ]
+          - [ RAG, multilingual-e5-small и внутренний векторный индекс, "Отдельная RAG VM: API, embeddings, Qdrant/PGVector, ACL, ingest; Open WebUI backend integration" ]
+          - [ Интернет-поиск, Open WebUI обходит gateway/DLP, "Вывести в egress/tool broker с DLP и аудитом, прямой web_search отключить после миграции" ]
+    - title: Интерфейсы и точки интеграции
+      table:
+        head: [ Порт / сервис, Клиент, Безопасность ]
+        rows:
+          - [ Ingress HTTPS :443, "WebUI, API adapters, IDE, боты", "OIDC, сервисные scoped tokens, mTLS для сервисов, rate-limit" ]
+          - [ Gateway :4100, Ingress/adapters, "JWT validation, team budgets, обязательный Regex DLP" ]
+          - [ Safety API (внутренний), Policy/Response Gate, "signed request_id, bounded concurrency, deadline, audit verdict без raw payload" ]
+          - [ RAG API :8443 (проектно), "OWUI/retrieval adapter, ingest workers", "mTLS, ACL по документам / tenant, signed identity (не headers пользователя)" ]
+          - [ OCR API :5001 (внутр. сеть), OWUI и terminal-broker, X-Api-Key + mTLS / VPN; запрет произвольных URL и SSRF ]
+          - [ vLLM :8000 (внутр. сеть), LiteLLM, "API key/service identity, TLS private VLAN; нет прямого доступа с пользовательских подсетей" ]
