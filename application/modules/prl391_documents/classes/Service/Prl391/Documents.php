@@ -318,6 +318,19 @@ class Service_Prl391_Documents
             throw new RuntimeException('Недостаточно прав на редактирование карточки');
         }
 
+        // Понижение грифа и архивирование меняют круг читателей — это
+        // решение руководителя (`prl391.admin`), а не право редактора.
+        if (array_key_exists('sensitivity', $input)
+            && (string) $input['sensitivity'] !== (string) $doc['sensitivity']
+            && ! self::_can_admin($actor))
+        {
+            throw new RuntimeException('Менять гриф документа может только руководитель');
+        }
+        if (isset($input['status']) && $input['status'] === 'archived' && ! self::_can_admin($actor))
+        {
+            throw new RuntimeException('Архивировать документ может только руководитель');
+        }
+
         $sets = [];
         $events = [];
         $fields = ['subject', 'sender_name', 'sender_email', 'sender_inn', 'outbound_no',
@@ -332,10 +345,6 @@ class Service_Prl391_Documents
 
             $new = trim((string) $input[$field]);
             $old = (string) ($doc[$field] ?? '');
-            if ($field === 'summary')
-            {
-                $new = trim(strip_tags($new));
-            }
             if ($new === $old)
             {
                 continue;
