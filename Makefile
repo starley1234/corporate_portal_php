@@ -24,7 +24,7 @@ PHPUNIT  ?= bin/test
 .PHONY: help restore restore-pg restore-php restore-app setup up down restart logs shell ps \
         migrate migrate-status migrate-down seed test test-coverage lint doctor \
         modules new-module fresh cache-clear console composer worker worker-install \
-        brief backlog doc-index docflow-demo \
+        brief backlog doc-index docflow-demo architecture \
         up-worker worker-logs mock-llm mock-embed stack up-tools backup backup-check
 
 help: ## показать эту справку
@@ -102,6 +102,10 @@ fresh: ## ПЕРЕСОЗДАТЬ схему БД с нуля (drop schema public
 
 lint: ## проверка синтаксиса всех PHP-файлов
 	find application system modules public_html -name '*.php' -print0 | xargs -0 -n1 php -l
+
+architecture: ## собрать документацию архитектуры из architecture/arch/*.yaml
+	@test -d node_modules/yaml || { echo "Нужны node-зависимости: npm ci"; exit 1; }
+	@npm run --silent architecture
 
 docflow-demo: ## положить демонстрационные PDF в папку входящих prl390
 	@mkdir -p storage/docflow/inbox storage/docflow/processed storage/docflow/duplicates storage/docflow/error

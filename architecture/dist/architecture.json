@@ -1,0 +1,219 @@
+{
+  "title": "PRL · архитектура портала",
+  "note": "Модель без координат. Источник истины — arch/*.yaml; тексты в мини-Markdown (**жирный**, `код`).",
+  "kinds": {
+    "ext": "Внешние системы",
+    "user": "Пользователи и роли",
+    "web": "Интерфейс",
+    "core": "Ядро",
+    "module": "Модули",
+    "data": "Данные",
+    "queue": "Очередь и воркеры",
+    "ai": "ИИ",
+    "sec": "Безопасность",
+    "ops": "Эксплуатация",
+    "planned": "План"
+  },
+  "components": {
+    "portal": "**Портал PRL.** Один deploy, одна PostgreSQL и каскадная файловая система Kohana. Модуль — вертикальный срез: схема, сервис, HTTP, UI, тесты и манифест.",
+    "auth": "**Auth и сессии.** Роли `login` и `admin`, пароли — HMAC-SHA256 с `AUTH_HASH_KEY`, сессии в PostgreSQL, TOTP в prl599. Отдельный worker API проверяет `X-Worker-Token`, а не сессию.",
+    "rbac": "**RBAC.** Право — это действие, а не должность. `login` открывает вход, но не чужие кадровые данные; сервис дополнительно проверяет объект и организационный контекст.",
+    "catalog": "**prl110_catalog.** Собирает `config/prl_module.php` всех подключённых модулей: меню, карточки главной, поиск, статус и аудиторию. Списки чужих модулей в коде не дублируются.",
+    "migrations": "**prl111_migrations.** Находит `migrations_pg/pgMigration_*.php`, ведёт журнал в `migrations_pg` и накатывает каждую миграцию отдельно. Первичный администратор создаётся миграцией prl110_004.",
+    "events": "**prl208 EventBus.** Именованные события `prlXXX.entity.action` с payload из ID, а не ORM-моделей. Подписчик сам отвечает за идемпотентность.",
+    "queue": "**prl120_jobs.** Очередь в PostgreSQL с таймаутом, повтором, отменой, heartbeat и ресурсным учётом. Секреты и токены в payload не передаются.",
+    "workers": "**prl_workers.** Python-runtime: claim, heartbeat, progress, retry/backoff, watchdog и graceful shutdown. Режим `pg` работает через asyncpg, `http` — через `/prl120/api/*` с отдельным токеном.",
+    "storage": "**prl212_file_storage.** Приватные файлы: метаданные в PostgreSQL, содержимое вне публичного каталога. Скачивание — только через проверку прав сервиса.",
+    "db": "**PostgreSQL.** Основная схема портала и журнал миграций. Модуль не читает таблицы другого модуля напрямую — только через публичный сервис владельца.",
+    "llm": "**LLM-провайдеры.** Вызовы только из серверных сервисов и воркеров, никогда из браузера. Модель не принимает кадровых и юридических решений: её ответ — предложение для человека.",
+    "notifications": "**prl597_notifications.** In-app и outbox, шаблоны и предпочтения каналов. Email по умолчанию выключен; уведомление содержит ссылку на объект, а не сами чувствительные данные.",
+    "employee": "**Сотрудник.** Видит собственный профиль и справочник коллег в рамках организации. Связь Auth-аккаунта с сотрудником — отдельный контракт prl300.",
+    "useradmin": "**prl595_useradmin.** Создание пользователей, роли, блокировка и смена пароля. Доступ — только администратору.",
+    "docflow": "**Документооборот prl390–prl394.** Вертикальный срез поверх платформы: файлы только в prl212, длинная работа только в prl120, уведомления только через prl597.",
+    "intake": "**prl390_intake.** Папка входящих и загрузка PDF: MIME, лимит 10 МБ, дедупликация по SHA-256, сохранение в prl212 и постановка `doc.normalize`.",
+    "documents": "**prl391_documents.** Реестр и карточка: реквизиты, корреспондент, провенанс, вложения и срок. Смена чувствительности и архивирование требуют `prl391.admin`.",
+    "analysis": "**prl392_analysis.** Очередь `doc.analyze` и хранение предложения модели. Человек принимает или отклоняет; карточка не меняется сама.",
+    "workflow": "**prl393_workflow.** Правила сроков, календарь, маршрут и эскалации. Повторный маршрут возвращает документ в `open`, чтобы срок снова был под контролем.",
+    "drafts": "**prl394_drafts.** Черновик ответа по шаблону и карточке (`doc.draft`), утверждение и ручная отправка. Поздний результат модели не перезаписывает уже сохранённый текст."
+  },
+  "tabs": [
+    {
+      "id": "architecture/01-context",
+      "title": "Контекст и границы",
+      "overview": {
+        "lead": "**Кто с кем разговаривает.** Портал — единственная точка входа для сотрудников и администраторов. Кадровый учёт, почта и модели остаются внешними системами: портал хранит ссылки и результаты, а не подменяет источники истины.",
+        "blocks": [
+          {"type":"scheme","zones":["Пользователи","Портал PRL","Внешние системы"],"nodes":[{"id":"employee","label":"Сотрудник","sub":"браузер, SSO","kind":"user"},{"id":"admin","label":"Администратор","sub":"RBAC и аудит","kind":"user"},{"id":"integrations","label":"Сервисы и CLI","sub":"API-клиенты","kind":"ext"},{"id":"portal","label":"Портал PRL","sub":"Kohana / PHP 8.4","kind":"core","info":"{portal}"},{"id":"auth","label":"Auth + ACL","sub":"роли, 2FA, сессии","kind":"sec","info":"{auth}"},{"id":"hr","label":"HR / ERP","sub":"источник кадровых данных","kind":"ext"},{"id":"mail","label":"Почта и мессенджеры","sub":"SMTP, outbox","kind":"ext"},{"id":"llm","label":"LLM-провайдеры","sub":"Toolforge, локальные модели","kind":"ai","info":"{llm}"},{"id":"storage","label":"prl212 хранилище","sub":"приватные файлы","kind":"data","info":"{storage}"}],"edges":[{"from":"employee","to":"portal"},{"from":"admin","to":"portal"},{"from":"integrations","to":"portal","label":"API","rel":"uses"},{"from":"portal","to":"auth","label":"вход и права","rel":"uses"},{"from":"portal","to":"hr","label":"карточки сотрудников"},{"from":"portal","to":"mail","label":"уведомления"},{"from":"portal","to":"llm","label":"только через prl120 и воркеры","rel":"uses","dashed":true},{"from":"portal","to":"storage","label":"файлы","rel":"uses"}],"routes":{"Вход сотрудника":["employee","portal","auth"],"Администрирование":["admin","portal","auth"],"ИИ-сценарий":["admin","portal"]},"hint":"Граница доверия проходит по серверу портала. Браузер не обращается к моделям, файлам и базе напрямую."},
+          {"type":"note","text":"Схема отвечает на вопрос «что входит в контур». Правила, которые нельзя нарушать, и контракты слоёв описаны на следующих вкладках."}
+        ]
+      },
+      "detail": {
+        "lead": "**Что портал делает сам, а что делегирует.** Это разделение важнее списка технологий: оно объясняет, почему одни данные нельзя копировать в портал.",
+        "blocks": [
+          {"type":"cards","items":[{"title":"Внутри контура","text":"Пользователи, роли, сессии, каталог модулей, документы, сроки, аудит и очередь задач.","color":"#f59e0b","chips":["PostgreSQL","prl100","prl390–394"]},{"title":"Вне контура","text":"Кадровый учёт, почта, мессенджеры и LLM. Портал получает результат и хранит ссылку на источник.","color":"#8a93a3","chips":["HR / ERP","SMTP","LLM"]},{"title":"Границы ответственности","text":"Права проверяет сервис-владелец, а не контроллер и не интерфейс. Метаданные каталога не заменяют проверку.","color":"#e11d48","chips":["RBAC","object policy","audit"]}]},
+          {"type":"table","head":["Контракт","Что передаём","Кто владеет"],"rows":[["Кадровые данные","ID сотрудника и рабочие поля; чувствительные атрибуты не копируются","HR / prl300"],["Уведомления","Ссылка на защищённый объект и шаблон, без самих данных","prl597"],["LLM","Только разрешённый текст задачи; ответ — предложение, не решение","Владелец модели"],["Файлы","Метаданные и приватное содержимое; скачивание через проверку ACL","prl212"]]}
+        ]
+      }
+    },
+    {
+      "id": "architecture/02-runtime",
+      "title": "Слои выполнения",
+      "overview": {
+        "lead": "**Один запрос — один путь.** Браузер попадает в контроллер, контроллер — в публичный сервис, сервис — в свою схему PostgreSQL. Долгая работа уходит в очередь, а не держит HTTP-запрос.",
+        "blocks": [
+          {"type":"scheme","zones":["Клиент","PHP-монолит","Инфраструктура"],"nodes":[{"id":"browser","label":"Браузер","sub":"HTML и JS","kind":"web"},{"id":"cli","label":"CLI / cron","sub":"bin/console","kind":"ops"},{"id":"http","label":"HTTP / HMVC","sub":"Controller_Base","kind":"core"},{"id":"acl","label":"Auth + RBAC","sub":"роль и объект","kind":"sec"},{"id":"service","label":"Service_PrlXXX","sub":"бизнес-логика","kind":"module"},{"id":"view","label":"View / partials","sub":"prl-card, prl-table","kind":"web"},{"id":"db","label":"PostgreSQL","sub":"схема и миграции","kind":"data","info":"{db}"},{"id":"queue","label":"prl120 очередь","sub":"PostgreSQL","kind":"queue","info":"{queue}"},{"id":"events","label":"prl208 EventBus","sub":"подписчики","kind":"module","info":"{events}"},{"id":"storage","label":"prl212 файлы","sub":"private storage","kind":"data","info":"{storage}"},{"id":"workers","label":"Python-воркеры","sub":"pg или http","kind":"queue","info":"{workers}"},{"id":"llm","label":"LLM","sub":"внешние модели","kind":"ai","info":"{llm}"}],"edges":[{"from":"browser","to":"http"},{"from":"cli","to":"service","rel":"uses"},{"from":"http","to":"acl","rel":"enforces"},{"from":"http","to":"service","rel":"uses"},{"from":"acl","to":"service","label":"разрешено","rel":"enforces","dashed":true},{"from":"service","to":"db","rel":"uses"},{"from":"service","to":"storage","rel":"uses"},{"from":"service","to":"queue","label":"длинная работа","rel":"uses"},{"from":"service","to":"events","label":"событие","rel":"uses"},{"from":"service","to":"view","rel":"uses"},{"from":"view","to":"browser","label":"HTML","rel":"carries","dashed":true},{"from":"queue","to":"workers","label":"задача","rel":"carries"},{"from":"workers","to":"db","label":"результат","rel":"uses","dashed":true},{"from":"workers","to":"storage","label":"файлы","rel":"uses"},{"from":"workers","to":"llm","label":"запрос","rel":"uses"}],"routes":{"Синхронный запрос":["browser","http","acl","service","db"],"Долгая работа":["http","service","queue","workers","db"],"Событие":["service","events"]},"hint":"Контроллер не содержит бизнес-логики и не ходит в чужие таблицы. Это делает права и повторное использование предсказуемыми."},
+          {"type":"sequence","actors":[{"id":"u","label":"Сотрудник","kind":"user"},{"id":"c","label":"Controller","kind":"core"},{"id":"s","label":"Service","kind":"module"},{"id":"d","label":"PostgreSQL","kind":"data"},{"id":"q","label":"prl120","kind":"queue"}],"messages":[{"n":1,"from":"u","to":"c","label":"HTTP-запрос"},{"n":2,"from":"c","to":"s","label":"операция с объектом"},{"n":3,"from":"s","to":"d","label":"SQL в своей схеме"},{"n":4,"from":"s","to":"c","label":"результат","ret":true},{"n":5,"from":"c","to":"u","label":"HTML или JSON","ret":true},{"n":6,"from":"s","to":"q","label":"длинная работа"}],"phases":[[1,5,"Синхронный ответ"],[6,6,"Асинхронно"]]}
+        ]
+      },
+      "detail": {
+        "lead": "**Пять контрактов платформы.** Новый модуль не создаёт свой Auth, очередь, LLM-клиент или уведомления: он пользуется общими.",
+        "blocks": [
+          {"type":"table","head":["Контракт","Как выглядит","Зачем"],"rows":[["Публичный сервис","Service_PrlXXX::method(...)","Политика и проверка объекта внутри сервиса"],["Событие","prlXXX.entity.action + payload из ID","Подписчик не зависит от ORM-модели автора"],["HMVC","View::factory готового виджета","Нет прямого include чужой вьюхи"],["Очередь","Service_Prl120_JobQueue::push","Таймаут, повтор, отмена и учёт ресурсов"],["Манифест","config/prl_module.php","Каталог и меню не знают списков чужих модулей"]]},
+          {"type":"note","text":"Секреты и токены не попадают в payload очереди. Воркер получает ID объекта, а параметры окружения — из своего `.env`."}
+        ]
+      }
+    },
+    {
+      "id": "architecture/03-modules",
+      "title": "Карта модулей",
+      "overview": {
+        "lead": "**Модуль — вертикальный срез.** Внутри: миграции, сервис, контроллер, вьюхи, тесты и манифест. Платформенные модули дают общие контракты, прикладные — отвечают за свой домен.",
+        "blocks": [
+          {"type":"scheme","nodes":[{"id":"core","label":"prl100_base","sub":"Auth, RBAC, база","kind":"core","info":"{portal}"},{"id":"platform","label":"prl100_platform","sub":"админ и диагностика","kind":"core"},{"id":"catalog","label":"prl110_catalog","sub":"меню и видимость","kind":"core","info":"{catalog}"},{"id":"migrations","label":"prl111_migrations","sub":"схема БД","kind":"data","info":"{migrations}"},{"id":"events","label":"prl208 EventBus","sub":"события","kind":"module","info":"{events}"},{"id":"storage","label":"prl212 файлы","sub":"приватное хранение","kind":"data","info":"{storage}"},{"id":"queue","label":"prl120 очередь","sub":"PostgreSQL","kind":"queue","info":"{queue}"},{"id":"notifications","label":"prl597 уведомления","sub":"in-app и outbox","kind":"module","info":"{notifications}"},{"id":"employee","label":"prl300_employee","sub":"сотрудник и оргструктура","kind":"module","info":"{employee}"},{"id":"docflow","label":"prl390–prl394","sub":"документооборот","kind":"module","info":"{docflow}"},{"id":"ai","label":"llm и prl115","sub":"ИИ и поиск","kind":"ai","info":"{llm}"}],"edges":[{"from":"core","to":"platform","rel":"uses"},{"from":"core","to":"catalog","rel":"uses"},{"from":"core","to":"migrations","rel":"uses"},{"from":"core","to":"events","rel":"uses"},{"from":"core","to":"storage","rel":"uses"},{"from":"core","to":"queue","rel":"uses"},{"from":"core","to":"notifications","rel":"uses"},{"from":"catalog","to":"employee","label":"манифест","dashed":true},{"from":"catalog","to":"docflow","label":"манифест","dashed":true},{"from":"catalog","to":"ai","label":"манифест","dashed":true},{"from":"docflow","to":"storage","rel":"uses"},{"from":"docflow","to":"queue","rel":"uses"},{"from":"docflow","to":"notifications","rel":"uses"},{"from":"docflow","to":"ai","rel":"uses"},{"from":"employee","to":"storage","label":"аватары","rel":"uses"}],"hint":"Стрелка «манифест» — только чтение метаданных. Права и данные по-прежнему проверяет сервис-владелец."},
+          {"type":"cards","items":[{"title":"Ядро","text":"Auth, RBAC, каталог, миграции и общий контроллер.","color":"#f59e0b","chips":["prl100_base","prl100_platform","prl110_catalog","prl111_migrations"]},{"title":"Данные и связи","text":"Файлы, события, очередь и уведомления — общие контракты, а не копии в каждом модуле.","color":"#10b981","chips":["prl212","prl208","prl120","prl597"]},{"title":"Люди","text":"Профиль, оргструктура, роли и безопасность аккаунта.","color":"#3b82f6","chips":["prl300","prl595","prl599"]},{"title":"Документооборот","text":"Приём PDF, реестр, ИИ-предложения, сроки и ответы.","color":"#6366f1","chips":["prl390","prl391","prl392","prl393","prl394"]},{"title":"ИИ и знания","text":"Провайдеры моделей, векторный поиск и техническая память.","color":"#14b8a6","chips":["llm","prl115","prl560"]},{"title":"План","text":"50 сервисов карты, из них 49 planned. ID зарезервированы, код не создаётся заранее.","color":"#94a3b8","chips":["portal.php","planned"]}]}
+        ]
+      },
+      "detail": {
+        "lead": "**Где что искать.** Полный перечень — `application/config/portal.php`; подключение и порядок миграций — `application/config/modules.php`.",
+        "blocks": [
+          {"type":"table","head":["Слой","Модули","Ответственность"],"rows":[["Ядро","prl100_base, prl100_platform, prl100_search","Auth, RBAC, общий контроллер, диагностика, глобальный поиск"],["Каталог и схема","prl110_catalog, prl111_migrations, prl218_module_manager","Меню и видимость, миграции, жизненный цикл модулей"],["Инфраструктура","prl208_events, prl120_jobs, prl212_file_storage, prl115_semantic","События, очередь, приватные файлы, векторный поиск"],["Люди","prl300_employee, prl595_useradmin, prl599_account","Оргструктура, роли, TOTP и сессии"],["Документооборот","prl390_intake … prl394_drafts","Входящие, реестр, ИИ-разбор, сроки, ответы"],["ИИ","llm, prl560_knowledge","Провайдеры моделей, техническая база знаний"]]},
+          {"type":"note","text":"`prl140_design_lab` — публичная витрина дизайна, а не рабочий сервис: она не входит в карту 55 сервисов и не использует общий CSS."}
+        ]
+      }
+    },
+    {
+      "id": "architecture/04-docflow",
+      "title": "Документооборот",
+      "overview": {
+        "lead": "**ИИ предлагает, человек решает.** PDF проходит нормализацию, карточку, предложение модели, срок и черновик ответа. Ни один шаг не пишет в карточку окончательное решение без человека.",
+        "blocks": [
+          {"type":"scheme","zones":["Вход","Обработка","Человек"],"nodes":[{"id":"folder","label":"Папка inbox","sub":"PDF из examples","kind":"ext"},{"id":"upload","label":"Загрузка","sub":"приказ или письмо","kind":"web"},{"id":"intake","label":"prl390 intake","sub":"dedup и prl212","kind":"module","info":"{intake}"},{"id":"storage","label":"prl212 storage","sub":"sha256, private","kind":"data","info":"{storage}"},{"id":"normalize","label":"doc.normalize","sub":"pypdf и OCR","kind":"queue"},{"id":"card","label":"prl391 documents","sub":"реестр и карточка","kind":"module","info":"{documents}"},{"id":"analysis","label":"prl392 analysis","sub":"doc.analyze","kind":"ai","info":"{analysis}"},{"id":"workflow","label":"prl393 workflow","sub":"сроки и эскалации","kind":"module","info":"{workflow}"},{"id":"drafts","label":"prl394 drafts","sub":"doc.draft","kind":"module","info":"{drafts}"},{"id":"clerk","label":"Делопроизводитель","sub":"проверяет и решает","kind":"user"},{"id":"manager","label":"Руководитель","sub":"утверждает ответ","kind":"user"}],"edges":[{"from":"folder","to":"intake"},{"from":"upload","to":"intake"},{"from":"intake","to":"storage","rel":"uses"},{"from":"intake","to":"normalize","label":"message_id","rel":"uses"},{"from":"normalize","to":"intake","label":"текст","rel":"carries","dashed":true},{"from":"intake","to":"card","label":"карточка","rel":"uses"},{"from":"card","to":"analysis","label":"run_id","rel":"uses"},{"from":"analysis","to":"clerk","label":"предложение","rel":"carries"},{"from":"clerk","to":"analysis","label":"принять или отклонить","rel":"uses","dashed":true},{"from":"analysis","to":"card","label":"поля","rel":"carries"},{"from":"card","to":"workflow","label":"срок","rel":"uses"},{"from":"workflow","to":"drafts","label":"шаблон","rel":"uses"},{"from":"drafts","to":"manager","label":"проект","rel":"carries"},{"from":"manager","to":"drafts","label":"утвердить","rel":"uses","dashed":true}],"routes":{"Новый PDF":["folder","intake","card"],"ИИ-разбор":["card","analysis","clerk"],"Ответ":["card","workflow","drafts","manager"]},"hint":"Длинные операции идут через prl120. Результат модели — черновик предложения, а не изменение карточки."},
+          {"type":"sequence","actors":[{"id":"u","label":"Делопроизводитель","kind":"user"},{"id":"i","label":"prl390","kind":"module"},{"id":"q","label":"prl120","kind":"queue"},{"id":"w","label":"Воркер","kind":"queue"},{"id":"d","label":"prl391","kind":"data"},{"id":"a","label":"prl392","kind":"ai"},{"id":"s","label":"prl393","kind":"module"},{"id":"r","label":"prl394","kind":"module"}],"messages":[{"n":1,"from":"u","to":"i","label":"загрузить PDF"},{"n":2,"from":"i","to":"q","label":"message_id"},{"n":3,"from":"q","to":"w","label":"doc.normalize"},{"n":4,"from":"w","to":"i","label":"текст","ret":true},{"n":5,"from":"i","to":"d","label":"карточка"},{"n":6,"from":"u","to":"a","label":"запустить разбор"},{"n":7,"from":"a","to":"q","label":"run_id"},{"n":8,"from":"q","to":"w","label":"doc.analyze"},{"n":9,"from":"w","to":"a","label":"JSON-предложение","ret":true},{"n":10,"from":"u","to":"a","label":"принять или отклонить"},{"n":11,"from":"d","to":"s","label":"рассчитать срок"},{"n":12,"from":"s","to":"r","label":"создать черновик"},{"n":13,"from":"r","to":"q","label":"draft_id"},{"n":14,"from":"q","to":"w","label":"doc.draft"},{"n":15,"from":"w","to":"r","label":"текст ответа","ret":true},{"n":16,"from":"u","to":"r","label":"утвердить и отправить"}],"phases":[[1,5,"Приём и текст"],[6,10,"ИИ-разбор"],[11,16,"Срок и ответ"]]}
+        ]
+      },
+      "detail": {
+        "lead": "**Что проверяется на каждом шаге.** Ошибка и таймаут — это не разрешение: документ остаётся в очереди или получает честный статус ошибки.",
+        "blocks": [
+          {"type":"cards","items":[{"title":"Приём","text":"MIME application/pdf, лимит 10 МБ, дедупликация по SHA-256, файл только в prl212.","color":"#f59e0b","chips":["prl390","prl212","sha256"]},{"title":"Предложение","text":"Ответ модели сохраняется как предложение, человек принимает или отклоняет его.","color":"#14b8a6","chips":["prl392","human-in-the-loop"]},{"title":"Срок","text":"Правило маршрутизации выбирает тип и срок; повторный маршрут возвращает документ в open.","color":"#6366f1","chips":["prl393","SLA"]},{"title":"Ответ","text":"Черновик защищён от позднего результата модели; отправка — только вручную.","color":"#e11d48","chips":["prl394","approve","send"]}]},
+          {"type":"table","head":["Событие","Кто слушает","Результат"],"rows":[["prl390.message.received","prl391","Карточка и провенанс"],["prl391.document.created","prl392, prl393","Очередь разбора и расчёт срока"],["prl392.analysis.accepted","prl391","Поля карточки обновлены человеком"],["prl394.draft.approved","prl597","Уведомление и ручная отправка"]]},
+          {"type":"warn","text":"Результат модели не является юридическим решением. Если модель недоступна, документ не получает «пустой» разбор и не закрывается автоматически."}
+        ]
+      }
+    },
+    {
+      "id": "architecture/05-security",
+      "title": "Доступ и границы",
+      "overview": {
+        "lead": "**Право — это действие.** `login` открывает вход, но не чужие кадровые данные. Сервис проверяет роль, объект и организационный контекст до выдачи данных, файла или контекста для модели.",
+        "blocks": [
+          {"type":"scheme","zones":["Субъект","Проверки","Ресурсы"],"nodes":[{"id":"user","label":"Пользователь","sub":"сессия и 2FA","kind":"user"},{"id":"worker","label":"Воркер","sub":"X-Worker-Token","kind":"queue"},{"id":"session","label":"Сессия","sub":"cookie и TOTP","kind":"sec","info":"{auth}"},{"id":"rbac","label":"RBAC","sub":"роль и право","kind":"sec","info":"{rbac}"},{"id":"policy","label":"Object policy","sub":"объект и оргконтекст","kind":"sec"},{"id":"token","label":"Worker API","sub":"отдельный секрет","kind":"sec"},{"id":"data","label":"Данные","sub":"PostgreSQL","kind":"data","info":"{db}"},{"id":"files","label":"Файлы","sub":"private storage","kind":"data","info":"{storage}"},{"id":"llm","label":"LLM","sub":"без секретов","kind":"ai","info":"{llm}"}],"edges":[{"from":"user","to":"session"},{"from":"worker","to":"token"},{"from":"session","to":"rbac"},{"from":"rbac","to":"policy"},{"from":"policy","to":"data"},{"from":"policy","to":"files"},{"from":"token","to":"data"},{"from":"token","to":"files"},{"from":"policy","to":"llm","label":"только разрешённый контекст","dashed":true}],"routes":{"Пользователь":["user","session","rbac","policy","data"],"Воркер":["worker","token","data"]},"hint":"Для API 401 означает «нет сессии», 403 — «сессия есть, прав нет». Смешивать их нельзя."}
+        ]
+      },
+      "detail": {
+        "lead": "**Что именно защищаем.** Не только страницы: файлы, поисковую выдачу, контекст для модели и административные действия.",
+        "blocks": [
+          {"type":"cards","items":[{"title":"Идентичность","text":"Пароль хранится как HMAC-SHA256 с серверным ключом. TOTP и активные сессии — в prl599.","color":"#3b82f6","chips":["HMAC-SHA256","TOTP","session"]},{"title":"Авторизация","text":"RBAC отвечает за действие, object policy — за конкретный объект и организацию.","color":"#e11d48","chips":["RBAC","object policy","orgcontext"]},{"title":"Машинный доступ","text":"Worker API не использует пользовательскую сессию; токен сверяется отдельно.","color":"#10b981","chips":["X-Worker-Token",401,403]},{"title":"Приватные файлы","text":"Содержимое вне public_html; скачивание проходит через сервис и проверку прав.","color":"#ec4899","chips":["prl212","private","ACL"]}]},
+          {"type":"table","head":["Ситуация","Ответ","Что нельзя делать"],"rows":[["Нет сессии",401,"Показывать данные или подменять 401 на 403"],["Сессия есть, права нет",403,"Полагаться только на скрытую кнопку в интерфейсе"],["Worker API без токена","403 JSON","Принимать пустой токен в production"],["LLM-запрос","Только через сервис","Отправлять секреты, пароли и лишние персональные данные"]]},
+          {"type":"note","text":"Метаданные манифеста (название, иконка, ссылка) не являются проверкой прав. Каждый HTTP-маршрут и каждый публичный сервис проверяют доступ самостоятельно."}
+        ]
+      }
+    },
+    {
+      "id": "architecture/06-operations",
+      "title": "Эксплуатация",
+      "overview": {
+        "lead": "**Один deploy и явные операции.** Миграции, обслуживание очереди и сборка документации — команды, а не скрытые побочные эффекты загрузки страницы.",
+        "blocks": [
+          {"type":"scheme","zones":["Docker compose","Данные и внешние"],"nodes":[{"id":"nginx","label":"nginx","sub":"TLS и статика","kind":"ops"},{"id":"php","label":"PHP-FPM","sub":"Kohana / PHP 8.4","kind":"core","info":"{portal}"},{"id":"pg","label":"PostgreSQL","sub":"основная схема","kind":"data","info":"{db}"},{"id":"worker","label":"workers","sub":"pg или http","kind":"queue","info":"{workers}"},{"id":"cron","label":"cron","sub":"portal:maintain","kind":"ops"},{"id":"logs","label":"Логи","sub":"site и worker","kind":"ops"},{"id":"llm","label":"LLM-шлюз","sub":"внешние модели","kind":"ai","info":"{llm}"},{"id":"backup","label":"Бэкап","sub":"дамп и хранилища","kind":"data"}],"edges":[{"from":"nginx","to":"php"},{"from":"php","to":"pg","rel":"uses"},{"from":"worker","to":"pg","rel":"uses"},{"from":"worker","to":"llm","rel":"uses"},{"from":"cron","to":"php","label":"CLI","rel":"uses"},{"from":"php","to":"logs","rel":"carries"},{"from":"pg","to":"backup","rel":"carries"}],"routes":{"Запрос":["nginx","php","pg"],"Обслуживание":["cron","php","pg"],"Воркер":["worker","pg"]},"hint":"Воркер — отдельный процесс. Он не запускает PHP-обслуживание и не заменяет cron."},
+          {"type":"table","head":["Команда","Когда","Что делает"],"rows":[["make setup","после клонирования",".env, секреты, каталоги"],["make migrate","при изменении схемы","Миграции и первичный администратор"],["make architecture","после правки architecture/arch","Проверка модели и сборка HTML и JSON"],["bin/console portal:maintain","по таймеру","Очередь, уведомления, outbox"],["make check","перед коммитом","Контракты модулей без PHP и БД"],["PYTHONPATH=workers pytest workers/tests","перед коммитом","Воркеры, docflow и e2e"]]}
+        ]
+      },
+      "detail": {
+        "lead": "**Что должно быть проверено до запуска.** Изоляция сети, резервное копирование и мониторинг — не «потом», а условие эксплуатации.",
+        "blocks": [
+          {"type":"steps","items":["Секреты (`AUTH_HASH_KEY`, `COOKIE_SALT`, токены) хранятся в окружении, не в Git.","`PRL_DEFAULT_ADMIN=0` на production; администратор создаётся через `make seed` с сильным паролем.","Логи не содержат паролей, токенов и сырых персональных данных.","Бэкап проверяется восстановлением, а не только фактом создания файла.","Почта и мессенджеры включаются осознанно: по умолчанию внешние каналы выключены."]},
+          {"type":"warn","text":"Пароль `admin` из миграции — только для локальной установки. После первого входа его нужно сменить в разделе управления пользователями."}
+        ]
+      }
+    },
+    {
+      "id": "governance/decisions",
+      "title": "Журнал решений (ADR)",
+      "overview": {
+        "lead": "**Почему целевой контур именно такой.** 3 архитектурных решений: 3 принято, 0 предложено, 0 отклонено, 0 заменено. Пока решение в статусе «предложено», соответствующая часть схемы — гипотеза, а не обязательство. Журнал собирается из `arch/decisions/`; список открытых — `arch adr --status proposed`.",
+        "blocks": [
+          {"type":"table","head":["ADR","Статус","Дата","Решение","Где"],"rows":[["`ADR-001`","принято","`2026-11-16`","Документация архитектуры как код","—"],["`ADR-002`","принято","`2026-11-16`","Первичный администратор создаётся миграцией","—"],["`ADR-003`","принято","`2026-11-16`","ИИ предлагает, человек принимает","—"]],"center":[1,2]},
+          {"type":"note","text":"Открытые решения не висят в таблицах плана внедрения, а живут здесь: статус меняется в `arch/decisions/*.yaml`, история — в git."}
+        ]
+      },
+      "detail": {
+        "lead": "Полный журнал: контекст, решение и последствия по каждому ADR.",
+        "blocks": [
+          {"type":"heading","text":"ADR-001 · Документация архитектуры как код"},
+          {"type":"note","text":"**Статус:** принято · 2026-11-16 · ответственный: Платформа PRL"},
+          {"type":"note","text":"**Контекст.** Схемы и описание слоёв быстро расходятся с кодом, если их поддерживать вручную в вики или презентациях. Картинки нельзя проверить, а ссылки на компоненты теряются при переименовании."},
+          {"type":"note","text":"**Решение.** Источник истины — YAML в architecture/arch. Из него одной командой собираются страница для людей и JSON для агентов; страница в портале открывается после входа и не требует внешнего сервера."},
+          {"type":"steps","items":["Плюс: изменение архитектуры — это дифф, который проходит ревью.","Плюс: проверки ловят ссылки на несуществующие узлы и дубли id.","Минус: после правки YAML нужно запускать make architecture."]},
+          {"type":"heading","text":"ADR-002 · Первичный администратор создаётся миграцией"},
+          {"type":"note","text":"**Статус:** принято · 2026-11-16 · ответственный: Платформа PRL"},
+          {"type":"note","text":"**Контекст.** На чистой установке make migrate оставлял базу без пользователя: войти было нельзя, а make seed требовал уже работающего приложения и введённого пароля."},
+          {"type":"note","text":"**Решение.** Миграция prl110_004 создаёт admin/admin только на пустой базе, где в users ещё нет записей. Пароль хэшируется тем же HMAC-ключом, что и в Auth. Для production автоматический администратор отключается PRL_DEFAULT_ADMIN=0."},
+          {"type":"steps","items":["Плюс: после make migrate сразу доступен вход без дополнительных команд.","Риск: известный пароль нельзя оставлять на production — его нужно сменить или отключить миграцию.","Существующие пользователи и роли не перезаписываются."]},
+          {"type":"heading","text":"ADR-003 · ИИ предлагает, человек принимает"},
+          {"type":"note","text":"**Статус:** принято · 2026-11-16 · ответственный: Делопроизводство"},
+          {"type":"note","text":"**Контекст.** Модель может ошибаться в реквизитах и сроках. Автоматическая запись её ответа в карточку или отправка письма создаёт юридический и репутационный риск."},
+          {"type":"note","text":"**Решение.** Результат doc.analyze и doc.draft хранится как предложение. В карточку и в отправку он попадает только после явного действия пользователя с нужным правом; поздний результат модели не перезаписывает уже утверждённый текст."},
+          {"type":"steps","items":["Плюс: ошибка модели не становится решением портала.","Плюс: каждое изменение карточки имеет автора-человека.","Минус: процесс требует участия делопроизводителя и руководителя."]}
+        ]
+      }
+    },
+    {
+      "id": "governance/entities",
+      "title": "Реестр сущностей",
+      "overview": {
+        "lead": "**Один компонент — один id.** Всего сущностей: 20; из них 5 встречаются больше чем в одной вкладке. Раньше gateway был нарисован как `gw`, `gw-v2`, `p-gw` и `h-gw` — четыре узла, которые никто не связывал между собой. Теперь узлы ссылаются на сущность через `ref:` или совпадают с одним из `aliases`, и граф (`arch graph`, `arch ask`) видит их как один объект.",
+        "blocks": [
+          {"type":"table","head":["Сущность","Тип","Название","Владелец","Где встречается"],"rows":[["`portal`","service","Портал PRL","Платформа PRL","1 — `architecture/01-context`"],["`auth`","control","Аутентификация и сессии","Платформа PRL","1 — `architecture/01-context`"],["`rbac`","control","RBAC и права модулей","Платформа PRL","1 — `architecture/05-security`"],["`catalog`","service","Каталог модулей и меню","Платформа PRL","1 — `architecture/03-modules`"],["`migrations`","control","Миграции PostgreSQL","Платформа PRL","1 — `architecture/03-modules`"],["`events`","service","Шина событий prl208","Платформа PRL","2 — `architecture/02-runtime`, `architecture/03-modules`"],["`queue`","service","Очередь задач prl120","Платформа PRL","2 — `architecture/02-runtime`, `architecture/03-modules`"],["`workers`","service","Python-воркеры","Платформа PRL","1 — `architecture/02-runtime`"],["`storage`","store","Приватное файловое хранилище prl212","Платформа PRL","4 — `architecture/01-context`, `architecture/02-runtime`, `architecture/03-modules`…"],["`db`","store","PostgreSQL","Платформа PRL","1 — `architecture/02-runtime`"],["`llm`","model","LLM-провайдеры","Владелец модели","4 — `architecture/01-context`, `architecture/02-runtime`, `architecture/05-security`…"],["`notifications`","service","Уведомления prl597","Платформа PRL","1 — `architecture/03-modules`"],["`employee`","role","Сотрудник","HR","2 — `architecture/01-context`, `architecture/03-modules`"],["`useradmin`","service","Управление пользователями prl595","Администратор","**не встречается**"],["`docflow`","service","Документооборот prl390–prl394","Делопроизводство","1 — `architecture/03-modules`"],["`intake`","service","Приём документов prl390","Делопроизводство","1 — `architecture/04-docflow`"],["`documents`","service","Реестр документов prl391","Делопроизводство","**не встречается**"],["`analysis`","service","ИИ-разбор prl392","Делопроизводство","1 — `architecture/04-docflow`"],["`workflow`","service","Сроки и маршруты prl393","Делопроизводство","1 — `architecture/04-docflow`"],["`drafts`","service","Черновики ответов prl394","Делопроизводство","1 — `architecture/04-docflow`"]]},
+          {"type":"note","text":"Реестр — источник канонических id: `arch/entities.yaml`. Узлы схем можно не переписывать: достаточно объявить старые id в `aliases`."}
+        ]
+      },
+      "detail": {
+        "lead": "**Как добавить сущность.** Реестр нужен не для красоты: без него любой вопрос «где ещё это нарисовано» решается поиском по тексту, а граф распадается на одинаковые узлы.",
+        "blocks": [
+          {"type":"steps","items":["Найдите компонент, который встречается в нескольких вкладках под разными id (например, шлюз).","Добавьте сущность в `arch/entities.yaml`: `id` (канонический), `type`, `title`, `aliases` — все старые id и будущие варианты.","В новых вкладках указывайте `ref: <id>` прямо в узле схемы — тогда связь с реестром видна в файле, а не только в реестре.","Проверьте: `npm run check` (дубли alias) и `arch graph --coverage` (сколько узлов ещё не сопоставлено)."]},
+          {"type":"note","text":"Правило: `ref` и `aliases` не отменяют переименование, но позволяют жить с историческим разнобоем, не ломая замороженные разделы."}
+        ]
+      }
+    },
+    {
+      "id": "governance/status",
+      "title": "Состояние модели",
+      "overview": {
+        "lead": "**Где мы сейчас.** Одна страница вместо обхода вкладок: сколько всего описано, насколько полно объекты связаны между собой, что требует внимания. Числа пересобираются вместе со страницей, поэтому устареть не могут.",
+        "blocks": [
+          {"type":"table","head":["Показатель","Значение"],"rows":[["**Вкладок**","9"],["**Схем**","6"],["**Узлов на схемах**","60"],["**Сущностей в графе**","63"],["**Связей**","70"],["**Фрагментов знания**","184"],["**Сущностей в реестре**","20"],["**Покрытие реестром**","43%"],["**Гипотез**","0"],["**Решений**","3"]]},
+          {"type":"table","head":["№","Что требует внимания"],"rows":[["1","реестр: сопоставить 5 вкладок — architecture/06-operations 13%, architecture/05-security 22%, architecture/04-docflow 45% (arch graph --coverage)"],["2","карта перехода: 20 позиций AS-IS не покрыто (arch map --missing)"],["3","связи: у 2 сущностей нет ни одной связи (useradmin, documents)"]]},
+          {"type":"table","head":["Вкладка","Покрытие","Сопоставлено"],"rows":[["architecture/06-operations","13%","1 из 8"],["architecture/05-security","22%","2 из 9"],["architecture/04-docflow","45%","5 из 11"],["architecture/02-runtime","50%","6 из 12"],["architecture/01-context","56%","5 из 9"]],"center":[1,2]},
+          {"type":"note","text":"Живые цифры и проверки — `npm run status`; покрытие по вкладкам — `arch graph --coverage`; проверки модели — `npm run check`. Здесь они показываются на момент сборки страницы."}
+        ]
+      },
+      "detail": {
+        "lead": "**Как это читать.** Покрытие реестром — доля узлов схем, у которых есть канонический id. Чем ниже, тем хуже граф видит связи между вкладками.",
+        "blocks": [
+          {"type":"steps","items":["Посмотрите «Что требует внимания» — это готовый список следующих шагов, а не приглашение читать всё подряд.","Низкое покрытие у вкладки значит: её узлы живут под собственными именами. Лечится добавлением `aliases` в `arch/entities.yaml`.","Открытые гипотезы — это не долги, а вопросы, на которые ещё нет ответа. Пока они открыты, опирающиеся на них части схемы — предположения.","Если строки «требует внимания» кончились, модель в порядке: можно собирать страницу и принимать решения по ней."]},
+          {"type":"note","text":"Технические подробности: граф собирается командой `arch graph`, влияние объекта — `arch impact <id>`, поиск — `arch ask \"<вопрос>\"`."}
+        ]
+      }
+    }
+  ]
+}

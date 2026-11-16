@@ -6,6 +6,7 @@ return [
     'admin.access' => ['admin'],
     'prl100.admin' => ['admin'],
     'prl100.cleanup.admin' => ['admin'],
+    'prl101.view' => ['login'],
     'prl111.view' => ['admin'],
     'prl111.apply' => ['admin'],
     'prl115.admin' => ['admin'],

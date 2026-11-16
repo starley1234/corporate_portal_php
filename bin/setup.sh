@@ -78,11 +78,20 @@ else
     msg ".env уже существует — пропускаю"
 fi
 
-# Администратор не должен получать известный всем пароль.
-if [[ -z "$(env_value .env ADMIN_PASSWORD)" ]]; then
-    env_set .env ADMIN_PASSWORD "$(gen_secret)"
-    msg "Случайный ADMIN_PASSWORD записан в локальный .env (не публикуйте файл)"
-fi
+# Первичный администратор. По умолчанию его создаёт миграция prl110_004
+# (admin/admin) — только на пустой базе.
+# Для production: PRL_DEFAULT_ADMIN=0, затем make seed с сильным паролем.
+case "$(env_value .env PRL_DEFAULT_ADMIN)" in
+    0|false|no|off)
+        if [[ -z "$(env_value .env ADMIN_PASSWORD)" ]]; then
+            env_set .env ADMIN_PASSWORD "$(gen_secret)"
+            msg "Случайный ADMIN_PASSWORD записан в локальный .env (не публикуйте файл)"
+        fi
+        ;;
+    *)
+        msg "Первичный вход: admin / admin (миграция prl110_004). Смените пароль после входа"
+        ;;
+esac
 
 # --- 1b. workers/.env -----------------------------------------------------------
 # Воркерные секреты в git не хранятся (workers/.gitignore), поэтому при

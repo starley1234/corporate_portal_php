@@ -1,0 +1,79 @@
+title: Доступ и границы
+overview:
+  lead: >-
+    **Право — это действие.** `login` открывает вход, но не чужие кадровые
+    данные. Сервис проверяет роль, объект и организационный контекст до выдачи
+    данных, файла или контекста для модели.
+  blocks:
+    - scheme:
+        size: [1120, 440]
+        groups:
+          - [20, 40, 250, 360, "Субъект"]
+          - [300, 40, 540, 360, "Проверки"]
+          - [870, 40, 230, 360, "Ресурсы"]
+        nodes:
+          - { id: user, at: [145, 120, 190], label: Пользователь, sub: сессия и 2FA, kind: user }
+          - { id: worker, at: [145, 250, 190], label: Воркер, sub: X-Worker-Token, kind: queue }
+          - { id: session, at: [400, 100, 200], label: Сессия, sub: cookie и TOTP, kind: sec, info: "{auth}" }
+          - { id: rbac, at: [400, 220, 200], label: RBAC, sub: роль и право, kind: sec, info: "{rbac}" }
+          - { id: policy, at: [660, 100, 200], label: Object policy, sub: объект и оргконтекст, kind: sec }
+          - { id: token, at: [660, 220, 200], label: Worker API, sub: отдельный секрет, kind: sec }
+          - { id: data, at: [985, 90, 190], label: Данные, sub: PostgreSQL, kind: data, info: "{db}" }
+          - { id: files, at: [985, 190, 190], label: Файлы, sub: private storage, kind: data, info: "{storage}" }
+          - { id: llm, at: [985, 290, 190], label: LLM, sub: без секретов, kind: ai, info: "{llm}" }
+        edges:
+          - user -> session
+          - worker -> token
+          - session -> rbac
+          - rbac -> policy
+          - policy -> data
+          - policy -> files
+          - token -> data
+          - token -> files
+          - policy --> llm: { label: только разрешённый контекст }
+        routes:
+          Пользователь: user -> session -> rbac -> policy -> data
+          Воркер: worker -> token -> data
+        hint: Для API 401 означает «нет сессии», 403 — «сессия есть, прав нет». Смешивать их нельзя.
+detail:
+  lead: >-
+    **Что именно защищаем.** Не только страницы: файлы, поисковую выдачу,
+    контекст для модели и административные действия.
+  blocks:
+    - cards:
+        - title: Идентичность
+          text: Пароль хранится как HMAC-SHA256 с серверным ключом. TOTP и активные сессии — в prl599.
+          color: "#3b82f6"
+          chips: [HMAC-SHA256, TOTP, session]
+        - title: Авторизация
+          text: RBAC отвечает за действие, object policy — за конкретный объект и организацию.
+          color: "#e11d48"
+          chips: [RBAC, object policy, orgcontext]
+        - title: Машинный доступ
+          text: Worker API не использует пользовательскую сессию; токен сверяется отдельно.
+          color: "#10b981"
+          chips: [X-Worker-Token, 401, 403]
+        - title: Приватные файлы
+          text: Содержимое вне public_html; скачивание проходит через сервис и проверку прав.
+          color: "#ec4899"
+          chips: [prl212, private, ACL]
+    - table:
+        head: [Ситуация, Ответ, Что нельзя делать]
+        rows:
+          - - Нет сессии
+            - 401
+            - Показывать данные или подменять 401 на 403
+          - - Сессия есть, права нет
+            - 403
+            - Полагаться только на скрытую кнопку в интерфейсе
+          - - Worker API без токена
+            - 403 JSON
+            - Принимать пустой токен в production
+          - - LLM-запрос
+            - Только через сервис
+            - Отправлять секреты, пароли и лишние персональные данные
+        center: []
+    - note: >-
+        Метаданные манифеста (название, иконка, ссылка) не являются проверкой
+        прав. Каждый HTTP-маршрут и каждый публичный сервис проверяют доступ
+        самостоятельно.

@@ -1,0 +1,93 @@
+title: Карта модулей
+overview:
+  lead: >-
+    **Модуль — вертикальный срез.** Внутри: миграции, сервис, контроллер, вьюхи,
+    тесты и манифест. Платформенные модули дают общие контракты, прикладные —
+    отвечают за свой домен.
+  blocks:
+    - scheme:
+        size: [1160, 520]
+        nodes:
+          - { id: core, at: [160, 250, 200], label: prl100_base, sub: "Auth, RBAC, база", kind: core, info: "{portal}" }
+          - { id: platform, at: [420, 110, 200], label: prl100_platform, sub: админ и диагностика, kind: core }
+          - { id: catalog, at: [420, 230, 200], label: prl110_catalog, sub: меню и видимость, kind: core, info: "{catalog}" }
+          - { id: migrations, at: [420, 350, 200], label: prl111_migrations, sub: схема БД, kind: data, info: "{migrations}" }
+          - { id: events, at: [700, 90, 200], label: prl208 EventBus, sub: события, kind: module, info: "{events}" }
+          - { id: storage, at: [700, 200, 200], label: prl212 файлы, sub: приватное хранение, kind: data, info: "{storage}" }
+          - { id: queue, at: [700, 310, 200], label: prl120 очередь, sub: PostgreSQL, kind: queue, info: "{queue}" }
+          - { id: notifications, at: [700, 420, 200], label: prl597 уведомления, sub: in-app и outbox, kind: module, info: "{notifications}" }
+          - { id: employee, at: [990, 110, 210], label: prl300_employee, sub: сотрудник и оргструктура, kind: module, info: "{employee}" }
+          - { id: docflow, at: [990, 230, 210], label: prl390–prl394, sub: документооборот, kind: module, info: "{docflow}" }
+          - { id: ai, at: [990, 350, 210], label: llm и prl115, sub: ИИ и поиск, kind: ai, info: "{llm}" }
+        edges:
+          - core -> platform: { rel: uses }
+          - core -> catalog: { rel: uses }
+          - core -> migrations: { rel: uses }
+          - core -> events: { rel: uses }
+          - core -> storage: { rel: uses }
+          - core -> queue: { rel: uses }
+          - core -> notifications: { rel: uses }
+          - catalog --> employee: { label: манифест }
+          - catalog --> docflow: { label: манифест }
+          - catalog --> ai: { label: манифест }
+          - docflow -> storage: { rel: uses }
+          - docflow -> queue: { rel: uses }
+          - docflow -> notifications: { rel: uses }
+          - docflow -> ai: { rel: uses }
+          - employee -> storage: { rel: uses, label: аватары }
+        hint: Стрелка «манифест» — только чтение метаданных. Права и данные по-прежнему проверяет сервис-владелец.
+    - cards:
+        - title: Ядро
+          text: Auth, RBAC, каталог, миграции и общий контроллер.
+          color: "#f59e0b"
+          chips: [prl100_base, prl100_platform, prl110_catalog, prl111_migrations]
+        - title: Данные и связи
+          text: Файлы, события, очередь и уведомления — общие контракты, а не копии в каждом модуле.
+          color: "#10b981"
+          chips: [prl212, prl208, prl120, prl597]
+        - title: Люди
+          text: Профиль, оргструктура, роли и безопасность аккаунта.
+          color: "#3b82f6"
+          chips: [prl300, prl595, prl599]
+        - title: Документооборот
+          text: Приём PDF, реестр, ИИ-предложения, сроки и ответы.
+          color: "#6366f1"
+          chips: [prl390, prl391, prl392, prl393, prl394]
+        - title: ИИ и знания
+          text: Провайдеры моделей, векторный поиск и техническая память.
+          color: "#14b8a6"
+          chips: [llm, prl115, prl560]
+        - title: План
+          text: 50 сервисов карты, из них 49 planned. ID зарезервированы, код не создаётся заранее.
+          color: "#94a3b8"
+          chips: [portal.php, planned]
+detail:
+  lead: >-
+    **Где что искать.** Полный перечень — `application/config/portal.php`;
+    подключение и порядок миграций — `application/config/modules.php`.
+  blocks:
+    - table:
+        head: [Слой, Модули, Ответственность]
+        rows:
+          - - Ядро
+            - prl100_base, prl100_platform, prl100_search
+            - Auth, RBAC, общий контроллер, диагностика, глобальный поиск
+          - - Каталог и схема
+            - prl110_catalog, prl111_migrations, prl218_module_manager
+            - Меню и видимость, миграции, жизненный цикл модулей
+          - - Инфраструктура
+            - prl208_events, prl120_jobs, prl212_file_storage, prl115_semantic
+            - События, очередь, приватные файлы, векторный поиск
+          - - Люди
+            - prl300_employee, prl595_useradmin, prl599_account
+            - Оргструктура, роли, TOTP и сессии
+          - - Документооборот
+            - prl390_intake … prl394_drafts
+            - Входящие, реестр, ИИ-разбор, сроки, ответы
+          - - ИИ
+            - llm, prl560_knowledge
+            - Провайдеры моделей, техническая база знаний
+        center: []
+    - note: >-
+        `prl140_design_lab` — публичная витрина дизайна, а не рабочий сервис:
+        она не входит в карту 55 сервисов и не использует общий CSS.

@@ -275,10 +275,17 @@ msg "Миграции"
 bash bin/console db:migrate | tail -1
 source bin/_env.sh
 prl_load_env "$ROOT/.env"
-msg "Админ из .env (ADMIN_*)"
-bash bin/console auth:user --email="${ADMIN_EMAIL:-admin@example.test}" \
-    --password="${ADMIN_PASSWORD:?Задайте ADMIN_PASSWORD в .env}" \
-    --username="${ADMIN_USERNAME:-admin}" --admin || true
+case "${PRL_DEFAULT_ADMIN:-1}" in
+    0|false|no|off)
+        msg "Админ из .env (ADMIN_*)"
+        bash bin/console auth:user --email="${ADMIN_EMAIL:-admin@example.test}" \
+            --password="${ADMIN_PASSWORD:?Задайте ADMIN_PASSWORD в .env}" \
+            --username="${ADMIN_USERNAME:-admin}" --admin || true
+        ;;
+    *)
+        msg "Первичный администратор admin/admin создан миграцией (только на пустой базе)"
+        ;;
+esac
 
 msg "Дымовые тесты (мини-раннер, phpunit в закрытой сети недоступен)"
 php tests/mini_runner.php | tail -1

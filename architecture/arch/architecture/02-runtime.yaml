@@ -1,0 +1,92 @@
+title: Слои выполнения
+overview:
+  lead: >-
+    **Один запрос — один путь.** Браузер попадает в контроллер, контроллер — в
+    публичный сервис, сервис — в свою схему PostgreSQL. Долгая работа уходит в
+    очередь, а не держит HTTP-запрос.
+  blocks:
+    - scheme:
+        size: [1180, 560]
+        groups:
+          - [20, 40, 250, 470, "Клиент"]
+          - [300, 40, 600, 470, "PHP-монолит"]
+          - [930, 40, 230, 470, "Инфраструктура"]
+        nodes:
+          - { id: browser, at: [140, 130, 190], label: Браузер, sub: HTML и JS, kind: web }
+          - { id: cli, at: [140, 280, 190], label: CLI / cron, sub: bin/console, kind: ops }
+          - { id: http, at: [420, 130, 210], label: HTTP / HMVC, sub: Controller_Base, kind: core }
+          - { id: acl, at: [420, 260, 210], label: Auth + RBAC, sub: роль и объект, kind: sec }
+          - { id: service, at: [700, 130, 220], label: Service_PrlXXX, sub: бизнес-логика, kind: module }
+          - { id: view, at: [700, 260, 220], label: View / partials, sub: "prl-card, prl-table", kind: web }
+          - { id: db, at: [1030, 110, 180], label: PostgreSQL, sub: схема и миграции, kind: data, info: "{db}" }
+          - { id: queue, at: [700, 390, 220], label: prl120 очередь, sub: PostgreSQL, kind: queue, info: "{queue}" }
+          - { id: events, at: [420, 390, 210], label: prl208 EventBus, sub: подписчики, kind: module, info: "{events}" }
+          - { id: storage, at: [1030, 240, 180], label: prl212 файлы, sub: private storage, kind: data, info: "{storage}" }
+          - { id: workers, at: [1030, 370, 180], label: Python-воркеры, sub: pg или http, kind: queue, info: "{workers}" }
+          - { id: llm, at: [1030, 470, 180], label: LLM, sub: внешние модели, kind: ai, info: "{llm}" }
+        edges:
+          - browser -> http
+          - cli -> service: { rel: uses }
+          - http -> acl: { rel: enforces }
+          - http -> service: { rel: uses }
+          - acl --> service: { rel: enforces, label: разрешено }
+          - service -> db: { rel: uses }
+          - service -> storage: { rel: uses }
+          - service -> queue: { rel: uses, label: длинная работа }
+          - service -> events: { rel: uses, label: событие }
+          - service -> view: { rel: uses }
+          - view --> browser: { rel: carries, label: HTML }
+          - queue -> workers: { rel: carries, label: задача }
+          - workers --> db: { rel: uses, label: результат }
+          - workers -> storage: { rel: uses, label: файлы }
+          - workers -> llm: { rel: uses, label: запрос }
+        routes:
+          Синхронный запрос: browser -> http -> acl -> service -> db
+          Долгая работа: http -> service -> queue -> workers -> db
+          Событие: service -> events
+        hint: Контроллер не содержит бизнес-логики и не ходит в чужие таблицы. Это делает права и повторное использование предсказуемыми.
+    - sequence:
+        width: 1120
+        actors:
+          - { id: u, label: Сотрудник, kind: user }
+          - { id: c, label: Controller, kind: core }
+          - { id: s, label: Service, kind: module }
+          - { id: d, label: PostgreSQL, kind: data }
+          - { id: q, label: prl120, kind: queue }
+        messages:
+          - u -> c: HTTP-запрос
+          - c -> s: операция с объектом
+          - s -> d: SQL в своей схеме
+          - s --> c: результат
+          - c --> u: HTML или JSON
+          - s -> q: длинная работа
+        phases:
+          - [1, 5, "Синхронный ответ"]
+          - [6, 6, "Асинхронно"]
+detail:
+  lead: >-
+    **Пять контрактов платформы.** Новый модуль не создаёт свой Auth, очередь,
+    LLM-клиент или уведомления: он пользуется общими.
+  blocks:
+    - table:
+        head: [Контракт, Как выглядит, Зачем]
+        rows:
+          - - Публичный сервис
+            - Service_PrlXXX::method(...)
+            - Политика и проверка объекта внутри сервиса
+          - - Событие
+            - prlXXX.entity.action + payload из ID
+            - Подписчик не зависит от ORM-модели автора
+          - - HMVC
+            - View::factory готового виджета
+            - Нет прямого include чужой вьюхи
+          - - Очередь
+            - Service_Prl120_JobQueue::push
+            - Таймаут, повтор, отмена и учёт ресурсов
+          - - Манифест
+            - config/prl_module.php
+            - Каталог и меню не знают списков чужих модулей
+        center: []
+    - note: >-
+        Секреты и токены не попадают в payload очереди. Воркер получает ID
+        объекта, а параметры окружения — из своего `.env`.

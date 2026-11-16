@@ -1,0 +1,119 @@
+title: Документооборот
+overview:
+  lead: >-
+    **ИИ предлагает, человек решает.** PDF проходит нормализацию, карточку,
+    предложение модели, срок и черновик ответа. Ни один шаг не пишет в карточку
+    окончательное решение без человека.
+  blocks:
+    - scheme:
+        size: [1180, 560]
+        groups:
+          - [20, 40, 250, 470, "Вход"]
+          - [300, 40, 560, 470, "Обработка"]
+          - [890, 40, 270, 470, "Человек"]
+        nodes:
+          - { id: folder, at: [145, 120, 190], label: Папка inbox, sub: PDF из examples, kind: ext }
+          - { id: upload, at: [145, 240, 190], label: Загрузка, sub: приказ или письмо, kind: web }
+          - { id: intake, at: [410, 110, 210], label: prl390 intake, sub: dedup и prl212, kind: module, info: "{intake}" }
+          - { id: storage, at: [410, 230, 210], label: prl212 storage, sub: "sha256, private", kind: data, info: "{storage}" }
+          - { id: normalize, at: [410, 350, 210], label: doc.normalize, sub: pypdf и OCR, kind: queue }
+          - { id: card, at: [700, 110, 210], label: prl391 documents, sub: реестр и карточка, kind: module, info: "{documents}" }
+          - { id: analysis, at: [700, 230, 210], label: prl392 analysis, sub: doc.analyze, kind: ai, info: "{analysis}" }
+          - { id: workflow, at: [700, 350, 210], label: prl393 workflow, sub: сроки и эскалации, kind: module, info: "{workflow}" }
+          - { id: drafts, at: [1010, 230, 190], label: prl394 drafts, sub: doc.draft, kind: module, info: "{drafts}" }
+          - { id: clerk, at: [1010, 110, 190], label: Делопроизводитель, sub: проверяет и решает, kind: user }
+          - { id: manager, at: [1010, 350, 190], label: Руководитель, sub: утверждает ответ, kind: user }
+        edges:
+          - folder -> intake
+          - upload -> intake
+          - intake -> storage: { rel: uses }
+          - intake -> normalize: { rel: uses, label: message_id }
+          - normalize --> intake: { rel: carries, label: текст }
+          - intake -> card: { rel: uses, label: карточка }
+          - card -> analysis: { rel: uses, label: run_id }
+          - analysis -> clerk: { rel: carries, label: предложение }
+          - clerk --> analysis: { rel: uses, label: принять или отклонить }
+          - analysis -> card: { rel: carries, label: поля }
+          - card -> workflow: { rel: uses, label: срок }
+          - workflow -> drafts: { rel: uses, label: шаблон }
+          - drafts -> manager: { rel: carries, label: проект }
+          - manager --> drafts: { rel: uses, label: утвердить }
+        routes:
+          Новый PDF: folder -> intake -> card
+          ИИ-разбор: card -> analysis -> clerk
+          Ответ: card -> workflow -> drafts -> manager
+        hint: Длинные операции идут через prl120. Результат модели — черновик предложения, а не изменение карточки.
+    - sequence:
+        width: 1160
+        actors:
+          - { id: u, label: Делопроизводитель, kind: user }
+          - { id: i, label: prl390, kind: module }
+          - { id: q, label: prl120, kind: queue }
+          - { id: w, label: Воркер, kind: queue }
+          - { id: d, label: prl391, kind: data }
+          - { id: a, label: prl392, kind: ai }
+          - { id: s, label: prl393, kind: module }
+          - { id: r, label: prl394, kind: module }
+        messages:
+          - u -> i: загрузить PDF
+          - i -> q: message_id
+          - q -> w: doc.normalize
+          - w --> i: текст
+          - i -> d: карточка
+          - u -> a: запустить разбор
+          - a -> q: run_id
+          - q -> w: doc.analyze
+          - w --> a: JSON-предложение
+          - u -> a: принять или отклонить
+          - d -> s: рассчитать срок
+          - s -> r: создать черновик
+          - r -> q: draft_id
+          - q -> w: doc.draft
+          - w --> r: текст ответа
+          - u -> r: утвердить и отправить
+        phases:
+          - [1, 5, "Приём и текст"]
+          - [6, 10, "ИИ-разбор"]
+          - [11, 16, "Срок и ответ"]
+detail:
+  lead: >-
+    **Что проверяется на каждом шаге.** Ошибка и таймаут — это не разрешение:
+    документ остаётся в очереди или получает честный статус ошибки.
+  blocks:
+    - cards:
+        - title: Приём
+          text: MIME application/pdf, лимит 10 МБ, дедупликация по SHA-256, файл только в prl212.
+          color: "#f59e0b"
+          chips: [prl390, prl212, sha256]
+        - title: Предложение
+          text: Ответ модели сохраняется как предложение, человек принимает или отклоняет его.
+          color: "#14b8a6"
+          chips: [prl392, human-in-the-loop]
+        - title: Срок
+          text: Правило маршрутизации выбирает тип и срок; повторный маршрут возвращает документ в open.
+          color: "#6366f1"
+          chips: [prl393, SLA]
+        - title: Ответ
+          text: Черновик защищён от позднего результата модели; отправка — только вручную.
+          color: "#e11d48"
+          chips: [prl394, approve, send]
+    - table:
+        head: [Событие, Кто слушает, Результат]
+        rows:
+          - - prl390.message.received
+            - prl391
+            - Карточка и провенанс
+          - - prl391.document.created
+            - prl392, prl393
+            - Очередь разбора и расчёт срока
+          - - prl392.analysis.accepted
+            - prl391
+            - Поля карточки обновлены человеком
+          - - prl394.draft.approved
+            - prl597
+            - Уведомление и ручная отправка
+        center: []
+    - warn: >-
+        Результат модели не является юридическим решением. Если модель
+        недоступна, документ не получает «пустой» разбор и не закрывается
+        автоматически.

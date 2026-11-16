@@ -24,8 +24,8 @@ bash bin/test                          # 46/46 дымовые+юнит (мини
 |---|---|---|
 | PHP 8.4 CLI | собран из исходников в `/tmp/prl-opt/php`, симлинк `/usr/local/bin/php` | `php -v` |
 | PostgreSQL 16.2 | PyPI-пакет pgserver, данные `~/.prl/pgdata`, порт 5432 | `psql -h 127.0.0.1 -U prl -d prl -c 'select 1'` |
-| Схема БД | `bin/console db:migrate` (26 миграций) | `bin/console db:migrate --status` |
-| Админ | `bin/console auth:user --email="$ADMIN_EMAIL" --password="$ADMIN_PASSWORD" --username=admin --admin` | вход `/auth/login` |
+| Схема БД | `bin/console db:migrate` (32 миграции) | `bin/console db:migrate --status` |
+| Админ | миграция prl110_004: `admin` / `admin` (только на пустой базе) | вход `/auth/login` |
 | Сайт | `PORT=8080 bash bin/serve` (0.0.0.0 — виден в превью) | `curl -I localhost:8080/auth/login` |
 | Тесты | `bash bin/test` (fallback на tests/mini_runner.php — без composer) | 46/46 |
 

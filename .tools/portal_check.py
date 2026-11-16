@@ -20,6 +20,9 @@ for name, kind, relative in registered:
     check(path.is_dir(), f'Не найден модуль {name}: {path}')
 check(len({name for name, _, _ in registered}) == len(registered), 'Дубликаты ключей модулей')
 check(registry.index("'prl208_events'") < registry.index("'prl120_jobs'"), 'Шина должна предшествовать очереди')
+check((ROOT / 'architecture/arch/meta.yaml').is_file(), 'Нет модели architecture/arch/meta.yaml')
+check((ROOT / 'architecture/dist/architecture.html').is_file(), 'Нет собранной architecture/dist/architecture.html')
+check((ROOT / 'architecture/dist/architecture.json').is_file(), 'Нет собранной architecture/dist/architecture.json')
 check("config/modules.php" in (ROOT / 'application/bootstrap.php').read_text(), 'Bootstrap обходит реестр')
 
 plan = (ROOT / 'application/config/portal.php').read_text()

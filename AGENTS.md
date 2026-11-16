@@ -10,7 +10,8 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
 - Карта сервисов: `application/config/portal.php`, `docs/ROADMAP.md` — 50 из
   карты плюс домен `docflow` (`prl390`–`prl394`), всего 55.
   Статус `planned` не означает работающий модуль.
-- Архитектура: `docs/ARCHITECTURE.md`; создание: `docs/MODULE_GUIDE.md`.
+- Архитектура: `docs/ARCHITECTURE.md`, модель и схемы — `architecture/arch`
+  (`make architecture`, страница `/architecture`); создание: `docs/MODULE_GUIDE.md`.
 - Дизайн: `docs/DESIGN-SYSTEM.md`, `.tools/tailwind/input.css`, `app.js`.
   Явное исключение — публичная демонстрационная `prl140_design_lab`: прямой
   `Controller`, без Auth/БД/общего шаблона и с автономными CSS вариантов.
@@ -42,6 +43,8 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
 7. Миграции идемпотентны; после первого релиза не менять применённые миграции.
    Текущая основа предназначена для новой БД. Не запускать на старой БД без
    согласованного переноса; не добавлять массовый DROP старых таблиц.
+   Миграция prl110_004 создаёт admin/admin только на пустой базе; на production
+   задайте `PRL_DEFAULT_ADMIN=0` и создайте администратора через `make seed`.
 8. LLM/эмбеддинги и тяжёлые операции — очередь `prl120_jobs`; общий код воркера
    `workers/prl_workers/{base,llm,llmwatch,usage,webread}.py` не дублировать.
    Heartbeat, retry, cancel, usage сохраняются. Новый канал регистрируется в
@@ -62,6 +65,7 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
 ## Проверки перед завершением
 ```bash
 make check                         # статические контракты основы
+make architecture                  # YAML -> HTML/JSON, проверка модели
 python3 .tools/php_parse_lint.py application
 make lint                          # настоящий PHP -l (когда PHP установлен)
 bash bin/test                      # PHP unit/smoke, нужна новая БД с миграциями

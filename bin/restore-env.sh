@@ -206,10 +206,17 @@ install_app() {
 
     source bin/_env.sh
     prl_load_env "$ROOT/.env"
-    msg "Создаю администратора"
-    bin/console auth:user --email="${ADMIN_EMAIL:-admin@example.test}" \
-        --password="${ADMIN_PASSWORD:?Задайте ADMIN_PASSWORD в .env}" \
-        --username="${ADMIN_USERNAME:-admin}" --admin || warn "Админ не создан (возможно, уже есть)"
+    case "${PRL_DEFAULT_ADMIN:-1}" in
+        0|false|no|off)
+            msg "Создаю администратора из ADMIN_*"
+            bin/console auth:user --email="${ADMIN_EMAIL:-admin@example.test}" \
+                --password="${ADMIN_PASSWORD:?Задайте ADMIN_PASSWORD в .env}" \
+                --username="${ADMIN_USERNAME:-admin}" --admin || warn "Админ не создан (возможно, уже есть)"
+            ;;
+        *)
+            msg "Первичный администратор admin/admin создан миграцией (только на пустой базе)"
+            ;;
+    esac
 }
 
 # =============================================================================

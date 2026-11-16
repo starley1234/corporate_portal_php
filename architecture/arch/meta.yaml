@@ -1,0 +1,24 @@
+# PRL · модель архитектуры портала.
+# Источник истины — этот каталог; страница и JSON собираются из YAML.
+# Правьте YAML, затем: make architecture
+
+title: PRL · архитектура портала
+heading: PRL — архитектура портала
+subtitle: "Модульный монолит Kohana/PHP 8.4: RBAC, PostgreSQL, очередь prl120 и Python-воркеры. Документация собирается из YAML."
+sections:
+  - { dir: architecture, label: "Архитектура", role: primary }
+  - { dir: governance, label: "Управление", role: governance }
+kinds:
+  ext: [ "#8a93a3", Внешние системы ]
+  user: [ "#3b82f6", Пользователи и роли ]
+  web: [ "#8b5cf6", Интерфейс ]
+  core: [ "#f59e0b", Ядро ]
+  module: [ "#6366f1", Модули ]
+  data: [ "#ec4899", Данные ]
+  queue: [ "#10b981", Очередь и воркеры ]
+  ai: [ "#14b8a6", ИИ ]
+  sec: [ "#e11d48", Безопасность ]
+  ops: [ "#0ea5e9", Эксплуатация ]
+  planned: [ "#94a3b8", План ]
+ui:
+  shell: panel

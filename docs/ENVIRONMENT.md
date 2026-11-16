@@ -3,13 +3,15 @@
 ## Требования
 PHP 8.4 CLI/FPM с pgsql, pdo_pgsql, mbstring, curl, openssl, JSON, session;
 PostgreSQL 16+ (Docker: 17 + pgvector), Python 3.11+, Composer 2.
-Node нужен только для сборки Tailwind и UI-тестов, не на production-сервере.
+Node нужен только для сборки Tailwind, UI-тестов и `make architecture`;
+собранные HTML/JSON коммитятся, на production Node не требуется.
 
 ```bash
-bash bin/setup.sh                  # .env, секреты, случайный пароль админа, runtime
-# Проверьте .env: APP_URL, DB_DEFAULT_*, ADMIN_*. Не публикуйте пароль.
+bash bin/setup.sh                  # .env, секреты, runtime
+# Проверьте .env: APP_URL, DB_DEFAULT_*, ADMIN_*.
 make up                           # Docker: nginx/php/postgres/redis
-make migrate && make seed         # если CLI PHP доступен на хосте
+make migrate                      # на чистой базе создаёт admin/admin
+make seed                         # только если PRL_DEFAULT_ADMIN=0
 ```
 
 Команды внутри Docker — в README. Bind mount корня скрывает vendor образа:

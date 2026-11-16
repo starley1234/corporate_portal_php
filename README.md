@@ -37,6 +37,8 @@ Service Desk, EHS, проектов и культуры запланирован
   десяти направлений дизайна, включая четыре варианта по эталону v6 и
   точную адаптацию `required_design_sample`, без Auth, БД и общего CSS
   рабочего портала.
+- Архитектура как код: `architecture/arch/*.yaml` → страница `/architecture`
+  и JSON `/architecture/data.json` (`make architecture`), с проверкой схем и ADR.
 
 ## Запуск с новой БД
 
@@ -45,7 +47,7 @@ Service Desk, EHS, проектов и культуры запланирован
 > а не совместимое обновление старого сайта. [План перехода](docs/MIGRATION.md).
 
 ```bash
-bash bin/setup.sh                 # .env, случайные секреты и пароль админа
+bash bin/setup.sh                 # .env, случайные секреты, каталоги
 # Проверьте APP_URL, DB_DEFAULT_* и ADMIN_* в .env.
 docker compose up -d --build
 # Дайте контейнеру PostgreSQL пройти healthcheck.
@@ -53,14 +55,15 @@ docker compose up -d --build
 docker compose exec php chown -R www-data:www-data application/cache application/logs application/sessions storage
 docker compose exec php composer install --no-dev --no-interaction
 docker compose exec php php public_html/index.php db:migrate
-docker compose exec php sh -c 'php public_html/index.php auth:user --email="$ADMIN_EMAIL" --username="$ADMIN_USERNAME" --password="$ADMIN_PASSWORD" --admin'
 ```
 
 Вход: `/auth/login`. Главная портала закрыта для гостя; исключение —
 демонстрационная витрина `/design-lab`, где нет рабочих данных и действий.
-Учётные записи создаёт администратор; саморегистрация выключена. Админский пароль — только в локальном
-`.env`, универсального пароля нет. Перед production нужны собственные пароли БД,
-HTTPS, утверждённые политики доступа, почты, резервирования и обработки данных.
+Учётные записи создаёт администратор; саморегистрация выключена. На чистой базе
+миграция создаёт **admin / admin** — смените пароль после первого входа. Для
+production: `PRL_DEFAULT_ADMIN=0` в `.env` и `make seed` с сильным паролем.
+Перед production нужны собственные пароли БД, HTTPS, утверждённые политики
+доступа, почты, резервирования и обработки данных.
 
 Нативная разработка: `bash bin/restore-env.sh --serve`. В ограниченной сети:
 `bash bin/setup-sandbox.sh`, затем `PORT=8080 bash bin/serve`.

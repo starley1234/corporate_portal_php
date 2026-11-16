@@ -15,6 +15,8 @@ return [
     'prl111_migrations' => APPPATH.'modules/prl111_migrations',
     'prl100_platform' => APPPATH.'modules/prl100_platform',
     'prl100_search' => APPPATH.'modules/prl100_search',
+    // Документация архитектуры: YAML -> страница и JSON (make architecture).
+    'prl101_architecture' => APPPATH.'modules/prl101_architecture',
     'prl110_catalog' => APPPATH.'modules/prl110_catalog',
     'prl140_design_lab' => APPPATH.'modules/prl140_design_lab',
     'prl208_events' => APPPATH.'modules/prl208_events',

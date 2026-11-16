@@ -11,7 +11,9 @@
 3. `composer install --no-dev`, проверенный app.css из Git. Node на сервере
    не требуется. Настроить php-fpm-пользователю доступ к runtime и storage,
    не использовать chmod 777.
-4. Новая БД: `bin/console db:migrate`, повторный запуск, `make seed`.
+4. Новая БД: `bin/console db:migrate`; на чистой базе миграция создаёт
+   admin/admin — сразу смените пароль. Для production задайте
+   `PRL_DEFAULT_ADMIN=0` и создайте администратора через `make seed`.
    Для старых данных — только отдельный план MIGRATION.md.
 5. Служба `python -m prl_workers` из workers/, отдельное окружение/секреты,
    разрешённые каналы и внутренние LLM/embedding endpoints.
