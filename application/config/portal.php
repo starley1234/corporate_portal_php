@@ -51,6 +51,13 @@ return ['domains' => [
         ['module' => 'prl385_briefings', 'title' => 'Инструктажи по охране труда', 'status' => 'planned'],
         ['module' => 'prl386_zones', 'title' => 'Карта зон доступа', 'status' => 'planned'],
     ]],
+    'docflow' => ['title' => 'Документооборот', 'services' => [
+        ['module' => 'prl390_intake', 'title' => 'Входящие документы', 'status' => 'active'],
+        ['module' => 'prl391_documents', 'title' => 'Реестр входящих', 'status' => 'active'],
+        ['module' => 'prl392_analysis', 'title' => 'ИИ-анализ входящих', 'status' => 'active'],
+        ['module' => 'prl393_workflow', 'title' => 'Сроки и маршруты', 'status' => 'active'],
+        ['module' => 'prl394_drafts', 'title' => 'Ответы на письма', 'status' => 'active'],
+    ]],
     'projects' => ['title' => 'Управление проектами', 'services' => [
         ['module' => 'prl400_projects', 'title' => 'Доска общих проектов', 'status' => 'planned'],
         ['module' => 'prl401_tasks', 'title' => 'Управление задачами команд', 'status' => 'planned'],

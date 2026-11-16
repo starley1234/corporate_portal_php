@@ -24,12 +24,25 @@ cd workers && python3 -m prl_workers
 | `llm.summarize` | LLM-запрос из payload, возвращает текст |
 | `embeddings.index` | Возвращает sample векторов для инфраструктурных задач |
 | `semantic.index` | Индексирует тексты коллекции prl115 через PG или HTTP |
+| `doc.normalize` | PDF/текст из prl212 → текстовый слой (pypdf, OCR при <40 символов) |
+| `doc.analyze` | Карточка-предложение по тексту; ответ только JSON (`parse_json_reply`) |
+| `doc.draft` | Проект ответа по шаблону и карточке; кладёт текст в prl394 |
 
 Секреты и адреса моделей — окружение, не payload. Общие клиенты `llm.py`,
 watchdog `llmwatch.py`, ресурсный учёт `usage.py`, webread не дублировать.
 Новый канал добавляется явно в HANDLERS и в `config/prl_module.php` владельца.
 Для HTTP-доставки semantic.index нужны `PRL115_API_BASE`, `PRL115_SITE_TOKEN`
 (или `WORKER_SITE_TOKEN`). В PG-режиме индексация пишет в БД напрямую.
+
+### Документооборот (prl390–prl394)
+
+Полезная нагрузка содержит только ID, секреты и токены в очередь не кладутся:
+`{"message_id": N}` → `doc.normalize`, `{"run_id": N}` → `doc.analyze`,
+`{"draft_id": N}` → `doc.draft`. Модель задаётся `PRL392_MODEL` и
+`PRL394_MODEL` (префикс `local::` — для собственного шлюза). Для оффлайн-демо
+есть `workers/mock/mock_llm_server.py` и `MOCK_LLM_ROUTES`; сценарий и три PDF —
+в [examples/docflow](../examples/docflow/README.md). Без `pypdf`
+`doc.normalize` честно падает в ошибку, а не отдаёт пустой текст.
 
 ## Обслуживание и уведомления
 

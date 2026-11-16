@@ -1,0 +1,20 @@
+{
+  "type": "tax",
+  "type_confidence": 0.96,
+  "fields": {
+    "correspondent_name": {"value": "ИФНС России № 12 по г. Москве", "quote": "ИФНС России № 12 по г. Москве", "confidence": 0.99},
+    "sender_inn": {"value": "", "quote": "", "confidence": 0.0},
+    "outbound_no": {"value": "45-16/9876", "quote": "Исх. № 45-16/9876 от 10.11.2026", "confidence": 0.94},
+    "outbound_date": {"value": "2026-11-10", "quote": "Исх. № 45-16/9876 от 10.11.2026", "confidence": 0.94},
+    "contract_no": {"value": "47/2026", "quote": "Договор с ООО «Ромашка» № 47/2026", "confidence": 0.80},
+    "amount": {"value": "", "quote": "", "confidence": 0.0},
+    "deadline_hint_days": {"value": "5", "quote": "в течение пяти рабочих дней", "confidence": 0.95},
+    "deadline_hint_unit": {"value": "business", "quote": "пяти рабочих дней", "confidence": 0.95}
+  },
+  "summary": "ИФНС России № 12 требует в течение пяти рабочих дней представить договор с ООО «Ромашка» № 47/2026, товарные накладные за 2026 год и акты сверки. Непредставление влечёт ответственность по ст. 126 НК РФ.",
+  "risk": {"level": "high", "reasons": ["Требование налогового органа", "Срок пять рабочих дней", "Ответственность по ст. 126 НК РФ"]},
+  "findings": [
+    {"kind": "deadline", "text": "пять рабочих дней"},
+    {"kind": "obligation", "text": "представить договор, накладные и акты сверки"}
+  ]
+}

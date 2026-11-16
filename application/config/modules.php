@@ -23,6 +23,14 @@ return [
     'prl212_file_storage' => APPPATH.'modules/prl212_file_storage',
     'prl218_module_manager' => APPPATH.'modules/prl218_module_manager',
     'prl300_employee' => APPPATH.'modules/prl300_employee',
+    // Документооборот prl390–prl394: приём → реестр → ИИ-разбор → сроки → ответы.
+    // Порядок важен: prl390 создаёт конверт, prl391 — карточку, остальные
+    // подписываются на события предыдущих.
+    'prl390_intake' => APPPATH.'modules/prl390_intake',
+    'prl391_documents' => APPPATH.'modules/prl391_documents',
+    'prl392_analysis' => APPPATH.'modules/prl392_analysis',
+    'prl393_workflow' => APPPATH.'modules/prl393_workflow',
+    'prl394_drafts' => APPPATH.'modules/prl394_drafts',
     'prl560_knowledge' => APPPATH.'modules/prl560_knowledge',
     'prl595_useradmin' => APPPATH.'modules/prl595_useradmin',
     'prl597_notifications' => APPPATH.'modules/prl597_notifications',

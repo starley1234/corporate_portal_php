@@ -5,6 +5,8 @@ trafilatura>=1.12
 lxml_html_clean>=0.1
 markdownify>=0.13
 beautifulsoup4>=4.12
+# PDF входящих документов (канал doc.normalize, prl390)
+pypdf>=5.0
 # Опциональные адаптеры webread (не нужны для внутренних документов):
 # curl_cffi>=0.7
 # ddgs>=9.0

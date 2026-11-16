@@ -4,7 +4,16 @@ from prl_workers.llm import scan_providers
 
 
 def test_only_foundation_handlers_are_registered():
-    assert set(HANDLERS) == {"echo", "embeddings.index", "llm.summarize", "semantic.index"}
+    assert set(HANDLERS) == {
+        "echo",
+        "embeddings.index",
+        "llm.summarize",
+        "semantic.index",
+        # документооборот prl390–prl394
+        "doc.normalize",
+        "doc.analyze",
+        "doc.draft",
+    }
 
 
 def test_worker_transport_is_not_an_llm_provider(monkeypatch):

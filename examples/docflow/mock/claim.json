@@ -1,0 +1,20 @@
+{
+  "type": "claim",
+  "type_confidence": 0.94,
+  "fields": {
+    "correspondent_name": {"value": "ООО «Ромашка»", "quote": "ООО «Ромашка»", "confidence": 0.98},
+    "sender_inn": {"value": "", "quote": "", "confidence": 0.0},
+    "outbound_no": {"value": "118", "quote": "Исх. № 118 от 12.11.2026", "confidence": 0.93},
+    "outbound_date": {"value": "2026-11-12", "quote": "Исх. № 118 от 12.11.2026", "confidence": 0.93},
+    "contract_no": {"value": "47/2026", "quote": "по договору поставки № 47/2026 от 03.02.2026", "confidence": 0.96},
+    "amount": {"value": "1245000.00", "quote": "неустойку в размере 1 245 000,00 руб.", "confidence": 0.95},
+    "deadline_hint_days": {"value": "10", "quote": "в течение 10 календарных дней", "confidence": 0.91},
+    "deadline_hint_unit": {"value": "calendar", "quote": "10 календарных дней", "confidence": 0.91}
+  },
+  "summary": "ООО «Ромашка» требует уплатить неустойку 1 245 000,00 руб. по договору поставки № 47/2026 за нарушение сроков поставки. Срок ответа — 10 календарных дней.",
+  "risk": {"level": "high", "reasons": ["Досудебная претензия с суммой", "Срок ответа 10 календарных дней"]},
+  "findings": [
+    {"kind": "amount", "text": "1 245 000,00 руб."},
+    {"kind": "deadline", "text": "10 календарных дней с даты получения"}
+  ]
+}

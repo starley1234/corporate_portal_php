@@ -26,9 +26,9 @@ plan = (ROOT / 'application/config/portal.php').read_text()
 plan_entries = re.findall(r"'module' => '(prl\d+_[a-z_]+)',\s*'title' => '[^']+',\s*'status' => '(planned|active)'", plan)
 planned = [name for name, _status in plan_entries]
 active_services = [name for name, status in plan_entries if status == 'active']
-check(len(planned) == 50, 'План должен содержать 50 сервисов')
-check(len(set(planned)) == 50, 'Дубли в плане')
-check(len({re.search(r'\d+', name)[0] for name in planned}) == 50, 'Дубли ID в плане')
+check(len(planned) == 55, 'План должен содержать 55 сервисов')
+check(len(set(planned)) == 55, 'Дубли в плане')
+check(len({re.search(r'\d+', name)[0] for name in planned}) == 55, 'Дубли ID в плане')
 for name, status in plan_entries:
     exists = (ROOT / 'application/modules' / name).exists()
     registered_service = f"'{name}' =>" in registry
@@ -69,7 +69,7 @@ for path in (ROOT / 'workers/prl_workers').rglob('*.py'):
         check(bool(match), f'Нет CHANNEL в {path.name}')
         if match:
             channel_names.append(match[1])
-check(set(channel_names) == {'echo', 'embeddings.index', 'llm.summarize', 'semantic.index'}, 'Лишние/потерянные worker-каналы')
+check(set(channel_names) == {'echo', 'embeddings.index', 'llm.summarize', 'semantic.index', 'doc.normalize', 'doc.analyze', 'doc.draft'}, 'Лишние/потерянные worker-каналы')
 manifest_text = '\n'.join(p.read_text() for p in (ROOT / 'application/modules').glob('*/config/prl_module.php'))
 for channel in channel_names:
     check(f"'{channel}'" in manifest_text, f'Канал не объявлен в манифесте: {channel}')
@@ -85,4 +85,4 @@ check('portal:maintain' in (ROOT / 'docs/WORKERS.md').read_text(), 'Не опи�
 if errors:
     print('\n'.join('FAIL: ' + item for item in errors))
     sys.exit(1)
-print(f'PRL contracts OK: {len(registered)} registered modules, {len(classes)} PHP classes, {len(active_services)} active + {50 - len(active_services)} planned services, 4 worker channels')
+print(f'PRL contracts OK: {len(registered)} registered modules, {len(classes)} PHP classes, {len(active_services)} active + {55 - len(active_services)} planned services, {len(channel_names)} worker channels')

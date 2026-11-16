@@ -4,11 +4,11 @@
 дизайн и платформенные механизмы исходного проекта; прежние публичные сервисы
 удалены. Все проектные префиксы унифицированы: `prl` / `Prl` / `PRL`.
 
-**Это фундамент и первый HR-MVP, а не 50 готовых бизнес-сервисов.**
-Реализован `prl300_employee`: структура холдинга, площадки, подразделения,
-профиль и справочник сотрудников, сопоставление аккаунтов и импорт HR-данных.
-Остальные 49 сервисов HR, коммуникаций, знаний, Service Desk, EHS, проектов
-и корпоративной культуры запланированы в [docs/ROADMAP.md](docs/ROADMAP.md).
+**Это фундамент, HR-MVP и рабочий документооборот, а не 55 готовых бизнес-сервисов.**
+Реализованы `prl300_employee` (структура холдинга, профиль, импорт HR-данных) и
+контур `prl390`–`prl394`: PDF из папки → реестр → ИИ-разбор предложениями →
+сроки → черновики ответов. Остальные 49 сервисов HR, коммуникаций, знаний,
+Service Desk, EHS, проектов и культуры запланированы в [docs/ROADMAP.md](docs/ROADMAP.md).
 
 Рабочие страницы портала приведены к эталону
 `/pages/required_design_sample` и общей дизайн-системе v6. Отдельная
@@ -28,6 +28,9 @@
 - LLM-фасад, embeddings, семантический поиск и технический RAG-кэш.
 - Первый HR-MVP `prl300_employee` с оргконтекстом для следующих сервисов:
   `organization_id`, `department_id`, `site_id`, `employee_id`.
+- Документооборот `prl390`–`prl394`: папка PDF, дедупликация и текст в
+  воркере, карточка с провенансом, ИИ-предложения без права писать в карточку,
+  правила сроков и ручная отправка ответов.
 - Локальная дизайн-система: адаптивная оболочка, светлая/тёмная темы,
   компоненты PHP/Tailwind, общий JS API `PRL.*`.
 - Публичная изолированная витрина `prl140_design_lab` для сравнения
@@ -73,7 +76,9 @@ cd workers && python3 -m prl_workers
 # Альтернатива: docker compose --profile workers up -d --build
 ```
 
-Остались каналы `echo`, `embeddings.index`, `llm.summarize`, `semantic.index`.
+Каналы: `echo`, `embeddings.index`, `llm.summarize`, `semantic.index`,
+`doc.normalize`, `doc.analyze`, `doc.draft`. Демонстрационные PDF и прогон —
+[examples/docflow](examples/docflow/README.md), `make docflow-demo`.
 Сетевые LLM/embedding-адреса в шаблонах пусты: задайте разрешённые внутренние
 эндпоинты. Для разработки без GPU есть `workers/mock/`.
 
@@ -93,7 +98,7 @@ make new-module id=301 slug=onboarding name="Онбординг-трек"
 в `application/config/modules.php`, policy/ACL, тесты и выполните миграции.
 
 Контракты — [MODULE_GUIDE](docs/MODULE_GUIDE.md), архитектура —
-[ARCHITECTURE](docs/ARCHITECTURE.md), карта 50 сервисов —
+[ARCHITECTURE](docs/ARCHITECTURE.md), карта 55 сервисов —
 [ROADMAP](docs/ROADMAP.md), правила разработки — [AGENTS.md](AGENTS.md).
 
 ## Проверки

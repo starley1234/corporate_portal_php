@@ -24,7 +24,7 @@ PHPUNIT  ?= bin/test
 .PHONY: help restore restore-pg restore-php restore-app setup up down restart logs shell ps \
         migrate migrate-status migrate-down seed test test-coverage lint doctor \
         modules new-module fresh cache-clear console composer worker worker-install \
-        brief backlog doc-index \
+        brief backlog doc-index docflow-demo \
         up-worker worker-logs mock-llm mock-embed stack up-tools backup backup-check
 
 help: ## показать эту справку
@@ -102,6 +102,11 @@ fresh: ## ПЕРЕСОЗДАТЬ схему БД с нуля (drop schema public
 
 lint: ## проверка синтаксиса всех PHP-файлов
 	find application system modules public_html -name '*.php' -print0 | xargs -0 -n1 php -l
+
+docflow-demo: ## положить демонстрационные PDF в папку входящих prl390
+	@mkdir -p storage/docflow/inbox storage/docflow/processed storage/docflow/duplicates storage/docflow/error
+	@cp -v examples/docflow/*.pdf storage/docflow/inbox/
+	@echo "Готово: откройте /inbox и нажмите «Сканировать папку»."
 
 backup: ## резервная копия: дамп БД + архив файловых хранилищ
 	bash bin/backup.sh

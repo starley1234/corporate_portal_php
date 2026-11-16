@@ -7,7 +7,8 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
 
 ## Вход в задачу
 - Реестр подключённых модулей: `application/config/modules.php`.
-- Карта будущих 50 сервисов: `application/config/portal.php`, `docs/ROADMAP.md`.
+- Карта сервисов: `application/config/portal.php`, `docs/ROADMAP.md` — 50 из
+  карты плюс домен `docflow` (`prl390`–`prl394`), всего 55.
   Статус `planned` не означает работающий модуль.
 - Архитектура: `docs/ARCHITECTURE.md`; создание: `docs/MODULE_GUIDE.md`.
 - Дизайн: `docs/DESIGN-SYSTEM.md`, `.tools/tailwind/input.css`, `app.js`.
