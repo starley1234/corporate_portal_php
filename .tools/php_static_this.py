@@ -3,7 +3,7 @@
 
 Почему: у такого метода нет объекта — PHP падает фаталом
 «Using $this when not in object context» прямо на проде
-(живой случай 26.09: /prl602/admin — `protected static function _filters()`
+(живой случай 26.09: /prx602/admin — `protected static function _filters()`
 с `$this->request->query(...)`).
 
 Запуск:  python3 .tools/php_static_this.py [пути…]   (по умолчанию application/)

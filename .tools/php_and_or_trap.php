@@ -12,7 +12,7 @@
 
 echo "PHP ".PHP_VERSION."\n";
 
-/* 1. Секундомер статус-ряда (prl120 JobQueue::_status_of): было — bool, стало — секунды */
+/* 1. Секундомер статус-ряда (prx120 JobQueue::_status_of): было — bool, стало — секунды */
 $status = 'processing';
 $started_ts = time() - 240;
 
@@ -26,7 +26,7 @@ $now = (($status === 'processing' OR $status === 'pending') AND $started_ts)
 echo "1) секундомер: было ".(int) $was." (".gettype($was)."), стало ".(int) $now."\n";
 echo "   ОК: было 1/0, стало 240 = ".(((int) $was <= 1 AND (int) $now >= 240) ? 'да' : 'НЕТ')."\n";
 
-/* 2. SQL-склейка (prl580 Orgdocs: обновление существующего документа) */
+/* 2. SQL-склейка (prx580 Orgdocs: обновление существующего документа) */
 $sql_status = 'done';
 $was_sql = 'finished_at = '.($sql_status === 'done' OR $sql_status === 'error' ? 'now()' : 'finished_at').'';
 $now_sql = 'finished_at = '.(($sql_status === 'done' OR $sql_status === 'error') ? 'now()' : 'finished_at').'';
@@ -34,8 +34,8 @@ $now_sql = 'finished_at = '.(($sql_status === 'done' OR $sql_status === 'error')
 echo "2) SQL: было «{$was_sql}», стало «{$now_sql}»\n";
 echo "   ОК: «finished_at = 1» больше не собирается = ".((str_contains($was_sql, '= 1') AND $now_sql === 'finished_at = now()') ? 'да' : 'НЕТ')."\n";
 
-/* 3. Права администратора (prl605/606/609/642): было — «вошёл», стало — право */
-$user_id   = 12;      // вошедший пользователь БЕЗ права prl605.admin
+/* 3. Права администратора (prx605/606/609/642): было — «вошёл», стало — право */
+$user_id   = 12;      // вошедший пользователь БЕЗ права prx605.admin
 $can_admin = FALSE;
 $was_admin = (bool) $user_id AND $can_admin;
 $now_admin = ((bool) $user_id AND $can_admin);
@@ -43,7 +43,7 @@ $now_admin = ((bool) $user_id AND $can_admin);
 echo "3) админ: было ".var_export((bool) $was_admin, TRUE).", стало ".var_export((bool) $now_admin, TRUE)."\n";
 echo "   ОК: без права — не админ = ".(((bool) $was_admin === TRUE AND (bool) $now_admin === FALSE) ? 'да' : 'НЕТ')."\n";
 
-/* 4. Признак AJAX (prl606/612): страница шлёт только заголовок X-Requested-With */
+/* 4. Признак AJAX (prx606/612): страница шлёт только заголовок X-Requested-With */
 $post_ajax = NULL;
 $header    = 'XMLHttpRequest';
 $was_ajax = $post_ajax === '1' OR strtolower($header) === 'xmlhttprequest';

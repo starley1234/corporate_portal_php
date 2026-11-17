@@ -11,20 +11,20 @@
     $__canonical = URL::base(true).ltrim($__path, '/');
     // Скобки обязательны: OR слабее присваивания — без них признак служебной
     // страницы зависел только от первого условия, и «/admin…» уезжал в индекс.
-    $__is_service = ((bool) preg_match('~^/(prl[0-9]+|dashboard|auth|tasks|migrate_pg|prefs|update|prl[0-9a-z_]*|cron)(/|$)~i', $__path)
+    $__is_service = ((bool) preg_match('~^/(prx[0-9]+|dashboard|auth|tasks|migrate_pg|prefs|update|prx[0-9a-z_]*|cron)(/|$)~i', $__path)
         OR stripos($__path, '/admin') !== FALSE);
 ?>
-    <title><?php echo HTML::chars(isset($title) && $title ? $title : 'PRL — корпоративный портал'); ?></title>
+    <title><?php echo HTML::chars(isset($title) && $title ? $title : 'PRX — корпоративный портал'); ?></title>
     <meta name="description" content="<?php echo HTML::chars(isset($meta['description']) && $meta['description'] ? $meta['description'] : 'Единое рабочее пространство сотрудников холдинга.'); ?>">
-    <meta name="keywords" content="<?php echo HTML::chars(isset($meta['keywords']) && $meta['keywords'] ? $meta['keywords'] : 'корпоративный портал, PRL'); ?>">
+    <meta name="keywords" content="<?php echo HTML::chars(isset($meta['keywords']) && $meta['keywords'] ? $meta['keywords'] : 'корпоративный портал, PRX'); ?>">
     <meta name="robots" content="noindex, nofollow">
     <link rel="canonical" href="<?php echo HTML::chars($__canonical); ?>">
 
-    <meta property="og:title" content="<?php echo HTML::chars(isset($title) && $title ? $title : 'PRL — корпоративный портал'); ?>">
+    <meta property="og:title" content="<?php echo HTML::chars(isset($title) && $title ? $title : 'PRX — корпоративный портал'); ?>">
     <meta property="og:description" content="<?php echo HTML::chars(isset($meta['description']) && $meta['description'] ? $meta['description'] : 'Сервисы сотрудников, знания и коммуникации.'); ?>">
     <meta property="og:type" content="website">
     <meta property="og:url" content="<?php echo HTML::chars($__canonical); ?>">
-    <meta property="og:site_name" content="PRL.ru">
+    <meta property="og:site_name" content="PRX.ru">
     <meta property="og:locale" content="ru_RU">
     <meta property="og:image" content="<?php echo HTML::chars(isset($meta['og_image']) && $meta['og_image'] ? $meta['og_image'] : URL::site('assets/images/default_og_image.jpg', true)); ?>">
     <meta name="twitter:card" content="summary_large_image">
@@ -76,7 +76,7 @@
             <?php if (isset($style['file'])): ?>
                 <link rel="stylesheet" href="<?php echo HTML::chars($style['file']); ?>" <?php echo (isset($style['media']) ? 'media="'.HTML::chars($style['media']).'"' : ''); ?>>
             <?php elseif (isset($style['code'])): ?>
-                <?php /* design-audit: allow style — API add_inline_style() у Controller_Prl100_Base (сейчас никем не вызывается) */ ?>
+                <?php /* design-audit: allow style — API add_inline_style() у Controller_Prx100_Base (сейчас никем не вызывается) */ ?>
                 <style><?php echo $style['code']; ?></style>
             <?php endif; ?>
         <?php endforeach; ?>
@@ -114,7 +114,7 @@
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 min-h-screen transition-colors duration-200">
     <script>/* состояние панели — ДО первого рендера, иначе «разъезжается» */
-        try { if (localStorage.getItem('prl.sidebar.collapsed') === '1') document.body.classList.add('sb-collapsed'); } catch (e) { }
+        try { if (localStorage.getItem('prx.sidebar.collapsed') === '1') document.body.classList.add('sb-collapsed'); } catch (e) { }
     </script>
     <?php echo View::factory('partials/sidebar')
             ->set('menu_items', isset($menu_items) ? $menu_items : [])
@@ -137,34 +137,34 @@
                     <span class="hidden min-[380px]:inline text-gray-900 dark:text-white"><?php echo HTML::chars(isset($site_name) ? $site_name : ''); ?></span>
                 </a>
 
-                <!-- Чипы текущего раздела (prl110_catalog); навигация — в левой панели -->
-                <?php $prl_header = class_exists('Service_Prl110_Catalog') ? Service_Prl110_Catalog::header_nav() : NULL; ?>
+                <!-- Чипы текущего раздела (prx110_catalog); навигация — в левой панели -->
+                <?php $prx_header = class_exists('Service_Prx110_Catalog') ? Service_Prx110_Catalog::header_nav() : NULL; ?>
                 <?php
                 // href'ы чипов раздела: меню модуля их НЕ повторяет. Иначе на /trends
                 // рядом стоят две «Тренды GitHub» и две «Управление» (владелец, 26.09:
                 // «убери дубликаты страниц»). Навигация на мобильных — в левой панели,
                 // поэтому фильтруем только показ чипов в шапке, не сам module_nav.
-                $prl_hrefs = [];
+                $prx_hrefs = [];
 
-                if ($prl_header !== NULL)
+                if ($prx_header !== NULL)
                 {
-                    foreach ($prl_header['items'] as $prl_it)
+                    foreach ($prx_header['items'] as $prx_it)
                     {
-                        $prl_hrefs[rtrim((string) $prl_it['href'], '/')] = TRUE;
+                        $prx_hrefs[rtrim((string) $prx_it['href'], '/')] = TRUE;
                     }
                 }
                 ?>
-                <?php if ($prl_header !== NULL): ?>
+                <?php if ($prx_header !== NULL): ?>
                     <div class="hidden md:flex items-center gap-1.5 min-w-0 overflow-x-auto">
                         <span class="mr-1 inline-flex shrink-0 items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                            <i class="<?php echo HTML::chars($prl_header['icon']); ?>"></i><?php echo HTML::chars($prl_header['group']); ?>
+                            <i class="<?php echo HTML::chars($prx_header['icon']); ?>"></i><?php echo HTML::chars($prx_header['group']); ?>
                         </span>
-                        <?php foreach ($prl_header['items'] as $prl_item): ?>
-                            <a href="<?php echo HTML::chars($prl_item['href']); ?>"
-                               class="shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition <?php echo ! empty($prl_item['active'])
+                        <?php foreach ($prx_header['items'] as $prx_item): ?>
+                            <a href="<?php echo HTML::chars($prx_item['href']); ?>"
+                               class="shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition <?php echo ! empty($prx_item['active'])
                                    ? 'bg-blue-600 text-white shadow-sm'
                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 dark:bg-gray-700/60 dark:text-gray-300 dark:hover:bg-gray-700'; ?>">
-                                <i class="<?php echo HTML::chars($prl_item['icon']); ?> mr-1 text-xs"></i><?php echo HTML::chars($prl_item['title']); ?>
+                                <i class="<?php echo HTML::chars($prx_item['icon']); ?> mr-1 text-xs"></i><?php echo HTML::chars($prx_item['title']); ?>
                             </a>
                         <?php endforeach; ?>
                     </div>
@@ -172,12 +172,12 @@
 
                 <?php // Меню модуля (md+): рядом с чипами раздела; на малых экранах — в левой панели ?>
                 <?php
-                // меню модуля без повторов чипов раздела (см. $prl_hrefs выше)
+                // меню модуля без повторов чипов раздела (см. $prx_hrefs выше)
                 $mn_chips = [];
 
                 foreach ((array) (isset($module_nav) ? $module_nav : []) as $mn_item)
                 {
-                    if (isset($prl_hrefs[rtrim((string) $mn_item['href'], '/')]))
+                    if (isset($prx_hrefs[rtrim((string) $mn_item['href'], '/')]))
                     {
                         continue;
                     }
@@ -186,7 +186,7 @@
                 }
                 ?>
                 <?php if ( ! empty($mn_chips)): ?>
-                    <div class="hidden md:flex items-center gap-1.5 min-w-0 overflow-x-auto <?php echo $prl_header !== NULL ? 'ml-2 pl-2 border-l border-gray-200 dark:border-gray-700' : ''; ?>">
+                    <div class="hidden md:flex items-center gap-1.5 min-w-0 overflow-x-auto <?php echo $prx_header !== NULL ? 'ml-2 pl-2 border-l border-gray-200 dark:border-gray-700' : ''; ?>">
                         <?php foreach ($mn_chips as $mn_item): ?>
                             <a href="<?php echo HTML::chars($mn_item['href']); ?>"
                                class="shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition <?php echo ! empty($mn_item['active'])
@@ -201,7 +201,7 @@
 
             <div class="flex min-w-0 items-center space-x-1.5 sm:space-x-4">
 
-                <?php // Глобальный поиск (prl100): по моим материалам, базе знаний, организациям
+                <?php // Глобальный поиск (prx100): по моим материалам, базе знаний, организациям
                 // и вакансиям. На телефоне окно ПРИВЯЗАНО К ШАПКЕ (max-sm:fixed), а не к кнопке:
                 // кнопка стоит в середине строки, и 22rem вправо от неё не влезали — панель
                 // уезжала за левый край. Шапка — sticky + backdrop-blur, поэтому fixed считается
@@ -270,7 +270,7 @@
                         data.results.forEach(function (r, i) {
                             html += '<a href="' + esc(r.url) + '" data-gsi="' + i + '" class="block px-4 py-2.5 transition hover:bg-gray-50 dark:hover:bg-gray-700/40">'
                                 + '<div class="flex items-center gap-2">'
-                                + '<span class="prl-count shrink-0">' + esc(r.kind) + '</span>'
+                                + '<span class="prx-count shrink-0">' + esc(r.kind) + '</span>'
                                 + '<span class="min-w-0 flex-1 truncate text-sm font-semibold text-gray-900 dark:text-white">' + esc(r.title) + '</span>'
                                 + '</div>'
                                 + (r.sub ? '<p class="mt-0.5 truncate text-xs text-gray-500 dark:text-gray-400">' + esc(r.sub) + '</p>' : '')
@@ -328,39 +328,39 @@
 
 				<?php
 					// Проверяем, включен ли модуль
-					if (array_key_exists('prl118_links', Kohana::modules())) {
+					if (array_key_exists('prx118_links', Kohana::modules())) {
 						// Выполняем внутренний под-запрос к контроллеру виджета
-						echo Request::factory('prl118_widget/bookmark_button')->execute();
+						echo Request::factory('prx118_widget/bookmark_button')->execute();
 					}
 				?>
 
                 <?php if (Auth::instance()->logged_in()): ?>
-                <div class="relative" id="prl597-wrap">
-                    <button type="button" id="prl597-bell" class="relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors" aria-label="Уведомления">
+                <div class="relative" id="prx597-wrap">
+                    <button type="button" id="prx597-bell" class="relative p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors" aria-label="Уведомления">
                         <i class="fas fa-bell text-xl"></i>
-                        <span id="prl597-badge" class="absolute top-0.5 right-0.5 inline-flex min-w-[1.1rem] items-center justify-center px-1 py-0.5 text-xs font-bold leading-none text-white bg-rose-600 rounded-full" style="display: none;">0</span>
+                        <span id="prx597-badge" class="absolute top-0.5 right-0.5 inline-flex min-w-[1.1rem] items-center justify-center px-1 py-0.5 text-xs font-bold leading-none text-white bg-rose-600 rounded-full" style="display: none;">0</span>
                     </button>
-                    <div id="prl597-drop" class="hidden absolute right-0 z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg max-sm:fixed max-sm:inset-x-3 max-sm:top-[4.25rem] max-sm:mt-0 max-sm:w-auto max-sm:max-w-none dark:border-gray-700 dark:bg-gray-800">
+                    <div id="prx597-drop" class="hidden absolute right-0 z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg max-sm:fixed max-sm:inset-x-3 max-sm:top-[4.25rem] max-sm:mt-0 max-sm:w-auto max-sm:max-w-none dark:border-gray-700 dark:bg-gray-800">
                         <div class="flex items-center justify-between border-b border-gray-100 px-4 py-2.5 dark:border-gray-700/60">
                             <span class="text-sm font-bold text-gray-900 dark:text-white">Уведомления</span>
-                            <button type="button" id="prl597-readall" class="text-xs font-semibold text-blue-600 hover:underline dark:text-blue-400">Прочитано всё</button>
+                            <button type="button" id="prx597-readall" class="text-xs font-semibold text-blue-600 hover:underline dark:text-blue-400">Прочитано всё</button>
                         </div>
-                        <div id="prl597-list" class="max-h-80 overflow-y-auto">
+                        <div id="prx597-list" class="max-h-80 overflow-y-auto">
                             <p class="px-4 py-6 text-center text-xs text-gray-400">Загружаю…</p>
                         </div>
-                        <a href="/prl597" class="block border-t border-gray-100 px-4 py-2.5 text-center text-xs font-semibold text-blue-600 transition hover:bg-gray-50 dark:border-gray-700/60 dark:text-blue-400 dark:hover:bg-gray-700/40">Все уведомления и настройки</a>
+                        <a href="/prx597" class="block border-t border-gray-100 px-4 py-2.5 text-center text-xs font-semibold text-blue-600 transition hover:bg-gray-50 dark:border-gray-700/60 dark:text-blue-400 dark:hover:bg-gray-700/40">Все уведомления и настройки</a>
                     </div>
                 </div>
                 <script>
                 (function () {
                     'use strict';
                     var CSRF = '<?php echo Security::token(); ?>';
-                    var wrap = document.getElementById('prl597-wrap');
+                    var wrap = document.getElementById('prx597-wrap');
                     if (!wrap) return;
-                    var bell = document.getElementById('prl597-bell'),
-                        drop = document.getElementById('prl597-drop'),
-                        list = document.getElementById('prl597-list'),
-                        badge = document.getElementById('prl597-badge');
+                    var bell = document.getElementById('prx597-bell'),
+                        drop = document.getElementById('prx597-drop'),
+                        list = document.getElementById('prx597-list'),
+                        badge = document.getElementById('prx597-badge');
                     var esc = function (s) {
                         var d = document.createElement('div');
                         d.textContent = String(s == null ? '' : s);
@@ -383,8 +383,8 @@
                         var html = '';
                         items.forEach(function (n) {
                             var ic = icon(n.kind);
-                            html += '<a href="' + esc(n.href || '/prl597') + '" data-id="' + n.id + '"'
-                                + ' class="prl597-item block border-b border-gray-50 px-4 py-2.5 transition-colors hover:bg-gray-50 dark:border-gray-700/40 dark:hover:bg-gray-700/40'
+                            html += '<a href="' + esc(n.href || '/prx597') + '" data-id="' + n.id + '"'
+                                + ' class="prx597-item block border-b border-gray-50 px-4 py-2.5 transition-colors hover:bg-gray-50 dark:border-gray-700/40 dark:hover:bg-gray-700/40'
                                 + (n.unread ? ' bg-blue-50/50 dark:bg-blue-950/20' : '') + '">'
                                 + '<p class="flex items-start gap-2 text-sm font-semibold text-gray-900 dark:text-white">'
                                 + '<i class="fas ' + ic[0] + ' ' + ic[1] + ' mt-0.5 w-4 shrink-0 text-center text-xs"></i>'
@@ -398,10 +398,10 @@
                     }
                     function refresh() {
                         // visible=1 — «человек смотрит на вкладку»: сервер пишет
-                        // присутствие (prl_597_presence). Свёрнутая вкладка молчит,
+                        // присутствие (prx_597_presence). Свёрнутая вкладка молчит,
                         // иначе уведомление о своём же событии пропадало бы зря.
                         var vis = (document.visibilityState === 'visible') ? '1' : '0';
-                        fetch('/prl597/api/unread?visible=' + vis + '&bust=' + Date.now(), {headers: {'Accept': 'application/json'}})
+                        fetch('/prx597/api/unread?visible=' + vis + '&bust=' + Date.now(), {headers: {'Accept': 'application/json'}})
                             .then(function (r) {
                                 if (r.status === 401) { location.href = '/auth/logout'; return null; }
                                 return r.ok ? r.json() : null;
@@ -418,7 +418,7 @@
                         body.set('csrf', CSRF);
                         Object.keys(payload).forEach(function (k) { body.set(k, payload[k]); });
                         if (btn) { btn.disabled = true; btn.classList.add('opacity-60'); }
-                        fetch('/prl597/api/read', {method: 'POST', body: body})
+                        fetch('/prx597/api/read', {method: 'POST', body: body})
                             .then(function (r) { return r.ok ? r.json() : null; })
                             .then(function (j) { if (j) setBadge(j.unread); })
                             .catch(function () {})
@@ -432,14 +432,14 @@
                         if (!wrap.contains(e.target)) drop.classList.add('hidden');
                     });
                     list.addEventListener('click', function (e) {
-                        var a = e.target.closest('a.prl597-item');
+                        var a = e.target.closest('a.prx597-item');
                         if (!a) return;
                         e.preventDefault();
                         var href = a.getAttribute('href');
                         postRead({id: JSON.stringify([a.getAttribute('data-id')])}, null);
                         if (href && href !== '#') location.href = href;
                     });
-                    document.getElementById('prl597-readall').addEventListener('click', function () {
+                    document.getElementById('prx597-readall').addEventListener('click', function () {
                         postRead({all: 1}, this);
                         list.querySelectorAll('.bg-blue-50\\/50, .bg-blue-950\\/20').forEach(function (el) {
                             el.classList.remove('bg-blue-50/50', 'bg-blue-950/20');
@@ -503,13 +503,13 @@
                                     <a href="/admin" class="flex items-center px-3 py-2.5 text-sm rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-amber-600 dark:text-amber-400 transition-colors">
                                         <i class="fas fa-screwdriver-wrench mr-3"></i> Панель управления
                                     </a>
-                                    <a href="/prl595/admin" class="flex items-center px-3 py-2.5 text-sm rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-amber-600 dark:text-amber-400 transition-colors">
+                                    <a href="/prx595/admin" class="flex items-center px-3 py-2.5 text-sm rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-amber-600 dark:text-amber-400 transition-colors">
                                         <i class="fas fa-users-gear mr-3"></i> Пользователи и роли
                                     </a>
-                                    <a href="/prl595/admin/activity" class="flex items-center px-3 py-2.5 text-sm rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-amber-600 dark:text-amber-400 transition-colors">
+                                    <a href="/prx595/admin/activity" class="flex items-center px-3 py-2.5 text-sm rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-amber-600 dark:text-amber-400 transition-colors">
                                         <i class="fas fa-chart-line mr-3"></i> Активность системы
                                     </a>
-                                    <a href="/prl120/monitor" class="flex items-center px-3 py-2.5 text-sm rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-amber-600 dark:text-amber-400 transition-colors">
+                                    <a href="/prx120/monitor" class="flex items-center px-3 py-2.5 text-sm rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-amber-600 dark:text-amber-400 transition-colors">
                                         <i class="fas fa-heart-pulse mr-3"></i> Воркеры · монитор
                                     </a>
                                 	<a href="/migrate_pg" class="flex items-center px-3 py-2.5 text-sm rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-amber-600 dark:text-amber-400 transition-colors">
@@ -538,13 +538,13 @@
                  используют partials/page_header — те же классы v6 */ ?>
         <?php $tpl_crumbs = (isset($breadcrumbs) && ! empty($breadcrumbs)) ? $breadcrumbs : []; ?>
         <?php if ($tpl_crumbs || ( ! empty($h1))): ?>
-        <div class="prl-ds w-full px-3.5 pt-4 sm:px-6 lg:px-8">
+        <div class="prx-ds w-full px-3.5 pt-4 sm:px-6 lg:px-8">
             <?php if ($tpl_crumbs): ?>
-            <nav class="prl-crumbs overflow-x-auto whitespace-nowrap" aria-label="Хлебные крошки">
+            <nav class="prx-crumbs overflow-x-auto whitespace-nowrap" aria-label="Хлебные крошки">
                 <?php foreach (array_values($tpl_crumbs) as $key => $crumb): ?>
-                    <?php if ($key > 0): ?><span class="prl-crumbs-sep">/</span><?php endif; ?>
+                    <?php if ($key > 0): ?><span class="prx-crumbs-sep">/</span><?php endif; ?>
                     <?php if ( ! empty($crumb['active'])): ?>
-                        <span class="prl-crumbs-current" aria-current="page"><?php echo HTML::chars($crumb['text']); ?></span>
+                        <span class="prx-crumbs-current" aria-current="page"><?php echo HTML::chars($crumb['text']); ?></span>
                     <?php else: ?>
                         <a href="<?php echo HTML::chars($crumb['href']); ?>"><?php echo HTML::chars($crumb['text']); ?></a>
                     <?php endif; ?>
@@ -552,7 +552,7 @@
             </nav>
             <?php endif; ?>
             <?php if ( ! empty($h1)): ?>
-            <h1 class="prl-h1<?php echo $tpl_crumbs ? ' mt-2.5' : ''; ?>"><?php echo HTML::chars($h1); ?></h1>
+            <h1 class="prx-h1<?php echo $tpl_crumbs ? ' mt-2.5' : ''; ?>"><?php echo HTML::chars($h1); ?></h1>
             <?php endif; ?>
         </div>
         <?php endif; ?>
@@ -632,7 +632,7 @@
                 setTimeout(() => menu.classList.add('hidden'), 200);
             }
 
-            <?php /* prl597: колокольчик обновляется собственным скриптом (см. шапку) — legacy-бейдж prl217 удалён */ ?>
+            <?php /* prx597: колокольчик обновляется собственным скриптом (см. шапку) — legacy-бейдж prx217 удалён */ ?>
         });
     </script>
     <script>
@@ -649,7 +649,7 @@
 
             collapseBtn && collapseBtn.addEventListener('click', function () {
                 var collapsed = body.classList.toggle('sb-collapsed');
-                localStorage.setItem('prl.sidebar.collapsed', collapsed ? '1' : '0');
+                localStorage.setItem('prx.sidebar.collapsed', collapsed ? '1' : '0');
             });
 
             function drawer(open) {
@@ -679,7 +679,7 @@
                 if (e.key === 'Escape') drawer(false);
             });
             var nav = document.getElementById('sidebar-nav');
-            var sidebarScrollKey = 'prl.sidebar.scrollTop';
+            var sidebarScrollKey = 'prx.sidebar.scrollTop';
 
             sidebar.addEventListener('click', function (e) {
                 var link = e.target.closest('a');
@@ -798,7 +798,7 @@
                             drawer(true);
                         } else if (body.classList.contains('sb-collapsed')) {
                             body.classList.remove('sb-collapsed');
-                            try { localStorage.setItem('prl.sidebar.collapsed', '0'); } catch (ignore) { }
+                            try { localStorage.setItem('prx.sidebar.collapsed', '0'); } catch (ignore) { }
                         }
 
                         search.focus();

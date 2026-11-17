@@ -1,7 +1,7 @@
 <?php defined('SYSPATH') or die('No direct script access.'); ?>
 
-<?php /* Профиль — каркас эталона v6: шапка, вкладки .prl-seg, карточка без градиентов */ ?>
-<div class="prl-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
+<?php /* Профиль — каркас эталона v6: шапка, вкладки .prx-seg, карточка без градиентов */ ?>
+<div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
     <?php echo View::factory('partials/page_header', [
         'crumbs'  => [['Кабинет', '/dashboard'], ['Профиль']],
         'title'   => 'Профиль',
@@ -9,18 +9,18 @@
     ]); ?>
 
     <div class="mt-6 max-w-4xl space-y-5">
-    <nav class="prl-seg max-w-md" aria-label="Разделы профиля">
-        <span class="prl-seg-item is-active flex-1 text-center" aria-current="page">Профиль и данные</span>
-        <a href="/account/security" class="prl-seg-item flex-1 text-center">Безопасность</a>
+    <nav class="prx-seg max-w-md" aria-label="Разделы профиля">
+        <span class="prx-seg-item is-active flex-1 text-center" aria-current="page">Профиль и данные</span>
+        <a href="/account/security" class="prx-seg-item flex-1 text-center">Безопасность</a>
     </nav>
-    <div class="prl-card">
+    <div class="prx-card">
         <div>
             <div class="mb-8 flex items-center gap-4">
                 <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-blue-600 text-2xl font-bold text-white">
                     <?php echo HTML::chars(strtoupper(substr($user->username, 0, 1))); ?>
                 </div>
                 <div class="min-w-0">
-                    <h2 class="prl-h2 truncate"><?php echo HTML::chars($user->username); ?></h2>
+                    <h2 class="prx-h2 truncate"><?php echo HTML::chars($user->username); ?></h2>
                     <p class="truncate text-gray-500 dark:text-gray-400"><?php echo HTML::chars($user->email); ?></p>
                 </div>
             </div>
@@ -28,7 +28,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- Account Info -->
                 <div class="space-y-4">
-                    <h3 class="prl-h3 border-b border-gray-100 pb-2 dark:border-gray-700">
+                    <h3 class="prx-h3 border-b border-gray-100 pb-2 dark:border-gray-700">
                         Информация об аккаунте
                     </h3>
 
@@ -63,7 +63,7 @@
 
                 <!-- Security/Actions -->
                 <div class="space-y-4">
-                    <h3 class="prl-h3 border-b border-gray-100 pb-2 dark:border-gray-700">
+                    <h3 class="prx-h3 border-b border-gray-100 pb-2 dark:border-gray-700">
                         Безопасность
                     </h3>
 

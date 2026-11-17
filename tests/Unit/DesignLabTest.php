@@ -1,16 +1,16 @@
 <?php
 use PHPUnit\Framework\TestCase;
 
-/** Контракты публичной изолированной витрины дизайна prl140. */
+/** Контракты публичной изолированной витрины дизайна prx140. */
 class DesignLabTest extends TestCase
 {
     public function test_registry_declares_ten_unique_public_variants(): void
     {
-        $this->assertArrayHasKey('prl140_design_lab', Kohana::modules());
+        $this->assertArrayHasKey('prx140_design_lab', Kohana::modules());
 
         $manifests = Manifest::all();
-        $this->assertArrayHasKey('prl140_design_lab', $manifests);
-        $manifest = $manifests['prl140_design_lab'];
+        $this->assertArrayHasKey('prx140_design_lab', $manifests);
+        $manifest = $manifests['prx140_design_lab'];
         $this->assertSame(140, $manifest['id']);
         $this->assertSame('/design-lab', $manifest['href']);
         $this->assertSame('public', $manifest['audience']);
@@ -34,16 +34,16 @@ class DesignLabTest extends TestCase
 
     public function test_controller_is_direct_and_content_is_canonical(): void
     {
-        $reflection = new ReflectionClass('Controller_Prl140_DesignLab');
+        $reflection = new ReflectionClass('Controller_Prx140_DesignLab');
         $this->assertSame('Controller', $reflection->getParentClass()->getName());
         $this->assertFalse($reflection->isSubclassOf('Controller_Base'));
 
-        $source = file_get_contents(APPPATH.'modules/prl140_design_lab/classes/Controller/Prl140/DesignLab.php');
+        $source = file_get_contents(APPPATH.'modules/prx140_design_lab/classes/Controller/Prx140/DesignLab.php');
         foreach (['Auth::', 'Session::', 'Database::', 'ORM::', '$this->template'] as $forbidden) {
             $this->assertStringNotContainsString($forbidden, $source);
         }
 
-        $content = (new Service_Prl140_DesignLab())->content();
+        $content = (new Service_Prx140_DesignLab())->content();
         $this->assertSame('Анна Соколова', $content['person']['name']);
         $this->assertCount(7, $content['navigation']);
         $this->assertCount(4, $content['metrics']);
@@ -65,7 +65,7 @@ class DesignLabTest extends TestCase
 
     public function test_each_variant_renders_same_content_with_own_css_and_themes(): void
     {
-        $content = (new Service_Prl140_DesignLab())->content();
+        $content = (new Service_Prx140_DesignLab())->content();
         $canonical = [
             'Добрый день, Анна. Всё важное для работы — в одном месте.',
             'Семь доменов корпоративных сервисов',
@@ -94,7 +94,7 @@ class DesignLabTest extends TestCase
             $this->assertSame(200, $response->status(), $slug);
             $this->assertStringContainsString('no-store', $response->headers('Cache-Control'), $slug);
             $this->assertStringContainsString('no-cache', $response->headers('Pragma'), $slug);
-            $this->assertNotSame('', (string) $response->headers('X-PRL-Design-Lab-Revision'), $slug);
+            $this->assertNotSame('', (string) $response->headers('X-PRX-Design-Lab-Revision'), $slug);
             $this->assertStringContainsString('data-theme="dark"', $body, $slug);
             $this->assertStringContainsString('data-company-accent="orange"', $body, $slug);
             $this->assertStringContainsString('data-variant="'.$slug.'"', $body, $slug);
@@ -110,7 +110,7 @@ class DesignLabTest extends TestCase
             $this->assertStringContainsString('&amp;company=orange', $body, $slug);
             $this->assertStringNotContainsString('<link', $body, $slug);
             $this->assertStringNotContainsString('template_tailwindcss', $body, $slug);
-            $this->assertStringNotContainsString('prl-main', $body, $slug);
+            $this->assertStringNotContainsString('prx-main', $body, $slug);
 
             foreach ($canonical as $text) {
                 $this->assertStringContainsString($text, $body, $slug.': '.$text);
@@ -134,7 +134,7 @@ class DesignLabTest extends TestCase
         $landing = Request::factory('design-lab')->execute();
         $body = (string) $landing->body();
         $this->assertSame(200, $landing->status());
-        $this->assertStringContainsString('Выберите характер корпоративного портала PRL', $body);
+        $this->assertStringContainsString('Выберите характер корпоративного портала PRX', $body);
         foreach ($this->_variants() as $variant) {
             $this->assertStringContainsString('/design-lab/'.$variant['slug'].'?v=', $body);
         }
@@ -169,7 +169,7 @@ class DesignLabTest extends TestCase
 
     public function test_css_files_are_standalone_responsive_and_dark_ready(): void
     {
-        $base = APPPATH.'modules/prl140_design_lab/assets/design-lab/';
+        $base = APPPATH.'modules/prx140_design_lab/assets/design-lab/';
         $files = ['landing.css' => file_get_contents($base.'landing.css')];
         foreach ($this->_variants() as $variant) {
             $files[$variant['css']] = file_get_contents($base.$variant['css']);
@@ -240,7 +240,7 @@ class DesignLabTest extends TestCase
 
     protected function _variants(): array
     {
-        $config = Kohana::$config->load('prl140_design_lab')->as_array();
+        $config = Kohana::$config->load('prx140_design_lab')->as_array();
         $this->assertArrayHasKey('variants', $config);
         return $config['variants'];
     }

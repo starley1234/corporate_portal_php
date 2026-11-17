@@ -13,16 +13,16 @@
  *     уходил в PHP-лог ядра, который никто не открывал.
  *
  * Теперь у сайта один предсказуемый файл (по умолчанию
- * `application/logs/prl-site.log`), который можно просто прислать:
+ * `application/logs/prx-site.log`), который можно просто прислать:
  *
  *     2026-10-03 08:35:12 | ERROR | label: приёмка результата прогона 51 упала: Database_Exception: ...
  *
  * Настройки (`.env`, все необязательные):
- *   PRL_LOG_FILE      — путь к файлу (по умолчанию application/logs/prl-site.log)
- *   PRL_LOG_MAX_MB    — размер, после которого файл ротируется (5 МБ)
- *   PRL_LOG_BACKUPS   — сколько старых файлов хранить (5: prl-site.log.1 … .5)
- *   PRL_LOG_LEVEL     — минимальный уровень: DEBUG…EMERGENCY (по умолчанию INFO)
- *   PRL_LOG_ENABLED   — 0, чтобы выключить файл (логи останутся в php-логе ядра)
+ *   PRX_LOG_FILE      — путь к файлу (по умолчанию application/logs/prx-site.log)
+ *   PRX_LOG_MAX_MB    — размер, после которого файл ротируется (5 МБ)
+ *   PRX_LOG_BACKUPS   — сколько старых файлов хранить (5: prx-site.log.1 … .5)
+ *   PRX_LOG_LEVEL     — минимальный уровень: DEBUG…EMERGENCY (по умолчанию INFO)
+ *   PRX_LOG_ENABLED   — 0, чтобы выключить файл (логи останутся в php-логе ядра)
  *
  * Писатель НИКОГДА не бросает исключений: сайт не должен падать из-за лога.
  */
@@ -50,19 +50,19 @@ class Log_Plain extends Log_Writer {
 	{
 		$this->_file = $file !== NULL
 			? (string) $file
-			: (string) (getenv('PRL_LOG_FILE') ?: APPPATH.'logs'.DIRECTORY_SEPARATOR.'prl-site.log');
+			: (string) (getenv('PRX_LOG_FILE') ?: APPPATH.'logs'.DIRECTORY_SEPARATOR.'prx-site.log');
 
 		$this->_max_bytes = $max_bytes !== NULL
 			? (int) $max_bytes
-			: max(0, (int) round(((float) (getenv('PRL_LOG_MAX_MB') ?: 5)) * 1048576));
+			: max(0, (int) round(((float) (getenv('PRX_LOG_MAX_MB') ?: 5)) * 1048576));
 
 		$this->_backups = $backups !== NULL
 			? (int) $backups
-			: max(0, (int) (getenv('PRL_LOG_BACKUPS') ?: 5));
+			: max(0, (int) (getenv('PRX_LOG_BACKUPS') ?: 5));
 
 		$this->_min_level = $min_level !== NULL
 			? (int) $min_level
-			: $this->_level_by_name((string) (getenv('PRL_LOG_LEVEL') ?: 'INFO'));
+			: $this->_level_by_name((string) (getenv('PRX_LOG_LEVEL') ?: 'INFO'));
 	}
 
 	/**
@@ -153,10 +153,10 @@ class Log_Plain extends Log_Writer {
 		}
 	}
 
-	/** Включён ли файловый лог (PRL_LOG_ENABLED=0 выключает). */
+	/** Включён ли файловый лог (PRX_LOG_ENABLED=0 выключает). */
 	protected function _enabled()
 	{
-		$flag = strtolower(trim((string) getenv('PRL_LOG_ENABLED')));
+		$flag = strtolower(trim((string) getenv('PRX_LOG_ENABLED')));
 
 		return ! in_array($flag, ['0', 'no', 'false', 'off'], TRUE);
 	}
@@ -216,7 +216,7 @@ class Log_Plain extends Log_Writer {
 		return rtrim($line, PHP_EOL);
 	}
 
-	/** Ротация по размеру: prl-site.log → .1 → .2 … старше $backups удаляем. */
+	/** Ротация по размеру: prx-site.log → .1 → .2 … старше $backups удаляем. */
 	protected function _rotate()
 	{
 		if ($this->_max_bytes <= 0 OR $this->_backups <= 0 OR ! is_file($this->_file))

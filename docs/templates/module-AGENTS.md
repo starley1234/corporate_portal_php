@@ -10,11 +10,11 @@
 # `context_pack.py section "<часть заголовка>" --module <модуль>`.
 # ----------------------------------------------------------------------------
 
-# AGENTS.md — prlXXX_slug
+# AGENTS.md — prxXXX_slug
 
 > Памятка агенту. Правила платформы — в корневом AGENTS.md; здесь — только
 > специфика модуля. Обновлять при каждом существенном изменении.
-> Вход в модуль для агента — контекст-пак: `make brief m=prlXXX_slug`
+> Вход в модуль для агента — контекст-пак: `make brief m=prxXXX_slug`
 > (протокол: docs/CONTEXT.md).
 
 ## Назначение
@@ -30,28 +30,28 @@
 ## Ключевые классы
 | Класс | Роль |
 |---|---|
-| `Service_PrlXXX_Foo` | бизнес-логика (единственная дверь в модуль) |
-| `Controller_PrlXXX_Foo` | страницы |
-| `Controller_PrlXXX_Api` | JSON API |
+| `Service_PrxXXX_Foo` | бизнес-логика (единственная дверь в модуль) |
+| `Controller_PrxXXX_Foo` | страницы |
+| `Controller_PrxXXX_Api` | JSON API |
 
 ## Таблицы (полное владение)
-- `prl_XXX_*` — назначение, ключевые колонки, статусы.
+- `prx_XXX_*` — назначение, ключевые колонки, статусы.
 
 ## Маршруты и API
-- `GET /prlXXX/...` — ...
-- `POST /prlXXX/api/...` — (auth: login / token / admin)
+- `GET /prxXXX/...` — ...
+- `POST /prxXXX/api/...` — (auth: login / token / admin)
 
 ## События
-- Публикует: `prlXXX.*`
+- Публикует: `prxXXX.*`
 - Слушает: ...
 
 ## Очередь (если используется)
-- Каналы: `...` (постановка: `Service_Prl120_JobQueue::push`)
-- Обработчик: `workers/prl_workers/handlers/...`
-- Манифест: `'worker' => ['channels' => [...]]` в `config/prl_module.php`
+- Каналы: `...` (постановка: `Service_Prx120_JobQueue::push`)
+- Обработчик: `workers/prx_workers/handlers/...`
+- Манифест: `'worker' => ['channels' => [...]]` в `config/prx_module.php`
 
 ## Env
-- `PRLXXX_...` — назначение (дописать в хвост `.env.example`).
+- `PRXXXX_...` — назначение (дописать в хвост `.env.example`).
 
 ## Зависимости
 - От модулей: (через какие сервисы)

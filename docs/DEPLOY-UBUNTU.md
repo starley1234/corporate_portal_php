@@ -1,4 +1,4 @@
-# Эксплуатационный checklist PRL
+# Эксплуатационный checklist PRX
 
 Это checklist новой установки, не автоматическая миграция исходного сайта.
 Целевая инфраструктура и политики ИБ должны быть согласованы отдельно.
@@ -13,9 +13,9 @@
    не использовать chmod 777.
 4. Новая БД: `bin/console db:migrate`; на чистой базе миграция создаёт
    admin/admin — сразу смените пароль. Для production задайте
-   `PRL_DEFAULT_ADMIN=0` и создайте администратора через `make seed`.
+   `PRX_DEFAULT_ADMIN=0` и создайте администратора через `make seed`.
    Для старых данных — только отдельный план MIGRATION.md.
-5. Служба `python -m prl_workers` из workers/, отдельное окружение/секреты,
+5. Служба `python -m prx_workers` из workers/, отдельное окружение/секреты,
    разрешённые каналы и внутренние LLM/embedding endpoints.
 6. Таймер `bin/console portal:maintain` раз в минуту с flock; nonzero — alert.
    Проверить тестовую доставку in-app/SMTP и отказы. Внешние мессенджеры — opt-in.

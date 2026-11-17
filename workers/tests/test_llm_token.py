@@ -10,7 +10,7 @@ none was provided using the Authorization header». Здесь проверяе�
 import httpx
 import pytest
 
-from prl_workers import llm
+from prx_workers import llm
 
 
 def test_looks_local():
@@ -135,7 +135,7 @@ def test_embedding_401_names_source(monkeypatch):
 def test_call_log_names_token_source(caplog, monkeypatch):
     """Каждый вызов LLM логируется с ИМЕНЕМ переменной-источника токена.
 
-    Грепом `journalctl -u prl-worker | grep "LLM ->"` видно, кто и с каким
+    Грепом `journalctl -u prx-worker | grep "LLM ->"` видно, кто и с каким
     токеном ходил во внешний сервер — без значений секретов.
     """
     import asyncio, logging
@@ -156,7 +156,7 @@ def test_call_log_names_token_source(caplog, monkeypatch):
     monkeypatch.setattr(client, "_provider_models", fake_models)
     monkeypatch.setattr(client, "_post_chat", fake_post)
 
-    with caplog.at_level(logging.INFO, logger="prl.llm"):
+    with caplog.at_level(logging.INFO, logger="prx.llm"):
         asyncio.get_event_loop_policy().new_event_loop().run_until_complete(
             client.chat_with_usage([{"role": "user", "content": "привет"}]))
 

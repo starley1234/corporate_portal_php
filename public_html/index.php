@@ -60,7 +60,7 @@ if (is_file($root.'application/env.php'))
 {
 	require $root.'application/env.php';
 
-	prl_env_load($root);
+	prx_env_load($root);
 }
 
 /**

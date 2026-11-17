@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # =============================================================================
-# PRL — одна команда для проверки PHP перед пушем.
+# PRX — одна команда для проверки PHP перед пушем.
 #
 #   bash .tools/php_check_all.sh            # по умолчанию application/
 #   bash .tools/php_check_all.sh .          # весь репозиторий
 #
-# Зачем: 28.09.2026 в Controller/Prl643/Cad.php метод action_archive() оказался
+# Зачем: 28.09.2026 в Controller/Prx643/Cad.php метод action_archive() оказался
 # объявлен дважды — и живой /cad отвечал 500 «Cannot redeclare …» на КАЖДЫЙ
 # запрос модуля (PHP компилирует класс целиком). Разбор грамматикой такого не
 # видит: дубликат — не синтаксическая ошибка. Поэтому в списке есть php_dupe_lint.
 #
-# Зачем: 26.09.2026 файл prl643_cad уехал на прод со склейкой
+# Зачем: 26.09.2026 файл prx643_cad уехал на прод со склейкой
 # `'…модели ('DOCROOT.'…'` — живой /cad падал ParseError, а .tools/php_lint.py и
 # .tools/php_balance.py молчали (скобки и кавычки были целы). Поэтому первым в
 # списке идёт НАСТОЯЩИЙ синтаксический разбор (.tools/php_parse_lint.py), а не
@@ -54,7 +54,7 @@ run "PHP: PHP-код внутри SQL (php_sql_lint)" \
     python3 .tools/php_sql_lint.py "$TARGET"
 
 # 2в. Ссылка на столбец, которого нет в подзапросе LATERAL. Живая авария
-#     28.09.2026: /prl120/monitor отдавал 500 «столбец ev.created_at не
+#     28.09.2026: /prx120/monitor отдавал 500 «столбец ev.created_at не
 #     существует» — подзапрос отдавал только e.message, а снаружи читали ещё и
 #     created_at. SQL синтаксически верен, PHP-кода внутри нет, колонка в
 #     таблице есть — база отвергает запрос целиком, и падает вся страница.
@@ -83,18 +83,18 @@ case "$TARGET" in
             python3 .tools/php_migration_lint.py application
         run "Внешние CDN во вьюхах (assets_cdn_lint)" \
             python3 .tools/assets_cdn_lint.py application public_html
-        run "Контракты основы PRL" \
+        run "Контракты основы PRX" \
             python3 .tools/portal_check.py
         # Бюджет документации: потолки «всегда читаемых» доков, индекс у больших
         # памяток и сборка контекст-пака по каждому модулю (см. docs/CONTEXT.md).
-        # Заодно прогоняет разбор манифестов config/prl_module.php по всем модулям.
+        # Заодно прогоняет разбор манифестов config/prx_module.php по всем модулям.
         run "Документация в бюджете (doc_budget_lint)" \
             python3 .tools/doc_budget_lint.py
         run "Классы Tailwind есть в сборке (tailwind_classes_lint)" \
             python3 .tools/tailwind_classes_lint.py
         # Дизайн v6 (docs/DESIGN-SYSTEM.md): приведённые модули и общий слой не
         # откатываются (инлайн-стили, полосы, sticky, confirm/alert, чужие цвета),
-        # а классов .prl-* без определения в сборке нет нигде.
+        # а классов .prx-* без определения в сборке нет нигде.
         run "Дизайн v6: храповик приведённых модулей (design_audit)" \
             python3 .tools/design_audit.py --check
         # Перевод разметки на компоненты ломал JS-селекторы по утилитам

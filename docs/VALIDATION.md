@@ -1,9 +1,9 @@
-# Проверка основы PRL, шага 1 (`prl300_employee`), витрины дизайна (`prl140_design_lab`) и выравнивания рабочих страниц по v6 — 26.10.2026; дополнения — 27.10.2026
+# Проверка основы PRX, шага 1 (`prx300_employee`), витрины дизайна (`prx140_design_lab`) и выравнивания рабочих страниц по v6 — 26.10.2026; дополнения — 27.10.2026
 
 Проверена новая установка, а не обновление исходной БД.
 Среда основного прогона 26.10.2026: PHP 8.4.25 CLI, PostgreSQL 16.2,
 Python 3.11, Node.js. Сайт проверялся на работающем `0.0.0.0:8080`.
-Для второй итерации `prl140` 27.10.2026 см. отдельное дополнение ниже:
+Для второй итерации `prx140` 27.10.2026 см. отдельное дополнение ниже:
 в восстановленной песочнице не было нативных PHP/PostgreSQL/`.env`, поэтому
 результаты основного нативного прогона не приписываются новым изменениям.
 
@@ -14,24 +14,24 @@ Python 3.11, Node.js. Сайт проверялся на работающем `0
 | `make check` | 26 подключённых модулей, 183 PHP-класса, 1 active + 49 planned сервисов, 4 канала |
 | Нативный `php -l` для application | 348 файлов, без синтаксических ошибок |
 | `bash .tools/php_check_all.sh application` | Грамматика, дубликаты, SQL-эвристики, методы/классы, миграции, CDN, doc budget, Tailwind, дизайн и JS-селекторы — успешно |
-| `bash bin/test` | 51 passed, 0 failed, 0 skipped; из них по 5 тестов `prl300_employee` и `prl140_design_lab` |
+| `bash bin/test` | 51 passed, 0 failed, 0 skipped; из них по 5 тестов `prx300_employee` и `prx140_design_lab` |
 | `SMOKE_URL=http://127.0.0.1:8080 bash bin/check-fresh.sh` | Временная БД: 26 миграций; повтор — 0 новых; 51 тест; CLI maintenance и HTTP smoke на 61 запрос — успешно; БД удалена |
 | `cd workers && python3 -m pytest tests -q` | 74 passed, 1 skipped без PG DSN; с отдельной test-схемой — 75 passed, 0 skipped |
 | `npm test` | 14 passed |
 | `npm audit` | 0 vulnerabilities |
 | `make doctor` | PHP/extensions, секреты, права runtime, PostgreSQL, миграции, очередь, памятки — OK |
-| `php .tools/prl597_engine_stand.php` | 498 проверок шаблонов, очереди, настроек, админских операций — успешно |
+| `php .tools/prx597_engine_stand.php` | 498 проверок шаблонов, очереди, настроек, админских операций — успешно |
 | Остальные notification-стенды: api / delivery / hook | 59 / 85 / 22 проверок — успешно |
 | `php .tools/llm_providers_stand.php` | 9 проверок — успешно |
-| `prl300_employee` service/DB | Импорт структуры и сотрудников, идемпотентный повтор, отклонение пакета с ошибкой без частичного применения, откат цикла с существующим графом, изоляция организаций, identity/link и CSV allowlist — успешно |
-| `prl300:import` CLI | Один сотрудник: staged/validated без `--apply`, затем тот же пакет применён с `--apply=1`; тестовая организация удалена |
-| `prl140_design_lab` unit/контракты | 7 уникальных вариантов, прямой `Controller`, одинаковое содержание, автономные CSS, `data-theme`, invalid theme без отражения, собственная 404 и антикэш-заголовки — успешно |
-| `prl140_design_lab` CSS/JS | Все 8 CSS разобраны css-tree; в JSDOM проверены переключение темы, сохранение выбора, мобильное меню, demo-поиск/поддержка и счётчики секций |
-| `prl140_design_lab` Chromium | Галерея и все 7 вариантов в light/dark на 1440×1000; все варианты на 390×844 с открытием меню; горизонтального overflow и pageerror не найдено; отдельно просмотрены секции сервисов, задач, людей, знаний и поддержки |
+| `prx300_employee` service/DB | Импорт структуры и сотрудников, идемпотентный повтор, отклонение пакета с ошибкой без частичного применения, откат цикла с существующим графом, изоляция организаций, identity/link и CSV allowlist — успешно |
+| `prx300:import` CLI | Один сотрудник: staged/validated без `--apply`, затем тот же пакет применён с `--apply=1`; тестовая организация удалена |
+| `prx140_design_lab` unit/контракты | 7 уникальных вариантов, прямой `Controller`, одинаковое содержание, автономные CSS, `data-theme`, invalid theme без отражения, собственная 404 и антикэш-заголовки — успешно |
+| `prx140_design_lab` CSS/JS | Все 8 CSS разобраны css-tree; в JSDOM проверены переключение темы, сохранение выбора, мобильное меню, demo-поиск/поддержка и счётчики секций |
+| `prx140_design_lab` Chromium | Галерея и все 7 вариантов в light/dark на 1440×1000; все варианты на 390×844 с открытием меню; горизонтального overflow и pageerror не найдено; отдельно просмотрены секции сервисов, задач, людей, знаний и поддержки |
 | Реальный Python echo-worker, PostgreSQL transport | Задача выполнена, результат сохранён; воркер остановлен |
 | Реальный Python echo-worker, HTTP transport | Authenticated API, claim/complete, результат сохранён; release_mine проверен после исправления SQL; воркер остановлен |
 
-## Дополнение 27.10.2026 — расширение и корректировка `prl140_design_lab`
+## Дополнение 27.10.2026 — расширение и корректировка `prx140_design_lab`
 
 | Проверка | Результат |
 |---|---|
@@ -54,7 +54,7 @@ PHP CLI, PostgreSQL и `.env`, а полный Kohana bootstrap под PHP-WASM 
 
 | Проверка | Результат |
 |---|---|
-| Объём выравнивания | Пользовательские и административные production-страницы, общие partials/widgets, standalone Search 410/Unsub, cookie popup и генератор новых модулей; автономная витрина `prl140_design_lab` намеренно не переводилась на общий шаблон |
+| Объём выравнивания | Пользовательские и административные production-страницы, общие partials/widgets, standalone Search 410/Unsub, cookie popup и генератор новых модулей; автономная витрина `prx140_design_lab` намеренно не переводилась на общий шаблон |
 | `python3 .tools/design_audit.py` | 96 views, 15 888 строк; все колонки замечаний — 0 |
 | `python3 .tools/design_audit.py --check` / `--selftest` | Чисто; 40 из 40 самопроверок |
 | `make check` | Контракты основы: 26 модулей, 183 PHP-класса, 1 active + 49 planned сервисов, 4 канала — OK |
@@ -62,7 +62,7 @@ PHP CLI, PostgreSQL и `.env`, а полный Kohana bootstrap под PHP-WASM 
 | `npm run build:css` + `python3 .tools/tailwind_classes_lint.py` | CSS пересобран; все 705 Tailwind-классов вёрстки есть в сборке |
 | `npm test` | 14 passed |
 | Синтаксис изменённых PHP | Официальный `.tools/php_parse_lint.py`: 347 файлов, 0 ошибок; независимо `php-parser` проверил 71 изменённый PHP-файл, 0 ошибок. Это не заменяет нативный `php -l` |
-| Дополнительные ручные сканы | Шапки/H1, CTA/Process/Secondary, поля и checkbox/radio, таблицы с overflow, flash, `.prl-badge` с `.prl-dot`, метаданные через `.prl-count`, raw-карточки и кнопки |
+| Дополнительные ручные сканы | Шапки/H1, CTA/Process/Secondary, поля и checkbox/radio, таблицы с overflow, flash, `.prx-badge` с `.prx-dot`, метаданные через `.prx-count`, raw-карточки и кнопки |
 
 В текущей песочнице по-прежнему отсутствуют PHP CLI, PostgreSQL и `.env`,
 поэтому нативные PHPUnit, HTTP smoke и живой браузерный прогон рабочих
@@ -79,21 +79,21 @@ PHP CLI, PostgreSQL и `.env`, а полный Kohana bootstrap под PHP-WASM 
 неизвестный slug 404 до входа; CSRF входа, саморегистрация 404 (оба маршрута),
 недоступные старые сервисы, вход администратора, сохранённые экраны, каталог
 и поиск, гостевой 401 и административные маршруты `/employee*` и
-`/prl300/admin/*`, шаблон импорта и `/prl100/errors`. GET загрузки модели LLM
+`/prx300/admin/*`, шаблон импорта и `/prx100/errors`. GET загрузки модели LLM
 возвращает 405 с Allow; POST без CSRF — 403. Отдельно проверено, что ответы
 витрины содержат `no-store`, revision-ссылки и не выставляют `Set-Cookie`.
 Запуск (локальные секреты не печатать):
 
 ```bash
 source bin/_env.sh
-prl_load_env .env
+prx_load_env .env
 python3 tests/http_smoke.py
 ```
 
 Дополнительно выполнены **13 запросов** под временным сотрудником только с
 ролью `login`: вход и доступ к services/dashboard/tasks/account/notifications;
 403 для admin, LLM-admin, технического RAG, semantic-admin, управления
-пользователями и миграций. Для prl300 отдельно выполнены **22 HTTP-запроса**
+пользователями и миграций. Для prx300 отдельно выполнены **22 HTTP-запроса**
 под обычным сопоставленным сотрудником, `hr_viewer` и `hr_admin`: своя
 организация видна, чужая карточка/организация закрыты, viewer не получает
 форму загрузки, hr_admin ограничен своей организацией. Multipart-загрузка
@@ -107,8 +107,8 @@ CSV и применение пакета из UI проверены ещё **7 �
 
 ## Ограничения
 
-- Из 50 корпоративных сервисов реализованы `prl300_employee` и домен
-  `prl390`–`prl394` (вне карты); остальные 49 карты запланированы. Реальная внешняя HRIS/ERP-интеграция не проверялась:
+- Из 50 корпоративных сервисов реализованы `prx300_employee` и домен
+  `prx390`–`prx394` (вне карты); остальные 49 карты запланированы. Реальная внешняя HRIS/ERP-интеграция не проверялась:
   проверены CSV/CLI-контракт и тестовые данные. Перед production нужны
   согласование источника/расписания выгрузок, законные основания и сроки
   хранения staging, назначение HR-ролей и процедура сопоставления аккаунтов.
@@ -118,7 +118,7 @@ CSV и применение пакета из UI проверены ещё **7 �
 - Docker build/Compose, PHP-FPM/nginx и production-развёртывание не запускались:
   registry и часть внешних хостов недоступны. Сетевые адреса Docker и права
   bind-mount описаны отдельно, это конфигурационный review, не runtime-проверка.
-- Для второй итерации `prl140` от 27.10.2026 обновлённые PHPUnit/HTTP-тесты
+- Для второй итерации `prx140` от 27.10.2026 обновлённые PHPUnit/HTTP-тесты
   ещё не прогнаны нативно из-за отсутствия PHP/PostgreSQL в песочнице.
   Фактически выполнены PHP-WASM lint/рендер, css-tree, `py_compile` и
   Chromium-проверка статического рендера; это ограничение среды, а не
@@ -126,7 +126,7 @@ CSV и применение пакета из UI проверены ещё **7 �
 - Полный Symfony Mailer через Composer в закрытой сети не устанавливался;
   sandbox shim не заменяет зависимости. SMTP и реальные Telegram/VK/MAX,
   внешние LLM/embeddings не проверялись. Почта по умолчанию выключена.
-- Обычный Python-прогон пропускает одну DB-проверку без `PRL_TEST_PG_DSN`.
+- Обычный Python-прогон пропускает одну DB-проверку без `PRX_TEST_PG_DSN`.
   Дополнительный прогон с DSN выполнил её в случайной изолированной схеме,
   удалённой после теста. Рабочие таблицы не заменяются. Unit/HTTP-моки
   не означают проверку GPU или реальной модели.
@@ -139,18 +139,18 @@ CSV и применение пакета из UI проверены ещё **7 �
   сервисные фикстуры удалены; сохранённые notification/LLM-стенды работают
   нативно и не требуют WASM; актуальные проверки перечислены выше.
 
-## Документооборот prl390–prl394 (16.11.2026)
+## Документооборот prx390–prx394 (16.11.2026)
 
 Проверки в песочнице:
 
 - `python3 -m pytest workers/tests -q` — **83 passed, 1 skipped** (skip — тест,
-  которому нужен `PRL_TEST_PG_DSN`). В том числе три сквозных теста
+  которому нужен `PRX_TEST_PG_DSN`). В том числе три сквозных теста
   `workers/tests/test_docflow_e2e.py`: настоящий `mock_llm_server.py` с
-  `MOCK_LLM_ROUTES`, настоящие PDF из `application/modules/prl390_intake/demo/` и подмена только
+  `MOCK_LLM_ROUTES`, настоящие PDF из `application/modules/prx390_intake/demo/` и подмена только
   `site.get_json/post_json`.
-- WASM-стенд `.tools/prl392_normalize_stand.php` — **11 ок, 0 фейл**:
+- WASM-стенд `.tools/prx392_normalize_stand.php` — **11 ок, 0 фейл**:
   нормализация ИНН/даты/суммы, HTML в summary, неизвестный тип, пустой ответ.
-- WASM-стенд `.tools/prl393_routing_stand.php` — **6 ок, 0 фейл**: первое
+- WASM-стенд `.tools/prx393_routing_stand.php` — **6 ок, 0 фейл**: первое
   правило по приоритету, домен/ИНН важнее типа, «суд» в претензии не меняет
   маршрут, отсутствие совпадения → канцелярия.
 - `python3 .tools/portal_check.py` — 31 модуль, 205 классов, **6 active + 49
@@ -162,7 +162,7 @@ CSV и применение пакета из UI проверены ещё **7 �
 Не проверено и остаётся ограничением: живой PostgreSQL (в песочнице нет
 `pdo_pgsql`), HTTP-страницы под реальной сессией, настоящая LLM/GPU, OCR
 (`pdftoppm`/`tesseract` отсутствуют), IMAP и реальная отправка письма.
-Демо-прогон и оффлайн-мок описаны в [демо prl390](../application/modules/prl390_intake/demo/README.md).
+Демо-прогон и оффлайн-мок описаны в [демо prx390](../application/modules/prx390_intake/demo/README.md).
 
 ## Архитектура как код и первичный администратор (16.11.2026)
 
@@ -175,8 +175,8 @@ CSV и применение пакета из UI проверены ещё **7 �
 - `npm test` — 14/14; `PYTHONPATH=workers pytest -q` — 83 passed, 1 skipped.
 - WASM-стенд сервиса архитектуры: HTML и JSON читаются, ссылка «Вернуться в
   портал» вставляется перед `</body>`.
-- WASM-стенд миграции prl110_004: HMAC совпадает с `Auth::hash`, SQL содержит
-  условие пустой базы, профиль и роли; при `PRL_DEFAULT_ADMIN=0` запросов нет.
+- WASM-стенд миграции prx110_004: HMAC совпадает с `Auth::hash`, SQL содержит
+  условие пустой базы, профиль и роли; при `PRX_DEFAULT_ADMIN=0` запросов нет.
 
 Не проверено: живой PostgreSQL (нет `pdo_pgsql`), поэтому фактическая вставка
 admin/admin и вход под сессией — на стенде с БД. Пароль по умолчанию предназначен
@@ -184,34 +184,34 @@ admin/admin и вход под сессией — на стенде с БД. П�
 
 ## Исправления после production-проверки (16.11.2026)
 
-- `/documents`: KPI «Новые» читает `new_count` из `Service_Prl391_Documents::stats()`;
+- `/documents`: KPI «Новые» читает `new_count` из `Service_Prx391_Documents::stats()`;
   раньше view обращался к несуществующему ключу `new` и отдавал Warning.
-- prl390: пути по умолчанию перенесены в `public_html/storage/docflow/*`
+- prx390: пути по умолчанию перенесены в `public_html/storage/docflow/*`
   (корень проекта на хостинге недоступен PHP на запись). Старые значения
   `storage/docflow/*` из существующего `.env` автоматически перенаправляются;
   прямой HTTP-доступ закрыт правилом в `public_html/.htaccess`.
-- `make docflow-demo` создаёт каталоги по текущим `PRL390_*_DIR` и копирует PDF
+- `make docflow-demo` создаёт каталоги по текущим `PRX390_*_DIR` и копирует PDF
   в новую папку входящих.
 
 ## Перестройка структуры (16.11.2026)
 
 - `architecture/` переехал в `docs/architecture/`: YAML — `model/`, собранные
   файлы — `dist/`, движок отрисовки — `engine/`. `INPUT_DATA` удалён после
-  переноса нужных файлов; `prl101_architecture` читает `docs/architecture/dist`.
-- `examples/docflow` переехал в `application/modules/prl390_intake/demo/`;
+  переноса нужных файлов; `prx101_architecture` читает `docs/architecture/dist`.
+- `examples/docflow` переехал в `application/modules/prx390_intake/demo/`;
   `make docflow-demo` и ссылки в документации обновлены.
 - Проверки: `make architecture` — 0 ошибок/0 предупреждений, 9 вкладок;
   `npm test` — 14/14; `npm run test:architecture` — 124/124; `php_check_all` — чисто.
 
-## VLM-демо prl398 (16.11.2026)
+## VLM-демо prx398 (16.11.2026)
 
-- Добавлен `prl398_vlm_demo`: `/vlm-demo`, браузерный PDF.js, AJAX
+- Добавлен `prx398_vlm_demo`: `/vlm-demo`, браузерный PDF.js, AJAX
   `POST /vlm-demo/analyze`, вызов vision-модели через `Llm`, без БД, очереди
   и worker-каналов. PDF на сервер не загружается — только JPEG/PNG страниц.
 - PDF.js `6.5.438` положен локально в `public_html/assets/vendor/pdfjs/`;
   для `.mjs` добавлен MIME в `public_html/.htaccess` и
   `docker/nginx/default.conf`.
-- Принятые страницы копируются в уникальный каталог `prl398_*` в системном
+- Принятые страницы копируются в уникальный каталог `prx398_*` в системном
   tmp с правами `0700` и удаляются в `finally` (включая ошибки LLM).
 - `python3 .tools/portal_check.py` — 33 модуля, 210 PHP-классов, 6 active +
   49 planned, 7 каналов.
@@ -219,11 +219,11 @@ admin/admin и вход под сессией — на стенде с БД. П�
   32 миграции, Tailwind 744 класса, дизайн-аудит чист.
 - `make architecture` — 0 ошибок, 0 предупреждений; `npm test` — 14/14;
   `npm run test:architecture` — 124/124.
-- WASM-стенд `.tools/prl398_normalize_stand.php` — 13 ок, 0 фейл: JSON в
+- WASM-стенд `.tools/prx398_normalize_stand.php` — 13 ок, 0 фейл: JSON в
   markdown-обёртке, ИНН, проценты уверенности, неизвестный тип, страницы.
   Отдельный (временный) стенд `analyze()` с mock-LLM проверил сборку
   `image_url` как data URI; view рендерится с заглушками `View/HTML/URL`.
-- Отдельный WASM-стенд служебного каталога: `prl398_*` создаётся с правами
+- Отдельный WASM-стенд служебного каталога: `prx398_*` создаётся с правами
   `0700`, после `_cleanup_tmp_dir()` файл и каталог удалены.
 - Не проверено: живой вызов VLM (в песочнице нет LLM-шлюза), реальный
   браузерный рендер PDF.js (нет Chromium), HTTP под сессией и PostgreSQL.
@@ -231,8 +231,8 @@ admin/admin и вход под сессией — на стенде с БД. П�
 
 ## OCR Provider для doc.normalize (16.11.2026)
 
-- Логика OCR вынесена из `workers/prl_workers/handlers/doc_normalize.py` в
-  `workers/prl_workers/ocr_client.py`: единый `OcrResult`, локальный
+- Логика OCR вынесена из `workers/prx_workers/handlers/doc_normalize.py` в
+  `workers/prx_workers/ocr_client.py`: единый `OcrResult`, локальный
   `TesseractOcrProvider` и `RemoteOcrProvider`.
 - Выбор — `OCR_PROVIDER=tesseract|remote`; URL и таймаут —
   `OCR_SERVICE_URL`, `OCR_TIMEOUT` (по умолчанию 120 с). Добавлены в
@@ -248,9 +248,9 @@ admin/admin и вход под сессией — на стенде с БД. П�
 - `doc_normalize.extract_text()` сначала пробует pypdf; при наличии >= 100
   осмысленных символов и отсутствии мусора OCR не вызывается. Иначе
   используется активный провайдер; тело для
-  `POST /prl390/api/text/<message_id>` сохраняет
+  `POST /prx390/api/text/<message_id>` сохраняет
   `file_id/text/pages/engine/confidence`.
-- `POST /prl390/api/text/<id>` теперь действительно сохраняет тело
+- `POST /prx390/api/text/<id>` теперь действительно сохраняет тело
   `file_id/text/pages/engine/confidence` через `store_text` (раньше действие
   отдавало только чтение). Ветка проверена WASM-стендом с заглушками
   `Request/Service/Log`: статус 200 и переданные поля.

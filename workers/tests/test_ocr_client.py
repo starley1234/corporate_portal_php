@@ -7,8 +7,8 @@ from pathlib import Path
 import httpx
 import pytest
 
-from prl_workers import ocr_client
-from prl_workers.handlers import doc_normalize
+from prx_workers import ocr_client
+from prx_workers.handlers import doc_normalize
 
 
 @pytest.fixture(autouse=True)
@@ -148,7 +148,7 @@ def test_remote_5xx_returns_failed(tmp_path, caplog):
         timeout=1,
         transport=httpx.MockTransport(lambda _request: httpx.Response(503)),
     )
-    with caplog.at_level("ERROR", logger="prl.ocr"):
+    with caplog.at_level("ERROR", logger="prx.ocr"):
         result = asyncio.run(provider.extract(_pdf(tmp_path)))
     assert result.engine == "failed"
     assert result.text == ""
@@ -176,7 +176,7 @@ def test_remote_invalid_json_returns_failed(tmp_path, caplog):
             lambda _request: httpx.Response(200, content=b"not json")
         ),
     )
-    with caplog.at_level("ERROR", logger="prl.ocr"):
+    with caplog.at_level("ERROR", logger="prx.ocr"):
         result = asyncio.run(provider.extract(_pdf(tmp_path)))
     assert result.engine == "failed"
     assert "не JSON" in caplog.text

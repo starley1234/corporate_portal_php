@@ -11,7 +11,7 @@
 $root = realpath(__DIR__ . '/..') . DIRECTORY_SEPARATOR;
 
 require $root . 'application/env.php';
-prl_env_load($root);
+prx_env_load($root);
 
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
 

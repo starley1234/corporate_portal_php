@@ -39,7 +39,7 @@ KNOWN_ABSENT = {
 TOKEN = re.compile(r"[A-Za-z0-9_:\-\[\]\./%!#\(\)]+")
 
 # Что вообще считаем утилитой Tailwind (иначе в список попадут все имена
-# собственных css-классов проекта: btn-, modal-, prl597- и прочие).
+# собственных css-классов проекта: btn-, modal-, prx597- и прочие).
 UTILITY = re.compile(
     r'^(?:(?:sm|md|lg|xl|2xl|dark|hover|focus|active|disabled|checked|group-hover'
     r'|first|last|odd|even|before|after|placeholder|motion-safe|print|open)\:)*'

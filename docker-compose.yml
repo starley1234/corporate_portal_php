@@ -1,5 +1,5 @@
 # =============================================================================
-# PRL — стек разработки и тестирования
+# PRX — стек разработки и тестирования
 #
 #   docker compose up -d                # всё ядро: pg + redis + php + nginx
 #   docker compose --profile workers up -d   # + python-воркеры
@@ -8,10 +8,10 @@
 # Профили:
 #   core     (по умолчанию) — postgres, redis, php, nginx
 #   tools    — adminer (БД GUI), mailpit (ловушка писем)
-#   workers  — python-воркеры (очередь prl120_jobs, LLM/эмбеддинги)
+#   workers  — python-воркеры (очередь prx120_jobs, LLM/эмбеддинги)
 # =============================================================================
 
-name: prl
+name: prx
 
 services:
   # --- PostgreSQL 17 + pgvector (эмбеддинги) ---------------------------------
@@ -19,9 +19,9 @@ services:
     image: pgvector/pgvector:pg17
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_DEFAULT_NAME:-prl}
-      POSTGRES_USER: ${DB_DEFAULT_USER:-prl}
-      POSTGRES_PASSWORD: ${DB_DEFAULT_PASS:-prl}
+      POSTGRES_DB: ${DB_DEFAULT_NAME:-prx}
+      POSTGRES_USER: ${DB_DEFAULT_USER:-prx}
+      POSTGRES_PASSWORD: ${DB_DEFAULT_PASS:-prx}
       TZ: Europe/Moscow
     ports:
       - "127.0.0.1:${DB_DEFAULT_PORT:-5432}:5432"
@@ -29,12 +29,12 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_DEFAULT_USER:-prl} -d ${DB_DEFAULT_NAME:-prl}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_DEFAULT_USER:-prx} -d ${DB_DEFAULT_NAME:-prx}"]
       interval: 5s
       timeout: 3s
       retries: 12
 
-  # --- Redis: кэш / быстрые счётчики (очередь — в PostgreSQL, prl120_jobs) ---
+  # --- Redis: кэш / быстрые счётчики (очередь — в PostgreSQL, prx120_jobs) ---
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -93,10 +93,10 @@ services:
     profiles: ["workers"]
     env_file: .env
     environment:
-      WORKER_PG_DSN: postgres://${DB_DEFAULT_USER:-prl}:${DB_DEFAULT_PASS:-prl}@postgres:5432/${DB_DEFAULT_NAME:-prl}
-      PRL120_API_URL: http://nginx/prl120/api
-      PRL120_API_BASE: http://nginx
-      PRL115_API_BASE: http://nginx/prl115/api
+      WORKER_PG_DSN: postgres://${DB_DEFAULT_USER:-prx}:${DB_DEFAULT_PASS:-prx}@postgres:5432/${DB_DEFAULT_NAME:-prx}
+      PRX120_API_URL: http://nginx/prx120/api
+      PRX120_API_BASE: http://nginx
+      PRX115_API_BASE: http://nginx/prx115/api
       WORKER_NAME: ${WORKER_NAME:-worker-1}
       WORKER_CHANNELS: ${WORKER_CHANNELS:-}
     volumes:

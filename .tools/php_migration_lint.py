@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """Проверяет классы миграций PostgreSQL (application/modules/*/migrations_pg).
 
-Почему: живой случай 26.09 — миграция модуля prl643_cad была объявлена как
+Почему: живой случай 26.09 — миграция модуля prx643_cad была объявлена как
 `class pgMigration_… extends Migration`. Класса `Migration` в проекте нет, а
 `Migrator::inventory()` просто require-ит файл миграции, поэтому ломалась ВСЯ
 страница /migrate_pg: `Error [ 0 ]: Class "Migration" not found`.
 
 Что проверяем:
-  1. класс объявлен и наследует `pgMigration` (модуль prl111_migrations);
+  1. класс объявлен и наследует `pgMigration` (модуль prx111_migrations);
   2. есть методы up() и down();
   3. DDL идемпотентен: строки CREATE TABLE/INDEX содержат IF NOT EXISTS
      (иначе повторный накат на проде падает);
   4. нет ручного разреза SQL по «;» через explode — «;» внутри строкового
      литерала (например, COMMENT ON … IS '…; …') роняет накат
-     «незавершённая строка в кавычках» (живой случай prl661/001, 06.10.2026);
+     «незавершённая строка в кавычках» (живой случай prx661/001, 06.10.2026);
      многооператорный SQL выполняется через $this->run_script().
 
 Запуск:  python3 .tools/php_migration_lint.py [пути…]   (по умолчанию application/)

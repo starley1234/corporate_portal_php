@@ -42,7 +42,7 @@ detail:
   blocks:
     - cards:
         - title: Идентичность
-          text: Пароль хранится как HMAC-SHA256 с серверным ключом. TOTP и активные сессии — в prl599.
+          text: Пароль хранится как HMAC-SHA256 с серверным ключом. TOTP и активные сессии — в prx599.
           color: "#3b82f6"
           chips: [HMAC-SHA256, TOTP, session]
         - title: Авторизация
@@ -56,7 +56,7 @@ detail:
         - title: Приватные файлы
           text: Содержимое вне public_html; скачивание проходит через сервис и проверку прав.
           color: "#ec4899"
-          chips: [prl212, private, ACL]
+          chips: [prx212, private, ACL]
     - table:
         head: [Ситуация, Ответ, Что нельзя делать]
         rows:

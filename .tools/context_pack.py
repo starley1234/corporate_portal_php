@@ -2,22 +2,22 @@
 """Контекст-пак модуля — дешёвый вход в помодульную разработку.
 
 Зачем этот файл. Работа над модулем начинается с чтения: агент открывает
-корневой `AGENTS.md` (44 КБ), потом памятку модуля — а у `prl643_cad` она 33 КБ,
-у `prl641_imagegen` 15 КБ, у `prl120_jobs` 13 КБ. Это 10–20 тысяч токенов ДО
+корневой `AGENTS.md` (44 КБ), потом памятку модуля — а у `prx643_cad` она 33 КБ,
+у `prx641_imagegen` 15 КБ, у `prx120_jobs` 13 КБ. Это 10–20 тысяч токенов ДО
 первой строки кода, причём большая часть прочитанного к задаче не относится
 (правила воркеров — в модуле без воркера, устройство PDF — в модуле про JSON).
 
 Инструмент собирает по модулю ровно то, что нужно для работы, из файлов,
 которые модуль и так держит актуальными:
 
-    python3 .tools/context_pack.py pack prl643_cad           # карточка ≤ 8 КБ
-    python3 .tools/context_pack.py pack prl643_cad --write   # в .context/<модуль>.md
-    python3 .tools/context_pack.py section "Правила" --module prl643_cad
+    python3 .tools/context_pack.py pack prx643_cad           # карточка ≤ 8 КБ
+    python3 .tools/context_pack.py pack prx643_cad --write   # в .context/<модуль>.md
+    python3 .tools/context_pack.py section "Правила" --module prx643_cad
     python3 .tools/context_pack.py index AGENTS.md --write  # индекс разделов
 
 Почему это не «ещё один реестр». Ничего не дублируется: таблицы берутся из
 миграций модуля, классы и публичные методы — из файлов классов, маршруты — из
-`init.php`, каналы очереди и прочие секции — из манифеста `config/prl_module.php`
+`init.php`, каналы очереди и прочие секции — из манифеста `config/prx_module.php`
 (пятый контракт). Если модуль изменился, карточка меняется сама; расходиться
 с кодом ей нечем. Единственное, что читается из прозы, — разделы памятки
 («Правила…», «Состояние…»), и они выводятся как есть, без пересказа.
@@ -33,7 +33,7 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODULES_DIR = os.path.join(ROOT, 'application', 'modules')
-WORKERS_DIR = os.path.join(ROOT, 'workers', 'prl_workers', 'handlers')
+WORKERS_DIR = os.path.join(ROOT, 'workers', 'prx_workers', 'handlers')
 
 DEFAULT_MAX = 8192
 HARD_MAX = 12288
@@ -51,7 +51,7 @@ MANIFEST_SECTIONS = ('worker', 'schedule', 'cleanup', 'health', 'recent', 'searc
 
 
 # --------------------------------------------------------------------------
-# 1. Разбор PHP-массивов (манифест `config/prl_module.php`)
+# 1. Разбор PHP-массивов (манифест `config/prx_module.php`)
 # --------------------------------------------------------------------------
 
 def _skip(text, i):
@@ -290,7 +290,7 @@ def _kb(n):
 
 def manifest(name):
     """Манифест модуля (пятый контракт) или None."""
-    path = os.path.join(MODULES_DIR, name, 'config', 'prl_module.php')
+    path = os.path.join(MODULES_DIR, name, 'config', 'prx_module.php')
 
     if not os.path.isfile(path):
         return None
@@ -453,10 +453,10 @@ def channels_used(name):
 
 
 def env_keys(name):
-    """Переменные окружения модуля: свои (PRL<id>_*) и общие."""
+    """Переменные окружения модуля: свои (PRX<id>_*) и общие."""
     base = os.path.join(MODULES_DIR, name)
-    m = re.match(r'prl(\d+)_', name)
-    own_prefix = ('PRL%s_' % m.group(1)) if m else None
+    m = re.match(r'prx(\d+)_', name)
+    own_prefix = ('PRX%s_' % m.group(1)) if m else None
     own, shared = [], []
 
     for dirpath, dirnames, filenames in os.walk(base):
@@ -476,13 +476,13 @@ def env_keys(name):
 
 
 def owner_module(service):
-    """`Service_Prl120_JobQueue` → `prl120_jobs` (или None, если модуля нет)."""
-    m = re.match(r'Service_(Prl|Prl)(\d+)_', service)
+    """`Service_Prx120_JobQueue` → `prx120_jobs` (или None, если модуля нет)."""
+    m = re.match(r'Service_(Prx|Prx)(\d+)_', service)
 
     if not m:
         return None
 
-    prefix = ('prl' if m.group(1) == 'Prl' else 'prl') + m.group(2) + '_'
+    prefix = ('prx' if m.group(1) == 'Prx' else 'prx') + m.group(2) + '_'
 
     for module in modules():
         if module.startswith(prefix):
@@ -494,7 +494,7 @@ def owner_module(service):
 def dependencies_out(name):
     """Кого зовёт модуль: чужие Service_<модуль>_* в его коде."""
     base = os.path.join(MODULES_DIR, name)
-    rx = re.compile(r'\b(Service_(?:Prl\d+|Prl\d+)_\w+)')
+    rx = re.compile(r'\b(Service_(?:Prx\d+|Prx\d+)_\w+)')
     found = {}
 
     for dirpath, dirnames, filenames in os.walk(base):
@@ -512,8 +512,8 @@ def dependencies_out(name):
 
 
 def dependencies_in(name):
-    """Кто зовёт модуль: `Service_Prl643_*` ищется в чужих модулях."""
-    m = re.match(r'(prl|prl)(\d+)_', name)
+    """Кто зовёт модуль: `Service_Prx643_*` ищется в чужих модулях."""
+    m = re.match(r'(prx|prx)(\d+)_', name)
 
     if not m:
         return {}
@@ -547,7 +547,7 @@ def workers(name):
     if not os.path.isdir(WORKERS_DIR):
         return []
 
-    m = re.match(r'prl(\d+)_', name)
+    m = re.match(r'prx(\d+)_', name)
     hits = []
 
     for fn in sorted(os.listdir(WORKERS_DIR)):
@@ -556,7 +556,7 @@ def workers(name):
 
         text = _text(os.path.join(WORKERS_DIR, fn))
 
-        if (m and ('prl%s' % m.group(1)) in fn) or ('prl%s.' % (m.group(1) if m else '')) in text:
+        if (m and ('prx%s' % m.group(1)) in fn) or ('prx%s.' % (m.group(1) if m else '')) in text:
             hits.append(fn)
 
     return hits
@@ -565,9 +565,9 @@ def workers(name):
 def _needles(name):
     """Как модуль узнаётся в чужих файлах. Три разных набора, и путать их нельзя.
 
-    * **precise** — имена его классов и таблиц (`Service_Prl120_`, `prl_120_`):
+    * **precise** — имена его классов и таблиц (`Service_Prx120_`, `prx_120_`):
       по ним модуль узнаётся в тексте проверки;
-    * **names** — `prl120` и `semantic` (id и slug модуля): по ним узнаётся ИМЯ
+    * **names** — `prx120` и `semantic` (id и slug модуля): по ним узнаётся ИМЯ
       файла (`test_semantic_index.py`, `cad_ui_smoke.mjs`). Адреса страниц сюда
       не входят: `/docs` — это и «Документы организации», и что угодно про
       документацию, поэтому по путям имя файла не угадываем;
@@ -575,13 +575,13 @@ def _needles(name):
       проверка узнаётся по СОДЕРЖИМОМУ (в дымовом скрипте нет ни классов, ни
       таблиц, зато есть адрес страницы). Здесь `_owns` обязателен.
     """
-    m = re.match(r'(prl|prl)(\d+)_(.+)', name)
+    m = re.match(r'(prx|prx)(\d+)_(.+)', name)
     precise, names, paths = [], [], []
 
     if m:
         precise += ['Service_N%s_' % m.group(2), 'Controller_N%s_' % m.group(2),
-                    'Model_N%s_' % m.group(2), 'Prl%s_' % m.group(2),
-                    'prl_%s_' % m.group(2)]
+                    'Model_N%s_' % m.group(2), 'Prx%s_' % m.group(2),
+                    'prx_%s_' % m.group(2)]
         names += ['%s%s' % (m.group(1), m.group(2)), m.group(3)]
 
     man = manifest(name)
@@ -596,7 +596,7 @@ def _needles(name):
     for route in routes(name):
         head = route['pattern'].split('/')[0].strip('(<')
 
-        if head and re.match(r'^[a-z0-9_-]+$', head) and not head.startswith('prl'):
+        if head and re.match(r'^[a-z0-9_-]+$', head) and not head.startswith('prx'):
             paths.append('/' + head)
 
     return (sorted(set(precise)), sorted(set(names)), sorted(set(paths)))
@@ -608,7 +608,7 @@ _IDENTITY_CACHE = {}
 def identity(name):
     """Свои имена модуля: классы и таблицы. Ими он отличается от соседа с тем же номером.
 
-    Номер не уникален (`prl100_platform` и `prl100_search` делят сотню), поэтому
+    Номер не уникален (`prx100_platform` и `prx100_search` делят сотню), поэтому
     «файл упоминает наш номер» — ещё не «файл проверяет наш модуль».
     """
     if name in _IDENTITY_CACHE:
@@ -630,8 +630,8 @@ def _module_id_counts(text):
     """Сколько раз в файле упомянут каждый модуль (по префиксам классов, таблиц, id)."""
     counts = {}
 
-    for m in re.finditer(r'(?:Service_N(?:j|prl)|Model_N(?:j|prl)|Controller_N(?:j|prl)|Prl|prl_)'
-                         r'(\d{3,4})_|\b(?:prl|prl)(\d{3,4})[._/-]', text):
+    for m in re.finditer(r'(?:Service_N(?:j|prx)|Model_N(?:j|prx)|Controller_N(?:j|prx)|Prx|prx_)'
+                         r'(\d{3,4})_|\b(?:prx|prx)(\d{3,4})[._/-]', text):
         mid = m.group(1) or m.group(2)
         counts[mid] = counts.get(mid, 0) + 1
 
@@ -676,7 +676,7 @@ def _touches(files, precise, names, mid, limit=8, own_names=None):
 
         # Имя файла сравниваем по ТОКЕНАМ, а не подстрокой: 'cad_ui_smoke.mjs'
         # и 'test_semantic_index.py' — наши (cad, semantic), а 'test_watchdogs.py'
-        # чужой: 'watchdog' из prl609_watchdog не равен токену 'watchdogs'.
+        # чужой: 'watchdog' из prx609_watchdog не равен токену 'watchdogs'.
         tokens = set(re.split(r'[^0-9a-z]+', stem.lower()))
         by_name = any(n.lower() in tokens for n in names if len(n) > 3)
 
@@ -750,14 +750,14 @@ def checks(name):
     вслепую (урок 28.09: /cad не был покрыт ничем, и рефакторинг отложили).
     """
     precise, names, paths = _needles(name)
-    m = re.match(r'prl(\d+)_', name)
+    m = re.match(r'prx(\d+)_', name)
     mid = m.group(1) if m else None
 
     own_names = identity(name)
     tests = _touches(_listdir('tests/Unit', ('.php',)) + _listdir('tests/Smoke', ('.php',)),
                      precise, names, mid, own_names=own_names)
     # В python-тесте нет ни наших классов, ни таблиц, поэтому кроме содержимого
-    # работает имя файла: test_prl643_cad.py, test_semantic_index.py, test_trends_*.
+    # работает имя файла: test_prx643_cad.py, test_semantic_index.py, test_trends_*.
     worker_tests = _touches(_listdir('workers/tests', ('.py',)), precise, names, mid,
                             own_names=own_names)
 
@@ -771,7 +771,7 @@ def checks(name):
         if 'lint' in stem or stem.startswith('context_pack') or stem.startswith('doc_budget'):
             continue
 
-        if mid and ('prl%s' % mid) in stem:
+        if mid and ('prx%s' % mid) in stem:
             stands.append(rel)
             continue
 
@@ -1068,7 +1068,7 @@ def _state_excerpt(name):
     found = sections(path)
 
     # сначала честный раздел «Состояние…», и только потом «Готовность»/«Статус»:
-    # в prl643 «Готовность к деплою» — 11 КБ инструкций, а не состояние.
+    # в prx643 «Готовность к деплою» — 11 КБ инструкций, а не состояние.
     for degree, rx, cap in ((0, r'состояние', 1500), (1, r'готовност|статус', 700)):
         for level, title, line, size in found:
             if level <= 3 and re.search(rx, title, re.I):
@@ -1141,7 +1141,7 @@ def _block_facts(name, man):
                 every = value.get('every') if isinstance(value, dict) else None
                 parts.append('`%s`%s' % (key, ' — %s' % every if every else ''))
 
-            lines.append('* **Расписание (prl603):** ' + '; '.join(parts))
+            lines.append('* **Расписание (prx603):** ' + '; '.join(parts))
 
         for key in ('cleanup', 'health', 'recent', 'search'):
             section = man.get(key)
@@ -1297,7 +1297,7 @@ def _block_deps(name):
     handlers = workers(name)
 
     if handlers:
-        lines.append('* Воркеры: ' + ', '.join('`workers/prl_workers/handlers/%s`' % h
+        lines.append('* Воркеры: ' + ', '.join('`workers/prx_workers/handlers/%s`' % h
                                               for h in handlers))
 
     return '\n'.join(lines)
@@ -1676,7 +1676,7 @@ def main(argv=None):
     sub = parser.add_subparsers(dest='cmd')
 
     p_pack = sub.add_parser('pack', help='карточка модуля (таблицы, классы, маршруты, правила)')
-    p_pack.add_argument('module', nargs='?', help='имя модуля, например prl643_cad')
+    p_pack.add_argument('module', nargs='?', help='имя модуля, например prx643_cad')
     p_pack.add_argument('--max', type=int, default=DEFAULT_MAX, help='бюджет в байтах (по умолчанию 8192)')
     p_pack.add_argument('--full', action='store_true', help='не подрезать блоки')
     p_pack.add_argument('--write', action='store_true', help='писать в .context/<модуль>.md')

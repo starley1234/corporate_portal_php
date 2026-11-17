@@ -1,4 +1,4 @@
-"""Документооборот prl390–prl394: чистые функции без сайта и модели."""
+"""Документооборот prx390–prx394: чистые функции без сайта и модели."""
 from __future__ import annotations
 
 import json
@@ -6,11 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from prl_workers.handlers.doc_analyze import parse_json_reply
-from prl_workers.handlers.doc_normalize import _clean, _extract_pypdf
+from prx_workers.handlers.doc_analyze import parse_json_reply
+from prx_workers.handlers.doc_normalize import _clean, _extract_pypdf
 
 ROOT = Path(__file__).resolve().parents[2]
-DEMO = ROOT / "application" / "modules" / "prl390_intake" / "demo"
+DEMO = ROOT / "application" / "modules" / "prx390_intake" / "demo"
 
 
 def test_demo_pdfs_have_text_layer():

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Панель статуса среды разработки PRL (для песочницы/preview).
+Панель статуса среды разработки PRX (для песочницы/preview).
 
-Показывает живое состояние PostgreSQL (очередь prl120_jobs), состав
+Показывает живое состояние PostgreSQL (очередь prx120_jobs), состав
 инфраструктуры и команды разворачивания. Это НЕ приложение — приложение
 на PHP 8.4 поднимается через docker compose / bin/serve (см. страницу).
 
@@ -19,7 +19,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PGDATA = "/opt/pgdata"
-DSN = "postgres://prl:prl@127.0.0.1:5432/prl"
+DSN = "postgres://prx:prx@127.0.0.1:5432/prx"
 PSQL = "/usr/local/lib/python3.11/dist-packages/pgserver/pginstall/bin/psql"
 
 
@@ -42,12 +42,12 @@ def page() -> str:
     ver = psql("SHOW server_version;")
     pg_ok = ver is not None
     stats = psql("""
-        SELECT status, COUNT(*) FROM prl_120_jobs GROUP BY status ORDER BY status;
+        SELECT status, COUNT(*) FROM prx_120_jobs GROUP BY status ORDER BY status;
     """) if pg_ok else None
     last_jobs = psql("""
         SELECT id, channel, status, COALESCE(claimed_by,'—'),
                to_char(created_at, 'DD.MM HH24:MI:SS')
-        FROM prl_120_jobs ORDER BY id DESC LIMIT 8;
+        FROM prx_120_jobs ORDER BY id DESC LIMIT 8;
     """) if pg_ok else None
     modules = sorted(
         d for d in os.listdir(os.path.join(ROOT, "application/modules"))
@@ -70,7 +70,7 @@ def page() -> str:
     mod_rows = "".join(f"<code>{esc(m)}</code>" for m in modules)
 
     pg_block = f"""
-      <p>PostgreSQL <b>{esc(ver[0][0])}</b> — работает (127.0.0.1:5432, БД prl).</p>
+      <p>PostgreSQL <b>{esc(ver[0][0])}</b> — работает (127.0.0.1:5432, БД prx).</p>
       <div class='stats'>{stat_cells}</div>
       <table><tr><th>id</th><th>канал</th><th>статус</th><th>воркер</th><th>создана</th></tr>{job_rows}</table>
     """ if pg_ok else "<p class='bad'>PostgreSQL недоступен — python3 bin/status-server.py перезапустит при обращении.</p>"
@@ -88,7 +88,7 @@ docker compose up -d               # nginx + php-fpm 8.4 + postgres 17 + redis</
     """
 
     return f"""<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8">
-<title>PRL — статус среды</title>
+<title>PRX — статус среды</title>
 <style>
   body {{ font-family: ui-sans-serif, system-ui, sans-serif; background:#0f172a; color:#e2e8f0; margin:0; }}
   .wrap {{ max-width: 880px; margin: 0 auto; padding: 32px 20px 60px; }}
@@ -108,10 +108,10 @@ docker compose up -d               # nginx + php-fpm 8.4 + postgres 17 + redis</
   pre {{ background:#0f172a; padding:12px 14px; border-radius:10px; overflow-x:auto; font-size:12.5px; border:1px solid #334155; }}
   ul {{ margin: 6px 0; padding-left: 20px; }} li {{ margin: 3px 0; }}
 </style></head><body><div class="wrap">
-<h1>🚀 PRL — микромодульный монолит: статус среды</h1>
+<h1>🚀 PRX — микромодульный монолит: статус среды</h1>
 
 <div class="card">
-  <h2>PostgreSQL + очередь задач (prl120_jobs)</h2>
+  <h2>PostgreSQL + очередь задач (prx120_jobs)</h2>
   {pg_block}
 </div>
 
@@ -130,7 +130,7 @@ docker compose up -d               # nginx + php-fpm 8.4 + postgres 17 + redis</
   <ul>
     <li><b>Инфраструктура:</b> docker-compose.yml (nginx, php-fpm 8.4, postgres 17 + pgvector, redis, воркеры, adminer, mailpit), docker/php, docker/nginx, docker/postgres, docker/worker</li>
     <li><b>Скрипты:</b> bin/restore-env.sh (полное разворачивание), bin/setup.sh (.env + секреты), bin/console, bin/serve, bin/test</li>
-    <li><b>Очередь:</b> модуль <code>prl120_jobs</code> — таблицы, Service_Prl120_JobQueue, HTTP-API для воркеров, cron-задача RequeueStale</li>
+    <li><b>Очередь:</b> модуль <code>prx120_jobs</code> — таблицы, Service_Prx120_JobQueue, HTTP-API для воркеров, cron-задача RequeueStale</li>
     <li><b>Python-воркеры:</b> workers/ — asyncio-каркас, PgQueue (LISTEN/NOTIFY) и HttpQueue, обработчики echo / embeddings.index / llm.summarize. <span class="ok">Проверен end-to-end на живой БД ✓</span></li>
     <li><b>LLM/эмбеддинги:</b> в config/llm.php секция embedding + провайдер embedding_server (свой эндпоинт EMBEDDING_API_URL)</li>
     <li><b>Для агентов:</b> корневой AGENTS.md + памятка AGENTS.md в каждом модуле, docs/ (ARCHITECTURE, MODULE_GUIDE, WORKERS, FRONTEND, ENVIRONMENT), генератор модулей module:scaffold</li>
@@ -148,7 +148,7 @@ docker compose up -d               # nginx + php-fpm 8.4 + postgres 17 + redis</
   <ul>
     <li>README.md — быстрый старт</li>
     <li>docs/ARCHITECTURE.md — архитектура и дорожная карта</li>
-    <li>docs/MODULE_GUIDE.md — как создавать модули prlXXX</li>
+    <li>docs/MODULE_GUIDE.md — как создавать модули prxXXX</li>
     <li>docs/WORKERS.md — асинхронные задачи и воркеры</li>
     <li>docs/FRONTEND.md — фронтенд</li>
     <li>docs/ENVIRONMENT.md — окружение и переменные</li>

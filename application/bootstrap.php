@@ -137,22 +137,22 @@ try
 catch (Throwable $e)
 {
 	// Молча: писать пока некуда, покажем причину после подключения Log_Plain.
-	$prl_log_dir_error = $e->getMessage();
+	$prx_log_dir_error = $e->getMessage();
 }
 
 /**
- * Плоский ротируемый лог (application/logs/prl-site.log) — его можно просто
+ * Плоский ротируемый лог (application/logs/prx-site.log) — его можно просто
  * прислать при разборе инцидента: одна строка на событие, без PHP-обёртки,
- * ротация по размеру. Настройки — PRL_LOG_* в `.env` (см. Log_Plain).
+ * ротация по размеру. Настройки — PRX_LOG_* в `.env` (см. Log_Plain).
  */
 try
 {
 	Kohana::$log->attach(new Log_Plain);
 
-	if (isset($prl_log_dir_error))
+	if (isset($prx_log_dir_error))
 	{
 		Kohana::$log->add(Log::WARNING, 'Каталог логов недоступен, PHP-лог ядра отключён: :e',
-			[':e' => $prl_log_dir_error]);
+			[':e' => $prx_log_dir_error]);
 	}
 }
 catch (Throwable $e)

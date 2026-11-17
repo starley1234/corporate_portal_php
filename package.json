@@ -1,6 +1,6 @@
 {
-  "name": "prl-assets",
-  "description": "Локальные assets корпоративного портала PRL",
+  "name": "prx-assets",
+  "description": "Локальные assets корпоративного портала PRX",
   "directories": {
     "doc": "docs",
     "test": "tests"
@@ -8,7 +8,7 @@
   "scripts": {
     "build:css": "tailwindcss -c tailwind.config.js -i .tools/tailwind/input.css -o public_html/assets/css/app.css --minify",
     "watch:css": "tailwindcss -c tailwind.config.js -i .tools/tailwind/input.css -o public_html/assets/css/app.css --watch",
-    "test:prl-ui": "node --test tests/Js/prl_ui.test.mjs",
+    "test:prx-ui": "node --test tests/Js/prx_ui.test.mjs",
     "test": "node --test tests/Js/*.test.mjs",
     "test:architecture": "node --test docs/architecture/engine/tests/*.test.mjs",
     "check:architecture": "node docs/architecture/engine/scripts/arch.mjs check --dir docs/architecture --strict",

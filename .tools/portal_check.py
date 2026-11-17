@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Контракты PRL без запущенных PHP/БД. Не заменяют runtime-тесты."""
+"""Контракты PRX без запущенных PHP/БД. Не заменяют runtime-тесты."""
 import ast
 import re
 import sys
@@ -19,14 +19,14 @@ for name, kind, relative in registered:
     path = ROOT / ('application' if kind == 'APP' else 'modules') / relative
     check(path.is_dir(), f'Не найден модуль {name}: {path}')
 check(len({name for name, _, _ in registered}) == len(registered), 'Дубликаты ключей модулей')
-check(registry.index("'prl208_events'") < registry.index("'prl120_jobs'"), 'Шина должна предшествовать очереди')
+check(registry.index("'prx208_events'") < registry.index("'prx120_jobs'"), 'Шина должна предшествовать очереди')
 check((ROOT / 'docs/architecture/model/meta.yaml').is_file(), 'Нет модели docs/architecture/model/meta.yaml')
 check((ROOT / 'docs/architecture/dist/architecture.html').is_file(), 'Нет собранной docs/architecture/dist/architecture.html')
 check((ROOT / 'docs/architecture/dist/architecture.json').is_file(), 'Нет собранной docs/architecture/dist/architecture.json')
 check("config/modules.php" in (ROOT / 'application/bootstrap.php').read_text(), 'Bootstrap обходит реестр')
 
 plan = (ROOT / 'application/config/portal.php').read_text()
-plan_entries = re.findall(r"'module' => '(prl\d+_[a-z_]+)',\s*'title' => '[^']+',\s*'status' => '(planned|active)'", plan)
+plan_entries = re.findall(r"'module' => '(prx\d+_[a-z_]+)',\s*'title' => '[^']+',\s*'status' => '(planned|active)'", plan)
 planned = [name for name, _status in plan_entries]
 active_services = [name for name, status in plan_entries if status == 'active']
 check(len(planned) == 55, 'План должен содержать 55 сервисов')
@@ -60,9 +60,9 @@ for path in (ROOT / 'application').rglob('*.php'):
         check(name.lower() not in classes, f'Дубликат PHP-класса {name}: {path}')
         classes[name.lower()] = path
 
-handlers = ROOT / 'workers/prl_workers/handlers'
+handlers = ROOT / 'workers/prx_workers/handlers'
 channel_names = []
-for path in (ROOT / 'workers/prl_workers').rglob('*.py'):
+for path in (ROOT / 'workers/prx_workers').rglob('*.py'):
     try:
         ast.parse(path.read_text(), filename=str(path))
     except SyntaxError as error:
@@ -73,11 +73,11 @@ for path in (ROOT / 'workers/prl_workers').rglob('*.py'):
         if match:
             channel_names.append(match[1])
 check(set(channel_names) == {'echo', 'embeddings.index', 'llm.summarize', 'semantic.index', 'doc.normalize', 'doc.analyze', 'doc.draft'}, 'Лишние/потерянные worker-каналы')
-manifest_text = '\n'.join(p.read_text() for p in (ROOT / 'application/modules').glob('*/config/prl_module.php'))
+manifest_text = '\n'.join(p.read_text() for p in (ROOT / 'application/modules').glob('*/config/prx_module.php'))
 for channel in channel_names:
     check(f"'{channel}'" in manifest_text, f'Канал не объявлен в манифесте: {channel}')
 
-rag_manifest = (ROOT / 'application/modules/prl560_knowledge/config/prl_module.php').read_text()
+rag_manifest = (ROOT / 'application/modules/prx560_knowledge/config/prx_module.php').read_text()
 check("'search'" not in rag_manifest, 'Технический RAG не должен попадать в глобальный поиск')
 check("'audience' => 'admin'" in rag_manifest, 'RAG должен быть административным')
 check('auth_required = FALSE' not in (ROOT / 'application/classes/Controller/Welcome.php').read_text(), 'Главная не должна быть публичной')
@@ -88,4 +88,4 @@ check('portal:maintain' in (ROOT / 'docs/WORKERS.md').read_text(), 'Не опи�
 if errors:
     print('\n'.join('FAIL: ' + item for item in errors))
     sys.exit(1)
-print(f'PRL contracts OK: {len(registered)} registered modules, {len(classes)} PHP classes, {len(active_services)} active + {55 - len(active_services)} planned services, {len(channel_names)} worker channels')
+print(f'PRX contracts OK: {len(registered)} registered modules, {len(classes)} PHP classes, {len(active_services)} active + {55 - len(active_services)} planned services, {len(channel_names)} worker channels')

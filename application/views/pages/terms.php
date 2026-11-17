@@ -1,6 +1,6 @@
 <?php defined('SYSPATH') or die('No direct script access.'); ?>
 
-<div class="prl-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
+<div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
     <?php echo View::factory('partials/page_header', [
         'crumbs' => [['Документы портала'], ['Условия использования']],
         'title'  => 'Условия использования',
@@ -8,8 +8,8 @@
         'lead'   => 'Техническая заготовка правил работы с порталом: действующий регламент должен быть утверждён организацией до ввода в эксплуатацию.',
     ]); ?>
 
-    <section class="prl-panel mt-6">
-        <div class="prl-prose p-6">
+    <section class="prx-panel mt-6">
+        <div class="prx-prose p-6">
             <p>Портал предназначен для служебной работы сотрудников. Правила использования, допустимые категории данных и регламенты доступа должны быть утверждены организацией до ввода в эксплуатацию. Эта страница — техническая заготовка, а не утверждённый регламент.</p>
         </div>
     </section>

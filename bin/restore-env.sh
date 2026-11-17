@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# PRL — разворачивание среды с нуля (идемпотентно, можно запускать
+# PRX — разворачивание среды с нуля (идемпотентно, можно запускать
 # повторно). Восстанавливает всё: PHP 8.4 + PostgreSQL + конфиги + миграции.
 #
 #   bash bin/restore-env.sh                 # всё и сразу
@@ -119,10 +119,10 @@ install_pg() {
         sleep 2
         if pg_isready -h "$host" -p "$port" >/dev/null 2>&1; then
             ok "PostgreSQL (apt) запущен"
-            $SUDO -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='prl'" | grep -q 1 || \
-                $SUDO -u postgres psql -c "CREATE ROLE prl LOGIN PASSWORD 'prl' CREATEDB;"
-            $SUDO -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='prl'" | grep -q 1 || \
-                $SUDO -u postgres psql -c "CREATE DATABASE prl OWNER prl;"
+            $SUDO -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='prx'" | grep -q 1 || \
+                $SUDO -u postgres psql -c "CREATE ROLE prx LOGIN PASSWORD 'prx' CREATEDB;"
+            $SUDO -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='prx'" | grep -q 1 || \
+                $SUDO -u postgres psql -c "CREATE DATABASE prx OWNER prx;"
             return 0
         fi
     fi
@@ -137,7 +137,7 @@ import subprocess
 from pathlib import Path
 import pgserver
 root = sys.argv[1]
-pgdata = Path(os.environ.get("PRL_PGDATA", os.path.expanduser("~/.prl/pgdata")))
+pgdata = Path(os.environ.get("PRX_PGDATA", os.path.expanduser("~/.prx/pgdata")))
 pgdata.parent.mkdir(parents=True, exist_ok=True)
 # Нюансы pgserver 0.1.4: cleanup_mode='stop' по умолчанию убивает сервер при
 # выходе python (atexit), а ensure_postgres_running() слушает только unix-сокет.
@@ -169,13 +169,13 @@ elif not tcp_ok:
     pg_ctl("-m", "fast", "stop")
     pg_ctl("-l", str(pgdata/"pg.log"), "-o", PGOPTS, "-w", "start")
 
-if psql("SELECT 1 FROM pg_roles WHERE rolname='prl'") != "1":
-    psql("CREATE ROLE prl LOGIN PASSWORD 'prl' CREATEDB;")
-if psql("SELECT 1 FROM pg_database WHERE datname='prl'") != "1":
-    psql("CREATE DATABASE prl OWNER prl")
+if psql("SELECT 1 FROM pg_roles WHERE rolname='prx'") != "1":
+    psql("CREATE ROLE prx LOGIN PASSWORD 'prx' CREATEDB;")
+if psql("SELECT 1 FROM pg_database WHERE datname='prx'") != "1":
+    psql("CREATE DATABASE prx OWNER prx")
 print("PostgreSQL (pgserver) готов: TCP 127.0.0.1:5432, данные", pgdata)
 PYEOF
-    ok "Переносимый PostgreSQL запущен (данные: ~/.prl/pgdata)"
+    ok "Переносимый PostgreSQL запущен (данные: ~/.prx/pgdata)"
 }
 
 # =============================================================================
@@ -205,8 +205,8 @@ install_app() {
     fi
 
     source bin/_env.sh
-    prl_load_env "$ROOT/.env"
-    case "${PRL_DEFAULT_ADMIN:-1}" in
+    prx_load_env "$ROOT/.env"
+    case "${PRX_DEFAULT_ADMIN:-1}" in
         0|false|no|off)
             msg "Создаю администратора из ADMIN_*"
             bin/console auth:user --email="${ADMIN_EMAIL:-admin@example.test}" \

@@ -9,7 +9,7 @@
  * чтобы у сервиса для зарегистрированных был один узнаваемый вид, а не
  * строчка «войдите» в углу карточки.
  *
- * Кнопка одна и главная (дизайн v6: главное действие — .prl-btn-cta, emerald;
+ * Кнопка одна и главная (дизайн v6: главное действие — .prx-btn-cta, emerald;
  * на экране ОДНА ключевая кнопка): вход и регистрация живут на одной странице
  * /auth/login (там же ссылка на /auth/register), поэтому вторая кнопка не нужна.
  * Возврат после входа — `?return_url=`, его читает Controller_Auth.
@@ -47,7 +47,7 @@ $aw_wrap = $aw_tone === 'amber'
     ? 'border-amber-300 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-950/30'
     : 'border-blue-200 bg-blue-50/70 dark:border-blue-900/70 dark:bg-blue-950/30';
 
-$aw_badge = $aw_tone === 'amber' ? 'prl-badge-run' : 'prl-badge-info';
+$aw_badge = $aw_tone === 'amber' ? 'prx-badge-run' : 'prx-badge-info';
 
 $aw_pad = $aw_compact ? 'p-4' : 'p-4 sm:p-5';
 ?>
@@ -55,14 +55,14 @@ $aw_pad = $aw_compact ? 'p-4' : 'p-4 sm:p-5';
 <section class="rounded-xl border <?php echo $aw_wrap; ?> <?php echo $aw_pad; ?> shadow-xs"
          data-auth-wall="<?php echo HTML::chars($aw_return !== '' ? $aw_return : 'page'); ?>">
 
-    <span class="prl-badge uppercase <?php echo $aw_badge; ?>"><span class="prl-dot"></span>Только для зарегистрированных</span>
+    <span class="prx-badge uppercase <?php echo $aw_badge; ?>"><span class="prx-dot"></span>Только для зарегистрированных</span>
 
     <div class="mt-3 flex items-start gap-3">
         <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/80 text-blue-600 shadow-xs dark:bg-gray-900/60 dark:text-blue-300">
             <i class="<?php echo HTML::chars($aw_icon); ?>" aria-hidden="true"></i>
         </span>
         <div class="min-w-0">
-            <h2 class="prl-h3"><?php echo HTML::chars($aw_title); ?></h2>
+            <h2 class="prx-h3"><?php echo HTML::chars($aw_title); ?></h2>
             <?php if ($aw_text !== ''): ?>
             <p class="mt-1 text-sm leading-relaxed text-gray-600 dark:text-gray-300"><?php echo HTML::chars($aw_text); ?></p>
             <?php endif; ?>
@@ -91,7 +91,7 @@ $aw_pad = $aw_compact ? 'p-4' : 'p-4 sm:p-5';
 
     <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
         <a href="<?php echo HTML::chars($aw_login); ?>"
-           class="prl-btn-cta w-full sm:w-auto">
+           class="prx-btn-cta w-full sm:w-auto">
             <i class="fas fa-right-to-bracket" aria-hidden="true"></i><span><?php echo HTML::chars($aw_cta); ?></span>
         </a>
         <span class="text-center text-xs text-gray-500 sm:text-left dark:text-gray-400">Регистрация — там же, занимает минуту</span>

@@ -16,12 +16,12 @@ overview:
           - { id: cli, at: [140, 280, 190], label: CLI / cron, sub: bin/console, kind: ops }
           - { id: http, at: [420, 130, 210], label: HTTP / HMVC, sub: Controller_Base, kind: core }
           - { id: acl, at: [420, 260, 210], label: Auth + RBAC, sub: роль и объект, kind: sec }
-          - { id: service, at: [700, 130, 220], label: Service_PrlXXX, sub: бизнес-логика, kind: module }
-          - { id: view, at: [700, 260, 220], label: View / partials, sub: "prl-card, prl-table", kind: web }
+          - { id: service, at: [700, 130, 220], label: Service_PrxXXX, sub: бизнес-логика, kind: module }
+          - { id: view, at: [700, 260, 220], label: View / partials, sub: "prx-card, prx-table", kind: web }
           - { id: db, at: [1030, 110, 180], label: PostgreSQL, sub: схема и миграции, kind: data, info: "{db}" }
-          - { id: queue, at: [700, 390, 220], label: prl120 очередь, sub: PostgreSQL, kind: queue, info: "{queue}" }
-          - { id: events, at: [420, 390, 210], label: prl208 EventBus, sub: подписчики, kind: module, info: "{events}" }
-          - { id: storage, at: [1030, 240, 180], label: prl212 файлы, sub: private storage, kind: data, info: "{storage}" }
+          - { id: queue, at: [700, 390, 220], label: prx120 очередь, sub: PostgreSQL, kind: queue, info: "{queue}" }
+          - { id: events, at: [420, 390, 210], label: prx208 EventBus, sub: подписчики, kind: module, info: "{events}" }
+          - { id: storage, at: [1030, 240, 180], label: prx212 файлы, sub: private storage, kind: data, info: "{storage}" }
           - { id: workers, at: [1030, 370, 180], label: Python-воркеры, sub: pg или http, kind: queue, info: "{workers}" }
           - { id: llm, at: [1030, 470, 180], label: LLM, sub: внешние модели, kind: ai, info: "{llm}" }
         edges:
@@ -52,7 +52,7 @@ overview:
           - { id: c, label: Controller, kind: core }
           - { id: s, label: Service, kind: module }
           - { id: d, label: PostgreSQL, kind: data }
-          - { id: q, label: prl120, kind: queue }
+          - { id: q, label: prx120, kind: queue }
         messages:
           - u -> c: HTTP-запрос
           - c -> s: операция с объектом
@@ -72,19 +72,19 @@ detail:
         head: [Контракт, Как выглядит, Зачем]
         rows:
           - - Публичный сервис
-            - Service_PrlXXX::method(...)
+            - Service_PrxXXX::method(...)
             - Политика и проверка объекта внутри сервиса
           - - Событие
-            - prlXXX.entity.action + payload из ID
+            - prxXXX.entity.action + payload из ID
             - Подписчик не зависит от ORM-модели автора
           - - HMVC
             - View::factory готового виджета
             - Нет прямого include чужой вьюхи
           - - Очередь
-            - Service_Prl120_JobQueue::push
+            - Service_Prx120_JobQueue::push
             - Таймаут, повтор, отмена и учёт ресурсов
           - - Манифест
-            - config/prl_module.php
+            - config/prx_module.php
             - Каталог и меню не знают списков чужих модулей
         center: []
     - note: >-

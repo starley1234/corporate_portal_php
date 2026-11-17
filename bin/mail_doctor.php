@@ -2,7 +2,7 @@
 <?php defined('STDIN') or define('STDIN', fopen('php://stdin', 'r'));
 
 /**
- * Диагностика почты PRL.ru (prl597_notifications + symfony/mailer).
+ * Диагностика почты PRX.ru (prx597_notifications + symfony/mailer).
  *
  * Запуск на сервере из корня сайта:
  *     php bin/mail_doctor.php кому@пример.ру
@@ -21,7 +21,7 @@ $ROOT = dirname(__DIR__);
 $TO   = isset($argv[1]) ? trim($argv[1]) : '';
 $VERBOSE = in_array('--verbose', $argv, TRUE);
 
-out("=== Диагностика почты PRL.ru (prl597) — ".date('d.m.Y H:i:s')." ===");
+out("=== Диагностика почты PRX.ru (prx597) — ".date('d.m.Y H:i:s')." ===");
 out("Корень сайта: $ROOT");
 
 if ($TO === '' OR ! filter_var($to = $TO, FILTER_VALIDATE_EMAIL))
@@ -68,7 +68,7 @@ foreach ([$ROOT.'/.env', $ROOT.'/workers/.env'] as $envfile)
 }
 
 // env-переменные процесса имеют приоритет (как на проде через Environment)
-foreach (['EMAIL_DSN', 'EMAIL_FROM', 'EMAIL_FROM_NAME', 'PRL597_EMAIL_ENABLED'] as $k)
+foreach (['EMAIL_DSN', 'EMAIL_FROM', 'EMAIL_FROM_NAME', 'PRX597_EMAIL_ENABLED'] as $k)
 {
     $v = getenv($k);
 
@@ -80,17 +80,17 @@ foreach (['EMAIL_DSN', 'EMAIL_FROM', 'EMAIL_FROM_NAME', 'PRL597_EMAIL_ENABLED'] 
 
 $dsn  = trim((string) ($env['EMAIL_DSN'] ?? ''));
 $from = trim((string) ($env['EMAIL_FROM'] ?? ''));
-$fname = trim((string) ($env['EMAIL_FROM_NAME'] ?? '')) ?: 'PRL.ru';
-$enabled = trim((string) ($env['PRL597_EMAIL_ENABLED'] ?? '1'));
+$fname = trim((string) ($env['EMAIL_FROM_NAME'] ?? '')) ?: 'PRX.ru';
+$enabled = trim((string) ($env['PRX597_EMAIL_ENABLED'] ?? '1'));
 
 out("  EMAIL_DSN: ".($dsn !== '' ? mask_dsn($dsn) : 'НЕ ЗАДАН'));
 out("  EMAIL_FROM: ".($from !== '' ? $from : 'НЕ ЗАДАН'));
-out("  EMAIL_FROM_NAME: ".($fname !== '' ? $fname : '(по умолчанию PRL.ru)'));
-out("  PRL597_EMAIL_ENABLED: ".($enabled !== '' ? $enabled : '1 (по умолчанию)'));
+out("  EMAIL_FROM_NAME: ".($fname !== '' ? $fname : '(по умолчанию PRX.ru)'));
+out("  PRX597_EMAIL_ENABLED: ".($enabled !== '' ? $enabled : '1 (по умолчанию)'));
 
 if ($enabled === '0')
 {
-    out("  [ВНИМАНИЕ] PRL597_EMAIL_ENABLED=0 — центр уведомлений письма не шлёт вовсе.");
+    out("  [ВНИМАНИЕ] PRX597_EMAIL_ENABLED=0 — центр уведомлений письма не шлёт вовсе.");
 }
 
 if ($dsn === '')
@@ -222,7 +222,7 @@ try
     $email = (new Symfony\Component\Mime\Email())
         ->from(new Symfony\Component\Mime\Address($from, $fname))
         ->to($to)
-        ->subject('Тест почты PRL.ru — '.date('H:i:s'))
+        ->subject('Тест почты PRX.ru — '.date('H:i:s'))
         ->text("Это тестовое письмо диагностики bin/mail_doctor.php.\n\n"
             ."Время: ".date('d.m.Y H:i:s')."\n"
             ."Транспорт: ".mask_dsn($dsn)."\n"
@@ -253,7 +253,7 @@ out('[7/7] Подсказки');
 
 out('  • Не дошло, но «принято транспортом»? Проверьте папку «Спам» и квоту ящика.');
 out('  • Яндекс: пароль для SMTP — «пароль приложения» (не основной), SSL-порт 465.');
-out('  • Письма центра уведомлений видны в /prl597/admin (статусы sent/failed и причина).');
+out('  • Письма центра уведомлений видны в /prx597/admin (статусы sent/failed и причина).');
 
 finish($fail);
 

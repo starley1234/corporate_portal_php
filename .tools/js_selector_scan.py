@@ -4,10 +4,10 @@
     python3 .tools/js_selector_scan.py [--base <ревизия>]
 
 Зачем (21.10.2026, второй проход дизайна v6): разметку переводили на
-компоненты (.prl-btn-*, .prl-badge, .prl-modal-box …), а JS модулей искал
+компоненты (.prx-btn-*, .prx-badge, .prx-modal-box …), а JS модулей искал
 элементы по утилитам старого вида — `.bg-opacity-75` (подложка модалки
-prl118), `.font-bold.uppercase.tracking-wide` (значок «загружена» в llm),
-`.rounded-xl.border-blue-200.bg-blue-50` (плашка prl580). Классы исчезли —
+prx118), `.font-bold.uppercase.tracking-wide` (значок «загружена» в llm),
+`.rounded-xl.border-blue-200.bg-blue-50` (плашка prx580). Классы исчезли —
 JS молча перестал находить элементы. PHP-стенды этого не видят: они рендерят
 вид, но не исполняют его скрипт.
 

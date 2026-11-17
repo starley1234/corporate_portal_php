@@ -7,7 +7,7 @@
 | `docs/architecture/dist/architecture.html` | люди: схемы, слои, решения, поиск |
 | `docs/architecture/dist/architecture.json` | агенты и скрипты |
 
-Страница портала: **`/architecture`** (после входа, право `prl101.view`).
+Страница портала: **`/architecture`** (после входа, право `prx101.view`).
 Машиночитаемая версия: **`/architecture/data.json`**.
 
 ## Сборка

@@ -3,12 +3,12 @@
 
 Эталон — /pages/required_design_sample: строгая семантическая палитра
 (emerald — главное действие, blue — процесс, rose — опасность, gray —
-второстепенное), компоненты .prl-* из общего CSS и помощники window.PRL.
+второстепенное), компоненты .prx-* из общего CSS и помощники window.PRX.
 Скрипт показывает, сколько в каждом модуле осталось до эталона, и не даёт
 приведённым модулям откатиться.
 
     python3 .tools/design_audit.py                  # сводка по всем модулям
-    python3 .tools/design_audit.py --module prl592   # file:line по одному модулю
+    python3 .tools/design_audit.py --module prx592   # file:line по одному модулю
     python3 .tools/design_audit.py --check          # CI: храповик (см. ниже)
     python3 .tools/design_audit.py --json           # сводка для скриптов
 
@@ -16,7 +16,7 @@
 или ломают вёрстку тихо; «замечания» — расхождения с палитрой и обликом v6.
 
 --check падает, если:
-  1. в любой вьюхе есть класс .prl-*, которого нет в собранном app.css
+  1. в любой вьюхе есть класс .prx-*, которого нет в собранном app.css
      (опечатка или удалённый компонент — стиль тихо пропадает);
   2. в приведённом модуле (DONE) или в общем файле (SHARED_DONE) есть хоть
      одно замечание любого уровня, не помеченное исключением;
@@ -44,24 +44,24 @@ SHARED_VIEWS = ROOT / 'application/views'
 # Модули, приведённые к эталону v6. Для них --check требует ноль замечаний.
 # Проверяются сохранённые модули; старые сервисы удалены (docs/REMOVED-MODULES.md).
 # Спринт v6 (20–21.10.2026): все модули прошли общие кодмоды (палитра, кегль,
-# h1, свои <style>, взвод, корни, кнопки, поля, карточки, prl*) и чисты по
+# h1, свои <style>, взвод, корни, кнопки, поля, карточки, prx*) и чисты по
 # аудиту — храповик держит это в CI. Дошлифовка по модулям — см. план.
 DONE = {
     'cookie_consent',
     'llm',
-    'prl100_platform',
-    'prl110_catalog',
-    'prl111_migrations',
-    'prl115_semantic',
-    'prl120_jobs',
-    'prl208_events',
-    'prl212_file_storage',
-    'prl218_module_manager',
-    'prl300_employee',
-    'prl560_knowledge',
-    'prl595_useradmin',
-    'prl597_notifications',
-    'prl599_account',
+    'prx100_platform',
+    'prx110_catalog',
+    'prx111_migrations',
+    'prx115_semantic',
+    'prx120_jobs',
+    'prx208_events',
+    'prx212_file_storage',
+    'prx218_module_manager',
+    'prx300_employee',
+    'prx560_knowledge',
+    'prx595_useradmin',
+    'prx597_notifications',
+    'prx599_account',
 }
 
 # Группы общих вьюх application/views/*, приведённые целиком (храповик, как DONE).
@@ -81,12 +81,12 @@ SHARED_DONE = {
     'application/views/partials/page_header.php',
 }
 
-# Классы .prl-*, которых нет в app.css законно (не стиль, а метка для JS).
+# Классы .prx-*, которых нет в app.css законно (не стиль, а метка для JS).
 KNOWN_HOOKS: dict[str, str] = {}
 
 # Исключения, записанные в правилах владельца: модуль или файл → правило → почему.
 ALLOW: dict[str, dict[str, str]] = {
-    'prl520_poll': {'progress': 'доли голосов на /p/<код> — результат, а не ход (AGENTS.md, 04.10.2026)'},
+    'prx520_poll': {'progress': 'доли голосов на /p/<код> — результат, а не ход (AGENTS.md, 04.10.2026)'},
     'application/views/template_tailwindcss.php': {'sticky': 'шапка сайта — часть макета, а не блок страницы'},
 }
 
@@ -94,58 +94,58 @@ ALLOW: dict[str, dict[str, str]] = {
 RULES = {
     # код: (уровень, что найдено, как исправить)
     'style': ('ошибка', 'инлайн-<style> во вьюхе',
-              'компоненты .prl-* и утилиты; своё общее — в .tools/tailwind/input.css'),
+              'компоненты .prx-* и утилиты; своё общее — в .tools/tailwind/input.css'),
     'progress': ('ошибка', 'полоса прогресса или метр',
-                 'ход — спиннер + этап «2 из 3» + секундомер (PRL.run, data-prl-stopwatch); доля — числом или точками'),
+                 'ход — спиннер + этап «2 из 3» + секундомер (PRX.run, data-prx-stopwatch); доля — числом или точками'),
     'sticky': ('ошибка', 'sticky-блок',
                'AGENTS.md п. 10: sticky запрещены — блок в общем потоке '
                '(можно только th/td/tr таблицы внутри её прокрутки)'),
     'confirm': ('ошибка', 'window.confirm',
-                'строка списка — data-prl-arm (двойной клик); тяжёлое удаление — data-prl-confirm / PRL.confirm'),
+                'строка списка — data-prx-arm (двойной клик); тяжёлое удаление — data-prx-confirm / PRX.confirm'),
     'alert': ('ошибка', 'window.alert',
-              'ошибка поля — PRL.fieldError; короткий итог — PRL.toast или .prl-flash-*'),
+              'ошибка поля — PRX.fieldError; короткий итог — PRX.toast или .prx-flash-*'),
     'container': ('ошибка', 'container mx-auto',
                   'корень — w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8, без центрирования'),
-    'unknown': ('ошибка', 'класс .prl-* без определения в app.css',
+    'unknown': ('ошибка', 'класс .prx-* без определения в app.css',
                 'опечатка или удалённый компонент — список в docs/DESIGN-SYSTEM.md'),
     'tiny': ('замечание', 'текст 9–11 px',
-             'минимум для текста — text-xs (12 px), подписи — .prl-hint; 11 px только у подсказок клавиш (.prl-btn-kbd)'),
+             'минимум для текста — text-xs (12 px), подписи — .prx-hint; 11 px только у подсказок клавиш (.prx-btn-kbd)'),
     'palette': ('замечание', 'цвет вне палитры v6',
                 'emerald — главное действие, blue — процесс, rose — опасность, gray — второстепенное, amber — ожидание'),
     'redgreen': ('замечание', 'red-* / green-*',
                  'red → rose, green → emerald'),
     'shadow': ('замечание', 'тень md и крупнее',
-               'карточки плоские: рамка + shadow-sm (.prl-card, .prl-panel)'),
+               'карточки плоские: рамка + shadow-sm (.prx-card, .prx-panel)'),
     'h1': ('замечание', 'свой <h1> мимо шапки',
-           "шапка — View::factory('partials/page_header', …) или класс .prl-h1"),
+           "шапка — View::factory('partials/page_header', …) или класс .prx-h1"),
     'arm': ('замечание', 'своя логика «armed»',
-            'двойной клик — data-prl-arm из app.js, без копии в модуле'),
+            'двойной клик — data-prx-arm из app.js, без копии в модуле'),
     'dark': ('замечание', 'цвет без dark:-пары',
              'светлый цвет текста/фона/рамки нужен и ночью: text-gray-700 dark:text-gray-200, '
-             'bg-*-50 dark:bg-*-950/40, border-gray-200 dark:border-gray-700 (или компонент .prl-*)'),
+             'bg-*-50 dark:bg-*-950/40, border-gray-200 dark:border-gray-700 (или компонент .prx-*)'),
 }
 
 # Модули, где ночная тема выверена: для них --check требует ноль замечаний
 # «dark». Отдельный храповик (25.10.2026, «ночью не видно» в /mcphub).
 # 27.10.2026 к нулю приведены все production-модули и общие группы.
-# prl140_design_lab сюда не входит: это автономная витрина альтернативных
+# prx140_design_lab сюда не входит: это автономная витрина альтернативных
 # тем со своими CSS, а не страницы рабочего портала. Список только растёт.
 DARK_DONE = {
     'cookie_consent',
     'llm',
-    'prl100_platform',
-    'prl110_catalog',
-    'prl111_migrations',
-    'prl115_semantic',
-    'prl120_jobs',
-    'prl208_events',
-    'prl212_file_storage',
-    'prl218_module_manager',
-    'prl300_employee',
-    'prl560_knowledge',
-    'prl595_useradmin',
-    'prl597_notifications',
-    'prl599_account',
+    'prx100_platform',
+    'prx110_catalog',
+    'prx111_migrations',
+    'prx115_semantic',
+    'prx120_jobs',
+    'prx208_events',
+    'prx212_file_storage',
+    'prx218_module_manager',
+    'prx300_employee',
+    'prx560_knowledge',
+    'prx595_useradmin',
+    'prx597_notifications',
+    'prx599_account',
     'views/(корень)',
     'views/auth',
     'views/errors',
@@ -174,7 +174,7 @@ RE = {
     'palette': re.compile(TW_PREFIX + COLOR_UTIL + r'-(?:' + OFF_PALETTE + r')-\d{2,3}(?:/\d+)?(?![\w\-])'),
     'redgreen': re.compile(TW_PREFIX + COLOR_UTIL + r'-(?:red|green)-\d{2,3}(?:/\d+)?(?![\w\-])'),
     'shadow': re.compile(TW_PREFIX + r'shadow-(?:md|lg|xl|2xl|inner)(?![\w\-])'),
-    'h1': re.compile(r'<h1\b(?![^>]*\bprl-(?:ds-)?h1\b)', re.I),
+    'h1': re.compile(r'<h1\b(?![^>]*\bprx-(?:ds-)?h1\b)', re.I),
     'arm': re.compile(r'(?<![\w\-])(?:data-)?armed(?![\w\-])|dataset\.armed\b'),
 }
 # Светлые цвета, которые ночью тонут без пары: тёмный текст, светлый фон/рамка.
@@ -189,14 +189,14 @@ VARIANTS = re.compile(r'^((?:[a-z0-9\-]+:)*)')
 QUOTED = re.compile(r'"([^"\n]*)"|\'([^\'\n]*)\'')
 CLASS_ATTR = re.compile(r'\bclass(?:Name)?\s*=\s*(?:"([^"]*)"|\'([^\']*)\')', re.S)
 CLASS_LIST = re.compile(r'classList\.(?:add|remove|toggle|replace)\(([^)]*)\)')
-PRL_CLASS = re.compile(r'(?<![\w\-.\[$])prl-[a-z0-9][a-z0-9\-]*(?![\w\-])')
+PRX_CLASS = re.compile(r'(?<![\w\-.\[$])prx-[a-z0-9][a-z0-9\-]*(?![\w\-])')
 PRAGMA = re.compile(r'design-audit:\s*allow(-file)?\s+([a-z0-9,\s]+?)\s*(?:[—–-]\s*(.*?))?\s*(?:\*/|-->|\?>|$)')
 COMMENT_LINE = re.compile(r'^\s*(?://|\*|/\*|#(?!\{)|<!--)')
 
 
 def css_classes() -> set[str]:
     css = CSS_FILE.read_text(encoding='utf-8')
-    return set(re.findall(r'\.(prl-[a-zA-Z0-9_\-]+)', css))
+    return set(re.findall(r'\.(prx-[a-zA-Z0-9_\-]+)', css))
 
 
 def view_files():
@@ -234,18 +234,18 @@ def shadow_floating(line: str, start: int) -> bool:
 
 
 def class_tokens(text: str):
-    """(смещение, имя) для каждого .prl-* внутри class=/className=/classList.*()."""
+    """(смещение, имя) для каждого .prx-* внутри class=/className=/classList.*()."""
     for m in CLASS_ATTR.finditer(text):
         value = m.group(1) if m.group(1) is not None else m.group(2)
         base = m.start(1) if m.group(1) is not None else m.start(2)
-        for t in PRL_CLASS.finditer(value):
+        for t in PRX_CLASS.finditer(value):
             if value[t.end():t.end() + 2] in ('<?', '${') or value[t.end():t.end() + 1] == '{':
                 continue  # имя склеивается динамически — проверяет tailwind_classes_lint
             yield base + t.start(), t.group(0)
     for m in CLASS_LIST.finditer(text):
         for q in QUOTED.finditer(m.group(1)):
             value = q.group(1) if q.group(1) is not None else q.group(2)
-            for t in PRL_CLASS.finditer(value):
+            for t in PRX_CLASS.finditer(value):
                 yield m.start(1) + q.start() + 1 + t.start(), t.group(0)
 
 
@@ -283,7 +283,7 @@ def audit_file(path: pathlib.Path, known: set[str]):
     """Список (правило, номер строки, строка) и ошибки исключений."""
     text = path.read_text(encoding='utf-8', errors='replace')
     lines = text.split('\n')
-    local = set(re.findall(r'\.(prl-[a-zA-Z0-9_\-]+)\s*[{,:\s]', text))  # свой <style> — уже правило style
+    local = set(re.findall(r'\.(prx-[a-zA-Z0-9_\-]+)\s*[{,:\s]', text))  # свой <style> — уже правило style
     hits, bad_pragmas = [], []
     allow_file: set[str] = set()
     allow_line: dict[int, set[str]] = {}
@@ -316,9 +316,9 @@ def audit_file(path: pathlib.Path, known: set[str]):
                     continue
                 if rule == 'shadow' and shadow_floating(line, m.start()):
                     continue
-                if rule in ('confirm', 'alert') and re.search(r'PRL\.(?:confirm|toast)', line[max(0, m.start() - 4):m.end()]):
+                if rule in ('confirm', 'alert') and re.search(r'PRX\.(?:confirm|toast)', line[max(0, m.start() - 4):m.end()]):
                     continue
-                if rule == 'arm' and 'prl-arm' in line:
+                if rule == 'arm' and 'prx-arm' in line:
                     continue
                 # Скрытое поле name="armed" — серверная защита (без armed=1
                 # удаление не выполнится), а не своя JS-логика взвода.
@@ -442,19 +442,19 @@ SELFTEST = [
     ('<div class="rounded-xl shadow-lg">', {'shadow'}),
     ('<h1 class="text-2xl font-bold">Заголовок</h1>', {'h1'}),
     ("btn.dataset.armed = '1';", {'arm'}),
-    ('<span class="prl-btn-ctaa">', {'unknown'}),
+    ('<span class="prx-btn-ctaa">', {'unknown'}),
     ('<p class="text-sm text-gray-700">ночью не видно</p>', {'dark'}),
     ('<div class="rounded border border-gray-200 bg-gray-50 p-3 dark:border-gray-700">', {'dark'}),
     ('<a class="hover:bg-gray-50 text-blue-600 dark:text-blue-400">', {'dark'}),
     ('<div class="bg-white p-4">', {'dark'}),
     # не должно срабатывать
-    ("PRL.confirm({ title: 'Удалить?' }).then(go);", set()),
-    ("PRL.toast('Скопировано');", set()),
+    ("PRX.confirm({ title: 'Удалить?' }).then(go);", set()),
+    ("PRX.toast('Скопировано');", set()),
     ('<i class="fas fa-stop text-[11px]"></i>', set()),
     ("el.style.width = '100%';", set()),
-    ('<h1 class="prl-h1">Заголовок</h1>', set()),
-    ('<div role="alert" class="prl-flash prl-flash-ok">', set()),
-    ('<button class="prl-btn-icon-danger" data-prl-arm="Удалить?">', set()),
+    ('<h1 class="prx-h1">Заголовок</h1>', set()),
+    ('<div role="alert" class="prx-flash prx-flash-ok">', set()),
+    ('<button class="prx-btn-icon-danger" data-prx-arm="Удалить?">', set()),
     ('<input type="hidden" name="armed" value="0">', set()),
     ('<b class="bg-emerald-600 text-rose-600 shadow-sm border-blue-200 text-amber-700 dark:text-rose-400 dark:border-blue-800">', set()),
     ('<p class="text-sm text-gray-700 dark:text-gray-200">ок</p>', set()),
@@ -473,7 +473,7 @@ SELFTEST = [
 
 def selftest() -> list[str]:
     import tempfile
-    known = {'prl-btn-cta', 'prl-h1', 'prl-flash', 'prl-flash-ok', 'prl-btn-icon-danger'}
+    known = {'prx-btn-cta', 'prx-h1', 'prx-flash', 'prx-flash-ok', 'prx-btn-icon-danger'}
     fails = []
     with tempfile.TemporaryDirectory() as tmp:
         for i, (src, expect) in enumerate(SELFTEST):
@@ -507,13 +507,13 @@ def check(groups):
         print('\n'.join(problems))
         return 1
     print(f'Дизайн-аудит: чисто (приведено модулей: {len(DONE)}, общих групп: {len(SHARED_DONE_GROUPS)}, общих файлов: {len(SHARED_DONE)}; '
-          f'классов .prl-* без определения нет)')
+          f'классов .prx-* без определения нет)')
     return 0
 
 
 def main():
     ap = argparse.ArgumentParser(description='Аудит вёрстки по эталону дизайна v6')
-    ap.add_argument('--module', metavar='ИМЯ', help='подробно по модулю (имя каталога или префикс: prl592)')
+    ap.add_argument('--module', metavar='ИМЯ', help='подробно по модулю (имя каталога или префикс: prx592)')
     ap.add_argument('--check', action='store_true', help='храповик для CI')
     ap.add_argument('--json', action='store_true', help='сводка в JSON')
     ap.add_argument('--selftest', action='store_true', help='только самопроверка правил')

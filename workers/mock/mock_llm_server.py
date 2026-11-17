@@ -26,18 +26,18 @@ from pathlib import Path
 PORT = int(os.environ.get("MOCK_PORT", "1234"))
 MODEL = os.environ.get("MOCK_MODEL", "mock-llm")
 # MOCK_LLM_REPLY_FILE=/path/reply.txt — отвечать содержимым файла verbatim
-# (для строгих JSON-схем конвейеров: prl598/prl591/prl592/prl602 в оффлайн-е2е).
+# (для строгих JSON-схем конвейеров: prx598/prx591/prx592/prx602 в оффлайн-е2е).
 REPLY_FILE = os.environ.get("MOCK_LLM_REPLY_FILE", "")
 # MOCK_LLM_REPLY_FILES=/a.json,/b.json — ОЧЕРЕДЬ ответов: первый запрос получает
 # a.json, второй b.json, дальше повторяется последний. Нужна каналам, которые
-# ходят к модели несколько раз подряд: у prl646.label это двухпроходный разбор
+# ходят к модели несколько раз подряд: у prx646.label это двухпроходный разбор
 # (проход 1 — строки этикетки, проход 2 — состав из них). С одним REPLY_FILE
 # такой прогон в песочнице не проверить: обе просьбы получили бы один ответ.
 REPLY_FILES = [p.strip() for p in os.environ.get("MOCK_LLM_REPLY_FILES", "").split(",") if p.strip()]
 # MOCK_LLM_ROUTES=/a.json,признак;… — ответ ПО СОДЕРЖАНИЮ промпта. Нужен, когда
 # в одном процессе мока живут разные каналы воркера: очередь REPLY_FILES общая,
 # и запрос «изучи вещество» мог получить файл, заготовленный для разбора фото
-# (03.10.2026 этап 7: prl646.label и prl646.study ходят в один мок). Формат пары —
+# (03.10.2026 этап 7: prx646.label и prx646.study ходят в один мок). Формат пары —
 # «файл=подстрока», подстрока ищется без учёта регистра в тексте всех сообщений.
 ROUTES = []
 for _pair in os.environ.get("MOCK_LLM_ROUTES", "").split(";"):
@@ -49,7 +49,7 @@ _reply_seq = {"n": 0}
 
 
 def _substance_name(prompt_text: str) -> str:
-    """Название вещества из строки «Вещество: …» (канал prl646.study)."""
+    """Название вещества из строки «Вещество: …» (канал prx646.study)."""
     m = re.search(r"(?mi)^\s*вещество:\s*(.+?)\s*$", prompt_text)
 
     return m.group(1) if m else ""
@@ -108,7 +108,7 @@ def _content_text(content) -> str:
     У OpenAI-совместимых запросов с картинкой content — это СПИСОК частей
     ([{"type": "text", ...}, {"type": "image_url", ...}]). Раньше мок брал
     content как строку и падал на `hash(list)`: `TypeError: unhashable type:
-    'list'` — то есть ЛЮБОЙ прогон фото (prl639/prl640/prl646) в песочнице
+    'list'` — то есть ЛЮБОЙ прогон фото (prx639/prx640/prx646) в песочнице
     заканчивался «Server disconnected without sending a response». Список
     разбираем: текст склеиваем, картинку помечаем, чтобы ответ было видно.
     """

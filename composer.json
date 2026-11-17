@@ -1,5 +1,5 @@
 {
-    "name": "prl/corporate-portal",
+    "name": "prx/corporate-portal",
     "type": "project",
     "require": {
         "php": "^8.4",

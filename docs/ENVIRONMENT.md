@@ -1,4 +1,4 @@
-# Окружение PRL
+# Окружение PRX
 
 ## Требования
 PHP 8.4 CLI/FPM с pgsql, pdo_pgsql, mbstring, curl, openssl, JSON, session;
@@ -11,7 +11,7 @@ bash bin/setup.sh                  # .env, секреты, runtime
 # Проверьте .env: APP_URL, DB_DEFAULT_*, ADMIN_*.
 make up                           # Docker: nginx/php/postgres/redis
 make migrate                      # на чистой базе создаёт admin/admin
-make seed                         # только если PRL_DEFAULT_ADMIN=0
+make seed                         # только если PRX_DEFAULT_ADMIN=0
 ```
 
 Команды внутри Docker — в README. Bind mount корня скрывает vendor образа:
@@ -37,7 +37,7 @@ Canonical URL остаётся APP_URL; браузер использует пу
 
 Публичный docroot — только `public_html/`. Приватное хранилище — `storage/`
 вне docroot, runtime — `application/{cache,logs,sessions}`. Исключение —
-входящие prl390: на хостинге, где корень недоступен PHP на запись, они лежат
+входящие prx390: на хостинге, где корень недоступен PHP на запись, они лежат
 в `public_html/storage/docflow`, но закрыты правилом в `public_html/.htaccess`;
 для nginx добавьте `location ^~ /storage/docflow/ { deny all; }`.
 Резервировать БД **и** `storage/`/пользовательские файлы; проверять восстановление.
@@ -50,7 +50,7 @@ Canonical URL остаётся APP_URL; браузер использует пу
   обслуживания. Требует у dev-роли право CREATE DATABASE; не для production.
 - `SMOKE_URL=http://localhost:8080 bash bin/check-fresh.sh` — дополнительно HTTP
   уже работающего сайта с админом из локального .env (не временной БД).
-- `source bin/_env.sh; prl_load_env .env; python3 tests/http_smoke.py` — только HTTP.
+- `source bin/_env.sh; prx_load_env .env; python3 tests/http_smoke.py` — только HTTP.
 - `npm ci && npm run build:css && npm test` — локальные assets и общий UI.
 - `PYTHONPATH=workers python3 -m pytest workers/tests -q` — worker regression.
 
