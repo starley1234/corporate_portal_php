@@ -91,10 +91,10 @@ migrate-down: ## откатить миграцию: make migrate-down class=pgMi
 seed: ## создать администратора (параметры из .env)
 	$(CONSOLE) auth:user --email=$(ADMIN_EMAIL) --password=$(ADMIN_PASSWORD) --username=$(ADMIN_USERNAME) --admin
 
-fresh: ## ПЕРЕСОЗДАТЬ схему БД с нуля (drop schema public + миграции)
-	@echo "Внимание: все данные будут удалены. Прервите (Ctrl+C) в течение 5 секунд..."; sleep 5
-	$(CONSOLE) db:migrate --status > /dev/null
-	$(DOCKER) exec -T postgres psql -U $(DB_USERNAME) -d $(DB_DATABASE) -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+fresh: ## ПЕРЕСОЗДАТЬ схему БД с нуля (drop schema + миграции + seed)
+	@echo "Внимание: все данные в схеме будут удалены. Прервите (Ctrl+C) в течение 5 секунд..."
+	@sleep 5
+	@SCHEMA="$${DB_DEFAULT_SCHEMA:-public}"; $(DOCKER) exec -T postgres psql -v ON_ERROR_STOP=1 -U "$${DB_DEFAULT_USER:-prx}" -d "$${DB_DEFAULT_NAME:-prx}" -c "DROP SCHEMA IF EXISTS \"$$SCHEMA\" CASCADE; CREATE SCHEMA \"$$SCHEMA\";"
 	$(CONSOLE) db:migrate
 	$(MAKE) seed
 
