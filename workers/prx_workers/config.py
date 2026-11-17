@@ -87,6 +87,9 @@ class Config:
     llm_base_url: str = ""
     llm_api_key: str = ""
     llm_model: str = ""
+    # DEFAULT_LLM_MODEL целиком ("провайдер::модель"). Пусто — провайдер
+    # отвечает своей <ИМЯ>_DEFAULT_MODEL.
+    platform_model: str = ""
     llm_providers: dict = field(default_factory=dict)
     llm_default_provider: str = ""
 
@@ -108,6 +111,11 @@ class Config:
         default_name = default_provider_name(providers)
         default_p = providers.get(default_name)
 
+        # DEFAULT_LLM_MODEL — общая модель платформы. Храним спеку целиком;
+        # llm_model — только имя для исторического фолбэка без провайдеров.
+        platform_model = _env("DEFAULT_LLM_MODEL")
+        model_name = platform_model.split("::", 1)[-1].strip()
+
         return cls(
             queue_mode=_env("WORKER_QUEUE_MODE", "pg").lower(),
             pg_dsn=_env("WORKER_PG_DSN"),
@@ -125,7 +133,9 @@ class Config:
             llm_base_url=default_p.base_url if default_p else _env("TOOLFORGE_API_URL").rstrip("/"),
             llm_api_key=default_p.api_key if default_p else _env("TOOLFORGE_API_KEY"),
             llm_model=(default_p.model if default_p
-                       else _env("LOCAL_DEFAULT_MODEL", "qwen3-coder-30b-a3b-instruct")),
+                       else model_name
+                       or _env("LOCAL_DEFAULT_MODEL", "qwen3-coder-30b-a3b-instruct")),
+            platform_model=platform_model,
             llm_providers=providers,
             llm_default_provider=default_name,
             embed_base_url=_env("EMBEDDING_API_URL").rstrip("/"),

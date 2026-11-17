@@ -74,9 +74,10 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
   `Runs`) — внутренняя структура, а не второй контракт.
 
 ## Окружение
-- Канонические имена: `LLM_DEFAULT_PROVIDER`, `LOCAL_API_KEY`,
-  `LOCAL_DEFAULT_MODEL`; `LM_API_TOKEN`/`TOOLFORGE_DEFAULT_MODEL` — только
-  совместимость при чтении, в `.env.example` их нет.
+- Канонические имена: `LLM_DEFAULT_PROVIDER`, `DEFAULT_LLM_MODEL`,
+  `LOCAL_API_URL/KEY/DEFAULT_MODEL`, `TOOLFORGE_API_URL/KEY`. Устаревшие
+  `LM_API_TOKEN`, `TOOLFORGE_DEFAULT_MODEL`, `DEFAULT_VLM_MODEL` в
+  `.env.example` не возвращаются (`env-check` считает их ошибкой).
 - `.env.example` — человекочитаемый контракт: секции с владельцем и
   обязательностью, без «лаконичности ради строк». Сверка: `make env-check`.
 

@@ -115,7 +115,7 @@ cd workers && WORKER_PG_DSN="postgresql://prx:prx@127.0.0.1:5432/prx" \
 
 Для LLM/эмбеддингов без GPU в проекте есть моки:
 `workers/mock/mock_llm_server.py` (:1234) и `mock_embed_server.py` (:1235) —
-подними их и направь `TOOLFORGE_API_URL`/`EMBEDDING_API_URL` на localhost.
+подними их и направь `LOCAL_API_URL`/`EMBEDDING_API_URL` на localhost.
 Мок отвечает детерминированно и умеет три режима: `MOCK_LLM_REPLY_FILE`
 (один ответ на всё), `MOCK_LLM_REPLY_FILES="a.json,b.json"` (очередь: у
 prx646.label это проход строк и проход состава) и

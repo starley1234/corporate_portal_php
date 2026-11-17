@@ -227,7 +227,7 @@ admin/admin и вход под сессией — на стенде с БД. П�
   `0700`, после `_cleanup_tmp_dir()` файл и каталог удалены.
 - Не проверено: живой вызов VLM (в песочнице нет LLM-шлюза), реальный
   браузерный рендер PDF.js (нет Chromium), HTTP под сессией и PostgreSQL.
-  Для запуска нужна загруженная vision-модель и `TOOLFORGE_API_URL/KEY`.
+  Для запуска нужна загруженная vision-модель и `LOCAL_API_URL/KEY`.
 
 ## OCR Provider для doc.normalize (16.11.2026)
 
@@ -268,9 +268,15 @@ admin/admin и вход под сессией — на стенде с БД. П�
   0 коллизий; сторонние `assets/vendor/**`, собранные `app.css` и
   `docs/architecture/dist/**` не переписывались, а пересобраны.
 - `.env.example` снова человекочитаемый контракт: 10 секций с владельцем и
-  обязательностью; канонические `LLM_DEFAULT_PROVIDER`, `LOCAL_API_KEY`,
-  `LOCAL_DEFAULT_MODEL`. Добавлен `make env-check` — сверка с
+  обязательностью; канонические `LLM_DEFAULT_PROVIDER`, `DEFAULT_LLM_MODEL`,
+  `LOCAL_API_KEY`, `LOCAL_DEFAULT_MODEL`. `DEFAULT_LLM_MODEL` — выбор для
+  модулей без своей `<PRX>_MODEL` (`prx392`, `prx394`), vision-демо сохраняет
+  собственный дефолт. Добавлен `make env-check` — сверка с
   `getenv()`/`os.environ`, 0 ошибок и 0 предупреждений.
+- LLM-провайдеры без двойственности: `local` читает только `LOCAL_*`,
+  `toolforge` — отдельный провайдер с `TOOLFORGE_*`, подстановки между ними
+  удалены; `local_lms` в конфиге больше нет, а сохранённые спеки
+  `local_lms::…` один релиз разрешаются в `local`.
 - Worker-API: общий `Controller_Prx39x_Api` (X-Worker-Token, JSON-тело,
   `_halt`); `Prx390/392/393/394` сокращены до action-методов.
 - OCR: `OcrSettings.from_env()` и `ExtractedText.as_payload(file_id)`;

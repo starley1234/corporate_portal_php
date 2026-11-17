@@ -160,7 +160,8 @@ class BaseWorker:
             llm=LlmClient(config.llm_providers, config.llm_default_provider,
                           legacy_base_url=config.llm_base_url,
                           legacy_api_key=config.llm_api_key,
-                          legacy_model=config.llm_model),
+                          legacy_model=config.llm_model,
+                          platform_model=getattr(config, "platform_model", "")),
             embed=EmbeddingClient(config.embed_base_url, config.embed_api_key,
                                   config.embed_model, config.embed_dimensions)
             if config.embed_base_url else None,

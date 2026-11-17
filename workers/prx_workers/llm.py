@@ -263,17 +263,18 @@ def default_provider_name(providers: dict[str, Provider]) -> str:
 
 
 def resolve_model(providers: dict[str, Provider], default_name: str,
-                  spec: str | None) -> tuple[Provider | None, str]:
+                  spec: str | None,
+                  platform_model: str = "") -> tuple[Provider | None, str]:
     """Спека модели → (провайдер, модель).
 
     "name::model" → провайдер name; "model" → провайдер по умолчанию;
-    "" → провайдер по умолчанию + его DEFAULT_MODEL. Неизвестный провайдер —
-    WARN и провайдер по умолчанию (задачу не роняем).
+    "" → DEFAULT_LLM_MODEL платформы, иначе DEFAULT_MODEL провайдера.
+    Неизвестный провайдер — WARN и провайдер по умолчанию (задачу не роняем).
     """
     if not providers:
         return None, ""
 
-    spec = (spec or "").strip()
+    spec = (spec or "").strip() or (platform_model or "").strip()
 
     if "::" in spec:
         name, model = spec.split("::", 1)
@@ -336,7 +337,8 @@ def provider_for_url(base_url: str,
 
 def resolve_endpoint(config, spec: str | None) -> tuple[str, str, str, str | None]:
     """Спека → (base_url, api_key, model, proxy). Для langchain-путей."""
-    provider, model = resolve_model(config.llm_providers, config.llm_default_provider, spec)
+    provider, model = resolve_model(config.llm_providers, config.llm_default_provider,
+                                    spec, getattr(config, "platform_model", ""))
 
     if provider is None:
         # ни одного провайдера: историческое поведение — config.llm_base_url
@@ -370,9 +372,11 @@ class LlmClient:
 
     def __init__(self, providers: dict[str, Provider] | None = None,
                  default_provider: str = "", timeout: float = 240.0,
-                 legacy_base_url: str = "", legacy_api_key: str = "", legacy_model: str = ""):
+                 legacy_base_url: str = "", legacy_api_key: str = "",
+                 legacy_model: str = "", platform_model: str = ""):
         self._providers = providers if providers is not None else scan_providers()
         self._default = default_provider or default_provider_name(self._providers)
+        self._platform_model = platform_model
 
         # Исторический одиночный эндпоинт (если провайдеров в env нет вообще)
         if not self._providers and legacy_base_url:
@@ -405,6 +409,12 @@ class LlmClient:
     # -- совместимость со старыми обращениями ctx.llm.model / ctx.llm.base_url
     @property
     def model(self) -> str:
+        if self._platform_model:
+            _provider, model = resolve_model(self._providers, self._default,
+                                             "", self._platform_model)
+            if model:
+                return model
+
         p = self._providers.get(self._default)
         return p.model if p else ""
 
@@ -586,12 +596,13 @@ class LlmClient:
         if think is None and os.getenv("LLM_THINKING", "").strip().lower() in ("off", "0", "false", "no"):
             think = False
 
-        provider, resolved = resolve_model(self._providers, self._default, model)
+        provider, resolved = resolve_model(self._providers, self._default, model,
+                                           self._platform_model)
 
         if provider is None:
             raise RuntimeError(
                 "LLM-провайдеры не настроены: задайте в workers/.env хотя бы один "
-                "<ИМЯ>_API_URL (напр. TOOLFORGE_API_URL / OPENROUTER_API_URL)")
+                "<ИМЯ>_API_URL (напр. LOCAL_API_URL / TOOLFORGE_API_URL / OPENROUTER_API_URL)")
 
         # (1) модель не заявлена у провайдера — ищем у других.
         # Справочник спрашиваем ТОЛЬКО когда провайдеров больше одного: уводить

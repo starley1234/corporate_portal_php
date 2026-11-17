@@ -14,7 +14,7 @@ return [
     'profiles' => [
         'classify_extract_v1' => [
             'title'          => 'Тип, реквизиты и краткое содержание',
-            'model'          => getenv('PRX392_MODEL') ?: 'local::openai/gpt-oss-20b',
+            'model'          => getenv('PRX392_MODEL') ?: getenv('DEFAULT_LLM_MODEL') ?: 'local::openai/gpt-oss-20b',
             'prompt_version' => 'v1',
             'schema_version' => 'doc_card_v1',
             'temperature'    => 0.0,

@@ -14,7 +14,7 @@ make docflow-demo          # копирует PDF в public_html/storage/docflow
 make up-worker             # настоящий воркер
 # либо:
 python3 workers/mock/mock_llm_server.py
-# и в workers/.env: TOOLFORGE_API_URL=http://127.0.0.1:1234/v1
+# и в workers/.env: LOCAL_API_URL=http://127.0.0.1:1234/v1
 
 # 3. откройте /inbox и нажмите «Сканировать папку»
 ```
@@ -47,9 +47,9 @@ python3 workers/mock/mock_llm_server.py
 В `workers/.env`:
 
 ```
-TOOLFORGE_API_URL=http://127.0.0.1:1234/v1
-TOOLFORGE_API_KEY=
-LLM_PROVIDER=TOOLFORGE
+LOCAL_API_URL=http://127.0.0.1:1234/v1
+LOCAL_API_KEY=not-needed
+DEFAULT_LLM_MODEL=local::mock-llm
 PRX392_MODEL=local::mock-llm
 PRX394_MODEL=local::mock-llm
 ```

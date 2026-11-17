@@ -74,7 +74,8 @@ class Service_Prx597_Ai extends Service_Prx597_Base
 
 			if (empty($cfg['base_url']))
 			{
-				$why = 'У провайдера «'.$provider.'» не задан адрес (TOOLFORGE_API_URL)';
+				$env = strtoupper($provider).'_API_URL';
+				$why = 'У провайдера «'.$provider.'» не задан адрес ('.$env.')';
 
 				return FALSE;
 			}

@@ -5,7 +5,7 @@ return [
     'max_context_chars' => 30000,
     'profile' => [
         'code'           => 'reply_v1',
-        'model'          => getenv('PRX394_MODEL') ?: getenv('PRX392_MODEL') ?: 'local::openai/gpt-oss-20b',
+        'model'          => getenv('PRX394_MODEL') ?: getenv('PRX392_MODEL') ?: getenv('DEFAULT_LLM_MODEL') ?: 'local::openai/gpt-oss-20b',
         'prompt_version' => 'v1',
         'temperature'    => 0.2,
         'max_tokens'     => 1800,

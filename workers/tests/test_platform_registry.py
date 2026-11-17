@@ -31,3 +31,24 @@ def test_worker_transport_is_not_an_llm_provider(monkeypatch):
 def test_pg_mode_may_keep_http_token_for_callbacks():
     from prx_workers.config import Config
     assert Config(queue_mode="pg", pg_dsn="postgres://example", api_token="unused-in-pg").validate() == []
+
+
+def test_platform_model_falls_back_to_default_llm_model(monkeypatch):
+    import prx_workers.llm as llm
+
+    monkeypatch.setattr(llm, "scan_providers", lambda: {})
+    monkeypatch.setenv("DEFAULT_LLM_MODEL", "local::platform-27b")
+    from prx_workers.config import Config
+
+    assert Config.load().llm_model == "platform-27b"
+
+
+def test_resolve_model_uses_platform_default():
+    from prx_workers.llm import Provider, resolve_model
+
+    local = Provider(name="LOCAL", base_url="http://llm.test/v1", model="qwen")
+    provider, model = resolve_model({"LOCAL": local}, "LOCAL", "",
+                                    "local::unsloth/qwen3.8-27b")
+
+    assert provider is local
+    assert model == "unsloth/qwen3.8-27b"

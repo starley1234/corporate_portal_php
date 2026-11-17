@@ -185,7 +185,7 @@ class Handler(BaseHTTPRequestHandler):
         _last_prompt = _prompt_text(messages)
         reply = (
             f"[MOCK-LLM] Принял: «{_last_user_text(messages)[:200]}». "
-            "Это детерминированный тестовый ответ — в бою замените TOOLFORGE_API_URL на настоящий шлюз."
+            "Это детерминированный тестовый ответ — в бою замените LOCAL_API_URL на настоящий сервер."
         )
         queued = _next_reply()
 

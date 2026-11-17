@@ -22,7 +22,7 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
         raise ValueError("payload.prompt обязателен")
 
     if ctx.llm is None:
-        raise RuntimeError("TOOLFORGE_API_URL не настроен — LLM-шлюз недоступен")
+        raise RuntimeError("LLM-провайдер не настроен — задайте LOCAL_API_URL или другой <ИМЯ>_API_URL")
 
     system = payload.get("system")
     messages = []

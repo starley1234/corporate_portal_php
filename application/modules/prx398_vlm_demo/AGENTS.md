@@ -49,8 +49,8 @@ MVP готов: страница `/vlm-demo`, PDF.js в браузере, AJAX-�
 ## Настройка
 
 ```dotenv
-TOOLFORGE_API_URL=http://127.0.0.1:1234/v1
-TOOLFORGE_API_KEY=
+LOCAL_API_URL=http://127.0.0.1:1234/v1
+LOCAL_API_KEY=not-needed
 PRX398_VLM_MODEL=local::qwen_qwen3-vl-4b-instruct
 # Только если действительно нужно отправить страницы внешнему провайдеру:
 # PRX398_ALLOWED_PROVIDERS=local,openrouter

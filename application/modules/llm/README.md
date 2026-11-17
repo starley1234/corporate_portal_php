@@ -65,7 +65,7 @@ $res = Llm::tools([
 **Внешние MCP-инструменты (через Toolforge):**
 ```php
 // Подключение серверных инструментов по их именам
-$res = Llm::model('local_lms::google/gemma-4-e4b')
+$res = Llm::model('toolforge::google/gemma-4-e4b')
         ->system("Используй инструменты")
 		->mcp([
                 "type" => "mcp",

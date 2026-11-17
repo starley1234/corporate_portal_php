@@ -38,8 +38,10 @@ watchdog `llmwatch.py`, ресурсный учёт `usage.py`, webread не д�
 
 Полезная нагрузка содержит только ID, секреты и токены в очередь не кладутся:
 `{"message_id": N}` → `doc.normalize`, `{"run_id": N}` → `doc.analyze`,
-`{"draft_id": N}` → `doc.draft`. Модель задаётся `PRX392_MODEL` и
-`PRX394_MODEL` (префикс `local::` — для собственного шлюза). Для оффлайн-демо
+`{"draft_id": N}` → `doc.draft`. Модель модуля — `PRX392_MODEL` /
+`PRX394_MODEL`; если они пусты, берётся `DEFAULT_LLM_MODEL` платформы
+(`PRX394` сначала наследует `PRX392_MODEL`). Префикс — `local::` для
+собственного сервера или `toolforge::` для корпоративного шлюза. Для оффлайн-демо
 есть `workers/mock/mock_llm_server.py` и `MOCK_LLM_ROUTES`; сценарий и три PDF —
 в [демо prx390](../application/modules/prx390_intake/demo/README.md). Если
 `pypdf` и активный OCR не дали текста, `doc.normalize` честно падает в ошибку,

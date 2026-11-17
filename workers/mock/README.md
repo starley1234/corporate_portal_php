@@ -10,7 +10,9 @@ python3 workers/mock/mock_embed_server.py   # OpenAI-совместимые эм
 В `workers/.env`:
 
 ```
-TOOLFORGE_API_URL=http://127.0.0.1:1234/v1
+LOCAL_API_URL=http://127.0.0.1:1234/v1
+LOCAL_API_KEY=not-needed
+DEFAULT_LLM_MODEL=local::mock-llm
 EMBEDDING_API_URL=http://127.0.0.1:1235/v1
 ```
 

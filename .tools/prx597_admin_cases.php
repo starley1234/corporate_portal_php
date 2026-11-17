@@ -191,16 +191,16 @@ check('админка: у всех форм выключено автозапо�
 check('админка: у всех текстовых полей выключено автозаполнение', $inputs_total > 10 ? count($fields_no_ac) : -1, 0);
 
 // ИИ-помощник. Сначала — честный отказ, когда провайдер не настроен.
-putenv('TOOLFORGE_API_URL');
+putenv('LOCAL_API_URL');
 $ai_ready = Service_Prx597_Ai::ready($ai_why);
 check('ИИ: без адреса провайдера помощник честно недоступен', $ai_ready, FALSE);
-check('ИИ: причина отказа названа человеку', strpos((string) $ai_why, 'TOOLFORGE_API_URL') !== FALSE, TRUE);
+check('ИИ: причина отказа названа человеку', strpos((string) $ai_why, 'LOCAL_API_URL') !== FALSE, TRUE);
 $html = prx597_admin_render('templates');
-check('ИИ: при недоступном ИИ панель объясняет причину', strpos($html, 'ИИ недоступен') !== FALSE && strpos($html, 'TOOLFORGE_API_URL') !== FALSE, TRUE);
+check('ИИ: при недоступном ИИ панель объясняет причину', strpos($html, 'ИИ недоступен') !== FALSE && strpos($html, 'LOCAL_API_URL') !== FALSE, TRUE);
 check('ИИ: без ИИ форма сборки не показывается', strpos($html, 'data-prx597-ai-run') === FALSE, TRUE);
 
 // Теперь как на боевом сайте: адрес модели задан, модель отвечает JSON.
-putenv('TOOLFORGE_API_URL=http://127.0.0.1:1234/v1');
+putenv('LOCAL_API_URL=http://127.0.0.1:1234/v1');
 if ( ! class_exists('Llm')) {
     class Llm
     {
