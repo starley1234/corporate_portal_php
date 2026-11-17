@@ -29,7 +29,8 @@ cd workers && python3 -m prx_workers
 | `doc.draft` | Проект ответа по шаблону и карточке; кладёт текст в prx394 |
 
 Секреты и адреса моделей — окружение, не payload. Общие клиенты `llm.py`,
-watchdog `llmwatch.py`, ресурсный учёт `usage.py`, webread не дублировать.
+реестр провайдеров `providers.py`, сторожа `watchdogs.py`, watchdog
+`llmwatch.py`, ресурсный учёт `usage.py`, webread не дублировать.
 Новый канал добавляется явно в HANDLERS и в `config/prx_module.php` владельца.
 Для HTTP-доставки semantic.index нужны `PRX115_API_BASE`, `PRX115_SITE_TOKEN`
 (или `WORKER_SITE_TOKEN`). В PG-режиме индексация пишет в БД напрямую.

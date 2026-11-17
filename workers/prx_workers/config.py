@@ -105,7 +105,7 @@ class Config:
 
         channels = [c.strip() for c in _env("WORKER_CHANNELS").split(",") if c.strip()]
 
-        from .llm import default_provider_name, scan_providers
+        from .providers import default_provider_name, scan_providers
 
         providers = scan_providers()
         default_name = default_provider_name(providers)
