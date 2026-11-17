@@ -27,6 +27,12 @@ prx391. Модель — только `local::…`; проверка выпол�
 `prx392.view` — `login`; `prx392.run` — `docflow_clerk`, `docflow_lawyer`,
 `docflow_manager`; `prx392.admin` — `docflow_manager`.
 
+## Структура сервиса
+
+`Service_Prx392_Analysis` — публичный фасад. Чтение прогонов, предложений и
+сводки вынесено в `Service_Prx392_Runs`; постановка задач и разбор ответа
+модели остаются в `Analysis`.
+
 ## Контракт предложения
 
 ```json

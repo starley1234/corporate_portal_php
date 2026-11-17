@@ -1,7 +1,15 @@
 <?php defined('SYSPATH') or die('No direct script access.');
+
+// Провайдер и модель платформы задаются одним контрактом:
+// LLM_DEFAULT_PROVIDER + <ПРОВАЙДЕР>_DEFAULT_MODEL. Для local это
+// LOCAL_DEFAULT_MODEL (см. .env.example, раздел 5).
+$default_provider = strtolower(trim((string) getenv('LLM_DEFAULT_PROVIDER'))) ?: 'local';
+$default_model = getenv(strtoupper($default_provider).'_DEFAULT_MODEL')
+    ?: 'qwen3-coder-30b-a3b-instruct';
+
 return array(
-    
-    'default_model' => 'local::qwen3-coder-30b-a3b-instruct',
+
+    'default_model' => $default_provider.'::'.$default_model,
     'vision_model'  => 'local::qwen/qwen3.5-9b',
 	
 	// Отдельный сервер эмбеддингов используем только когда задан его URL
@@ -19,7 +27,7 @@ return array(
 	'embedding' => array(
 		'enabled'    => (bool) getenv('EMBEDDING_API_URL'),
 		'endpoint'   => getenv('EMBEDDING_API_URL'),   // OpenAI-совместимый /v1/embeddings
-		'api_key'    => getenv('EMBEDDING_API_KEY') ?: getenv('LM_API_TOKEN'),
+		'api_key'    => getenv('EMBEDDING_API_KEY') ?: getenv('LOCAL_API_KEY'),
 		'model'      => getenv('EMBEDDING_MODEL') ?: 'text-embedding-qwen3-embedding-0.6b',
 		'dimensions' => (int) (getenv('EMBEDDING_DIMENSIONS') ?: 1024),
 		'batch_size' => (int) (getenv('EMBEDDING_BATCH_SIZE') ?: 32),
@@ -35,7 +43,7 @@ return array(
 		 * Используется через 'embedding_server::<модель>' (см. embedding_model выше).
 		 */
 		'embedding_server' => array(
-            'api_key'       => getenv('EMBEDDING_API_KEY') ?: getenv('LM_API_TOKEN'),
+            'api_key'       => getenv('EMBEDDING_API_KEY') ?: getenv('LOCAL_API_KEY'),
             'base_url'      => getenv('EMBEDDING_API_URL'),
 			'default_model' => getenv('EMBEDDING_MODEL') ?: 'text-embedding-qwen3-embedding-0.6b',
 			'timeout'       => 120,
@@ -43,13 +51,12 @@ return array(
         ),
 
 		'local' => array(
-            // LM Studio требует Bearer-токен (LM_API_TOKEN). Если отдельного
-            // ключа шлюза нет — берём токен LM Studio, иначе каждый запрос
-            // получал 401 «An LM Studio API token is required…».
-            'api_key'       => getenv('TOOLFORGE_API_KEY') ?: getenv('LM_API_TOKEN'),
-            'base_url'      => getenv('TOOLFORGE_API_URL'),
+            // LM Studio требует Bearer-токен. Каноническое имя — LOCAL_API_KEY;
+            // TOOLFORGE_* оставлены как совместимость со старыми стендами.
+            'api_key'       => getenv('LOCAL_API_KEY') ?: getenv('TOOLFORGE_API_KEY'),
+            'base_url'      => getenv('LOCAL_API_URL') ?: getenv('TOOLFORGE_API_URL'),
 
-			'default_model' => getenv('TOOLFORGE_DEFAULT_MODEL') ?: 'qwen3-coder-30b-a3b-instruct', 
+			'default_model' => getenv('LOCAL_DEFAULT_MODEL') ?: 'qwen3-coder-30b-a3b-instruct',
 			'vision_model' => 'qwen/qwen3.5-9b', 
 			
 			'models' => array(
@@ -66,8 +73,8 @@ return array(
         ),
         
         'local_lms' => array(
-            'api_key'       => getenv('TOOLFORGE_API_KEY') ?: getenv('LM_API_TOKEN'),
-            'base_url'      => getenv('TOOLFORGE_API_URL'),
+            'api_key'       => getenv('LOCAL_API_KEY') ?: getenv('TOOLFORGE_API_KEY'),
+            'base_url'      => getenv('LOCAL_API_URL') ?: getenv('TOOLFORGE_API_URL'),
 			'timeout'       => 300,
             'params'        => array(
                 'temperature' => 0.1,

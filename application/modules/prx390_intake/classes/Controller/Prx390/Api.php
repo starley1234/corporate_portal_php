@@ -7,37 +7,13 @@
  * → `WORKER_API_TOKEN`). Пользовательская сессия здесь не нужна и не должна
  * использоваться: воркер работает от служебной учётной записи.
  */
-class Controller_Prx390_Api extends Controller_Prx39x_Base
+class Controller_Prx390_Api extends Controller_Prx39x_Api
 {
-    protected $auth_required = FALSE;
     protected $public_actions = ['health', 'file', 'text'];
-    protected $_halt = FALSE;
 
-    public function before()
+    protected function _token_prefix()
     {
-        parent::before();
-
-        $this->auto_render = FALSE;
-        $token = $this->_token();
-        if ($token === '')
-        {
-            if (Kohana::$environment === Kohana::DEVELOPMENT)
-            {
-                return;
-            }
-
-            $this->_halt = TRUE;
-
-            return $this->_json(['ok' => FALSE, 'error' => 'PRX390_SITE_TOKEN не задан — API закрыт'], 403);
-        }
-
-        $given = (string) $this->request->headers('x-worker-token');
-        if ( ! hash_equals($token, $given))
-        {
-            $this->_halt = TRUE;
-
-            return $this->_json(['ok' => FALSE, 'error' => 'Недействительный токен воркера'], 403);
-        }
+        return 'PRX390';
     }
 
     public function action_health()
@@ -156,17 +132,4 @@ class Controller_Prx390_Api extends Controller_Prx39x_Base
         ]);
     }
 
-    protected function _token()
-    {
-        foreach (['PRX390_SITE_TOKEN', 'WORKER_SITE_TOKEN', 'WORKER_API_TOKEN'] as $key)
-        {
-            $value = trim((string) getenv($key));
-            if ($value !== '')
-            {
-                return $value;
-            }
-        }
-
-        return '';
-    }
 }

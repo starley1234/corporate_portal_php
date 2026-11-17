@@ -355,3 +355,31 @@ def test_normalize_handle_posts_confidence(tmp_path, monkeypatch):
         "confidence": 0.77,
     }
     assert result["confidence"] == 0.77
+
+
+def test_settings_are_collected_in_one_place(monkeypatch):
+    monkeypatch.setenv("OCR_SERVICE_URL", "http://ocr.internal/extract")
+    monkeypatch.setenv("OCR_TIMEOUT", "15")
+    monkeypatch.setenv("OCR_API_KEY", "secret")
+    monkeypatch.setenv("OCR_EXTRA_PARAMS", '{"lang": "rus"}')
+
+    settings = ocr_client.OcrSettings.from_env()
+
+    assert settings.url == "http://ocr.internal/extract"
+    assert settings.timeout == 15
+    assert settings.headers()["Authorization"] == "Bearer secret"
+    assert settings.extra_params == {"lang": "rus"}
+
+
+def test_extracted_text_is_the_site_payload():
+    text = ocr_client.ExtractedText(
+        text="Письмо", pages=2, engine="docling", confidence=0.91,
+    )
+
+    assert text.as_payload(42) == {
+        "file_id": 42,
+        "text": "Письмо",
+        "pages": 2,
+        "engine": "docling",
+        "confidence": 0.91,
+    }

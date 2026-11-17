@@ -5,46 +5,16 @@
  *
  *   GET  /prx392/api/input/<run_id>   — задание для модели
  *   POST /prx392/api/result/<run_id>  — {result: {...}, tokens, duration_ms}
+ *
+ * Авторизация и разбор JSON-тела — в Controller_Prx39x_Api.
  */
-class Controller_Prx392_Api extends Controller_Prx39x_Base
+class Controller_Prx392_Api extends Controller_Prx39x_Api
 {
-    protected $auth_required = FALSE;
     protected $public_actions = ['health', 'input', 'result'];
-    protected $_halt = FALSE;
 
-    public function before()
+    protected function _token_prefix()
     {
-        parent::before();
-        $this->auto_render = FALSE;
-
-        $token = '';
-        foreach (['PRX392_SITE_TOKEN', 'WORKER_SITE_TOKEN', 'WORKER_API_TOKEN'] as $key)
-        {
-            $token = trim((string) getenv($key));
-            if ($token !== '')
-            {
-                break;
-            }
-        }
-
-        if ($token === '')
-        {
-            if (Kohana::$environment === Kohana::DEVELOPMENT)
-            {
-                return;
-            }
-            $this->_halt = TRUE;
-
-            return $this->_json(['ok' => FALSE, 'error' => 'PRX392_SITE_TOKEN не задан — API закрыт'], 403);
-        }
-
-        $given = (string) $this->request->headers('x-worker-token');
-        if ( ! hash_equals($token, $given))
-        {
-            $this->_halt = TRUE;
-
-            return $this->_json(['ok' => FALSE, 'error' => 'Недействительный токен воркера'], 403);
-        }
+        return 'PRX392';
     }
 
     public function action_health()
@@ -79,16 +49,12 @@ class Controller_Prx392_Api extends Controller_Prx39x_Base
             return $this->_json(['ok' => FALSE, 'error' => 'Только POST'], 405);
         }
 
-        $raw = $this->request->body();
-        $body = $raw ? json_decode($raw, TRUE) : NULL;
-        if ( ! is_array($body))
-        {
-            $body = (array) $this->request->post();
-        }
-
         try
         {
-            $suggestion = Service_Prx392_Analysis::store_result((int) $this->request->param('id'), $body);
+            $suggestion = Service_Prx392_Analysis::store_result(
+                (int) $this->request->param('id'),
+                $this->_json_body()
+            );
 
             return $this->_json(['ok' => TRUE, 'suggestion_id' => $suggestion['id'] ?? NULL]);
         }

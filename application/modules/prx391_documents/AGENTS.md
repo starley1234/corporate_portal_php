@@ -27,6 +27,16 @@ MVP: регистрация из конверта prx390, карточка с р
 `docflow_manager`; `prx391.admin` — `docflow_manager`. Документы с
 `sensitivity` = `personal|commercial` видят только юрист/руководитель/admin.
 
+## Структура сервиса
+
+`Service_Prx391_Documents` — публичный фасад. Внутри:
+- `Service_Prx391_Registry` — чтение: реестр, карточка, справочники, сводка;
+- `Service_Prx391_Card` — запись: ручные правки, закрытие, применение ИИ;
+- `Documents` — регистрация из prx390 и права (общий контракт для соседей).
+
+Вьюха карточки собрана из `views/391/partials/*` (`card`, `analysis`,
+`attachments`, `field_events` и блоки правой колонки).
+
 ## Публичные методы
 
 - `register_from_message($message_id)` — идемпотентная регистрация.

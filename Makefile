@@ -177,9 +177,12 @@ up-tools: ## поднять инструменты (adminer :8081, mailpit :8025
 stack: ## полный стек: ядро + инструменты + воркеры
 	$(DOCKER) --profile tools --profile workers up -d
 
-.PHONY: check maintain
+.PHONY: check env-check maintain
 check: ## проверить контракты основы портала без PHP/БД
 	python3 .tools/portal_check.py
+
+env-check: ## сверить .env.example с getenv/os.environ в коде
+	python3 .tools/env_check.py
 
 maintain: ## один проход обслуживания очереди и доставки уведомлений
 	$(CONSOLE) portal:maintain

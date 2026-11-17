@@ -35,6 +35,8 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
    `ACL::check` даёт RBAC; объектные ограничения/оргконтекст проверяет сервис.
    Скрытая кнопка не является защитой. Чужие записи — 403/404; гостевой API —
    401 JSON. Worker callback проверяет токен отдельно и не принимает его из UI.
+   Общий контракт worker-API — `Controller_Prx39x_Api`: наследник задаёт только
+   `_token_prefix()`, остальное (X-Worker-Token, JSON-тело, `_halt`) — в базе.
 5. Персональные, кадровые и производственные документы не складывать в общий
    технический RAG-кэш `prx560`. Для корпоративного RAG нужны ACL-aware
    коллекции, фильтрация и проверка доступа перед ответом. LLM не определяет права.
@@ -64,9 +66,24 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
     Не зашивать ветку production/upstream в deploy. Не публиковать локальные
     конфиги, зависимости, дампы и runtime.
 
+## Словарь кода
+- `payload` — входящее задание канала; `body` — HTTP JSON; `result` — результат
+  канала; `settings` — конфигурация; `file_id`/`message_id`/`run_id`/`draft_id` —
+  идентификаторы сущностей. Не смешивать эти слова в именах.
+- Публичный фасад модуля сохраняет старые методы; новые швы (`Registry`, `Card`,
+  `Runs`) — внутренняя структура, а не второй контракт.
+
+## Окружение
+- Канонические имена: `LLM_DEFAULT_PROVIDER`, `LOCAL_API_KEY`,
+  `LOCAL_DEFAULT_MODEL`; `LM_API_TOKEN`/`TOOLFORGE_DEFAULT_MODEL` — только
+  совместимость при чтении, в `.env.example` их нет.
+- `.env.example` — человекочитаемый контракт: секции с владельцем и
+  обязательностью, без «лаконичности ради строк». Сверка: `make env-check`.
+
 ## Проверки перед завершением
 ```bash
 make check                         # статические контракты основы
+make env-check                     # .env.example ↔ getenv/os.environ
 make architecture                  # YAML -> HTML/JSON, проверка модели
 python3 .tools/php_parse_lint.py application
 make lint                          # настоящий PHP -l (когда PHP установлен)

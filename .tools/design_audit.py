@@ -88,6 +88,7 @@ KNOWN_HOOKS: dict[str, str] = {}
 ALLOW: dict[str, dict[str, str]] = {
     'prx520_poll': {'progress': 'доли голосов на /p/<код> — результат, а не ход (AGENTS.md, 04.10.2026)'},
     'application/views/template_tailwindcss.php': {'sticky': 'шапка сайта — часть макета, а не блок страницы'},
+    'application/views/partials/topbar.php': {'sticky': 'шапка сайта — часть макета; вынесена из template_tailwindcss.php'},
 }
 
 # ---------------------------------------------------------------- правила --

@@ -58,7 +58,7 @@ class Controller_Llm_Admin extends Controller_Base {
             return '';
         }
 
-        return ' Токен не задан: LM Studio 0.3+ требует Bearer. Задайте LM_API_TOKEN '
+        return ' Токен не задан: LM Studio 0.3+ требует Bearer. Задайте LOCAL_API_KEY '
             .'(или TOOLFORGE_API_KEY) в .env сайта и перезапустите php-fpm.';
     }
 

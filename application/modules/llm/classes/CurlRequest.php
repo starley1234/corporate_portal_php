@@ -79,7 +79,7 @@ class CurlRequest {
                 // required…»), поэтому оставляем его и добавляем подсказку, какую
                 // переменную задать. Секретов в ответе сервера нет.
                 $error_message = 'Authentication/Authorization failed. Check API key and permissions'
-                    . ' (LM Studio: задайте LM_API_TOKEN или TOOLFORGE_API_KEY в .env).'
+                    . ' (LM Studio: задайте LOCAL_API_KEY или TOOLFORGE_API_KEY в .env).'
                     . ' Server said: ' . mb_substr((string) $error_message, 0, 300);
             }
 

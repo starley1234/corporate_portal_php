@@ -150,7 +150,7 @@ async def _embed_texts(ctx: HandlerContext, items: list, total: int) -> list[lis
 
         raise RuntimeError(
             f"Эмбеддинг-сервер недоступен ({type(e).__name__}: {e}). "
-            "Проверьте EMBEDDING_API_URL, токен (EMBEDDING_API_KEY/LM_API_TOKEN) "
+            "Проверьте EMBEDDING_API_URL, токен (EMBEDDING_API_KEY/LOCAL_API_KEY) "
             "и что сервер эмбеддингов запущен."
         ) from e
 

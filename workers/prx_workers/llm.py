@@ -3,7 +3,7 @@
 Провайдеры LLM (OpenAI-совместимые чаты):
   * провайдер = набор env <ИМЯ>_API_URL, <ИМЯ>_API_KEY, <ИМЯ>_DEFAULT_MODEL,
     <ИМЯ>_PROXY (опционально), <ИМЯ>_DEFAULT=1 (провайдер по умолчанию, опционально);
-    имя — любой заголовок env, напр. TOOLFORGE (LM Studio), OPENROUTER, LOCAL;
+    имя — любой заголовок env, напр. LOCAL (LM Studio / Ollama), OPENROUTER, TOOLFORGE;
   * модели модулей (PRX540_MODEL, PRX550_MODEL, PRX570_CODE_MODEL, PRX580_DOC_MODEL, …)
     понимают спеки:
       "openrouter::google/gemini-3-flash-preview" — провайдер + модель;
@@ -11,8 +11,8 @@
       ""                                          — провайдер по умолчанию + его DEFAULT_MODEL;
     спека с несколькими "::" делится по ПЕРВОМУ ("openrouter::openrouter::stepfun/…"
     → провайдер openrouter, модель "openrouter::stepfun/…");
-  * провайдер по умолчанию: LLM_PROVIDER → единственный <ИМЯ>_DEFAULT=1 →
-    TOOLFORGE (исторический) → первый найденный;
+  * провайдер по умолчанию: LLM_DEFAULT_PROVIDER (устаревший синоним —
+    LLM_PROVIDER) → единственный <ИМЯ>_DEFAULT=1 → LOCAL → первый найденный;
   * EmbeddingClient — ОТДЕЛЬНЫЙ сервис эмбеддингов (EMBEDDING_API_URL),
     к провайдерам LLM не относится.
 
@@ -129,10 +129,10 @@ class EmbeddingServerError(RuntimeError):
 # --------------------------------------------------------------------------
 
 # LM Studio (и другие локальные серверы) требуют Bearer-токен. Имя переменной у
-# каждого своё: у LM Studio это LM_API_TOKEN (см. https://lmstudio.ai/docs), у
-# нашего шлюза — <ИМЯ>_API_KEY. Читаем все варианты, чтобы «нет заголовка» не
+# каждого своё: у локального сервера — LOCAL_API_KEY, у нашего шлюза —
+# <ИМЯ>_API_KEY. Читаем все варианты, чтобы «нет заголовка» не
 # превращалось в лавину 401.
-_LOCAL_TOKEN_VARS = ("LM_API_TOKEN", "LMSTUDIO_API_TOKEN", "LM_STUDIO_API_TOKEN")
+_LOCAL_TOKEN_VARS = ("LOCAL_API_KEY", "LM_API_TOKEN", "LMSTUDIO_API_TOKEN", "LM_STUDIO_API_TOKEN")
 
 
 def _looks_local(base_url: str) -> bool:
@@ -165,7 +165,8 @@ def _resolve_key_src(name: str, base_url: str) -> tuple[str, str]:
     """Токен провайдера и ИМЯ переменной, откуда он взят: (значение, источник).
 
     Порядок: <ИМЯ>_API_KEY → <ИМЯ>_API_TOKEN → <ИМЯ>_TOKEN, а для локального
-    сервера — ещё и LM_API_TOKEN (имя из документации LM Studio). Источник нужен
+    сервера — ещё и LOCAL_API_KEY (LM_API_TOKEN оставлен для совместимости
+    со старыми стендами LM Studio). Источник нужен
     в журнале и в тексте 401: владелец должен видеть, какую ИМЕННО переменную
     (со старым/чужим токеном) отправил воркер — «неправильный ключ» иначе не
     отличить от «ключа нет вовсе».
@@ -247,12 +248,15 @@ def default_provider_name(providers: dict[str, Provider]) -> str:
     """Имя провайдера по умолчанию (см. docstring модуля)."""
     if not providers:
         return ""
-    explicit = os.getenv("LLM_PROVIDER", "").strip().upper()
+    explicit = (os.getenv("LLM_DEFAULT_PROVIDER", "").strip()
+                or os.getenv("LLM_PROVIDER", "").strip()).upper()
     if explicit in providers:
         return explicit
     marked = [p for p in providers.values() if p.is_default]
     if len(marked) == 1:
         return marked[0].name
+    if "LOCAL" in providers:
+        return "LOCAL"
     if "TOOLFORGE" in providers:
         return "TOOLFORGE"
     return sorted(providers.keys())[0]
@@ -388,7 +392,7 @@ class LlmClient:
             if not p.api_key and _looks_local(p.base_url):
                 log.warning(
                     "LLM: у локального провайдера '%s' (%s) НЕТ токена — если сервер требует "
-                    "Authorization: Bearer (LM Studio), задайте %s_API_KEY или LM_API_TOKEN "
+                    "Authorization: Bearer (LM Studio), задайте %s_API_KEY или LOCAL_API_KEY "
                     "в workers/.env и перезапустите воркер",
                     p.name, p.base_url, p.name)
             elif p.api_key:
@@ -485,7 +489,7 @@ class LlmClient:
         hint = f"{provider.name}_API_KEY"
 
         if _looks_local(provider.base_url):
-            hint += " (или LM_API_TOKEN — так называется токен в LM Studio)"
+            hint += " (или LOCAL_API_KEY — общее имя токена локального сервера)"
 
         if provider.api_key_src:
             what = (f"Воркер отправлял токен из {provider.api_key_src} — он устарел, "
@@ -675,7 +679,7 @@ class EmbeddingClient:
     def __init__(self, base_url: str, api_key: str, model: str,
                  dimensions: int, batch_size: int = 32, timeout: float = 120.0):
         # Тот же случай, что у LLM: локальный сервер (LM Studio) требует
-        # Bearer-токен — если свой не задан, берём LM_API_TOKEN.
+        # Bearer-токен — если свой не задан, берём LOCAL_API_KEY.
         api_key = (api_key or "").strip()
         self.api_key_src = ""
 
@@ -686,7 +690,7 @@ class EmbeddingClient:
 
         if base_url and not api_key and _looks_local(base_url):
             log.warning("Эмбеддинг-сервер (%s) локальный и БЕЗ токена: если он требует "
-                        "Bearer (LM Studio), задайте EMBEDDING_API_KEY или LM_API_TOKEN "
+                        "Bearer (LM Studio), задайте EMBEDDING_API_KEY или LOCAL_API_KEY "
                         "в workers/.env", base_url)
         elif api_key:
             log.info("Эмбеддинг-сервер (%s): токен из %s", base_url, self.api_key_src)
@@ -717,7 +721,7 @@ class EmbeddingClient:
             )
 
             if r.status_code in (401, 403):
-                hint = "LM_API_TOKEN" if _looks_local(self.base_url) else "EMBEDDING_API_KEY"
+                hint = "LOCAL_API_KEY" if _looks_local(self.base_url) else "EMBEDDING_API_KEY"
                 what = (f"Токен отправляли из {self.api_key_src} — он устарел или чужой; "
                         f"проверьте {self.api_key_src} (эталон: {hint})."
                         if self.api_key_src else

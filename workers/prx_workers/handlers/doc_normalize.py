@@ -259,16 +259,16 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
         raise RuntimeError(f"не удалось извлечь текст из PDF: {detail}")
 
     await ctx.progress("Сохранение", f"{len(best_text)} символов")
+    payload = ocr_client.ExtractedText(
+        text=best_text,
+        pages=best_pages,
+        engine=best_engine or "pypdf",
+        confidence=best_confidence,
+    ).as_payload(best_file)
     ok, reason, _res = await site.post_json(
         _PREFIX,
         f"/text/{message_id}",
-        {
-            "file_id": best_file,
-            "text": best_text,
-            "pages": best_pages,
-            "engine": best_engine or "pypdf",
-            "confidence": best_confidence,
-        },
+        payload,
         base=_api_base(),
         timeout=120.0,
     )

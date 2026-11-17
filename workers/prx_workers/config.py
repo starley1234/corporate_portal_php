@@ -125,7 +125,7 @@ class Config:
             llm_base_url=default_p.base_url if default_p else _env("TOOLFORGE_API_URL").rstrip("/"),
             llm_api_key=default_p.api_key if default_p else _env("TOOLFORGE_API_KEY"),
             llm_model=(default_p.model if default_p
-                       else _env("TOOLFORGE_DEFAULT_MODEL", "qwen3-coder-30b-a3b-instruct")),
+                       else _env("LOCAL_DEFAULT_MODEL", "qwen3-coder-30b-a3b-instruct")),
             llm_providers=providers,
             llm_default_provider=default_name,
             embed_base_url=_env("EMBEDDING_API_URL").rstrip("/"),
