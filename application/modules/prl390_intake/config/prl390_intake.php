@@ -18,12 +18,23 @@ $error = getenv('PRL390_ERROR_DIR') ?: 'public_html/storage/docflow/error';
 
 // Совместимость с .env, созданным до переноса пути: старые значения по
 // умолчанию указывали в корень проекта, куда PHP на хостинге не пишет.
+// Учитываем и относительный, и абсолютный вид старого пути.
 $legacy = [
     'storage/docflow/inbox'      => 'public_html/storage/docflow/inbox',
     'storage/docflow/processed'  => 'public_html/storage/docflow/processed',
     'storage/docflow/duplicates' => 'public_html/storage/docflow/duplicates',
     'storage/docflow/error'      => 'public_html/storage/docflow/error',
 ];
+
+if (defined('APPPATH'))
+{
+    $root = rtrim(dirname(APPPATH), '/');
+
+    foreach (['inbox', 'processed', 'duplicates', 'error'] as $name)
+    {
+        $legacy[$root.'/storage/docflow/'.$name] = $root.'/public_html/storage/docflow/'.$name;
+    }
+}
 
 $paths = [
     'inbox_dir'      => $inbox,
