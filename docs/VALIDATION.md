@@ -237,8 +237,11 @@ admin/admin и вход под сессией — на стенде с БД. П�
 - Выбор — `OCR_PROVIDER=tesseract|remote`; URL и таймаут —
   `OCR_SERVICE_URL`, `OCR_TIMEOUT` (по умолчанию 120 с). Добавлены в
   `workers/.env.example`.
-- Remote: PDF уходит `multipart/form-data` (поле `file`) через `httpx`;
-  принимается JSON `text/pages/engine/confidence`. Сеть, таймаут, 4xx/5xx и
+- Remote: PDF уходит `multipart/form-data` (поле `file`, filename
+  `document.pdf`, `application/pdf`) через `httpx`; параметры парсинга —
+  `OCR_EXTRA_PARAMS`, заголовки — `OCR_EXTRA_HEADERS`, авторизация —
+  `OCR_API_KEY` (`Authorization: Bearer` или `OCR_AUTH_HEADER_NAME`).
+  Принимается JSON `text/pages/engine/confidence`. Сеть, таймаут, 4xx/5xx и
   невалидный JSON логируются как инцидент и дают `engine="failed", text=""`.
 - Tesseract оставлен локальным fallback: `pdftoppm` + `tesseract`,
   `OMP_THREAD_LIMIT=1`, PNG удаляются через `TemporaryDirectory`.
@@ -251,8 +254,8 @@ admin/admin и вход под сессией — на стенде с БД. П�
   `file_id/text/pages/engine/confidence` через `store_text` (раньше действие
   отдавало только чтение). Ветка проверена WASM-стендом с заглушками
   `Request/Service/Log`: статус 200 и переданные поля.
-- `PYTHONPATH=workers python3 -m pytest workers/tests -q` — **100 passed,
-  1 skipped**. Новые тесты: `workers/tests/test_ocr_client.py` (17).
+- `PYTHONPATH=workers python3 -m pytest workers/tests -q` — **103 passed,
+  1 skipped**. Новые тесты: `workers/tests/test_ocr_client.py` (20).
 - `bash .tools/php_check_all.sh` — чисто после правки API; `portal_check` —
   33 модуля, 210 классов, 7 каналов.
 - Не проверено в песочнице: реальный внешний OCR-сервис и локальный

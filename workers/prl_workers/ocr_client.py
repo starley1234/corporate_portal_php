@@ -9,9 +9,13 @@
     OCR_PROVIDER=remote      # prod, OCR_SERVICE_URL обязателен
     OCR_SERVICE_URL=http://ocr.internal:8000/v1/extract
     OCR_TIMEOUT=120
+    OCR_API_KEY=...          # опционально; Authorization: Bearer <key>
+    OCR_AUTH_HEADER_NAME=    # опционально; например X-API-Key (сырой ключ)
+    OCR_EXTRA_PARAMS={}      # JSON-объект; уходит в multipart data=
+    OCR_EXTRA_HEADERS={}     # JSON-объект; дополнительные HTTP-заголовки
 
-Remote-провайдер отправляет PDF как `multipart/form-data` (поле `file`) и ждёт
-JSON:
+Remote-провайдер отправляет PDF как `multipart/form-data` (поле `file`,
+filename `document.pdf`) и ждёт JSON:
 
     {"text": "...", "pages": 3, "engine": "docling", "confidence": 0.93}
 
@@ -24,6 +28,7 @@ JSON:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import math
 import os
@@ -56,6 +61,20 @@ def clean_text(text: str) -> str:
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
+
+
+def _json_object(name: str) -> dict[str, Any]:
+    """Прочитать JSON-объект из env; пустое значение означает {}."""
+    raw = _env(name, "{}")
+    try:
+        value = json.loads(raw)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(f"{name} должен быть JSON-объектом: {exc}") from None
+    if not isinstance(value, dict):
+        raise RuntimeError(
+            f"{name} должен быть JSON-объектом, получено {type(value).__name__}"
+        )
+    return value
 
 
 def _timeout() -> float:
@@ -199,10 +218,50 @@ class RemoteOcrProvider(BaseOcrProvider):
         url: str | None = None,
         timeout: float | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
+        api_key: str | None = None,
+        auth_header_name: str | None = None,
+        extra_params: dict[str, Any] | None = None,
+        extra_headers: dict[str, Any] | None = None,
     ):
         self.url = (url if url is not None else _env("OCR_SERVICE_URL")).strip()
         self.timeout = timeout if timeout is not None else _timeout()
         self._transport = transport
+        self.api_key = (api_key if api_key is not None else _env("OCR_API_KEY")).strip()
+        self.auth_header_name = (
+            auth_header_name
+            if auth_header_name is not None
+            else _env("OCR_AUTH_HEADER_NAME")
+        ).strip()
+        self.extra_params = (
+            dict(extra_params)
+            if extra_params is not None
+            else _json_object("OCR_EXTRA_PARAMS")
+        )
+        headers = (
+            extra_headers
+            if extra_headers is not None
+            else _json_object("OCR_EXTRA_HEADERS")
+        )
+        self.extra_headers = {str(key): str(value) for key, value in headers.items()}
+
+    def _headers(self) -> dict[str, str]:
+        headers = {"Accept": "application/json"}
+        headers.update(self.extra_headers)
+
+        if self.api_key:
+            header_name = self.auth_header_name or "Authorization"
+            # Не допускаем два заголовка авторизации в разном регистре:
+            # OCR_API_KEY должен быть главнее OCR_EXTRA_HEADERS.
+            for existing in list(headers):
+                if existing.lower() == header_name.lower():
+                    del headers[existing]
+
+            if header_name.lower() == "authorization":
+                headers[header_name] = f"Bearer {self.api_key}"
+            else:
+                headers[header_name] = self.api_key
+
+        return headers
 
     async def extract(self, path: Path, max_pages: int = 5) -> OcrResult:
         if not self.url:
@@ -221,8 +280,9 @@ class RemoteOcrProvider(BaseOcrProvider):
                 with Path(path).open("rb") as pdf:
                     response = await client.post(
                         self.url,
-                        files={"file": (Path(path).name, pdf, "application/pdf")},
-                        headers={"Accept": "application/json"},
+                        files={"file": ("document.pdf", pdf, "application/pdf")},
+                        data=self.extra_params,
+                        headers=self._headers(),
                     )
                 response.raise_for_status()
                 data = response.json()

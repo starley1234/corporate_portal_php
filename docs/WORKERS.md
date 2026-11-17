@@ -56,8 +56,14 @@ watchdog `llmwatch.py`, ресурсный учёт `usage.py`, webread не д�
 | `OCR_PROVIDER` | `tesseract` (по умолчанию, dev) или `remote` (prod) |
 | `OCR_SERVICE_URL` | например `http://ocr.internal:8000/v1/extract` |
 | `OCR_TIMEOUT` | таймаут HTTP в секундах, по умолчанию `120` |
+| `OCR_API_KEY` | опциональный токен; по умолчанию `Authorization: Bearer <key>` |
+| `OCR_AUTH_HEADER_NAME` | например `X-API-Key`: отправить сырой ключ в этом заголовке |
+| `OCR_EXTRA_PARAMS` | JSON-объект параметров парсинга, уходит в `data=` |
+| `OCR_EXTRA_HEADERS` | JSON-объект дополнительных HTTP-заголовков |
 
-Remote отправляет PDF как `multipart/form-data` (поле `file`) и ждёт JSON
+Remote отправляет PDF как `multipart/form-data`: поле `file`, имя
+`document.pdf`, `Content-Type: application/pdf`; параметры из
+`OCR_EXTRA_PARAMS` добавляются в `data=`. Ответ — JSON
 `{"text": "<markdown>", "pages": 3, "engine": "docling|mineru|paddleocr",
 "confidence": 0.93|null}`. Сеть, таймаут, 4xx/5xx и невалидный JSON — инцидент
 в логе и `engine="failed", text=""`; тело ответа и документ в лог не пишутся.
