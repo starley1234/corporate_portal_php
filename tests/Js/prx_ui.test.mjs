@@ -266,6 +266,16 @@ test('взведённая кнопка видна в обеих темах: в 
     assert.match(css, /\[data-prx-arm\]\.is-armed\{background-color:#e11d48!important;border-color:#e11d48!important;color:#fff!important\}/);
 });
 
+test('сборка содержит самостоятельный select и цвета option для обеих тем', () => {
+    const css = readFileSync(new URL('../../public_html/assets/css/app.css', import.meta.url), 'utf8');
+    assert.match(css, /\.prx-input,\.prx-select\{[^}]*background-color:rgb\(255 255 255/);
+    assert.match(css, /\.prx-select:is\(\.dark \*\)\{[^}]*background-color:rgb\(17 24 39/);
+    assert.match(css, /\.prx-select\{background-image:[^}]*color-scheme:light/);
+    assert.match(css, /\.dark \.prx-select\{color-scheme:dark/);
+    assert.match(css, /\.prx-select option\{background-color:#fff;color:#111827\}/);
+    assert.match(css, /\.dark \.prx-select option\{background-color:#111827;color:#f9fafb\}/);
+});
+
 test('data-prx-confirm: окно, «Отмена» ничего не делает, «Удалить» пропускает клик', async () => {
     const { window, document, errors, dom } = createPage(`
         <button id="del" data-prx-confirm="Удалить сущность {subject} и все связанные файлы?"

@@ -4,7 +4,7 @@
  * Левая панель навигации (sidebar).
  *
  * Постоянные пункты берёт из каталога, независимо от локального set_menu().
- * Контекстная навигация модуля передаётся отдельно через $module_nav.
+ * Контекстная навигация — в шапке или под ней на телефоне, не в панели.
  *
  * Возможности пунктов меню (всё опционально, обратная совместимость полная):
  *   'group' => 'Сервисы'   — секция панели (по умолчанию «Разделы»);
@@ -88,25 +88,6 @@ foreach ($items as $item)
         </div>
     </div>
 
-    <?php $mn_items = isset($module_nav) && is_array($module_nav) ? $module_nav : []; ?>
-    <?php if ( ! empty($mn_items)): // меню модуля: на малых экранах здесь (сверху), на больших — чипы над контентом ?>
-    <div class="shrink-0 border-b border-gray-200/70 px-3 py-3 md:hidden dark:border-gray-700/60">
-        <ul class="space-y-0.5">
-            <?php foreach ($mn_items as $mn): ?>
-            <li>
-                <a href="<?php echo HTML::chars($mn['href']); ?>"
-                   class="flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition <?php echo ! empty($mn['active'])
-                       ? 'bg-blue-600/10 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400'
-                       : 'text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800'; ?>">
-                    <?php if ( ! empty($mn['icon'])): ?><i class="<?php echo HTML::chars($mn['icon']); ?> w-4 text-center text-xs"></i><?php endif; ?>
-                    <span class="truncate"><?php echo HTML::chars($mn['title']); ?></span>
-                </a>
-            </li>
-            <?php endforeach; ?>
-        </ul>
-    </div>
-    <?php endif; ?>
-
     <!-- Навигация -->
     <nav id="sidebar-nav" class="flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-3 py-4" aria-label="Сервисы и разделы">
         <?php foreach ($groups as $group => $group_items): ?>
@@ -127,9 +108,11 @@ foreach ($items as $item)
                                    data-search="<?php echo HTML::chars(mb_strtolower($item['title'].' '.(isset($item['keywords']) ? $item['keywords'] : ''))); ?>">
                                     <i class="<?php echo ! empty($item['icon']) ? HTML::chars($item['icon']) : 'fas fa-circle text-[6px]'; ?> w-5 shrink-0 text-center text-[15px]"></i>
                                     <span class="sidebar-label flex-1 truncate"><?php echo HTML::chars($item['title']); ?></span>
+                                    <?php if (($item['href'] ?? '') !== '/services'): ?>
                                     <button type="button" data-nav-pin="<?php echo HTML::chars(isset($item['href']) ? $item['href'] : '#'); ?>"
                                             class="sidebar-label nav-pin hidden shrink-0 rounded-md p-1 text-gray-300 transition hover:bg-gray-200 hover:text-blue-600 group-hover:inline-flex dark:hover:bg-gray-700 dark:hover:text-blue-400"
-                                            title="Закрепить в Избранное"><i class="fas fa-star text-[10px]"></i></button>
+                                            title="Закрепить в Избранное" aria-label="Закрепить в Избранное"><i class="fas fa-star text-[10px]"></i></button>
+                                    <?php endif; ?>
                                     <?php if ( ! empty($item['badge'])): ?>
                                         <span class="sidebar-badge inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-blue-600 px-1.5 text-xs font-bold leading-none text-white dark:bg-blue-500"><?php echo HTML::chars((string) $item['badge']); ?></span>
                                     <?php endif; ?>

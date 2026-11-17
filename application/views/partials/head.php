@@ -1,6 +1,14 @@
-<?php defined('SYSPATH') or die('No direct script access.'); ?>
+<?php
+    defined('SYSPATH') or die('No direct script access.');
+    // Значение из конфига — только известный бренд-акцент, не произвольный CSS.
+    $company_accent = strtolower(trim((string) Kohana::$config->load('site_config')->get('company_accent')));
+    if ( ! in_array($company_accent, ['orange', 'blue', 'yellow'], TRUE))
+    {
+        $company_accent = 'orange';
+    }
+?>
 <!DOCTYPE html>
-<html lang="ru" class="scroll-smooth">
+<html lang="ru" class="scroll-smooth" data-company-accent="<?php echo HTML::chars($company_accent); ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">

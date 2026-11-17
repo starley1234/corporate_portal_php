@@ -9,25 +9,31 @@
  *   prx.nav.v1 = { pinned: [href...], hidden: [href...], recents: [href...] }
  *   recents пополняется при переходе по пункту меню (макс. 12).
  *
- * Звёздочка «в Избранное» есть и в меню (.nav-pin), и на карточках каталога
- * /services (.nav-pin-card — проявляется при наведении). Оба вида пишут в один
- * ключ, поэтому закрепление из каталога сразу поднимает сервис в группу
- * «Избранное» сверху меню — без перезагрузки страницы.
+ * Звёздочка «в Избранное» есть в палитре и на карточках каталога /services,
+ * а в меню её можно снять. Все они пишут в один ключ, поэтому закрепление
+ * сразу поднимает сервис в группу «Избранное» без перезагрузки страницы.
  */
 (function (window, document) {
     'use strict';
 
     var STORE = 'prx.nav.v1';
-    var CACHE = 'prx.palette.v1';
-    var CACHE_TTL = 10 * 60 * 1000; // 10 минут
     var MAX_RECENTS = 12;
+    // Каталог зависит от текущей сессии и ролей. Не храним его в localStorage:
+    // после входа/выхода старый кэш скрывал доступные сервисы до 10 минут.
+    var catalogData = null;
+    var catalogRequest = null;
 
     function readStore() {
+        var store = {};
         try {
             var raw = localStorage.getItem(STORE);
-            if (raw) return JSON.parse(raw);
+            if (raw) store = JSON.parse(raw) || {};
         } catch (e) { /* ignore */ }
-        return { pinned: [], hidden: [], recents: [] };
+        return {
+            pinned: Array.isArray(store.pinned) ? store.pinned : [],
+            hidden: Array.isArray(store.hidden) ? store.hidden : [],
+            recents: Array.isArray(store.recents) ? store.recents : []
+        };
     }
 
     function writeStore(store) {
@@ -47,31 +53,26 @@
         writeStore(store);
     }
 
-    function readCache() {
-        try {
-            var raw = localStorage.getItem(CACHE);
-            if (raw) {
-                var c = JSON.parse(raw);
-                if (c && c.items && (Date.now() - (c.ts || 0)) < CACHE_TTL) return c;
-            }
-        } catch (e) { /* ignore */ }
-        return null;
-    }
-
-    function writeCache(data) {
-        try { localStorage.setItem(CACHE, JSON.stringify({ ts: Date.now(), items: data.items, groups: data.groups })); } catch (e) { /* ignore */ }
-    }
-
     function loadCatalog(cb) {
-        var cached = readCache();
-        if (cached) { cb(cached); return; }
+        if (catalogData) { cb(catalogData); return; }
 
-        fetch('/prx110/api/catalog', { headers: { 'Accept': 'application/json' } })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                if (data && data.items) { writeCache(data); cb(data); }
-            })
-            .catch(function () { cb(null); });
+        // Один запрос на страницу, даже если одновременно открыли палитру и
+        // восстанавливаем избранное. При сетевой ошибке следующий вызов повторит его.
+        if (!catalogRequest) {
+            catalogRequest = fetch('/prx110/api/catalog', {
+                headers: { 'Accept': 'application/json' }, cache: 'no-store'
+            }).then(function (r) {
+                if (!r.ok) throw new Error('Каталог недоступен');
+                return r.json();
+            }).then(function (data) {
+                if (data && Array.isArray(data.items)) catalogData = data;
+                return catalogData;
+            }).catch(function () { return null; }).then(function (data) {
+                catalogRequest = null;
+                return data;
+            });
+        }
+        catalogRequest.then(cb);
     }
 
     /** Тупой fuzzy-скор: подпоследовательность + токены. */
@@ -105,16 +106,18 @@
         return meta;
     }
 
-    /** Вид звёздочек каталога: закреплённые — золотые и всегда видимые. */
+    /** Звёздочки видны и на сенсорном экране; закреплённые выделены цветом. */
     function syncCards() {
         var store = readStore();
 
         document.querySelectorAll('.nav-pin-card').forEach(function (btn) {
             var on = store.pinned.indexOf(btn.getAttribute('data-nav-pin-card') || '') !== -1;
+            var title = on ? 'Убрать из Избранного' : 'В Избранное';
+            var service = btn.getAttribute('data-nav-pin-title') || '';
             btn.classList.toggle('text-amber-500', on);
-            btn.classList.toggle('text-gray-300', !on);
-            btn.classList.toggle('opacity-0', !on);
-            btn.setAttribute('title', on ? 'Убрать из Избранного' : 'В Избранное');
+            btn.classList.toggle('text-gray-400', !on);
+            btn.setAttribute('title', title);
+            btn.setAttribute('aria-label', title + (service ? ': ' + service : ''));
             btn.setAttribute('aria-pressed', on ? 'true' : 'false');
         });
     }
@@ -140,6 +143,7 @@
 
     var _menuWired = false;
     var catalogMeta = {};
+    var catalogUnavailable = false;
 
     function personaliseMenu() {
         var sidebar = document.getElementById('sidebar');
@@ -190,8 +194,8 @@
         // Восстанавливаем их названия из полного каталога на любой странице.
         if (readStore().pinned.length) {
             loadCatalog(function (data) {
-                if (!data) return;
-                data.items.forEach(function (item) { catalogMeta[item.href] = item; });
+                catalogUnavailable = !data;
+                if (data) data.items.forEach(function (item) { catalogMeta[item.href] = item; });
                 applyMenuState();
             });
         }
@@ -206,16 +210,20 @@
         markPinned(sidebar, store);
         syncCards();
 
-        // Старые настройки hidden не должны скрывать постоянные четыре пункта.
+        // Старые настройки hidden не должны скрывать постоянный каталог.
         ensurePinnedGroup(sidebar, store.pinned);
+        // Если фильтр уже введён, новые пункты должны сразу ему соответствовать.
+        var search = document.getElementById('nav-search');
+        if (search && search.value) search.dispatchEvent(new window.Event('input', { bubbles: true }));
     }
 
     function markPinned(sidebar, store) {
         sidebar.querySelectorAll('.nav-pin').forEach(function (btn) {
             var href = btn.getAttribute('data-nav-pin') || '';
             var on = store.pinned.indexOf(href) !== -1;
-            btn.classList.toggle('text-blue-500', on);
+            btn.classList.toggle('is-pinned', on);
             btn.classList.toggle('text-gray-300', !on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
         });
     }
 
@@ -239,58 +247,75 @@
         ul.className = 'space-y-0.5';
         group.appendChild(ul);
 
-        var meta = Object.assign({}, catalogMeta, cardMeta());
+        // Полный каталог авторитетен по сравнению с карточкой (в нём есть
+        // nav_paths); карточка нужна как мгновенный фолбэк до ответа API.
+        var meta = Object.assign({}, cardMeta(), catalogMeta);
+        var path = window.location.pathname.replace(/\/+$/, '') || '/';
+        var activeHref = '', activeLength = -1;
+        pinned.forEach(function (href) {
+            var item = meta[href];
+            if (typeof href !== 'string' || !item) return;
+            var paths = [href].concat(Array.isArray(item.nav_paths) ? item.nav_paths : []);
+            paths.forEach(function (candidate) {
+                if (typeof candidate !== 'string') return;
+                var target = candidate.trim().replace(/\/+$/, '') || '/';
+                if (target !== '/' && (path === target || path.indexOf(target + '/') === 0) && target.length > activeLength) {
+                    activeHref = href;
+                    activeLength = target.length;
+                }
+            });
+        });
 
         pinned.forEach(function (href) {
-            var src = sidebar.querySelector('a.sidebar-item[href="' + href + '"]:not(.nav-hidden)');
-
-            if (src) {
-                var clone = src.cloneNode(true);
-                clone.classList.remove('nav-hidden');
-                var li = document.createElement('li');
-                li.appendChild(clone);
-                ul.appendChild(li);
-                return;
-            }
-
-            // Сервис известен только со страницы каталога (его нет в меню —
-            // например, он скрыт из «Лобби»): строим пункт из данных карточки,
-            // иначе закрепление выглядело бы «потерянным».
-            if (!meta[href]) return;
+            // Каталог уже постоянный; старую закладку на него не дублируем.
+            if (typeof href !== 'string' || href === '/services' || href.charAt(0) !== '/' || href.charAt(1) === '/') return;
+            var item = meta[href];
+            if (!item) return; // метаданные появятся после загрузки каталога
 
             var li = document.createElement('li');
+            li.className = 'group relative';
             var a = document.createElement('a');
-            a.href = href;
-            a.className = 'sidebar-item group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100';
+            a.setAttribute('href', href);
+            a.className = 'sidebar-item relative flex items-center gap-3 rounded-lg px-3 py-2 pr-10 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100';
+
+            if (href === activeHref) {
+                a.classList.add('is-active');
+                a.setAttribute('aria-current', path === href.replace(/\/+$/, '') ? 'page' : 'location');
+            }
 
             var ic = document.createElement('i');
-            ic.className = (meta[href].icon || 'fas fa-circle') + ' w-5 shrink-0 text-center text-[15px]';
+            ic.className = (item.icon || 'fas fa-circle') + ' w-5 shrink-0 text-center text-[15px]';
             a.appendChild(ic);
 
             var sp = document.createElement('span');
-            sp.className = 'sidebar-label flex-1 truncate';
-            sp.textContent = meta[href].title || href;
+            sp.className = 'sidebar-label min-w-0 flex-1 break-words leading-snug';
+            sp.textContent = item.title || href;
             a.appendChild(sp);
+            a.setAttribute('data-search', (item.title || href).toLowerCase());
+            a.title = item.title || href;
 
+            // Кнопка — рядом со ссылкой, а не внутри неё: корректно для клавиатуры.
             var pin = document.createElement('button');
             pin.type = 'button';
-            pin.className = 'sidebar-label nav-pin shrink-0 rounded-md p-1 text-blue-500';
+            pin.className = 'sidebar-label nav-pin is-pinned absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 hover:bg-gray-200 dark:hover:bg-gray-700';
             pin.setAttribute('data-nav-pin', href);
             pin.setAttribute('title', 'Убрать из Избранного');
-            pin.setAttribute('aria-label', 'Убрать из Избранного');
+            pin.setAttribute('aria-label', 'Убрать из Избранного: ' + (item.title || href));
+            pin.setAttribute('aria-pressed', 'true');
             pin.innerHTML = '<i class="fas fa-star text-[10px]"></i>';
-            a.appendChild(pin);
-            a.setAttribute('data-search', (meta[href].title || href).toLowerCase());
-            a.title = meta[href].title || href;
 
             li.appendChild(a);
+            li.appendChild(pin);
             ul.appendChild(li);
         });
 
         if (!ul.children.length) {
             var hint = document.createElement('li');
             hint.className = 'sidebar-label px-3 py-2 text-xs text-gray-400';
-            hint.textContent = 'Добавляйте сервисы звёздочкой в каталоге';
+            var hasPins = pinned.some(function (href) { return typeof href === 'string' && href !== '/services'; });
+            hint.textContent = !hasPins ? 'Добавляйте сервисы звёздочкой в каталоге' :
+                (catalogUnavailable ? 'Не удалось загрузить Избранное. Войдите или обновите страницу.' :
+                    (catalogData ? 'Закреплённые сервисы недоступны текущему пользователю.' : 'Загрузка Избранного…'));
             ul.appendChild(hint);
         }
         nav.insertBefore(group, nav.firstChild);
@@ -303,6 +328,7 @@
         var backdrop = null, panel = null, list = null, input = null;
         var items = [];
         var active = -1;
+        var loading = false, loadFailed = false;
 
         function trapDialogFocus(e) {
             if (e.key === 'Escape') {
@@ -396,8 +422,9 @@
             store.pinned.forEach(function (h, i) { storeOrder[h] = i; });
             store.recents.forEach(function (h, i) { storeOrder[h] = storeOrder[h] === undefined ? i + 100 : storeOrder[h]; });
 
+            // Палитра — поиск по всему доступному каталогу. Устаревший hidden
+            // сохраняем для совместимости данных, но он не должен прятать сервисы.
             var scored = items
-                .filter(function (it) { return !store.hidden.some(function (h) { return h === it.href; }); })
                 .map(function (it) {
                     var hay = ((it.title || '') + ' ' + (it.short || '') + ' ' + (it.keywords || '') + ' ' + (it.group || '')).toLowerCase();
                     var s = q ? score(hay, q) : 1;
@@ -429,14 +456,17 @@
             cards.forEach(function (c) { c.remove(); });
 
             scored.forEach(function (x, i) {
-                var row = document.createElement('a');
-                row.href = x.it.href;
+                var row = document.createElement('div');
                 row.className = 'palette-item flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 dark:text-gray-200 dark:hover:bg-blue-950/40';
                 row.setAttribute('data-i', i);
+                var link = document.createElement('a');
+                link.href = x.it.href;
+                link.className = 'flex min-w-0 flex-1 items-center gap-3';
+                row.appendChild(link);
 
                 var icon = document.createElement('i');
                 icon.className = (x.it.icon || 'fas fa-puzzle-piece') + ' w-5 shrink-0 text-center text-xs text-gray-400';
-                row.appendChild(icon);
+                link.appendChild(icon);
 
                 var mid = document.createElement('span');
                 mid.className = 'min-w-0 flex-1';
@@ -450,18 +480,18 @@
                     d.textContent = x.it.short;
                     mid.appendChild(d);
                 }
-                row.appendChild(mid);
+                link.appendChild(mid);
 
                 var grp = document.createElement('span');
                 grp.className = 'shrink-0 rounded-md bg-gray-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-gray-500 dark:bg-gray-800 dark:text-gray-400';
                 grp.textContent = x.it.group;
-                row.appendChild(grp);
+                link.appendChild(grp);
 
                 if (x.it.status === 'beta') {
                     var beta = document.createElement('span');
                     beta.className = 'shrink-0 rounded-full bg-blue-50 px-1.5 py-0.5 text-xs font-bold uppercase text-blue-600 dark:bg-blue-950/60 dark:text-blue-400';
                     beta.textContent = 'beta';
-                    row.appendChild(beta);
+                    link.appendChild(beta);
                 }
 
                 var pin = document.createElement('button');
@@ -469,30 +499,38 @@
                 pin.className = 'shrink-0 rounded-md p-1 text-gray-300 hover:bg-gray-100 hover:text-blue-600 dark:hover:bg-gray-800';
                 var isPinned = store.pinned.indexOf(x.it.href) !== -1;
                 pin.innerHTML = '<i class="fas fa-' + (isPinned ? 'star text-blue-500' : 'star') + ' text-xs"></i>';
-                pin.title = isPinned ? 'Открепить' : 'Закрепить в меню';
+                pin.title = isPinned ? 'Убрать из Избранного' : 'В Избранное';
+                pin.setAttribute('aria-label', pin.title + ': ' + x.it.title);
+                pin.setAttribute('aria-pressed', isPinned ? 'true' : 'false');
                 pin.addEventListener('click', function (e) {
                     e.preventDefault();
                     e.stopPropagation();
                     togglePin(x.it.href);
+                    applyMenuState();
                     render();
+                    toast(isPinned ? 'Убрано из Избранного' : 'Добавлено в Избранное — сверху в левом меню');
                     input.focus();
                 });
                 row.appendChild(pin);
 
                 row.addEventListener('mouseenter', function () { setActive(i); });
-                row.addEventListener('click', function () {
+                link.addEventListener('click', function () {
                     pushRecent(x.it.href);
                 });
                 list.appendChild(row);
             });
 
-            list.querySelector('#nav-palette-empty').classList.toggle('hidden', scored.length > 0);
+            var empty = list.querySelector('#nav-palette-empty');
+            empty.textContent = loading ? 'Загрузка каталога…' :
+                (loadFailed ? 'Не удалось загрузить каталог. Войдите или попробуйте ещё раз.' : 'Ничего не найдено');
+            empty.classList.toggle('hidden', scored.length > 0);
         }
 
         function setActive(i) {
             var rows = list.querySelectorAll('.palette-item');
             rows.forEach(function (r, idx) {
-                r.classList.toggle('bg-blue-50 dark:bg-blue-950/40', idx === i);
+                r.classList.toggle('bg-blue-50', idx === i);
+                r.classList.toggle('dark:bg-blue-950/40', idx === i);
             });
             active = i;
         }
@@ -503,17 +541,28 @@
             if (e.key === 'ArrowDown') { e.preventDefault(); if (rows.length) setActive((active + 1) % rows.length); return; }
             if (e.key === 'ArrowUp') { e.preventDefault(); if (rows.length) setActive((active - 1 + rows.length) % rows.length); return; }
             if (e.key === 'Enter') {
-                if (active >= 0 && rows[active]) { rows[active].click(); close(); }
+                if (active >= 0 && rows[active]) {
+                    var link = rows[active].querySelector('a');
+                    if (link) link.click();
+                    close();
+                }
             }
         }
 
         function open() {
             build();
+            loading = !catalogData;
+            loadFailed = false;
             loadCatalog(function (data) {
-                if (data && data.items) {
+                loading = false;
+                loadFailed = !data;
+                catalogUnavailable = !data;
+                if (data) {
                     items = data.items;
-                    render();
+                    items.forEach(function (item) { catalogMeta[item.href] = item; });
+                    applyMenuState();
                 }
+                render();
             });
             backdrop.classList.remove('hidden');
             backdrop.setAttribute('aria-hidden', 'false');
@@ -543,6 +592,9 @@
      * ------------------------------------------------------------------- */
     document.addEventListener('DOMContentLoaded', function () {
         personaliseMenu();
+        window.addEventListener('storage', function (event) {
+            if (event.key === STORE || event.key === null) personaliseMenu();
+        });
 
         var p = palette();
 

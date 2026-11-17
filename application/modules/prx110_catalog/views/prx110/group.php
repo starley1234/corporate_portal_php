@@ -22,16 +22,16 @@
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <?php foreach ($items as $m): ?>
         <div class="group/item relative">
-        <?php // Звёздочка «в Избранное» — проявляется при наведении на карточку. ?>
+        <?php // Кнопка видна без наведения, чтобы ей можно было пользоваться на телефоне. ?>
         <button type="button"
                 data-nav-pin-card="<?php echo HTML::chars($m['href']); ?>"
                 data-nav-pin-title="<?php echo HTML::chars($m['title']); ?>"
                 data-nav-pin-icon="<?php echo HTML::chars($m['icon']); ?>"
-                class="nav-pin-card absolute right-3 top-3 z-10 rounded-lg bg-white/90 p-1.5 text-sm text-gray-300 opacity-0 shadow-xs transition hover:text-amber-500 focus-visible:opacity-100 group-hover/item:opacity-100 dark:bg-gray-900/90"
-                title="В Избранное" aria-label="В Избранное"><i class="fas fa-star"></i></button>
+                class="nav-pin-card absolute right-3 top-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-white/90 text-sm text-gray-400 shadow-xs transition hover:text-amber-500 dark:bg-gray-900/90"
+                title="В Избранное" aria-label="В Избранное: <?php echo HTML::chars($m['title']); ?>"><i class="fas fa-star"></i></button>
         <a href="<?php echo HTML::chars($m['href']); ?>"
            class="prx-card group flex flex-col transition-all hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-sm dark:hover:border-blue-600">
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 pr-10">
                 <span class="rounded-lg bg-blue-50 p-2.5 text-sm font-bold text-blue-600 dark:bg-blue-950/80 dark:text-blue-400"><i class="<?php echo HTML::chars($m['icon']); ?>"></i></span>
                 <div class="min-w-0">
                     <h2 class="prx-h3 truncate"><?php echo HTML::chars($m['title']); ?></h2>

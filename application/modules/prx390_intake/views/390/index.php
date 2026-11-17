@@ -41,10 +41,10 @@
         <?php endforeach; ?>
     </section>
 
-    <div class="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <div class="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div class="min-w-0">
             <form method="get" action="/inbox" class="prx-card">
-                <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_200px_auto]">
+                <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_200px_auto]">
                     <div>
                         <label class="prx-label" for="inbox-q">Поиск по конвертам</label>
                         <input id="inbox-q" name="q" type="search" value="<?php echo HTML::chars($filters['q']); ?>" placeholder="тема, файл, отправитель" class="prx-input mt-1 w-full">
@@ -170,7 +170,7 @@
             <section class="prx-card">
                 <h2 class="text-base font-semibold text-gray-900 dark:text-white"><i class="fas fa-circle-info mr-2 text-blue-500"></i>Что дальше</h2>
                 <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">После текста документ автоматически появляется в <a class="text-blue-600 hover:underline dark:text-blue-400" href="/documents">реестре</a>. Разбор ИИ запускается в карточке или на странице <a class="text-blue-600 hover:underline dark:text-blue-400" href="/analysis">ИИ-разбор</a>.</p>
-                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Демонстрационные PDF лежат в <code class="font-mono">application/modules/prx390_intake/demo/</code>; команда <code class="font-mono">make docflow-demo</code> копирует их в папку входящих.</p>
+                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Демонстрационные PDF лежат в <code class="break-all font-mono">application/modules/prx390_intake/demo/</code>; команда <code class="font-mono">make docflow-demo</code> копирует их в папку входящих.</p>
             </section>
         </aside>
     </div>

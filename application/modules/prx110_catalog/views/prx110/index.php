@@ -49,13 +49,13 @@
                         <span class="prx-count shrink-0 uppercase"><?php echo HTML::chars((string) $m['badge']); ?></span>
                         <?php endif; ?>
                     </a>
-                    <?php // Звёздочка «в Избранное»: проявляется при наведении на строку. Закрепление видно в меню сразу (prx.nav.v1). ?>
+                    <?php // Звёздочка всегда видна, в том числе на сенсорных экранах. ?>
                     <button type="button"
                             data-nav-pin-card="<?php echo HTML::chars($m['href']); ?>"
                             data-nav-pin-title="<?php echo HTML::chars($m['title']); ?>"
                             data-nav-pin-icon="<?php echo HTML::chars($m['icon']); ?>"
-                            class="prx-btn-icon nav-pin-card shrink-0 opacity-0 group-hover/item:opacity-100 h-7 w-7 text-sm focus-visible:opacity-100"
-                            title="В Избранное" aria-label="В Избранное"><i class="fas fa-star"></i></button>
+                            class="prx-btn-icon nav-pin-card h-10 w-10 shrink-0 text-sm text-gray-400"
+                            title="В Избранное" aria-label="В Избранное: <?php echo HTML::chars($m['title']); ?>"><i class="fas fa-star"></i></button>
                 </li>
                 <?php endforeach; ?>
             </ul>

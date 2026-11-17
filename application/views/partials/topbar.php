@@ -7,7 +7,7 @@
                     <i class="fas fa-bars text-xl"></i>
                 </button>
 
-                <a href="/" class="text-xl font-bold flex items-center text-blue-600 dark:text-blue-400 shrink-0 mr-2 md:hidden">
+                <a href="/" class="prx-brand-link text-xl font-bold flex items-center text-blue-600 dark:text-blue-400 shrink-0 mr-2 md:hidden">
 
 					<?php echo isset($site_logo) ? $site_logo : '<i class="fas fa-brain mr-2"></i>'; ?>
 
@@ -16,13 +16,12 @@
                     <span class="hidden min-[380px]:inline text-gray-900 dark:text-white"><?php echo HTML::chars(isset($site_name) ? $site_name : ''); ?></span>
                 </a>
 
-                <!-- Чипы текущего раздела (prx110_catalog); навигация — в левой панели -->
+                <!-- Чипы текущего раздела (prx110_catalog) и меню модуля -->
                 <?php $prx_header = class_exists('Service_Prx110_Catalog') ? Service_Prx110_Catalog::header_nav() : NULL; ?>
                 <?php
                 // href'ы чипов раздела: меню модуля их НЕ повторяет. Иначе на /trends
-                // рядом стоят две «Тренды GitHub» и две «Управление» (владелец, 26.09:
-                // «убери дубликаты страниц»). Навигация на мобильных — в левой панели,
-                // поэтому фильтруем только показ чипов в шапке, не сам module_nav.
+                // рядом стоят два одинаковых чипа. Фильтруем только показ в шапке;
+                // ссылки модулей также доступны через каталог и «Избранное».
                 $prx_hrefs = [];
 
                 if ($prx_header !== NULL)
@@ -40,16 +39,16 @@
                         </span>
                         <?php foreach ($prx_header['items'] as $prx_item): ?>
                             <a href="<?php echo HTML::chars($prx_item['href']); ?>"
-                               class="shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition <?php echo ! empty($prx_item['active'])
-                                   ? 'bg-blue-600 text-white shadow-sm'
-                                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 dark:bg-gray-700/60 dark:text-gray-300 dark:hover:bg-gray-700'; ?>">
+                               class="prx-header-chip shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition <?php echo ! empty($prx_item['active'])
+                                   ? 'is-active'
+                                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 dark:bg-gray-700/60 dark:text-gray-300 dark:hover:bg-gray-700'; ?>"<?php echo ! empty($prx_item['active']) ? ' aria-current="page"' : ''; ?>>
                                 <i class="<?php echo HTML::chars($prx_item['icon']); ?> mr-1 text-xs"></i><?php echo HTML::chars($prx_item['title']); ?>
                             </a>
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
 
-                <?php // Меню модуля (md+): рядом с чипами раздела; на малых экранах — в левой панели ?>
+                <?php // Меню модуля (md+): рядом с чипами раздела ?>
                 <?php
                 // меню модуля без повторов чипов раздела (см. $prx_hrefs выше)
                 $mn_chips = [];
@@ -68,9 +67,9 @@
                     <div class="hidden md:flex items-center gap-1.5 min-w-0 overflow-x-auto <?php echo $prx_header !== NULL ? 'ml-2 pl-2 border-l border-gray-200 dark:border-gray-700' : ''; ?>">
                         <?php foreach ($mn_chips as $mn_item): ?>
                             <a href="<?php echo HTML::chars($mn_item['href']); ?>"
-                               class="shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition <?php echo ! empty($mn_item['active'])
-                                   ? 'bg-blue-600 text-white shadow-sm'
-                                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 dark:bg-gray-700/60 dark:text-gray-300 dark:hover:bg-gray-700'; ?>">
+                               class="prx-header-chip shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition <?php echo ! empty($mn_item['active'])
+                                   ? 'is-active'
+                                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900 dark:bg-gray-700/60 dark:text-gray-300 dark:hover:bg-gray-700'; ?>"<?php echo ! empty($mn_item['active']) ? ' aria-current="page"' : ''; ?>>
                                 <?php if ( ! empty($mn_item['icon'])): ?><i class="<?php echo HTML::chars($mn_item['icon']); ?> mr-1 text-xs"></i><?php endif; ?><?php echo HTML::chars($mn_item['title']); ?>
                             </a>
                         <?php endforeach; ?>
@@ -349,7 +348,7 @@
                 <?php if (isset($current_user_roles) && in_array('login', $current_user_roles)): ?>
                     <div class="relative">
                         <button type="button" id="userDropdownButton" aria-label="Меню аккаунта" aria-controls="userDropdownMenu" aria-expanded="false" class="flex items-center space-x-2 sm:space-x-3 focus:outline-none group p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                            <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-sm text-sm font-bold">
+                            <div class="prx-account-avatar w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-sm text-sm font-bold">
                                 <?php echo HTML::chars(strtoupper(substr($current_user->username, 0, 1))); ?>
                             </div>
                             <div class="hidden lg:block text-left">
@@ -408,4 +407,23 @@
             </div>
         </div>
 
-        </header>
+    </header>
+    <?php
+    // На телефоне постоянная панель остаётся короткой, но ссылки текущего
+    // раздела не должны исчезать вместе с desktop-чипами. Используем те же
+    // пункты: каталог фильтрует аудиторию/статус, module_nav — роли/ACL.
+    $mobile_nav = array_merge($prx_header !== NULL ? $prx_header['items'] : [], $mn_chips);
+    ?>
+    <?php if ($mobile_nav): ?>
+    <nav id="mobile-section-nav" aria-label="Навигация текущего раздела"
+         class="flex items-center gap-1.5 overflow-x-auto border-b border-gray-200 bg-white px-3 py-2 md:hidden dark:border-gray-700 dark:bg-gray-800">
+        <?php foreach ($mobile_nav as $mobile_item): ?>
+            <a href="<?php echo HTML::chars($mobile_item['href']); ?>"
+               class="prx-header-chip inline-flex min-h-10 shrink-0 items-center rounded-full px-3 py-2 text-xs font-semibold transition <?php echo ! empty($mobile_item['active'])
+                   ? 'is-active'
+                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700/60 dark:text-gray-300 dark:hover:bg-gray-700'; ?>"<?php echo ! empty($mobile_item['active']) ? ' aria-current="page"' : ''; ?>>
+                <?php if ( ! empty($mobile_item['icon'])): ?><i class="<?php echo HTML::chars($mobile_item['icon']); ?> mr-1 text-xs"></i><?php endif; ?><?php echo HTML::chars($mobile_item['title']); ?>
+            </a>
+        <?php endforeach; ?>
+    </nav>
+    <?php endif; ?>

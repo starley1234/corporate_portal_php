@@ -36,9 +36,10 @@
 </head>
 <body data-variant="<?= HTML::chars((string) ($variant['slug'] ?? '')) ?>">
 <?php
-// Точный эталон v6 использует локальный inline-SVG набор вместо Font Awesome:
-// витрина остаётся автономной, без общего CSS, шрифтов и внешних файлов.
-$dl_show_icons = (($variant['slug'] ?? '') === 'required-design-sample');
+// Эталон v6 и эксперимент его каркаса используют локальный inline-SVG набор.
+// Витрина остаётся автономной, без общего CSS, шрифтов и внешних файлов.
+$dl_sidebar_layout = (($variant['slug'] ?? '') === 'sidebar-navigation');
+$dl_show_icons = $dl_sidebar_layout || (($variant['slug'] ?? '') === 'required-design-sample');
 $dl_icon = static function ($name) use ($dl_show_icons) {
     if (!$dl_show_icons) {
         return '';
@@ -74,12 +75,17 @@ $dl_icon = static function ($name) use ($dl_show_icons) {
   <symbol id="dl-icon-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
   <symbol id="dl-icon-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></symbol>
   <symbol id="dl-icon-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="dl-icon-star" viewBox="0 0 24 24"><path d="m12 3 2.8 5.8 6.4.9-4.6 4.5 1.1 6.3-5.7-3-5.7 3 1.1-6.3-4.6-4.5 6.4-.9z"/></symbol>
+  <symbol id="dl-icon-moon" viewBox="0 0 24 24"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"/></symbol>
 </svg>
 <?php endif; ?>
 <a class="dl-skip-link" href="#main">Перейти к содержанию</a>
 
 <div class="dl-labbar" aria-label="Управление витриной дизайна">
   <a class="dl-labbar-home" href="<?= HTML::chars((string) ($home_url ?? '/design-lab')) ?>">← Все варианты</a>
+  <?php if ($dl_sidebar_layout): ?>
+    <span class="dl-current-variant">Вариант 11 · Навигация в боковой панели</span>
+  <?php else: ?>
   <nav class="dl-variant-switch" aria-label="Выбор варианта дизайна">
     <?php foreach (($variants ?? []) as $item): ?>
       <a class="dl-variant-link<?= (($item['slug'] ?? '') === ($variant['slug'] ?? '')) ? ' is-active' : '' ?>" href="<?= HTML::chars((string) ($item['href'] ?? '#')) ?>"<?php if (($item['slug'] ?? '') === ($variant['slug'] ?? '')): ?> aria-current="page"<?php endif; ?>>
@@ -88,6 +94,7 @@ $dl_icon = static function ($name) use ($dl_show_icons) {
       </a>
     <?php endforeach; ?>
   </nav>
+  <?php endif; ?>
   <div class="dl-company-switch" role="group" aria-label="Акцент компании холдинга">
     <span class="dl-company-label">Компания</span>
     <?php foreach (($company_options ?? []) as $company_option): ?>
@@ -114,14 +121,37 @@ $dl_icon = static function ($name) use ($dl_show_icons) {
     </div>
 
     <nav class="dl-primary-nav" id="primary-navigation" aria-label="Основная навигация портала">
-      <?php foreach (($content['navigation'] ?? []) as $item): ?>
-        <a class="dl-nav-link<?= !empty($item['active']) ? ' is-active' : '' ?>" href="<?= HTML::chars((string) ($item['href'] ?? '#')) ?>"<?php if (!empty($item['active'])): ?> aria-current="page"<?php endif; ?>>
-          <span class="dl-nav-label"><?= $dl_icon((string) ($item['icon'] ?? '')) ?><span><?= HTML::chars((string) ($item['label'] ?? '')) ?></span></span>
-          <?php if (!empty($item['badge'])): ?><span class="dl-nav-badge"><?= HTML::chars((string) $item['badge']) ?></span><?php endif; ?>
-        </a>
-      <?php endforeach; ?>
+      <?php if ($dl_sidebar_layout): ?>
+        <div class="dl-side-filter">
+          <label class="dl-visually-hidden" for="demo-side-filter">Фильтр меню</label>
+          <input id="demo-side-filter" type="search" placeholder="Фильтр меню…" autocomplete="off">
+          <a href="#services">Все</a>
+        </div>
+        <section class="dl-context-nav" aria-label="Текущий раздел: документооборот">
+          <p class="dl-side-heading">Текущий раздел · Документооборот</p>
+          <a class="dl-nav-link is-active" href="#overview" aria-current="page"><span class="dl-nav-label"><?= $dl_icon('file-check') ?><span>Входящие документы</span></span></a>
+          <a class="dl-nav-link" href="#services"><span class="dl-nav-label"><?= $dl_icon('layers') ?><span>Реестр входящих</span></span></a>
+          <a class="dl-nav-link" href="#work"><span class="dl-nav-label"><?= $dl_icon('check-square') ?><span>ИИ-анализ входящих</span></span></a>
+          <a class="dl-nav-link" href="#events"><span class="dl-nav-label"><?= $dl_icon('clock') ?><span>Сроки и маршруты</span></span></a>
+          <a class="dl-nav-link" href="#support"><span class="dl-nav-label"><?= $dl_icon('send') ?><span>Ответы на письма</span></span></a>
+        </section>
+        <section class="dl-favorites-nav" aria-label="Избранное">
+          <p class="dl-side-heading">Избранное</p>
+          <a class="dl-nav-link" href="#people"><span class="dl-nav-label"><?= $dl_icon('star') ?><span>Мой профиль сотрудника</span></span></a>
+          <a class="dl-nav-link" href="#knowledge"><span class="dl-nav-label"><?= $dl_icon('star') ?><span>Техническая база знаний</span></span></a>
+        </section>
+        <a class="dl-nav-link" href="#services"><span class="dl-nav-label"><?= $dl_icon('grid') ?><span>Все сервисы</span></span></a>
+      <?php else: ?>
+        <?php foreach (($content['navigation'] ?? []) as $item): ?>
+          <a class="dl-nav-link<?= !empty($item['active']) ? ' is-active' : '' ?>" href="<?= HTML::chars((string) ($item['href'] ?? '#')) ?>"<?php if (!empty($item['active'])): ?> aria-current="page"<?php endif; ?>>
+            <span class="dl-nav-label"><?= $dl_icon((string) ($item['icon'] ?? '')) ?><span><?= HTML::chars((string) ($item['label'] ?? '')) ?></span></span>
+            <?php if (!empty($item['badge'])): ?><span class="dl-nav-badge"><?= HTML::chars((string) $item['badge']) ?></span><?php endif; ?>
+          </a>
+        <?php endforeach; ?>
+      <?php endif; ?>
     </nav>
 
+    <?php if ( ! $dl_sidebar_layout): ?>
     <section class="dl-sidebar-profile" aria-label="Профиль сотрудника">
       <span class="dl-avatar"><?= HTML::chars((string) ($content['person']['initials'] ?? '')) ?></span>
       <div>
@@ -136,9 +166,11 @@ $dl_icon = static function ($name) use ($dl_show_icons) {
       <p>Кадровый справочник уже доступен командам центрального офиса и площадки «Север».</p>
       <a href="#services">Посмотреть сервисы<?= $dl_icon('arrow-right') ?></a>
     </section>
+    <?php endif; ?>
   </aside>
 
   <div class="dl-workspace">
+    <?php if ( ! $dl_sidebar_layout): ?>
     <header class="dl-topbar">
       <div class="dl-date-block">
         <span>Понедельник, 26 октября 2026</span>
@@ -165,8 +197,29 @@ $dl_icon = static function ($name) use ($dl_show_icons) {
         </span>
       </div>
     </header>
+    <?php endif; ?>
 
     <main id="main" class="dl-main">
+      <?php if ($dl_sidebar_layout): ?>
+      <div class="dl-page-tools" aria-label="Действия портала на странице">
+        <p class="dl-page-tools-caption">Действия на странице <span>· прокручиваются вместе с содержимым</span></p>
+        <div class="dl-page-actions">
+          <form class="dl-search" role="search" data-demo-search>
+            <label class="dl-visually-hidden" for="portal-search">Поиск по порталу</label>
+            <input id="portal-search" name="q" type="search" placeholder="Поиск по содержимому…" autocomplete="off">
+            <button type="submit"><?= $dl_icon('search') ?><span>Найти</span></button>
+            <output class="dl-search-status" aria-live="polite"></output>
+          </form>
+          <a class="dl-page-tool" href="#notifications" aria-label="Уведомления, 3 новых"><?= $dl_icon('bell') ?><span>Уведомления</span><strong>3</strong></a>
+          <button class="dl-page-tool" type="button" data-page-theme-toggle><?= $dl_icon('moon') ?><span>Тема</span></button>
+          <a class="dl-page-user" href="#people" aria-label="Профиль сотрудника">
+            <span class="dl-avatar"><?= HTML::chars((string) ($content['person']['initials'] ?? '')) ?></span>
+            <span><?= HTML::chars((string) ($content['person']['name'] ?? '')) ?></span>
+          </a>
+        </div>
+      </div>
+      <p class="dl-layout-note">Это демонстрация: текущий раздел расположен над избранным, постоянной верхней панели нет.</p>
+      <?php endif; ?>
       <section class="dl-hero" id="overview" aria-labelledby="portal-title">
         <div class="dl-hero-copy">
           <p class="dl-eyebrow">Вариант <?= HTML::chars(str_pad((string) ($variant['number'] ?? ''), 2, '0', STR_PAD_LEFT)) ?> · <?= HTML::chars((string) ($variant['title'] ?? '')) ?></p>
@@ -350,7 +403,7 @@ $dl_icon = static function ($name) use ($dl_show_icons) {
           </div>
         </section>
 
-        <section class="dl-panel" aria-labelledby="events-title">
+        <section class="dl-panel" id="events" aria-labelledby="events-title">
           <div class="dl-panel-head">
             <div>
               <p class="dl-section-kicker">Календарь</p>
@@ -494,6 +547,7 @@ $dl_icon = static function ($name) use ($dl_show_icons) {
   var root = document.documentElement;
   var themeButtons = Array.prototype.slice.call(document.querySelectorAll('[data-theme-choice]'));
   var companyButtons = Array.prototype.slice.call(document.querySelectorAll('[data-company-choice]'));
+  var pageThemeButton = document.querySelector('[data-page-theme-toggle]');
   var companies = ['orange', 'blue', 'yellow'];
 
   function updateLabLinks() {
@@ -521,6 +575,10 @@ $dl_icon = static function ($name) use ($dl_show_icons) {
       button.setAttribute('aria-pressed', button.dataset.themeChoice === root.dataset.theme ? 'true' : 'false');
       button.classList.toggle('is-active', button.dataset.themeChoice === root.dataset.theme);
     });
+    if (pageThemeButton) {
+      var nextTheme = root.dataset.theme === 'dark' ? 'светлую' : 'тёмную';
+      pageThemeButton.setAttribute('aria-label', 'Включить ' + nextTheme + ' тему');
+    }
   }
 
   function paintCompanyButtons() {
@@ -567,6 +625,11 @@ $dl_icon = static function ($name) use ($dl_show_icons) {
       setCompany(button.dataset.companyChoice);
     });
   });
+  if (pageThemeButton) {
+    pageThemeButton.addEventListener('click', function () {
+      setTheme(root.dataset.theme === 'dark' ? 'light' : 'dark', true);
+    });
+  }
   paintThemeButtons();
   paintCompanyButtons();
   updateLabLinks();
@@ -595,6 +658,16 @@ $dl_icon = static function ($name) use ($dl_show_icons) {
       link.addEventListener('click', function () {
         root.dataset.menuOpen = 'false';
         menuButton.setAttribute('aria-expanded', 'false');
+      });
+    });
+  }
+
+  var sideFilter = document.getElementById('demo-side-filter');
+  if (sideFilter) {
+    sideFilter.addEventListener('input', function () {
+      var query = sideFilter.value.trim().toLowerCase();
+      document.querySelectorAll('.dl-primary-nav .dl-nav-link').forEach(function (link) {
+        link.hidden = !!query && link.textContent.toLowerCase().indexOf(query) < 0;
       });
     });
   }

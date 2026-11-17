@@ -123,13 +123,19 @@
     background-size: 1.25em 1.25em;
     padding-right: 2.75rem;
     cursor: pointer;
+    color-scheme: light;
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
 }
 .dark .prx-select {
+    color-scheme: dark;
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
 }
+/* Нативный список options в некоторых браузерах не наследует фон select. */
+.prx-select option { background-color: #fff; color: #111827; }
+.dark .prx-select option { background-color: #111827; color: #f9fafb; }
+.prx-select:disabled { cursor: not-allowed; opacity: .65; }
 
 /* Взведённая кнопка data-prx-arm (первый клик) — сплошной красный, как у .prx-btn-danger.
    Для кнопок со своими утилитами: !important перебивает их hover и тёмные варианты. */
@@ -282,11 +288,14 @@
         font-size: var(--prx-fs-sm);
     }
 
-    .prx-input {
-        @apply w-full rounded-lg border border-gray-300 bg-white px-3.5 text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/15 dark:border-gray-600 dark:bg-gray-900 dark:text-white;
+    /* Select — полноценное поле и без .prx-input: многие формы используют
+       только .prx-select. Ширину select задаёт форма (например, w-full). */
+    .prx-input, .prx-select {
+        @apply rounded-lg border border-gray-300 bg-white px-3.5 text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/15 dark:border-gray-600 dark:bg-gray-900 dark:text-white;
         min-height: var(--prx-control);
         font-size: var(--prx-fs-sm);
     }
+    .prx-input { @apply w-full; }
 
     .prx-textarea {
         @apply w-full rounded-lg border border-gray-300 bg-white p-3.5 text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-blue-500 focus:ring-3 focus:ring-blue-500/15 dark:border-gray-600 dark:bg-gray-900 dark:text-white;
@@ -659,6 +668,43 @@ input[type="range"]::-moz-range-thumb {
 .dark input[type="range"]::-moz-range-thumb { border-color: rgb(17 24 39); background: #3b82f6; }
 input[type="range"]:focus-visible::-webkit-slider-thumb { outline: 3px solid rgb(59 130 246 / 0.35); }
 input[type="range"]:focus-visible::-moz-range-thumb { outline: 3px solid rgb(59 130 246 / 0.35); }
+
+/* Бренд компании: задаётся в site_config.php и не перекрашивает CTA,
+   процессы и состояния. Токены согласованы с витриной /design-lab. */
+:root, html[data-company-accent="orange"] {
+    --company-accent: #ea580c; --company-ink: #9a3412;
+    --company-soft: #fff7ed; --company-on: #fff;
+}
+html[data-company-accent="blue"] {
+    --company-accent: #2563eb; --company-ink: #1d4ed8;
+    --company-soft: #eff6ff; --company-on: #fff;
+}
+html[data-company-accent="yellow"] {
+    --company-accent: #eab308; --company-ink: #854d0e;
+    --company-soft: #fefce8; --company-on: #422006;
+}
+html.dark[data-company-accent="orange"] {
+    --company-accent: #fb923c; --company-ink: #fdba74;
+    --company-soft: #431407; --company-on: #431407;
+}
+html.dark[data-company-accent="blue"] {
+    --company-accent: #60a5fa; --company-ink: #93c5fd;
+    --company-soft: #172554; --company-on: #08111f;
+}
+html.dark[data-company-accent="yellow"] {
+    --company-accent: #facc15; --company-ink: #fde68a;
+    --company-soft: #422006; --company-on: #422006;
+}
+#sidebar .sidebar-brand, html[data-company-accent] .prx-brand-link { color: var(--company-ink); }
+.prx-header-chip.is-active, #sidebar .sidebar-item.is-active {
+    background-color: var(--company-soft);
+    color: var(--company-ink);
+    box-shadow: inset 0 0 0 1px var(--company-accent);
+}
+#sidebar .nav-pin.is-pinned { color: var(--company-ink); }
+#sidebar :is(a, button, input):focus-visible { outline: 2px solid var(--company-accent); outline-offset: 2px; }
+html[data-company-accent] .prx-account-avatar { background-color: var(--company-accent); color: var(--company-on); }
+input:checked + .slider { background-color: var(--company-accent); }
 
 /* Левая панель навигации (sidebar) */
 :root { --sbw: 264px; }

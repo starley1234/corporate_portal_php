@@ -4,7 +4,7 @@ use PHPUnit\Framework\TestCase;
 /** Контракты публичной изолированной витрины дизайна prx140. */
 class DesignLabTest extends TestCase
 {
-    public function test_registry_declares_ten_unique_public_variants(): void
+    public function test_registry_declares_eleven_unique_public_variants(): void
     {
         $this->assertArrayHasKey('prx140_design_lab', Kohana::modules());
 
@@ -17,13 +17,13 @@ class DesignLabTest extends TestCase
         $this->assertSame('beta', $manifest['status']);
 
         $variants = $this->_variants();
-        $this->assertCount(10, $variants);
-        $this->assertCount(10, array_unique(Arr::pluck($variants, 'slug')));
-        $this->assertCount(10, array_unique(Arr::pluck($variants, 'css')));
+        $this->assertCount(11, $variants);
+        $this->assertCount(11, array_unique(Arr::pluck($variants, 'slug')));
+        $this->assertCount(11, array_unique(Arr::pluck($variants, 'css')));
         $this->assertSame(
             [
                 'corporate', 'industrial', 'swiss', 'product', 'editorial', 'command',
-                'sample-classic', 'sample-compact', 'sample-operations', 'required-design-sample',
+                'sample-classic', 'sample-compact', 'sample-operations', 'required-design-sample', 'sidebar-navigation',
             ],
             Arr::pluck($variants, 'slug')
         );
@@ -109,14 +109,15 @@ class DesignLabTest extends TestCase
             $this->assertStringContainsString('&amp;theme=dark', $body, $slug);
             $this->assertStringContainsString('&amp;company=orange', $body, $slug);
             $this->assertStringNotContainsString('<link', $body, $slug);
-            $this->assertStringNotContainsString('template_tailwindcss', $body, $slug);
+            // CSS эталона упоминает имя рабочего шаблона в комментарии, но не подключает его.
+            $this->assertStringNotContainsString('template_tailwindcss.php', $body, $slug);
             $this->assertStringNotContainsString('prx-main', $body, $slug);
 
             foreach ($canonical as $text) {
                 $this->assertStringContainsString($text, $body, $slug.': '.$text);
             }
 
-            if ($slug === 'required-design-sample') {
+            if (in_array($slug, ['required-design-sample', 'sidebar-navigation'], true)) {
                 $this->assertStringContainsString('id="dl-icon-home"', $body, $slug);
                 $this->assertStringContainsString('id="dl-icon-search"', $body, $slug);
                 $this->assertStringContainsString('id="dl-icon-bell"', $body, $slug);
@@ -125,6 +126,15 @@ class DesignLabTest extends TestCase
                 $this->assertStringNotContainsString('fontawesome', strtolower($body), $slug);
             } else {
                 $this->assertStringNotContainsString('class="dl-icon"', $body, $slug);
+            }
+
+            if ($slug === 'sidebar-navigation') {
+                $this->assertStringContainsString('class="dl-context-nav"', $body);
+                $this->assertStringContainsString('class="dl-favorites-nav"', $body);
+                $this->assertLessThan(strpos($body, 'class="dl-favorites-nav"'), strpos($body, 'class="dl-context-nav"'));
+                $this->assertStringContainsString('class="dl-page-tools"', $body);
+                $this->assertStringContainsString('data-page-theme-toggle', $body);
+                $this->assertStringNotContainsString('<header class="dl-topbar">', $body);
             }
         }
     }
@@ -172,7 +182,8 @@ class DesignLabTest extends TestCase
         $base = APPPATH.'modules/prx140_design_lab/assets/design-lab/';
         $files = ['landing.css' => file_get_contents($base.'landing.css')];
         foreach ($this->_variants() as $variant) {
-            $files[$variant['css']] = file_get_contents($base.$variant['css']);
+            $parent = empty($variant['base_css']) ? '' : file_get_contents($base.$variant['base_css']);
+            $files[$variant['css']] = $parent."\n".file_get_contents($base.$variant['css']);
         }
 
         $hashes = [];

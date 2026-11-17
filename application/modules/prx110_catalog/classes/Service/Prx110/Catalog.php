@@ -543,6 +543,13 @@ class Service_Prx110_Catalog {
                 'group'    => (string) $m['group'],
                 'gslug'    => self::group_slug($m['group']),
                 'keywords' => (string) ($m['keywords'] ?? ''),
+                // Алиасы нужны для подсветки избранного на страницах объектов;
+                // как и API ниже, отдаём только относительные локальные пути.
+                'nav_paths' => array_values(array_filter(array_map(function ($path) {
+                    return is_string($path) ? trim($path) : '';
+                }, (array) ($m['nav_paths'] ?? [])), function ($path) {
+                    return substr($path, 0, 1) === '/' AND substr($path, 0, 2) !== '//';
+                })),
                 // API-маршруты — часть публичного манифеста. Отдаём только
                 // относительные URL: внешние или protocol-relative значения
                 // не должны превращать каталог в источник непроверенных ссылок.
@@ -681,67 +688,18 @@ class Service_Prx110_Catalog {
     }
 
     /**
-     * Короткое постоянное меню: каталог и три выбранных сервиса.
-     * Остальные сервисы доступны через /services и персональное «Избранное».
-     * Названия, ссылки и права видимости берём из манифестов; порядок — здесь.
+     * Постоянный пункт панели — только каталог. Сервисы остаются в манифестах
+     * и добавляются в персональное «Избранное», а не в общее меню автоматически.
      */
     public static function menu_items()
     {
-        $items = [[
+        $uri = self::_current_uri();
+
+        return [[
             'title' => 'Все сервисы', 'href' => '/services',
             'icon' => 'fas fa-grip', 'group' => 'Сервисы', 'sort' => 0,
+            'active' => ($uri === '/services' OR strpos($uri, '/services/') === 0),
         ]];
-        $visible = [];
-        foreach (self::visible_modules(self::user_context()) as $m)
-        {
-            $visible[$m['slug']] = $m;
-        }
-
-        foreach (array_values($visible) as $sort => $m)
-        {
-            $items[] = [
-                'title' => $m['title'], 'href' => $m['href'], 'icon' => $m['icon'],
-                'group' => $m['group'], 'sort' => $sort + 1,
-                'keywords' => $m['keywords'],
-                'active_paths' => (array) ($m['nav_paths'] ?? []),
-            ];
-        }
-
-        // Активность считаем на сервере с учётом алиасов страниц объектов
-        // (например, /p/<code> → /poll). Выбираем самый длинный совпавший
-        // путь, как и в шапке, чтобы родительский маршрут не подсвечивал лишнее.
-        $uri = self::_current_uri();
-        $active_index = NULL;
-        $active_len = -1;
-
-        foreach ($items as $i => $item)
-        {
-            $paths = array_merge(
-                [(string) ($item['href'] ?? '')],
-                (array) ($item['active_paths'] ?? [])
-            );
-
-            foreach ($paths as $path)
-            {
-                $path = rtrim((string) $path, '/');
-
-                if ($path !== '' AND ($uri === $path OR strpos($uri, $path.'/') === 0)
-                    AND strlen($path) > $active_len)
-                {
-                    $active_index = $i;
-                    $active_len = strlen($path);
-                }
-            }
-        }
-
-        foreach ($items as $i => &$item)
-        {
-            unset($item['active_paths']);
-            $item['active'] = ($i === $active_index);
-        }
-        unset($item);
-
-        return $items;
     }
 
     /**
