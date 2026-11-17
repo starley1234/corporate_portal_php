@@ -8,6 +8,14 @@
  */
 class Controller_Prl398_Vlm extends Controller_Base
 {
+    /**
+     * Закрытый каталог текущего запроса. Создаётся только при наличии файлов
+     * и удаляется в finally, даже если модель вернула ошибку.
+     *
+     * @var string|null
+     */
+    protected $_tmp_dir = NULL;
+
     public function action_index()
     {
         $this->_require_ability('prl398.view');
@@ -51,6 +59,8 @@ class Controller_Prl398_Vlm extends Controller_Base
             @set_time_limit($timeout);
         }
 
+        $this->_tmp_dir = NULL;
+
         try
         {
             $files = $this->_uploaded_pages();
@@ -84,6 +94,10 @@ class Controller_Prl398_Vlm extends Controller_Base
             Log_Plain::event(Log::ERROR, 'prl398: неожиданная ошибка: :e', [':e' => $e->getMessage()]);
 
             return $this->_json_error('Внутренняя ошибка демо. Подробности — в журнале сайта.', 500);
+        }
+        finally
+        {
+            $this->_cleanup_tmp_dir();
         }
     }
 
@@ -159,7 +173,80 @@ class Controller_Prl398_Vlm extends Controller_Base
             throw new InvalidArgumentException('Выберите PDF или изображение');
         }
 
+        // PHP сам удаляет upload-tmp после запроса, но демо не должно зависеть
+        // от настроек хостинга: копируем в собственный каталог 0700 и убираем
+        // его в finally.
+        $dir = $this->_tmp_dir();
+        foreach ($files as $index => & $file)
+        {
+            $extension = strtolower((string) pathinfo($file['name'], PATHINFO_EXTENSION));
+            if ( ! in_array($extension, ['jpg', 'jpeg', 'png'], TRUE))
+            {
+                $extension = 'img';
+            }
+
+            $destination = $dir.'/page-'.($index + 1).'.'.$extension;
+            if ( ! @move_uploaded_file($file['path'], $destination))
+            {
+                throw new RuntimeException('Не удалось сохранить страницу «'.$file['name'].'» во временный каталог');
+            }
+
+            $file['path'] = $destination;
+            $file['size'] = (int) @filesize($destination);
+        }
+        unset($file);
+
         return $files;
+    }
+
+    /**
+     * Уникальный каталог 0700 в системном tmp. Не зависит от public_html.
+     */
+    protected function _tmp_dir()
+    {
+        if ($this->_tmp_dir !== NULL)
+        {
+            return $this->_tmp_dir;
+        }
+
+        $base = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR);
+        $dir = $base.DIRECTORY_SEPARATOR.'prl398_'.bin2hex(random_bytes(8));
+
+        if ( ! @mkdir($dir, 0700, TRUE))
+        {
+            throw new RuntimeException('Не удалось создать закрытый временный каталог');
+        }
+
+        @chmod($dir, 0700);
+        $this->_tmp_dir = $dir;
+
+        return $dir;
+    }
+
+    protected function _cleanup_tmp_dir()
+    {
+        if ($this->_tmp_dir === NULL)
+        {
+            return;
+        }
+
+        $dir = $this->_tmp_dir;
+        $this->_tmp_dir = NULL;
+
+        if ( ! is_dir($dir))
+        {
+            return;
+        }
+
+        foreach ((array) glob($dir.'/*') as $path)
+        {
+            if (is_file($path))
+            {
+                @unlink($path);
+            }
+        }
+
+        @rmdir($dir);
     }
 
     protected function _upload_error($code)

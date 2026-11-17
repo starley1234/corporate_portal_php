@@ -211,6 +211,8 @@ admin/admin и вход под сессией — на стенде с БД. П�
 - PDF.js `6.5.438` положен локально в `public_html/assets/vendor/pdfjs/`;
   для `.mjs` добавлен MIME в `public_html/.htaccess` и
   `docker/nginx/default.conf`.
+- Принятые страницы копируются в уникальный каталог `prl398_*` в системном
+  tmp с правами `0700` и удаляются в `finally` (включая ошибки LLM).
 - `python3 .tools/portal_check.py` — 33 модуля, 210 PHP-классов, 6 active +
   49 planned, 7 каналов.
 - `bash .tools/php_check_all.sh` — 404 PHP-файла без синтаксических ошибок,
@@ -221,6 +223,8 @@ admin/admin и вход под сессией — на стенде с БД. П�
   markdown-обёртке, ИНН, проценты уверенности, неизвестный тип, страницы.
   Отдельный (временный) стенд `analyze()` с mock-LLM проверил сборку
   `image_url` как data URI; view рендерится с заглушками `View/HTML/URL`.
+- Отдельный WASM-стенд служебного каталога: `prl398_*` создаётся с правами
+  `0700`, после `_cleanup_tmp_dir()` файл и каталог удалены.
 - Не проверено: живой вызов VLM (в песочнице нет LLM-шлюза), реальный
   браузерный рендер PDF.js (нет Chromium), HTTP под сессией и PostgreSQL.
   Для запуска нужна загруженная vision-модель и `TOOLFORGE_API_URL/KEY`.
