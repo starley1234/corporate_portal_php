@@ -8,7 +8,7 @@
 ```bash
 # 1. миграции и окружение
 make migrate
-make docflow-demo          # копирует PDF в storage/docflow/inbox
+make docflow-demo          # копирует PDF в public_html/storage/docflow/inbox
 
 # 2. воркер с локальной моделью (или мок-LLM для проверки без GPU)
 make up-worker             # настоящий воркер

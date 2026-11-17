@@ -36,7 +36,10 @@ Canonical URL остаётся APP_URL; браузер использует пу
 Не подставляйте адрес production в шаблон .env и не храните ключи в Git.
 
 Публичный docroot — только `public_html/`. Приватное хранилище — `storage/`
-вне docroot, runtime — `application/{cache,logs,sessions}`.
+вне docroot, runtime — `application/{cache,logs,sessions}`. Исключение —
+входящие prl390: на хостинге, где корень недоступен PHP на запись, они лежат
+в `public_html/storage/docflow`, но закрыты правилом в `public_html/.htaccess`;
+для nginx добавьте `location ^~ /storage/docflow/ { deny all; }`.
 Резервировать БД **и** `storage/`/пользовательские файлы; проверять восстановление.
 Для воркеров есть отдельный workers/.env. Docker использует root .env.
 

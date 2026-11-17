@@ -12,7 +12,7 @@ overview:
           - [300, 40, 560, 470, "Обработка"]
           - [890, 40, 270, 470, "Человек"]
         nodes:
-          - { id: folder, at: [145, 120, 190], label: Папка inbox, sub: PDF из examples, kind: ext }
+          - { id: folder, at: [145, 120, 190], label: Папка inbox, sub: "public_html/storage", kind: ext }
           - { id: upload, at: [145, 240, 190], label: Загрузка, sub: приказ или письмо, kind: web }
           - { id: intake, at: [410, 110, 210], label: prl390 intake, sub: dedup и prl212, kind: module, info: "{intake}" }
           - { id: storage, at: [410, 230, 210], label: prl212 storage, sub: "sha256, private", kind: data, info: "{storage}" }

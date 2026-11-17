@@ -120,7 +120,7 @@ fi
 # --- 2. Каталоги для записи ----------------------------------------------------
 msg "Создаю каталоги приложения"
 mkdir -p application/logs application/cache application/sessions
-mkdir -p public_html/uploads public_html/img
+mkdir -p public_html/uploads public_html/img public_html/storage
 mkdir -p storage
 
 # Сессии, временные кадры VLM, логи и файлы модулей — не публичные данные.
@@ -135,8 +135,8 @@ for private_dir in "$ROOT/application/logs" "$ROOT/application/cache" \
     fi
 done
 
-# Эти два каталога предназначены для публичных загрузок/изображений сайта.
-chmod -R u+rwX,go+rX public_html/uploads public_html/img 2>/dev/null || true
+# Публичные загрузки, изображения и каталог docflow (входящие закрыты .htaccess).
+chmod -R u+rwX,go+rX public_html/uploads public_html/img public_html/storage 2>/dev/null || true
 
 # --- 3. Composer / заглушка автозагрузчика --------------------------------------
 need_vendor_shim=0

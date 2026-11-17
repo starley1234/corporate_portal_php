@@ -108,8 +108,8 @@ architecture: ## собрать документацию архитектуры 
 	@npm run --silent architecture
 
 docflow-demo: ## положить демонстрационные PDF в папку входящих prl390
-	@mkdir -p storage/docflow/inbox storage/docflow/processed storage/docflow/duplicates storage/docflow/error
-	@cp -v examples/docflow/*.pdf storage/docflow/inbox/
+	@mkdir -p "$${PRL390_INBOX_DIR:-public_html/storage/docflow/inbox}" "$${PRL390_PROCESSED_DIR:-public_html/storage/docflow/processed}" "$${PRL390_DUPLICATES_DIR:-public_html/storage/docflow/duplicates}" "$${PRL390_ERROR_DIR:-public_html/storage/docflow/error}"
+	@cp -v examples/docflow/*.pdf "$${PRL390_INBOX_DIR:-public_html/storage/docflow/inbox}/"
 	@echo "Готово: откройте /inbox и нажмите «Сканировать папку»."
 
 backup: ## резервная копия: дамп БД + архив файловых хранилищ

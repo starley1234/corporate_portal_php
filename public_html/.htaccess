@@ -1,6 +1,11 @@
 # Turn on URL rewriting
 RewriteEngine On
 
+# prl390: входящие документы лежат в public_html/storage/docflow только потому,
+# что на части хостингов PHP не может писать в корень проекта. Напрямую они
+# не отдаются: скачивание идёт через контроллер с проверкой прав.
+RewriteRule ^storage/docflow(/|$) - [F,L]
+
 ###Hides server version on Apache
 ###http://www.ducea.com/2006/06/15/apache-tips-tricks-hide-apache-software-version/
 #ServerTokens ProductOnly

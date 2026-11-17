@@ -17,7 +17,7 @@
         <?php
         $kpis = [
             ['Всего', $stats['total'], 'fas fa-folder-open', 'info', 'кроме архива'],
-            ['Новые', $stats['new'], 'fas fa-file-circle-plus', 'wait', 'ещё не разобраны'],
+            ['Новые', $stats['new_count'] ?? 0, 'fas fa-file-circle-plus', 'wait', 'ещё не разобраны'],
             ['В работе', $stats['work_count'], 'fas fa-person-digging', 'run', 'на разборе и в работе'],
             ['Просрочено', $stats['overdue'], 'fas fa-fire', $stats['overdue'] ? 'err' : 'ok', 'срок истёк'],
             ['ИИ ждут проверки', $ai_stats['proposed'] ?? 0, 'fas fa-wand-magic-sparkles', ($ai_stats['proposed'] ?? 0) ? 'warn' : 'ok', 'предложений в очереди'],

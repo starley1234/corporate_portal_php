@@ -41,7 +41,7 @@ prl212, канал `doc.normalize`, текст и событие `prl390.text.re
 ## Настройки и данные
 
 `config/prl390_intake.php`: `inbox_dir`, `processed_dir`, `duplicates_dir`,
-`error_dir`, лимит размера. Пути по умолчанию — `storage/docflow/*`
+`error_dir`, лимит размера. Пути по умолчанию — `public_html/storage/docflow/*` (закрыты от прямой отдачи)
 (gitignored). Демо-PDF — `examples/docflow/`, команда `make docflow-demo`.
 
 Текст старше `PRL390_TEXT_RETENTION_DAYS` (365) удаляется manifest-cleanup;

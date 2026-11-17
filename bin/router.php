@@ -12,6 +12,14 @@ $root = __DIR__ . '/../public_html';
 $uri  = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '/');
 $file = $root . $uri;
 
+// prl390: входящие PDF лежат в public_html/storage/docflow из-за прав
+// хостинга, но наружу не отдаются — только через контроллер с ACL.
+// В nginx/Apache это делает .htaccess или location deny; здесь — роутер.
+if (preg_match('#^/storage/docflow(/|$)#', $uri)) {
+    http_response_code(404);
+    exit;
+}
+
 // Статика: только реальные файлы (не каталоги) вне «точек»
 if ($uri !== '/' && is_file($file) && strpos($uri, '/.') === false) {
     return false; // встроенный сервер отдаст файл сам
