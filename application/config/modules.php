@@ -33,6 +33,8 @@ return [
     'prl392_analysis' => APPPATH.'modules/prl392_analysis',
     'prl393_workflow' => APPPATH.'modules/prl393_workflow',
     'prl394_drafts' => APPPATH.'modules/prl394_drafts',
+    // Демо VLM-разбора PDF: браузерный PDF.js + синхронный AJAX, без worker/БД.
+    'prl398_vlm_demo' => APPPATH.'modules/prl398_vlm_demo',
     'prl560_knowledge' => APPPATH.'modules/prl560_knowledge',
     'prl595_useradmin' => APPPATH.'modules/prl595_useradmin',
     'prl597_notifications' => APPPATH.'modules/prl597_notifications',

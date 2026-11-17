@@ -34,6 +34,9 @@ return [
     'prl394.draft' => ['docflow_clerk', 'docflow_lawyer'],
     'prl394.approve' => ['docflow_lawyer', 'docflow_manager'],
     'prl394.send' => ['docflow_manager'],
+    // prl398 — демо VLM; запуск дороже обычного просмотра, поэтому отдельное право.
+    'prl398.view' => ['login'],
+    'prl398.run' => ['docflow_clerk', 'docflow_lawyer', 'docflow_manager'],
     'prl595.users.admin' => ['admin'],
     'prl597.admin' => ['admin'],
     'prl560.admin' => ['admin'],

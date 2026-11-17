@@ -202,3 +202,25 @@ admin/admin и вход под сессией — на стенде с БД. П�
   `make docflow-demo` и ссылки в документации обновлены.
 - Проверки: `make architecture` — 0 ошибок/0 предупреждений, 9 вкладок;
   `npm test` — 14/14; `npm run test:architecture` — 124/124; `php_check_all` — чисто.
+
+## VLM-демо prl398 (16.11.2026)
+
+- Добавлен `prl398_vlm_demo`: `/vlm-demo`, браузерный PDF.js, AJAX
+  `POST /vlm-demo/analyze`, вызов vision-модели через `Llm`, без БД, очереди
+  и worker-каналов. PDF на сервер не загружается — только JPEG/PNG страниц.
+- PDF.js `6.5.438` положен локально в `public_html/assets/vendor/pdfjs/`;
+  для `.mjs` добавлен MIME в `public_html/.htaccess` и
+  `docker/nginx/default.conf`.
+- `python3 .tools/portal_check.py` — 33 модуля, 210 PHP-классов, 6 active +
+  49 planned, 7 каналов.
+- `bash .tools/php_check_all.sh` — 404 PHP-файла без синтаксических ошибок,
+  32 миграции, Tailwind 744 класса, дизайн-аудит чист.
+- `make architecture` — 0 ошибок, 0 предупреждений; `npm test` — 14/14;
+  `npm run test:architecture` — 124/124.
+- WASM-стенд `.tools/prl398_normalize_stand.php` — 13 ок, 0 фейл: JSON в
+  markdown-обёртке, ИНН, проценты уверенности, неизвестный тип, страницы.
+  Отдельный (временный) стенд `analyze()` с mock-LLM проверил сборку
+  `image_url` как data URI; view рендерится с заглушками `View/HTML/URL`.
+- Не проверено: живой вызов VLM (в песочнице нет LLM-шлюза), реальный
+  браузерный рендер PDF.js (нет Chromium), HTTP под сессией и PostgreSQL.
+  Для запуска нужна загруженная vision-модель и `TOOLFORGE_API_URL/KEY`.
