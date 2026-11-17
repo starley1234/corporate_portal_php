@@ -2,15 +2,16 @@
 
 Владелец видел поток ошибок LM Studio: «An LM Studio API token is required…
 none was provided using the Authorization header». Здесь проверяем, что
-  * токен берётся из <ИМЯ>_API_KEY / <ИМЯ>_API_TOKEN / LM_API_TOKEN (для локальных
-    серверов) и НЕ подставляется удалённым провайдерам;
+  * токен берётся из <ИМЯ>_API_KEY / <ИМЯ>_API_TOKEN / LOCAL_API_KEY (для локальных
+    серверов) и НЕ подставляется удалённым провайдерам; старый LM_API_TOKEN
+    принимается как совместимый синоним;
   * 401/403 превращается в LlmConfigError с инструкцией, а такой сбой не
     повторяется (иначе три попытки = три отказа подряд).
 """
 import httpx
 import pytest
 
-from prl_workers import llm
+from prx_workers import llm
 
 
 def test_looks_local():
@@ -23,10 +24,10 @@ def test_looks_local():
 
 def test_key_variants(monkeypatch):
     for var in ("TOOLFORGE_API_KEY", "TOOLFORGE_API_TOKEN", "TOOLFORGE_TOKEN",
-                "LM_API_TOKEN", "LMSTUDIO_API_TOKEN", "OPENROUTER_API_KEY"):
+                "LOCAL_API_KEY", "LMSTUDIO_API_TOKEN", "OPENROUTER_API_KEY"):
         monkeypatch.delenv(var, raising=False)
 
-    monkeypatch.setenv("LM_API_TOKEN", "lm-secret")
+    monkeypatch.setenv("LOCAL_API_KEY", "lm-secret")
     # локальный сервер: подхватываем токен LM Studio
     assert llm._resolve_key("TOOLFORGE", "http://127.0.0.1:1234/v1") == "lm-secret"
     # удалённый провайдер: чужой токен не подставляем
@@ -74,7 +75,7 @@ async def test_401_is_config_error(monkeypatch):
         await client.chat_with_usage([{"role": "user", "content": "привет"}])
 
     msg = str(e.value)
-    assert "LM_API_TOKEN" in msg          # подсказка, что именно задать
+    assert "LOCAL_API_KEY" in msg          # подсказка, что именно задать
     assert "401" in msg
 
 
@@ -84,7 +85,7 @@ async def test_401_is_config_error(monkeypatch):
 
 def test_key_source_is_named(monkeypatch):
     """_resolve_key_src отдаёт ИМЯ переменной, откуда взят токен."""
-    for var in ("TOOLFORGE_API_KEY", "TOOLFORGE_API_TOKEN", "LM_API_TOKEN"):
+    for var in ("TOOLFORGE_API_KEY", "TOOLFORGE_API_TOKEN", "LOCAL_API_KEY"):
         monkeypatch.delenv(var, raising=False)
 
     monkeypatch.setenv("TOOLFORGE_API_TOKEN", "tf-token")
@@ -109,7 +110,7 @@ def test_401_names_the_suspect_variable(monkeypatch):
 
     assert "TOOLFORGE_API_KEY" in msg
     assert "устарел" in msg                    # это «ключ не тот», а не «ключа нет»
-    assert "LM_API_TOKEN" in msg               # эталон для локального сервера
+    assert "LOCAL_API_KEY" in msg               # эталон для локального сервера
 
     no_key = llm.Provider(name="TOOLFORGE", base_url="http://127.0.0.1:1234/v1")
     msg2 = str(llm.LlmClient._auth_error(no_key, 401, "none was provided"))
@@ -119,15 +120,15 @@ def test_401_names_the_suspect_variable(monkeypatch):
 
 def test_embedding_401_names_source(monkeypatch):
     """Тот же разбор у сервера эмбеддингов (отдельный эндпоинт)."""
-    for var in ("EMBEDDING_API_KEY", "LM_API_TOKEN"):
+    for var in ("EMBEDDING_API_KEY", "LOCAL_API_KEY"):
         monkeypatch.delenv(var, raising=False)
 
-    monkeypatch.setenv("LM_API_TOKEN", "lm-secret")
+    monkeypatch.setenv("LOCAL_API_KEY", "lm-secret")
     c = llm.EmbeddingClient("http://127.0.0.1:1235/v1", "", "emb", 8)
-    assert c.api_key_src == "LM_API_TOKEN"
+    assert c.api_key_src == "LOCAL_API_KEY"
 
     # токена нет вовсе — клиент честно об этом скажет
-    monkeypatch.delenv("LM_API_TOKEN")
+    monkeypatch.delenv("LOCAL_API_KEY")
     c2 = llm.EmbeddingClient("http://127.0.0.1:1235/v1", "", "emb", 8)
     assert c2.api_key_src == ""
 
@@ -135,17 +136,17 @@ def test_embedding_401_names_source(monkeypatch):
 def test_call_log_names_token_source(caplog, monkeypatch):
     """Каждый вызов LLM логируется с ИМЕНЕМ переменной-источника токена.
 
-    Грепом `journalctl -u prl-worker | grep "LLM ->"` видно, кто и с каким
+    Грепом `journalctl -u prx-worker | grep "LLM ->"` видно, кто и с каким
     токеном ходил во внешний сервер — без значений секретов.
     """
     import asyncio, logging
 
     monkeypatch.setenv("TOOLFORGE_API_URL", "http://127.0.0.1:1234/v1")
-    monkeypatch.setenv("LM_API_TOKEN", "lm-secret")
+    monkeypatch.setenv("LOCAL_API_KEY", "lm-secret")
 
     client = llm.LlmClient({"TOOLFORGE": llm.Provider(
         name="TOOLFORGE", base_url="http://127.0.0.1:1234/v1",
-        api_key="lm-secret", api_key_src="LM_API_TOKEN", model="qwen")})
+        api_key="lm-secret", api_key_src="LOCAL_API_KEY", model="qwen")})
 
     async def fake_models(provider):
         return None
@@ -156,12 +157,12 @@ def test_call_log_names_token_source(caplog, monkeypatch):
     monkeypatch.setattr(client, "_provider_models", fake_models)
     monkeypatch.setattr(client, "_post_chat", fake_post)
 
-    with caplog.at_level(logging.INFO, logger="prl.llm"):
+    with caplog.at_level(logging.INFO, logger="prx.llm"):
         asyncio.get_event_loop_policy().new_event_loop().run_until_complete(
             client.chat_with_usage([{"role": "user", "content": "привет"}]))
 
     logs = "\n".join(r.getMessage() for r in caplog.records)
-    assert "LM_API_TOKEN" in logs       # откуда токен
+    assert "LOCAL_API_KEY" in logs       # откуда токен
     assert "lm-secret" not in logs      # сами значения не логируем
 
 
@@ -207,7 +208,7 @@ async def test_single_provider_does_not_probe_models(monkeypatch):
     monkeypatch.setenv("TOOLFORGE_API_URL", "http://127.0.0.1:1234/api/v1")
     client = llm.LlmClient({"TOOLFORGE": llm.Provider(
         name="TOOLFORGE", base_url="http://127.0.0.1:1234/api/v1",
-        api_key="lm-secret", api_key_src="LM_API_TOKEN", model="qwen")})
+        api_key="lm-secret", api_key_src="LOCAL_API_KEY", model="qwen")})
 
     counting = _CountingClient()
     monkeypatch.setattr(client, "_client_for", lambda provider: counting)
@@ -235,7 +236,7 @@ async def test_probe_happens_once_with_two_providers(monkeypatch):
     """Два провайдера → справочник спрашивается, но ровно один раз (кэш)."""
     providers = {
         "TOOLFORGE": llm.Provider(name="TOOLFORGE", base_url="http://127.0.0.1:1234/v1",
-                                  api_key="t", api_key_src="LM_API_TOKEN", model="qwen"),
+                                  api_key="t", api_key_src="LOCAL_API_KEY", model="qwen"),
         "OPENROUTER": llm.Provider(name="OPENROUTER", base_url="https://openrouter.ai/api/v1",
                                    api_key="o", api_key_src="OPENROUTER_API_KEY",
                                    model="google/gemini-2.5-flash-lite"),
@@ -249,3 +250,14 @@ async def test_probe_happens_once_with_two_providers(monkeypatch):
     await client.chat_with_usage([{"role": "user", "content": "ещё раз"}])
 
     assert counting.gets == ["http://127.0.0.1:1234/v1/models"]
+
+
+def test_legacy_lm_token_is_still_accepted(monkeypatch):
+    """Проект новый, но чужой стенд мог остаться на имени LM Studio."""
+    for var in ("TOOLFORGE_API_KEY", "TOOLFORGE_API_TOKEN", "TOOLFORGE_TOKEN",
+                "LOCAL_API_KEY", "LMSTUDIO_API_TOKEN", "LM_API_TOKEN"):
+        monkeypatch.delenv(var, raising=False)
+
+    monkeypatch.setenv("LM_API_TOKEN", "legacy-secret")
+    assert llm._resolve_key_src("LOCAL", "http://127.0.0.1:1234/v1") == (
+        "legacy-secret", "LM_API_TOKEN")

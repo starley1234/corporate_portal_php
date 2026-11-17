@@ -1,22 +1,22 @@
 # Один компонент — одна сущность. Узлы схем с тем же id подхватывают карточку.
 entities:
-  - { id: portal, type: service, title: Портал PRL, owner: Платформа PRL, data_class: internal }
-  - { id: auth, type: control, title: Аутентификация и сессии, owner: Платформа PRL, data_class: secret }
-  - { id: rbac, type: control, title: RBAC и права модулей, owner: Платформа PRL, data_class: internal }
-  - { id: catalog, type: service, title: Каталог модулей и меню, owner: Платформа PRL, data_class: internal }
-  - { id: migrations, type: control, title: Миграции PostgreSQL, owner: Платформа PRL, data_class: internal }
-  - { id: events, type: service, title: Шина событий prl208, owner: Платформа PRL, data_class: internal }
-  - { id: queue, type: service, title: Очередь задач prl120, owner: Платформа PRL, data_class: internal }
-  - { id: workers, type: service, title: Python-воркеры, owner: Платформа PRL, data_class: confidential }
-  - { id: storage, type: store, title: Приватное файловое хранилище prl212, owner: Платформа PRL, data_class: confidential }
-  - { id: db, type: store, title: PostgreSQL, owner: Платформа PRL, data_class: confidential }
+  - { id: portal, type: service, title: Портал PRX, owner: Платформа PRX, data_class: internal }
+  - { id: auth, type: control, title: Аутентификация и сессии, owner: Платформа PRX, data_class: secret }
+  - { id: rbac, type: control, title: RBAC и права модулей, owner: Платформа PRX, data_class: internal }
+  - { id: catalog, type: service, title: Каталог модулей и меню, owner: Платформа PRX, data_class: internal }
+  - { id: migrations, type: control, title: Миграции PostgreSQL, owner: Платформа PRX, data_class: internal }
+  - { id: events, type: service, title: Шина событий prx208, owner: Платформа PRX, data_class: internal }
+  - { id: queue, type: service, title: Очередь задач prx120, owner: Платформа PRX, data_class: internal }
+  - { id: workers, type: service, title: Python-воркеры, owner: Платформа PRX, data_class: confidential }
+  - { id: storage, type: store, title: Приватное файловое хранилище prx212, owner: Платформа PRX, data_class: confidential }
+  - { id: db, type: store, title: PostgreSQL, owner: Платформа PRX, data_class: confidential }
   - { id: llm, type: model, title: LLM-провайдеры, owner: Владелец модели, data_class: confidential }
-  - { id: notifications, type: service, title: Уведомления prl597, owner: Платформа PRL, data_class: internal }
+  - { id: notifications, type: service, title: Уведомления prx597, owner: Платформа PRX, data_class: internal }
   - { id: employee, type: role, title: Сотрудник, owner: HR, data_class: internal }
-  - { id: useradmin, type: service, title: Управление пользователями prl595, owner: Администратор, data_class: secret }
-  - { id: docflow, type: service, title: Документооборот prl390–prl394, owner: Делопроизводство, data_class: confidential }
-  - { id: intake, type: service, title: Приём документов prl390, owner: Делопроизводство, data_class: confidential }
-  - { id: documents, type: service, title: Реестр документов prl391, owner: Делопроизводство, data_class: confidential }
-  - { id: analysis, type: service, title: ИИ-разбор prl392, owner: Делопроизводство, data_class: confidential }
-  - { id: workflow, type: service, title: Сроки и маршруты prl393, owner: Делопроизводство, data_class: internal }
-  - { id: drafts, type: service, title: Черновики ответов prl394, owner: Делопроизводство, data_class: confidential }
+  - { id: useradmin, type: service, title: Управление пользователями prx595, owner: Администратор, data_class: secret }
+  - { id: docflow, type: service, title: Документооборот prx390–prx394, owner: Делопроизводство, data_class: confidential }
+  - { id: intake, type: service, title: Приём документов prx390, owner: Делопроизводство, data_class: confidential }
+  - { id: documents, type: service, title: Реестр документов prx391, owner: Делопроизводство, data_class: confidential }
+  - { id: analysis, type: service, title: ИИ-разбор prx392, owner: Делопроизводство, data_class: confidential }
+  - { id: workflow, type: service, title: Сроки и маршруты prx393, owner: Делопроизводство, data_class: internal }
+  - { id: drafts, type: service, title: Черновики ответов prx394, owner: Делопроизводство, data_class: confidential }

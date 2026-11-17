@@ -7,7 +7,7 @@ return array
 	'default_' => [
         'type'       => 'PostgreSQL',
         'connection' => [
-            'dsn'        => 'pgsql:host=77.233.222.216;port=5432;dbname=prl_server',
+            'dsn'        => 'pgsql:host=77.233.222.216;port=5432;dbname=prx_server',
             'username'   => 'username',
             'password'   => 'password',
             'persistent' => TRUE,

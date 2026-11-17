@@ -1,10 +1,10 @@
 """Тесты контракта завершения задачи: queue.complete() больше не игнорируется.
 
-Корневая причина «выполнено, но статус висит processing» (монитор prl120):
+Корневая причина «выполнено, но статус висит processing» (монитор prx120):
 воркер звал complete(), получал False (строка вышла из processing — свипер
 вернул её в очередь, задача перехвачена/отменена), но _process игнорировал
 возврат и логировал «выполнена». Результат на сайт обработчик уже доставил
-(образец prl602/prl606), а строка задачи навсегда оставалась processing.
+(образец prx602/prx606), а строка задачи навсегда оставалась processing.
 
 Запуск из каталога workers/:
     python3 -m pytest tests/test_complete_contract.py -q
@@ -49,7 +49,7 @@ class _FakeConfig:
 
 
 def _make_worker(queue):
-    import prl_workers.base as base
+    import prx_workers.base as base
 
     w = base.BaseWorker.__new__(base.BaseWorker)  # без __init__: не нужны LLM-клиенты
     w.config = _FakeConfig()

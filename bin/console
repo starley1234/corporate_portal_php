@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# PRL — консоль (CLI-задачи Minion).
+# PRX — консоль (CLI-задачи Minion).
 #
 #   bin/console                          — список задач
 #   bin/console db:migrate               — миграции
@@ -18,10 +18,10 @@ cd "$ROOT"
 source "$(dirname "${BASH_SOURCE[0]}")/_env.sh"
 
 # --- .env (внешнее окружение главнее файла) ----------------------------------
-prl_load_env "$ROOT/.env"
+prx_load_env "$ROOT/.env"
 
 # --- PHP 8.4 или ближайший доступный -----------------------------------------
-PHP_BIN="$(prl_php_bin)" || true
+PHP_BIN="$(prx_php_bin)" || true
 if [[ -z "$PHP_BIN" ]]; then
     echo "ERROR: PHP не найден. Разворачивание: bash bin/restore-env.sh" >&2
     exit 1

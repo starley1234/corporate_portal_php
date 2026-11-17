@@ -17,17 +17,17 @@ class EnvironmentTest extends TestCase
         $this->assertNotEmpty(Kohana::modules(), 'Модули не подключены');
     }
 
-    public function test_prl_modules_registered(): void
+    public function test_prx_modules_registered(): void
     {
         $modules = array_keys(Kohana::modules());
-        foreach (['prl100_base', 'prl111_migrations', 'prl100_platform', 'prl120_jobs', 'prl115_semantic', 'prl208_events'] as $m) {
+        foreach (['prx100_base', 'prx111_migrations', 'prx100_platform', 'prx120_jobs', 'prx115_semantic', 'prx208_events'] as $m) {
             $this->assertContains($m, $modules, "Модуль $m не подключён в bootstrap.php");
         }
     }
 
     public function test_critical_config_loads(): void
     {
-        foreach (['database', 'llm', 'prl120_jobs'] as $cfg) {
+        foreach (['database', 'llm', 'prx120_jobs'] as $cfg) {
             $this->assertNotEmpty(Kohana::$config->load($cfg), "Пустой конфиг: $cfg");
         }
     }
@@ -54,16 +54,16 @@ class EnvironmentTest extends TestCase
     {
         $db = Database::instance();
         $count = $db->query(Database::SELECT,
-            "SELECT COUNT(*) AS c FROM information_schema.tables WHERE table_name = 'prl_120_jobs'", FALSE)
+            "SELECT COUNT(*) AS c FROM information_schema.tables WHERE table_name = 'prx_120_jobs'", FALSE)
             ->current();
         $this->assertSame('1', (string) ((array) $count)['c'],
-            'Таблица очереди prl_120_jobs не найдена — выполните: make migrate');
+            'Таблица очереди prx_120_jobs не найдена — выполните: make migrate');
     }
 
     public function test_semantic_tables_exists(): void
     {
         $db = Database::instance();
-        foreach (['prl_115_collections', 'prl_115_vectors'] as $table) {
+        foreach (['prx_115_collections', 'prx_115_vectors'] as $table) {
             $count = $db->query(Database::SELECT,
                 "SELECT COUNT(*) AS c FROM information_schema.tables WHERE table_name = '$table'", FALSE)
                 ->current();
@@ -77,7 +77,7 @@ class EnvironmentTest extends TestCase
     {
         $db = Database::instance();
         $row = $db->query(Database::SELECT,
-            'SELECT prl_115_vec_dist(ARRAY[1.0, 0.0]::real[], ARRAY[0.0, 1.0]::real[]) AS d', FALSE)
+            'SELECT prx_115_vec_dist(ARRAY[1.0, 0.0]::real[], ARRAY[0.0, 1.0]::real[]) AS d', FALSE)
             ->current();
         $distance = (float) ((array) $row)['d'];
         $this->assertEqualsWithDelta(1.0, $distance, 0.001,

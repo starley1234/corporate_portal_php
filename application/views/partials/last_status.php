@@ -60,8 +60,8 @@ if ($st_elapsed > 0)
 
 // этап с кликабельными доменами («какие-то источники он же нашёл — результат есть»)
 $st_esc = function ($text) {
-    return class_exists('Service_Prl120_Viewer')
-        ? Service_Prl120_Viewer::step_html($text)
+    return class_exists('Service_Prx120_Viewer')
+        ? Service_Prx120_Viewer::step_html($text)
         : HTML::chars((string) $text);
 };
 
@@ -71,7 +71,7 @@ $st_tone = $st_done
     : ($st_stopped ? 'text-gray-500 dark:text-gray-400' : 'text-rose-600 dark:text-rose-400');
 $st_icon = $st_done ? 'fa-circle-check' : ($st_stopped ? 'fa-circle-stop' : 'fa-triangle-exclamation');
 ?>
-<div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs" data-prl-last="<?php echo HTML::chars($st_status); ?>">
+<div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs" data-prx-last="<?php echo HTML::chars($st_status); ?>">
     <span class="inline-flex items-center gap-1 font-semibold <?php echo $st_tone; ?>">
         <i class="fas <?php echo $st_icon; ?>"></i><?php echo $st_word; ?>
     </span>
@@ -90,7 +90,7 @@ $st_icon = $st_done ? 'fa-circle-check' : ($st_stopped ? 'fa-circle-stop' : 'fa-
     <?php if ( ! empty($st_steps)): ?>
     <details class="ml-auto">
         <summary class="cursor-pointer list-none text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" title="Что делал воркер">этапы: <?php echo count($st_steps); ?> <i class="fas fa-chevron-down text-[10px]"></i></summary>
-        <ol class="mt-1 max-w-xl space-y-0.5 text-xs text-gray-400 dark:text-gray-500" data-prl-last-steps>
+        <ol class="mt-1 max-w-xl space-y-0.5 text-xs text-gray-400 dark:text-gray-500" data-prx-last-steps>
             <?php foreach ($st_steps as $st_step): ?>
             <li>· <?php echo $st_esc(is_array($st_step) ? (string) ($st_step['message'] ?? '') : (string) $st_step); ?></li>
             <?php endforeach; ?>

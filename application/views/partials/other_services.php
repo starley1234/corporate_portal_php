@@ -1,9 +1,9 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
 /**
- * Блок «Похожие и другие сервисы PRL.ru» — для сайдбара сервисных страниц.
+ * Блок «Похожие и другие сервисы PRX.ru» — для сайдбара сервисных страниц.
  *
- * Источник — манифесты prl110_catalog (никаких хардкод-списков): сервисы
+ * Источник — манифесты prx110_catalog (никаких хардкод-списков): сервисы
  * той же группы идут первыми («Похожие»), остальные следом.
  * $except — href текущего сервиса.
  */
@@ -13,9 +13,9 @@ $merged = ! empty($merged); // одна карточка «Другие серв
 $me     = NULL;
 $all    = [];
 
-if (class_exists('Service_Prl110_Catalog'))
+if (class_exists('Service_Prx110_Catalog'))
 {
-    foreach (Service_Prl110_Catalog::modules() as $m)
+    foreach (Service_Prx110_Catalog::modules() as $m)
     {
         if ($m['href'] === $except)
         {
@@ -40,8 +40,8 @@ $others  = $me
 <?php if ($merged): ?>
 <?php $both = array_merge($similar, $others); ?>
 <?php if ( ! empty($both)): ?>
-<div class="prl-card hidden md:block">
-    <p class="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">Другие сервисы PRL.ru</p>
+<div class="prx-card hidden md:block">
+    <p class="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">Другие сервисы PRX.ru</p>
     <ul class="mt-2 space-y-0.5">
         <?php foreach ($both as $s): ?>
         <li>
@@ -56,7 +56,7 @@ $others  = $me
 <?php endif; ?>
 <?php else: ?>
 <?php if ( ! empty($similar)): ?>
-<div class="prl-card hidden md:block">
+<div class="prx-card hidden md:block">
     <p class="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">Похожие сервисы</p>
     <ul class="mt-2 space-y-0.5">
         <?php foreach ($similar as $s): ?>
@@ -72,8 +72,8 @@ $others  = $me
 <?php endif; ?>
 
 <?php if ( ! empty($others)): ?>
-<div class="prl-card hidden md:block">
-    <p class="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">Другие сервисы PRL.ru</p>
+<div class="prx-card hidden md:block">
+    <p class="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">Другие сервисы PRX.ru</p>
     <ul class="mt-2 space-y-0.5">
         <?php foreach ($others as $s): ?>
         <li>

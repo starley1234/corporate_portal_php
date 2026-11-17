@@ -14,13 +14,13 @@ overview:
         nodes:
           - { id: folder, at: [145, 120, 190], label: Папка inbox, sub: "public_html/storage", kind: ext }
           - { id: upload, at: [145, 240, 190], label: Загрузка, sub: приказ или письмо, kind: web }
-          - { id: intake, at: [410, 110, 210], label: prl390 intake, sub: dedup и prl212, kind: module, info: "{intake}" }
-          - { id: storage, at: [410, 230, 210], label: prl212 storage, sub: "sha256, private", kind: data, info: "{storage}" }
+          - { id: intake, at: [410, 110, 210], label: prx390 intake, sub: dedup и prx212, kind: module, info: "{intake}" }
+          - { id: storage, at: [410, 230, 210], label: prx212 storage, sub: "sha256, private", kind: data, info: "{storage}" }
           - { id: normalize, at: [410, 350, 210], label: doc.normalize, sub: pypdf и OCR, kind: queue }
-          - { id: card, at: [700, 110, 210], label: prl391 documents, sub: реестр и карточка, kind: module, info: "{documents}" }
-          - { id: analysis, at: [700, 230, 210], label: prl392 analysis, sub: doc.analyze, kind: ai, info: "{analysis}" }
-          - { id: workflow, at: [700, 350, 210], label: prl393 workflow, sub: сроки и эскалации, kind: module, info: "{workflow}" }
-          - { id: drafts, at: [1010, 230, 190], label: prl394 drafts, sub: doc.draft, kind: module, info: "{drafts}" }
+          - { id: card, at: [700, 110, 210], label: prx391 documents, sub: реестр и карточка, kind: module, info: "{documents}" }
+          - { id: analysis, at: [700, 230, 210], label: prx392 analysis, sub: doc.analyze, kind: ai, info: "{analysis}" }
+          - { id: workflow, at: [700, 350, 210], label: prx393 workflow, sub: сроки и эскалации, kind: module, info: "{workflow}" }
+          - { id: drafts, at: [1010, 230, 190], label: prx394 drafts, sub: doc.draft, kind: module, info: "{drafts}" }
           - { id: clerk, at: [1010, 110, 190], label: Делопроизводитель, sub: проверяет и решает, kind: user }
           - { id: manager, at: [1010, 350, 190], label: Руководитель, sub: утверждает ответ, kind: user }
         edges:
@@ -42,18 +42,18 @@ overview:
           Новый PDF: folder -> intake -> card
           ИИ-разбор: card -> analysis -> clerk
           Ответ: card -> workflow -> drafts -> manager
-        hint: Длинные операции идут через prl120. Результат модели — черновик предложения, а не изменение карточки.
+        hint: Длинные операции идут через prx120. Результат модели — черновик предложения, а не изменение карточки.
     - sequence:
         width: 1160
         actors:
           - { id: u, label: Делопроизводитель, kind: user }
-          - { id: i, label: prl390, kind: module }
-          - { id: q, label: prl120, kind: queue }
+          - { id: i, label: prx390, kind: module }
+          - { id: q, label: prx120, kind: queue }
           - { id: w, label: Воркер, kind: queue }
-          - { id: d, label: prl391, kind: data }
-          - { id: a, label: prl392, kind: ai }
-          - { id: s, label: prl393, kind: module }
-          - { id: r, label: prl394, kind: module }
+          - { id: d, label: prx391, kind: data }
+          - { id: a, label: prx392, kind: ai }
+          - { id: s, label: prx393, kind: module }
+          - { id: r, label: prx394, kind: module }
         messages:
           - u -> i: загрузить PDF
           - i -> q: message_id
@@ -82,35 +82,35 @@ detail:
   blocks:
     - cards:
         - title: Приём
-          text: MIME application/pdf, лимит 10 МБ, дедупликация по SHA-256, файл только в prl212.
+          text: MIME application/pdf, лимит 10 МБ, дедупликация по SHA-256, файл только в prx212.
           color: "#f59e0b"
-          chips: [prl390, prl212, sha256]
+          chips: [prx390, prx212, sha256]
         - title: Предложение
           text: Ответ модели сохраняется как предложение, человек принимает или отклоняет его.
           color: "#14b8a6"
-          chips: [prl392, human-in-the-loop]
+          chips: [prx392, human-in-the-loop]
         - title: Срок
           text: Правило маршрутизации выбирает тип и срок; повторный маршрут возвращает документ в open.
           color: "#6366f1"
-          chips: [prl393, SLA]
+          chips: [prx393, SLA]
         - title: Ответ
           text: Черновик защищён от позднего результата модели; отправка — только вручную.
           color: "#e11d48"
-          chips: [prl394, approve, send]
+          chips: [prx394, approve, send]
     - table:
         head: [Событие, Кто слушает, Результат]
         rows:
-          - - prl390.message.received
-            - prl391
+          - - prx390.message.received
+            - prx391
             - Карточка и провенанс
-          - - prl391.document.created
-            - prl392, prl393
+          - - prx391.document.created
+            - prx392, prx393
             - Очередь разбора и расчёт срока
-          - - prl392.analysis.accepted
-            - prl391
+          - - prx392.analysis.accepted
+            - prx391
             - Поля карточки обновлены человеком
-          - - prl394.draft.approved
-            - prl597
+          - - prx394.draft.approved
+            - prx597
             - Уведомление и ручная отправка
         center: []
     - warn: >-

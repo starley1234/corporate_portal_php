@@ -22,9 +22,9 @@
     .dark table.dataTable thead th { border-bottom: 1px solid #374151 !important; }
 </style>
 
-<div class="prl-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
+<div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
     <?php if ($llm_flash): $llm_flash_ok = ! empty($llm_flash['ok']); ?>
-    <div class="prl-flash <?php echo $llm_flash_ok ? 'prl-flash-ok' : 'prl-flash-err'; ?> mb-5" role="<?php echo $llm_flash_ok ? 'status' : 'alert'; ?>">
+    <div class="prx-flash <?php echo $llm_flash_ok ? 'prx-flash-ok' : 'prx-flash-err'; ?> mb-5" role="<?php echo $llm_flash_ok ? 'status' : 'alert'; ?>">
         <i class="fas <?php echo $llm_flash_ok ? 'fa-circle-check' : 'fa-triangle-exclamation'; ?>"></i>
         <span><?php echo HTML::chars($llm_flash['message'] ?? ''); ?></span>
     </div>
@@ -37,17 +37,17 @@
         'lead'   => 'Состояние локального сервера инференса и модели, доступные сервисам портала.',
     ]); ?>
 
-    <section class="prl-panel mt-6">
-        <div class="prl-panel-head">
+    <section class="prx-panel mt-6">
+        <div class="prx-panel-head">
             <div>
-                <h2 class="prl-h3"><i class="fas fa-server mr-2 text-blue-500"></i>Локальный провайдер (LM Studio)</h2>
+                <h2 class="prx-h3"><i class="fas fa-server mr-2 text-blue-500"></i>Локальный провайдер (LM Studio)</h2>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Управление моделями и мониторинг состояния API.</p>
             </div>
             <div class="flex flex-wrap items-center gap-3">
                 <?php if ($error): ?>
-                    <span class="prl-badge prl-badge-err"><span class="prl-dot"></span>Нет соединения</span>
+                    <span class="prx-badge prx-badge-err"><span class="prx-dot"></span>Нет соединения</span>
                 <?php else: ?>
-                    <span class="prl-badge prl-badge-ok"><span class="prl-dot"></span>Сервер доступен</span>
+                    <span class="prx-badge prx-badge-ok"><span class="prx-dot"></span>Сервер доступен</span>
                 <?php endif; ?>
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Сервер: <code class="rounded-md bg-gray-100 px-2 py-0.5 text-xs dark:bg-gray-700"><?php echo HTML::chars($base_url); ?></code></span>
             </div>
@@ -55,7 +55,7 @@
 
         <div class="p-6">
             <?php if ($error): ?>
-                <div class="prl-flash prl-flash-err" role="alert">
+                <div class="prx-flash prx-flash-err" role="alert">
                     <i class="fas fa-triangle-exclamation"></i>
                     <div>
                         <strong>Ошибка соединения</strong>
@@ -64,7 +64,7 @@
                 </div>
             <?php else: ?>
                 <div class="overflow-x-auto">
-                    <table id="modelsTable" class="prl-table border-collapse">
+                    <table id="modelsTable" class="prx-table border-collapse">
                         <thead>
                             <tr class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
                                 <th class="px-4 py-3">Модель</th>
@@ -86,12 +86,12 @@
                                                     <i class="fas <?php echo ($model['type'] === 'embedding') ? 'fa-font' : 'fa-robot'; ?> <?php echo !empty($model['loaded_instances']) ? 'text-emerald-500' : 'text-blue-500'; ?> mr-3"></i>
                                                     <span class="font-medium text-gray-900 dark:text-white"><?php echo HTML::chars($model['display_name'] ?? $model['key']); ?></span>
                                                     <?php if (!empty($model['loaded_instances'])): ?>
-                                                        <span data-llm-loaded class="prl-badge prl-badge-ok ml-2"><span class="prl-dot"></span>Загружена</span>
+                                                        <span data-llm-loaded class="prx-badge prx-badge-ok ml-2"><span class="prx-dot"></span>Загружена</span>
                                                     <?php endif; ?>
                                                 </div>
                                                 <div class="flex items-center mt-1 ml-7 group">
                                                     <span class="text-xs text-gray-400 truncate max-w-[200px]"><?php echo HTML::chars($model['key']); ?></span>
-                                                    <button onclick="copyToClipboard('<?php echo HTML::chars($model['key']); ?>', this)" class="prl-btn-icon ml-2" title="Копировать ID">
+                                                    <button onclick="copyToClipboard('<?php echo HTML::chars($model['key']); ?>', this)" class="prx-btn-icon ml-2" title="Копировать ID">
                                                         <i class="far fa-copy text-[10px]"></i>
                                                     </button>
                                                 </div>
@@ -101,7 +101,7 @@
                                             <div class="text-sm text-gray-600 dark:text-gray-400">
                                                 <span class="uppercase"><?php echo HTML::chars($model['architecture'] ?? 'n/a'); ?></span>
                                                 <?php if (!empty($model['params_string'])): ?>
-                                                    <span class="prl-count ml-2"><?php echo HTML::chars($model['params_string']); ?></span>
+                                                    <span class="prx-count ml-2"><?php echo HTML::chars($model['params_string']); ?></span>
                                                 <?php endif; ?>
                                             </div>
                                             <div class="flex gap-1 mt-1">
@@ -128,13 +128,13 @@
                                             <?php if (!empty($model['loaded_instances'])): ?>
                                                 <button
                                                    onclick="unloadModel('<?php echo HTML::chars($model['key']); ?>', '<?php echo md5($model['key']); ?>')"
-                                                   class="unload-btn prl-btn-danger prl-btn-sm">
+                                                   class="unload-btn prx-btn-danger prx-btn-sm">
                                                     <i class="fas fa-eject mr-1.5"></i> <span>Выгрузить</span>
                                                 </button>
                                             <?php else: ?>
                                                 <button
                                                    onclick="loadModel('<?php echo HTML::chars($model['key']); ?>', '<?php echo md5($model['key']); ?>')"
-                                                   class="load-btn prl-btn-secondary prl-btn-sm">
+                                                   class="load-btn prx-btn-secondary prx-btn-sm">
                                                     <i class="fas fa-download mr-1.5"></i> <span>Загрузить</span>
                                                 </button>
                                             <?php endif; ?>
@@ -150,8 +150,8 @@
 
     </section>
 
-    <section class="prl-card mt-6">
-        <h2 class="prl-h3"><i class="fas fa-circle-info mr-2 text-blue-500"></i>Справка по интеграции</h2>
+    <section class="prx-card mt-6">
+        <h2 class="prx-h3"><i class="fas fa-circle-info mr-2 text-blue-500"></i>Справка по интеграции</h2>
         <div class="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2">
             <div class="space-y-2 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
                 <p>Для работы с локальными моделями используйте <strong>LM Studio</strong>.</p>
@@ -187,23 +187,23 @@ $(document).ready(function() {
 });
 
 function copyToClipboard(text, btn) {
-    PRL.copyText(text).then(() => {
+    PRX.copyText(text).then(() => {
         const icon = btn.querySelector('i');
         icon.classList.remove('far', 'fa-copy');
         icon.classList.add('fas', 'fa-check', 'text-emerald-500');
 
-        PRL.toast('ID модели скопирован');
+        PRX.toast('ID модели скопирован');
 
         setTimeout(() => {
             icon.classList.remove('fas', 'fa-check', 'text-emerald-500');
             icon.classList.add('far', 'fa-copy');
         }, 2000);
-    }, () => PRL.toast('Не удалось скопировать'));
+    }, () => PRX.toast('Не удалось скопировать'));
 }
 
 function unloadModel(modelKey, rowId) {
     // окно эталона v6 вместо window.confirm
-    PRL.confirm({ title: 'Выгрузить модель?', message: 'Выгрузить модель {subject} из памяти?', subject: modelKey, ok: 'Выгрузить', tone: 'process' })
+    PRX.confirm({ title: 'Выгрузить модель?', message: 'Выгрузить модель {subject} из памяти?', subject: modelKey, ok: 'Выгрузить', tone: 'process' })
         .then(function (yes) { if (yes) { unloadModelNow(modelKey, rowId); } });
 }
 
@@ -224,7 +224,7 @@ function unloadModelNow(modelKey, rowId) {
     .then(data => {
         if (data.success) {
             const actionCell = btn.parentElement;
-            actionCell.innerHTML = '<button onclick="loadModel(\'' + modelKey + '\', \'' + rowId + '\')" class="load-btn prl-btn-secondary prl-btn-sm"><i class="fas fa-download mr-1.5"></i> <span>Загрузить</span></button>';
+            actionCell.innerHTML = '<button onclick="loadModel(\'' + modelKey + '\', \'' + rowId + '\')" class="load-btn prx-btn-secondary prx-btn-sm"><i class="fas fa-download mr-1.5"></i> <span>Загрузить</span></button>';
             row.classList.remove('bg-emerald-50/30', 'dark:bg-emerald-900/10');
             const icon = row.querySelector('.fa-robot, .fa-font');
             if (icon) {
@@ -234,16 +234,16 @@ function unloadModelNow(modelKey, rowId) {
             const badge = row.querySelector('[data-llm-loaded]');
             if (badge) badge.remove();
 
-            PRL.toast('Модель выгружена', 0, 'ok');
+            PRX.toast('Модель выгружена', 0, 'ok');
         } else {
-            PRL.toast('Ошибка: ' + (data.message || 'Неизвестная ошибка'), 0, 'err');
+            PRX.toast('Ошибка: ' + (data.message || 'Неизвестная ошибка'), 0, 'err');
             btn.disabled = false;
             btn.innerHTML = originalContent;
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        PRL.toast('Не удалось отправить запрос — проверьте сеть', 0, 'err');
+        PRX.toast('Не удалось отправить запрос — проверьте сеть', 0, 'err');
         btn.disabled = false;
         btn.innerHTML = originalContent;
     });
@@ -251,7 +251,7 @@ function unloadModelNow(modelKey, rowId) {
 
 function loadModel(modelKey, rowId) {
     // окно эталона v6 вместо window.confirm
-    PRL.confirm({ title: 'Загрузить модель?', message: 'Загрузить модель {subject} в память?', subject: modelKey, ok: 'Загрузить', tone: 'process' })
+    PRX.confirm({ title: 'Загрузить модель?', message: 'Загрузить модель {subject} в память?', subject: modelKey, ok: 'Загрузить', tone: 'process' })
         .then(function (yes) { if (yes) { loadModelNow(modelKey, rowId); } });
 }
 
@@ -272,7 +272,7 @@ function loadModelNow(modelKey, rowId) {
     .then(data => {
         if (data.success) {
             const actionCell = btn.parentElement;
-            actionCell.innerHTML = '<button onclick="unloadModel(\'' + modelKey + '\', \'' + rowId + '\')" class="unload-btn prl-btn-danger prl-btn-sm"><i class="fas fa-eject mr-1.5"></i> <span>Выгрузить</span></button>';
+            actionCell.innerHTML = '<button onclick="unloadModel(\'' + modelKey + '\', \'' + rowId + '\')" class="unload-btn prx-btn-danger prx-btn-sm"><i class="fas fa-eject mr-1.5"></i> <span>Выгрузить</span></button>';
             row.classList.add('bg-emerald-50/30', 'dark:bg-emerald-900/10');
             const icon = row.querySelector('.fa-robot, .fa-font');
             if (icon) {
@@ -281,19 +281,19 @@ function loadModelNow(modelKey, rowId) {
             }
             const nameSpan = row.querySelector('.font-medium');
             if (nameSpan) {
-                nameSpan.insertAdjacentHTML('afterend', '<span data-llm-loaded class="prl-badge prl-badge-ok ml-2"><span class="prl-dot"></span>Загружена</span>');
+                nameSpan.insertAdjacentHTML('afterend', '<span data-llm-loaded class="prx-badge prx-badge-ok ml-2"><span class="prx-dot"></span>Загружена</span>');
             }
 
-            PRL.toast('Модель загружена', 0, 'ok');
+            PRX.toast('Модель загружена', 0, 'ok');
         } else {
-            PRL.toast('Ошибка: ' + (data.message || 'Неизвестная ошибка'), 0, 'err');
+            PRX.toast('Ошибка: ' + (data.message || 'Неизвестная ошибка'), 0, 'err');
             btn.disabled = false;
             btn.innerHTML = originalContent;
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        PRL.toast('Не удалось отправить запрос — проверьте сеть', 0, 'err');
+        PRX.toast('Не удалось отправить запрос — проверьте сеть', 0, 'err');
         btn.disabled = false;
         btn.innerHTML = originalContent;
     });

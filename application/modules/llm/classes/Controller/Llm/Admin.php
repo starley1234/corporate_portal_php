@@ -58,15 +58,15 @@ class Controller_Llm_Admin extends Controller_Base {
             return '';
         }
 
-        return ' Токен не задан: LM Studio 0.3+ требует Bearer. Задайте LM_API_TOKEN '
-            .'(или TOOLFORGE_API_KEY) в .env сайта и перезапустите php-fpm.';
+        return ' Токен не задан: LM Studio 0.3+ требует Bearer. Задайте LOCAL_API_KEY '
+            .'в .env сайта и перезапустите php-fpm.';
     }
 
     public function action_index()
     {
         $config_llm = Kohana::$config->load('llm');
         $config_providers = $config_llm->get('providers');
-        $config = $config_providers['local_lms'];
+        $config = $config_providers['local'];
 
         $base_url = $config['base_url'] ?? 'http://localhost:1234/v1/';
         $api_key = $config['api_key'] ?? '';
@@ -136,7 +136,7 @@ class Controller_Llm_Admin extends Controller_Base {
             throw new HTTP_Exception_400('Model ID is required');
         }
 
-        $config = Kohana::$config->load('llm.providers.local_lms');
+        $config = Kohana::$config->load('llm.providers.local');
         // Убираем /v1/ из базового пути для обращения к /api/v1/models/unload если это требуется API
         $base_url = $config['base_url'] ?? 'http://localhost:1234/v1/';
         $api_key = $config['api_key'] ?? '';
@@ -208,7 +208,7 @@ class Controller_Llm_Admin extends Controller_Base {
 			throw new HTTP_Exception_400('Model ID is required');
 		}
 
-		$config = Kohana::$config->load('llm.providers.local_lms');
+		$config = Kohana::$config->load('llm.providers.local');
 		$base_url = $config['base_url'] ?? 'http://localhost:1234/v1/';
 		$api_key = $config['api_key'] ?? '';
 

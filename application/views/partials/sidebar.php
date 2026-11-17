@@ -13,17 +13,17 @@
  *
  * Поведение:
  *   * md+ — постоянная колонка; кнопка «шеврон» сворачивает до иконок
- *     (состояние — в localStorage, ключ prl.sidebar.collapsed);
+ *     (состояние — в localStorage, ключ prx.sidebar.collapsed);
  *   * <md — выезжающая панель с оверлеем (открывает #mobile-menu-button).
  *     Она ВСЕГДА в полном виде: свёрнутость — режим постоянной колонки, в
  *     шторке подписей лишать нельзя (иначе меню из одних иконок и снять
  *     нечем — «шеврона» там нет). Держит sb-collapsed в @media (min-width:
- *     768px) в input.css и проверка в .tools/prl110_menu_stand.php;
+ *     768px) в input.css и проверка в .tools/prx110_menu_stand.php;
  *   * активный пункт подсвечивается по текущему пути (самый длинный префикс).
  */
 
-$items = class_exists('Service_Prl110_Catalog')
-    ? Service_Prl110_Catalog::menu_items()
+$items = class_exists('Service_Prx110_Catalog')
+    ? Service_Prx110_Catalog::menu_items()
     : (isset($menu_items) && is_array($menu_items) ? $menu_items : []);
 
 $groups = [];
@@ -81,7 +81,7 @@ foreach ($items as $item)
                 <kbd data-shortcut="mod-k" class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-gray-200 bg-white px-1.5 py-0.5 text-xs font-semibold text-gray-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-500">Ctrl+K</kbd>
             </div>
             <button type="button" id="nav-palette-open" title="Искать среди всех сервисов"
-                    aria-label="Искать среди всех сервисов" aria-haspopup="dialog" aria-controls="prl-nav-palette-dialog" aria-expanded="false"
+                    aria-label="Искать среди всех сервисов" aria-haspopup="dialog" aria-controls="prx-nav-palette-dialog" aria-expanded="false"
                     class="inline-flex h-[30px] shrink-0 items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-2 text-gray-500 transition hover:border-blue-400 hover:text-blue-600 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:border-blue-400 dark:hover:text-blue-400">
                 <i class="fas fa-grip text-xs" aria-hidden="true"></i><span class="sidebar-label text-xs font-semibold">Все</span>
             </button>

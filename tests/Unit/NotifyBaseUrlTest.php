@@ -2,10 +2,10 @@
 
 use PHPUnit\Framework\TestCase;
 /**
- * Регресс-тест Service_Prl597_Notify::_base_url() (prl597_notifications).
+ * Регресс-тест Service_Prx597_Notify::_base_url() (prx597_notifications).
  *
  * Исторический баг: при пустом APP_URL метод звал сам себя (`self::_base_url()`)
- * без изменения состояния — бесконечная рекурсия. Cron `Prl603:Kick` с
+ * без изменения состояния — бесконечная рекурсия. Cron `Prx603:Kick` с
  * pending-уведомлениями доходил до `_base_url()` через email_shell()/digest_html()
  * и раздувал память процесса, пока ядро не убивало его по OOM (~2.4 ГБ total-vm
  * на сервере с 1 ГБ RAM). Этот тест фиксирует контракт: пустой APP_URL обязан
@@ -50,7 +50,7 @@ class NotifyBaseUrlTest extends TestCase {
     /** Вызвать protected static _base_url(). */
     protected function _base_url()
     {
-        $m = new ReflectionMethod('Service_Prl597_Notify', '_base_url');
+        $m = new ReflectionMethod('Service_Prx597_Notify', '_base_url');
 
         return $m->invoke(NULL);
     }

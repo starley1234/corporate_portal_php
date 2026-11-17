@@ -49,10 +49,10 @@ class Gate
 
         return in_array($action, [
             'worker_result',    // приём результата прогона
-            'worker_upload',    // приём файла картинки (prl641)
+            'worker_upload',    // приём файла картинки (prx641)
             'worker_token',     // служебная проверка токена
             'photo_file',       // кадр прогона для воркера (vision-сервисы)
-            'cron_poll',        // пинок расписания тик-источников (prl639/prl640)
+            'cron_poll',        // пинок расписания тик-источников (prx639/prx640)
             'webhook',          // внешний триггер датчика/ПЛК
         ], TRUE);
     }

@@ -5,14 +5,14 @@ use PHPUnit\Framework\TestCase;
 class PortalFoundationTest extends TestCase {
     public function test_migrations_have_no_pending_work(): void
     {
-        $this->assertSame([], Service_Prl111_Migrator::instance()->pending());
+        $this->assertSame([], Service_Prx111_Migrator::instance()->pending());
     }
 
     public function test_echo_queue_claim_heartbeat_complete(): void
     {
-        $queue = Service_Prl120_JobQueue::instance();
+        $queue = Service_Prx120_JobQueue::instance();
         $channel = 'portal.test.'.bin2hex(random_bytes(4));
-        $id = Service_Prl120_JobQueue::push($channel, ['message' => 'PRL'], ['module' => 'prl100_platform']);
+        $id = Service_Prx120_JobQueue::push($channel, ['message' => 'PRX'], ['module' => 'prx100_platform']);
         try
         {
             $job = $queue->claim([$channel], 'portal-test-worker');
@@ -32,7 +32,7 @@ class PortalFoundationTest extends TestCase {
 
     public function test_release_mine_executes_both_recovery_queries(): void
     {
-        $this->assertSame(0, Service_Prl120_JobQueue::instance()->release_mine('no-such-test-worker-'.bin2hex(random_bytes(6))));
+        $this->assertSame(0, Service_Prx120_JobQueue::instance()->release_mine('no-such-test-worker-'.bin2hex(random_bytes(6))));
     }
 
     public function test_in_app_notification_is_scoped_to_its_recipient(): void
@@ -47,16 +47,16 @@ class PortalFoundationTest extends TestCase {
         $uid = (int) $user->id;
         try
         {
-            $nid = Service_Prl597_Notify::inbox_add($uid, ['title' => 'PRL test', 'body' => 'Test only', 'href' => '/tasks']);
+            $nid = Service_Prx597_Notify::inbox_add($uid, ['title' => 'PRX test', 'body' => 'Test only', 'href' => '/tasks']);
             $this->assertGreaterThan(0, $nid);
-            $rows = Service_Prl597_Notify::latest($uid);
+            $rows = Service_Prx597_Notify::latest($uid);
             $this->assertSame($nid, (int) $rows[0]['id']);
-            Service_Prl597_Notify::mark_read($uid, [$nid]);
-            $this->assertSame(0, Service_Prl597_Notify::unread_count($uid));
+            Service_Prx597_Notify::mark_read($uid, [$nid]);
+            $this->assertSame(0, Service_Prx597_Notify::unread_count($uid));
         }
         finally
         {
-            $db->query(NULL, 'DELETE FROM prl_597_notifications WHERE user_id = '.$uid);
+            $db->query(NULL, 'DELETE FROM prx_597_notifications WHERE user_id = '.$uid);
             $user->delete();
         }
     }
@@ -64,31 +64,31 @@ class PortalFoundationTest extends TestCase {
     public function test_rag_remember_exact_and_delete(): void
     {
         $key = 'test-'.bin2hex(random_bytes(8));
-        $stored = Service_Prl560_Knowledge::remember('prl100_platform', 'test', $key, 'PRL test', 'Technical test only', [], NULL, FALSE);
+        $stored = Service_Prx560_Knowledge::remember('prx100_platform', 'test', $key, 'PRX test', 'Technical test only', [], NULL, FALSE);
         try
         {
-            $exact = Service_Prl560_Knowledge::find_exact('prl100_platform', $key);
+            $exact = Service_Prx560_Knowledge::find_exact('prx100_platform', $key);
             $this->assertNotEmpty($exact);
-            $this->assertSame('PRL test', $exact['title']);
-            $again = Service_Prl560_Knowledge::remember('prl100_platform', 'test', $key, 'PRL test', 'Technical test only', [], NULL, FALSE);
+            $this->assertSame('PRX test', $exact['title']);
+            $again = Service_Prx560_Knowledge::remember('prx100_platform', 'test', $key, 'PRX test', 'Technical test only', [], NULL, FALSE);
             $this->assertSame('known', $again['status']);
         }
         finally
         {
-            Service_Prl560_Knowledge::delete($stored['id']);
+            Service_Prx560_Knowledge::delete($stored['id']);
         }
     }
 
     public function test_event_bus_preserves_payload(): void
     {
-        $bus = Service_Prl208_EventBus::instance();
-        $event = 'prl100.test.'.bin2hex(random_bytes(4));
+        $bus = Service_Prx208_EventBus::instance();
+        $event = 'prx100.test.'.bin2hex(random_bytes(4));
         $received = NULL;
         $bus->listen($event, function ($payload) use (&$received) { $received = $payload; });
         try
         {
-            $bus->publish($event, ['message' => 'PRL']);
-            $this->assertSame(['message' => 'PRL'], $received);
+            $bus->publish($event, ['message' => 'PRX']);
+            $this->assertSame(['message' => 'PRX'], $received);
         }
         finally
         {

@@ -7,8 +7,19 @@ from pathlib import Path
 import httpx
 import pytest
 
-from prl_workers import ocr_client
-from prl_workers.handlers import doc_normalize
+from prx_workers import ocr_client
+from prx_workers.handlers import doc_normalize
+
+
+@pytest.fixture(autouse=True)
+def _clean_ocr_env(monkeypatch):
+    """Не наследовать OCR-настройки из окружения разработчика."""
+    for name in (
+        "OCR_PROVIDER", "OCR_SERVICE_URL", "OCR_TIMEOUT",
+        "OCR_API_KEY", "OCR_AUTH_HEADER_NAME",
+        "OCR_EXTRA_PARAMS", "OCR_EXTRA_HEADERS",
+    ):
+        monkeypatch.delenv(name, raising=False)
 
 
 def _pdf(tmp_path: Path) -> Path:
@@ -54,11 +65,81 @@ def test_remote_posts_multipart_and_parses_contract(tmp_path, monkeypatch):
     assert seen["method"] == "POST"
     assert seen["url"] == "http://ocr.internal:8000/v1/extract"
     assert b'name="file"' in seen["body"]
+    assert b'filename="document.pdf"' in seen["body"]
     assert b"application/pdf" in seen["body"]
     assert result.text == "# Письмо\n\nТекст"
     assert result.pages == 2
     assert result.engine == "docling"
     assert result.confidence == 0.93
+
+
+def test_remote_auth_params_and_headers_from_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("OCR_API_KEY", "secret-token")
+    monkeypatch.setenv(
+        "OCR_EXTRA_PARAMS",
+        '{"output_format": "markdown", "lang": "rus", "extract_tables": "true"}',
+    )
+    monkeypatch.setenv(
+        "OCR_EXTRA_HEADERS",
+        '{"X-Tenant": "demo", "X-Request-Source": "doc-normalize"}',
+    )
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["headers"] = request.headers
+        seen["body"] = request.content
+        return httpx.Response(200, json={
+            "text": "ok", "pages": 1, "engine": "docling", "confidence": None,
+        })
+
+    provider = ocr_client.RemoteOcrProvider(
+        url="http://ocr.internal/extract",
+        timeout=1,
+        transport=httpx.MockTransport(handler),
+    )
+    result = asyncio.run(provider.extract(_pdf(tmp_path)))
+
+    assert result.text == "ok"
+    assert seen["headers"]["authorization"] == "Bearer secret-token"
+    assert seen["headers"]["x-tenant"] == "demo"
+    assert seen["headers"]["x-request-source"] == "doc-normalize"
+    for token in (
+        b'name="output_format"', b"markdown",
+        b'name="lang"', b"rus",
+        b'name="extract_tables"', b"true",
+    ):
+        assert token in seen["body"], token
+
+
+def test_remote_custom_auth_header_uses_raw_key(tmp_path, monkeypatch):
+    monkeypatch.setenv("OCR_API_KEY", "secret-token")
+    monkeypatch.setenv("OCR_AUTH_HEADER_NAME", "X-API-Key")
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["headers"] = request.headers
+        return httpx.Response(200, json={"text": "ok", "pages": 1, "engine": "mineru"})
+
+    provider = ocr_client.RemoteOcrProvider(
+        url="http://ocr.internal/extract",
+        timeout=1,
+        transport=httpx.MockTransport(handler),
+    )
+    asyncio.run(provider.extract(_pdf(tmp_path)))
+
+    assert seen["headers"]["x-api-key"] == "secret-token"
+    assert "authorization" not in seen["headers"]
+
+
+def test_remote_invalid_extra_json_is_a_config_error(monkeypatch):
+    monkeypatch.setenv("OCR_EXTRA_PARAMS", "not json")
+    with pytest.raises(RuntimeError, match="OCR_EXTRA_PARAMS"):
+        ocr_client.RemoteOcrProvider(url="http://ocr.internal/extract", timeout=1)
+
+    monkeypatch.delenv("OCR_EXTRA_PARAMS")
+    monkeypatch.setenv("OCR_EXTRA_HEADERS", "[]")
+    with pytest.raises(RuntimeError, match="OCR_EXTRA_HEADERS"):
+        ocr_client.RemoteOcrProvider(url="http://ocr.internal/extract", timeout=1)
 
 
 def test_remote_5xx_returns_failed(tmp_path, caplog):
@@ -67,7 +148,7 @@ def test_remote_5xx_returns_failed(tmp_path, caplog):
         timeout=1,
         transport=httpx.MockTransport(lambda _request: httpx.Response(503)),
     )
-    with caplog.at_level("ERROR", logger="prl.ocr"):
+    with caplog.at_level("ERROR", logger="prx.ocr"):
         result = asyncio.run(provider.extract(_pdf(tmp_path)))
     assert result.engine == "failed"
     assert result.text == ""
@@ -95,7 +176,7 @@ def test_remote_invalid_json_returns_failed(tmp_path, caplog):
             lambda _request: httpx.Response(200, content=b"not json")
         ),
     )
-    with caplog.at_level("ERROR", logger="prl.ocr"):
+    with caplog.at_level("ERROR", logger="prx.ocr"):
         result = asyncio.run(provider.extract(_pdf(tmp_path)))
     assert result.engine == "failed"
     assert "не JSON" in caplog.text
@@ -274,3 +355,31 @@ def test_normalize_handle_posts_confidence(tmp_path, monkeypatch):
         "confidence": 0.77,
     }
     assert result["confidence"] == 0.77
+
+
+def test_settings_are_collected_in_one_place(monkeypatch):
+    monkeypatch.setenv("OCR_SERVICE_URL", "http://ocr.internal/extract")
+    monkeypatch.setenv("OCR_TIMEOUT", "15")
+    monkeypatch.setenv("OCR_API_KEY", "secret")
+    monkeypatch.setenv("OCR_EXTRA_PARAMS", '{"lang": "rus"}')
+
+    settings = ocr_client.OcrSettings.from_env()
+
+    assert settings.url == "http://ocr.internal/extract"
+    assert settings.timeout == 15
+    assert settings.headers()["Authorization"] == "Bearer secret"
+    assert settings.extra_params == {"lang": "rus"}
+
+
+def test_extracted_text_is_the_site_payload():
+    text = ocr_client.ExtractedText(
+        text="Письмо", pages=2, engine="docling", confidence=0.91,
+    )
+
+    assert text.as_payload(42) == {
+        "file_id": 42,
+        "text": "Письмо",
+        "pages": 2,
+        "engine": "docling",
+        "confidence": 0.91,
+    }

@@ -18,15 +18,15 @@ class ManifestRegistryTest extends TestCase {
         $keys = array_keys($channels);
         sort($keys);
         $this->assertSame(['echo', 'embeddings.index', 'llm.summarize', 'semantic.index'], $keys);
-        $this->assertSame('prl115_semantic', $channels['semantic.index']['module']);
-        $this->assertSame('prl120_jobs', $channels['echo']['module']);
+        $this->assertSame('prx115_semantic', $channels['semantic.index']['module']);
+        $this->assertSame('prx120_jobs', $channels['echo']['module']);
     }
 
     public function test_technical_rag_is_not_a_global_search_source(): void
     {
         foreach (Manifest::search() as $source)
         {
-            $this->assertNotSame('prl560_knowledge', $source['module']);
+            $this->assertNotSame('prx560_knowledge', $source['module']);
         }
     }
 
@@ -52,22 +52,22 @@ class ManifestRegistryTest extends TestCase {
             }
         }
         $this->assertCount(50, array_unique($services));
-        $this->assertSame(['prl300_employee'], $active);
+        $this->assertSame(['prx300_employee'], $active);
     }
 
     public function test_acl_is_deny_by_default(): void
     {
         $this->assertFalse(ACL::check([], 'portal.access'));
         $this->assertTrue(ACL::check(['login'], 'portal.access'));
-        $this->assertFalse(ACL::check(['login'], 'prl595.users.admin'));
-        $this->assertTrue(ACL::check(['login'], 'prl300.view'));
-        $this->assertTrue(ACL::check(['login'], 'prl300.directory'));
-        $this->assertFalse(ACL::check(['login'], 'prl300.admin.view'));
-        $this->assertFalse(ACL::check(['login'], 'prl300.manage'));
-        $this->assertTrue(ACL::check(['hr_viewer'], 'prl300.admin.view'));
-        $this->assertFalse(ACL::check(['hr_viewer'], 'prl300.import'));
-        $this->assertTrue(ACL::check(['hr_admin'], 'prl300.identity'));
-        $this->assertTrue(ACL::check(['admin'], 'prl300.view'));
+        $this->assertFalse(ACL::check(['login'], 'prx595.users.admin'));
+        $this->assertTrue(ACL::check(['login'], 'prx300.view'));
+        $this->assertTrue(ACL::check(['login'], 'prx300.directory'));
+        $this->assertFalse(ACL::check(['login'], 'prx300.admin.view'));
+        $this->assertFalse(ACL::check(['login'], 'prx300.manage'));
+        $this->assertTrue(ACL::check(['hr_viewer'], 'prx300.admin.view'));
+        $this->assertFalse(ACL::check(['hr_viewer'], 'prx300.import'));
+        $this->assertTrue(ACL::check(['hr_admin'], 'prx300.identity'));
+        $this->assertTrue(ACL::check(['admin'], 'prx300.view'));
     }
 
     public function test_worker_gate_requires_nonempty_matching_secret(): void

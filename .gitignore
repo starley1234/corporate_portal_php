@@ -32,7 +32,7 @@ composer.phar
 workers/.env
 workers/.venv/
 # Логи воркеров: плоский ротируемый файл, который владелец присылает при
-# разборе инцидента (workers/logs/prl-worker.log, см. workers/README.md).
+# разборе инцидента (workers/logs/prx-worker.log, см. workers/README.md).
 workers/logs/
 workers/**/__pycache__/
 *.pyc

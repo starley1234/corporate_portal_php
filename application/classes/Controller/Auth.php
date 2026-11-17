@@ -3,7 +3,7 @@
 /**
  * Точка переопределения логина (приложение, не frozen-модуль).
  *
- * prl599_account: после верных логина/пароля, если у пользователя включена
+ * prx599_account: после верных логина/пароля, если у пользователя включена
  * двухфакторка (TOTP), завершаем парольный этап и показываем /auth/2fa —
  * ввод одноразового кода из приложения-аутентификатора. Без 2FA — как
  * раньше, плюс запись в журнал входов и регистрация активной сессии.
@@ -16,7 +16,7 @@
  * попадает обратно на страницу, где увидел замочек «Сервис для
  * зарегистрированных». Referer остаётся запасным путём.
  */
-class Controller_Auth extends Controller_Prl100_Auth {
+class Controller_Auth extends Controller_Prx100_Auth {
 
     /**
      * Нормализация цели возврата: принимаем только локальный путь — без
@@ -90,12 +90,12 @@ class Controller_Auth extends Controller_Prl100_Auth {
                     Auth::instance()->logout();
                     $errors[] = 'Пожалуйста, подтвердите ваш email.';
                 }
-                elseif (Service_Prl599_Account::totp_enabled((int) $user->id))
+                elseif (Service_Prx599_Account::totp_enabled((int) $user->id))
                 {
-                    // --- prl599: двухфакторка включена — второй шаг ---
+                    // --- prx599: двухфакторка включена — второй шаг ---
                     Auth::instance()->logout();
 
-                    Session::instance()->set('prl599_pending', [
+                    Session::instance()->set('prx599_pending', [
                         'uid'      => (int) $user->id,
                         'remember' => (bool) $this->request->post('remember'),
                         'redirect' => (string) Session::instance()->get('login_redirect', '/'),
@@ -107,14 +107,14 @@ class Controller_Auth extends Controller_Prl100_Auth {
                 }
                 else
                 {
-                    // --- prl599: журнал входа + регистрация активной сессии ---
+                    // --- prx599: журнал входа + регистрация активной сессии ---
                     try
                     {
-                        Service_Prl599_Account::after_login((int) $user->id, 'password');
+                        Service_Prx599_Account::after_login((int) $user->id, 'password');
                     }
                     catch (Throwable $e)
                     {
-                        Kohana::$log->add(Log::WARNING, 'prl599: after_login: :e', [':e' => $e->getMessage()]);
+                        Kohana::$log->add(Log::WARNING, 'prx599: after_login: :e', [':e' => $e->getMessage()]);
                     }
 
                     $redirect_url = Session::instance()->get_once('login_redirect', '/');
@@ -136,7 +136,7 @@ class Controller_Auth extends Controller_Prl100_Auth {
     }
 
     /**
-     * prl599: второй шаг входа — одноразовый код TOTP (6 цифр) из приложения.
+     * prx599: второй шаг входа — одноразовый код TOTP (6 цифр) из приложения.
      * Пейлоад живёт 10 минут в сессии, не более 5 попыток.
      */
     public function action_2fa()
@@ -147,12 +147,12 @@ class Controller_Auth extends Controller_Prl100_Auth {
         }
 
         $session = Session::instance();
-        $pending = $session->get('prl599_pending');
+        $pending = $session->get('prx599_pending');
 
         if ( ! is_array($pending) OR empty($pending['uid'])
             OR (time() - (int) Arr::get($pending, 'ts', 0)) > 600)
         {
-            $session->delete('prl599_pending');
+            $session->delete('prx599_pending');
             throw HTTP_Exception::factory(302)->location('/auth/login');
         }
 
@@ -166,14 +166,14 @@ class Controller_Auth extends Controller_Prl100_Auth {
             }
             if ((int) Arr::get($pending, 'tries', 0) >= 5)
             {
-                $session->delete('prl599_pending');
+                $session->delete('prx599_pending');
                 throw HTTP_Exception::factory(302)->location('/auth/login');
             }
 
             $pending['ts'] = time();
 
-            if (Service_Prl599_Account::totp_verify(
-                    (string) Arr::get(Service_Prl599_Account::totp_row((int) $pending['uid']) ?: [], 'secret'),
+            if (Service_Prx599_Account::totp_verify(
+                    (string) Arr::get(Service_Prx599_Account::totp_row((int) $pending['uid']) ?: [], 'secret'),
                     (string) $this->request->post('code')))
             {
                 $user = ORM::factory('User', (int) $pending['uid']);
@@ -181,15 +181,15 @@ class Controller_Auth extends Controller_Prl100_Auth {
                 if ($user->loaded())
                 {
                     Auth::instance()->force_login($user);
-                    $session->delete('prl599_pending');
+                    $session->delete('prx599_pending');
 
                     try
                     {
-                        Service_Prl599_Account::after_login((int) $user->id, '2fa');
+                        Service_Prx599_Account::after_login((int) $user->id, '2fa');
                     }
                     catch (Throwable $e)
                     {
-                        Kohana::$log->add(Log::WARNING, 'prl599: after_login: :e', [':e' => $e->getMessage()]);
+                        Kohana::$log->add(Log::WARNING, 'prx599: after_login: :e', [':e' => $e->getMessage()]);
                     }
 
                     throw HTTP_Exception::factory(302)->location((string) Arr::get($pending, 'redirect', '/'));
@@ -197,7 +197,7 @@ class Controller_Auth extends Controller_Prl100_Auth {
             }
 
             $pending['tries'] = (int) Arr::get($pending, 'tries', 0) + 1;
-            $session->set('prl599_pending', $pending);
+            $session->set('prx599_pending', $pending);
             $errors[] = 'Код не подошёл — введите актуальный из приложения-аутентификатора.';
         }
 

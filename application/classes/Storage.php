@@ -1,21 +1,21 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
 /**
- * Фасад для работы с модулем prl212_storage
+ * Фасад для работы с модулем prx212_storage
  * Реализована поддержка пространств имен (модулей) и индексированных папок
  *
     ## Примеры использования
 
     ### 1. Сохранение файла из формы
     ```php
-    // Загрузка в модуль 'prl123_lims', файл будет приватным
-    $file = Storage::upload($_FILES['report'], 'prl123_lims');
+    // Загрузка в модуль 'prx123_lims', файл будет приватным
+    $file = Storage::upload($_FILES['report'], 'prx123_lims');
     $file_id = $file->id;
     ```
 
     ### 2. Сохранение контента (System-generated)
     ```php
-    $file = Storage::put($binary_data, 'report.pdf', 'prl567_billing');
+    $file = Storage::put($binary_data, 'report.pdf', 'prx567_billing');
     ```
 
     ### 3. Получение ссылки для скачивания
@@ -41,11 +41,11 @@ class Storage {
      * @param array $file Элемент массива $_FILES
      * @param string $module Префикс модуля (namespace) для организации хранения
      * @param bool $is_public Публичный ли файл
-     * @return Model_Prl212_File
+     * @return Model_Prx212_File
      */
     public static function upload(array $file, $module = 'default', $is_public = false)
     {
-        $service = Service_Prl212_Storage::instance();
+        $service = Service_Prx212_Storage::instance();
 
         $metadata = [
             'is_public' => $is_public,
@@ -54,7 +54,7 @@ class Storage {
         ];
 
         $file_id = $service->save($file, $metadata);
-        return ORM::factory('Prl212_File', $file_id);
+        return ORM::factory('Prx212_File', $file_id);
     }
 
     /**
@@ -64,11 +64,11 @@ class Storage {
      * @param string $filename Имя файла с расширением
      * @param string $module Префикс модуля (namespace)
      * @param bool $is_public Публичный ли файл
-     * @return Model_Prl212_File
+     * @return Model_Prx212_File
      */
     public static function put($content, $filename, $module = 'default', $is_public = false)
     {
-        $service = Service_Prl212_Storage::instance();
+        $service = Service_Prx212_Storage::instance();
 
         $metadata = [
             'is_public' => $is_public,
@@ -77,7 +77,7 @@ class Storage {
         ];
 
         $file_id = $service->saveRaw($content, $filename, $metadata);
-        return ORM::factory('Prl212_File', $file_id);
+        return ORM::factory('Prx212_File', $file_id);
     }
 
     /**
@@ -89,7 +89,7 @@ class Storage {
      */
     public static function url($file_id, $expires = 3600)
     {
-        return Service_Prl212_Storage::instance()->generateUrl($file_id, $expires);
+        return Service_Prx212_Storage::instance()->generateUrl($file_id, $expires);
     }
 
     /**
@@ -100,7 +100,7 @@ class Storage {
      */
     public static function path($file_id)
     {
-        return Service_Prl212_Storage::instance()->getFilePath($file_id);
+        return Service_Prx212_Storage::instance()->getFilePath($file_id);
     }
 
     /**
@@ -111,7 +111,7 @@ class Storage {
      */
     public static function delete($file_id)
     {
-        return Service_Prl212_Storage::instance()->delete($file_id);
+        return Service_Prx212_Storage::instance()->delete($file_id);
     }
 
     /**
@@ -122,6 +122,6 @@ class Storage {
      */
     public static function metadata($file_id)
     {
-        return Service_Prl212_Storage::instance()->get_extended_metadata($file_id);
+        return Service_Prx212_Storage::instance()->get_extended_metadata($file_id);
     }
 }

@@ -1,35 +1,35 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
-if ( ! class_exists('Service_Prl208_EventBus', false))
+if ( ! class_exists('Service_Prx208_EventBus', false))
 {
     $prev_reporting = error_reporting();
     error_reporting($prev_reporting & ~E_DEPRECATED);
-    class_exists('Service_Prl208_EventBus', true);
+    class_exists('Service_Prx208_EventBus', true);
     error_reporting($prev_reporting);
 }
 
 /**
  * Класс управления событиями (Event Dispatcher).
- * Проксирует вызовы в Service_Prl208_EventBus.
+ * Проксирует вызовы в Service_Prx208_EventBus.
  */
 class Event {
 
     /**
      * Получить инстанс шины событий с подавлением E_DEPRECATED для устаревших модулей в PHP 8.4.
      *
-     * @return Service_Prl208_EventBus
+     * @return Service_Prx208_EventBus
      */
     protected static function bus()
     {
-        if ( ! class_exists('Service_Prl208_EventBus', false))
+        if ( ! class_exists('Service_Prx208_EventBus', false))
         {
             $prev_reporting = error_reporting();
             error_reporting($prev_reporting & ~E_DEPRECATED);
-            class_exists('Service_Prl208_EventBus', true);
+            class_exists('Service_Prx208_EventBus', true);
             error_reporting($prev_reporting);
         }
 
-        return Service_Prl208_EventBus::instance();
+        return Service_Prx208_EventBus::instance();
     }
 
     /**

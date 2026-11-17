@@ -1,31 +1,31 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 /**
- * ЭТАЛОННЫЙ ДИЗАЙН-МАКЕТ МОДУЛЯ СИСТЕМЫ PRL
+ * ЭТАЛОННЫЙ ДИЗАЙН-МАКЕТ МОДУЛЯ СИСТЕМЫ PRX
  * Версия 6.0 (Строгая семантическая палитра: Emerald CTA, Blue Process, Rose Danger).
  *
  * С 20.10.2026 у страницы НЕТ своих стилей и помощников: всё берётся из
  * общего слоя — ровно так же, как в модулях. Макет — живая витрина этого слоя:
- *   классы     .prl-btn-*, .prl-input, .prl-card, .prl-badge-* … → .tools/tailwind/input.css
- *   поведение  PRL.run, PRL.confirm, data-prl-arm, data-prl-copy … → public_html/assets/js/app.js
+ *   классы     .prx-btn-*, .prx-input, .prx-card, .prx-badge-* … → .tools/tailwind/input.css
+ *   поведение  PRX.run, PRX.confirm, data-prx-arm, data-prx-copy … → public_html/assets/js/app.js
  *   шапка      partials/page_header
  *   рецепты    docs/DESIGN-SYSTEM.md — агенту читать его, а не этот файл (73 КБ разметки);
  *   план       docs/PLAN-2026-10-20-design.md — перевод модулей на эталон.
  * Скрипт внизу — только демонстрация (имитация воркера, «Тест ошибки»).
  *
  * СТАНДАРТ ЦВЕТОВЫХ РОЛЕЙ КНОПОК И ДЕЙСТВИЙ (UI SEMANTICS):
- * 1. ИЗУМРУДНЫЙ (Emerald CTA — `.prl-btn-cta`):
+ * 1. ИЗУМРУДНЫЙ (Emerald CTA — `.prx-btn-cta`):
  *    - Созидательные/утверждающие действия, сохранение данных, публикация, первичный пуш («Создать», «Сохранить»).
- * 2. СИНИЙ (Process / Analysis — `.prl-btn-process`):
+ * 2. СИНИЙ (Process / Analysis — `.prx-btn-process`):
  *    - Запуск алгоритмов, генерация кода, ИИ-парсинг данных, фильтрация.
- * 3. КРАСНЫЙ (Danger / Destructive — `.prl-btn-danger`, `.prl-btn-danger-soft`, в окне подтверждения `.prl-btn-danger-solid`):
+ * 3. КРАСНЫЙ (Danger / Destructive — `.prx-btn-danger`, `.prx-btn-danger-soft`, в окне подтверждения `.prx-btn-danger-solid`):
  *    - Необратимые операции: прерывание с потерей данных, удаление сущности, сброс к фабричным настройкам.
- * 4. СЕРЫЙ / НЕЙТРАЛЬНЫЙ (Secondary — `.prl-btn-secondary`):
+ * 4. СЕРЫЙ / НЕЙТРАЛЬНЫЙ (Secondary — `.prx-btn-secondary`):
  *    - Отмена, возврат, вторичные опции, чтение логов.
  *
  * ПРАВИЛА ПЛАТФОРМЫ (AGENTS.md), которые макет соблюдает:
  * - Полос прогресса нет: процесс = спиннер + «Этап 2 из 3» + секундомер (полоса убрана 20.10.2026).
  * - Липких блоков нет (у оглавления статьи убран sticky 20.10.2026).
- * - Строку удаляют двойным кликом (data-prl-arm). Окно подтверждения (data-prl-confirm)
+ * - Строку удаляют двойным кликом (data-prx-arm). Окно подтверждения (data-prx-confirm)
  *   — только для тяжёлого: сущность с файлами, полный сброс. window.confirm и alert запрещены.
  * - Шкала: база 100 %; .is-125 — крупный вариант (ProcessHub). $scale > 1 включает его здесь.
  */
@@ -37,15 +37,15 @@ $e = function ($value) {
     return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
 };
 ?>
-<div class="prl-ds <?php echo $is_large ? 'is-125' : ''; ?> w-full px-3.5 pt-4 pb-20 sm:px-6 lg:px-8">
+<div class="prx-ds <?php echo $is_large ? 'is-125' : ''; ?> w-full px-3.5 pt-4 pb-20 sm:px-6 lg:px-8">
 
     <!-- СИСТЕМНОЕ ОПОВЕЩЕНИЕ (FLASH NOTIFICATION) -->
-    <div id="flash-banner" class="prl-flash prl-flash-ok mb-5" role="alert">
+    <div id="flash-banner" class="prx-flash prx-flash-ok mb-5" role="alert">
         <div class="flex items-center gap-3">
             <i class="fas fa-circle-check shrink-0 text-lg text-emerald-600 dark:text-emerald-400"></i>
-            <span><strong class="font-bold">Иерархия действий PRL v6.0:</strong> зеленые кнопки (сохранение/утверждение), синие (вычисления/ИИ), красные (деструктивные операции) и нейтральные серые.</span>
+            <span><strong class="font-bold">Иерархия действий PRX v6.0:</strong> зеленые кнопки (сохранение/утверждение), синие (вычисления/ИИ), красные (деструктивные операции) и нейтральные серые.</span>
         </div>
-        <button type="button" data-prl-dismiss class="rounded-lg p-1 text-emerald-800/60 hover:text-emerald-900 dark:text-emerald-300/60 dark:hover:text-emerald-100" aria-label="Закрыть">
+        <button type="button" data-prx-dismiss class="rounded-lg p-1 text-emerald-800/60 hover:text-emerald-900 dark:text-emerald-300/60 dark:hover:text-emerald-100" aria-label="Закрыть">
             <i class="fas fa-xmark text-sm"></i>
         </button>
     </div>
@@ -54,7 +54,7 @@ $e = function ($value) {
     <?php echo View::factory('partials/page_header', [
         'crumbs' => [['Сервисы платформы', '/'], ['Генератор и анализ страниц']],
         'title' => 'Генератор и анализ страниц',
-        'pill' => ['Модуль PRL v6.0', 'fa-layer-group'],
+        'pill' => ['Модуль PRX v6.0', 'fa-layer-group'],
         'actions' => [
             // Вторичная серая + зелёная для прямого создания (CTA)
             ['label' => 'База знаний', 'href' => '#article-section', 'icon' => 'fa-book-open', 'role' => 'secondary'],
@@ -67,46 +67,46 @@ $e = function ($value) {
     <div class="mt-6 gap-6 space-y-6 md:grid md:grid-cols-3 md:items-start md:space-y-0">
 
         <!-- Форма запуска анализа (2/3) -->
-        <div class="prl-card md:col-span-2">
-            <div class="prl-card-head">
-                <h2 class="prl-h3">Параметры анализа</h2>
+        <div class="prx-card md:col-span-2">
+            <div class="prx-card-head">
+                <h2 class="prx-h3">Параметры анализа</h2>
             </div>
 
             <form id="generator-form" method="post" action="#" class="mt-4 space-y-5" onsubmit="return false;">
 
                 <div>
                     <div class="flex items-center justify-between">
-                        <label for="ds-url" class="prl-label">
+                        <label for="ds-url" class="prx-label">
                             Целевой адрес страницы <span class="text-rose-500">*</span>
                         </label>
-                        <!-- Текст ошибки ставит PRL.fieldError(input, 'текст') -->
-                        <span class="prl-field-error" data-prl-error-for="ds-url" hidden></span>
+                        <!-- Текст ошибки ставит PRX.fieldError(input, 'текст') -->
+                        <span class="prx-field-error" data-prx-error-for="ds-url" hidden></span>
                     </div>
                     <div class="relative mt-1.5">
                         <input id="ds-url" name="url" type="url" placeholder="https://example.com/catalog"
                                autocomplete="off"
-                               class="prl-input">
-                        <span class="prl-invalid-icon">
+                               class="prx-input">
+                        <span class="prx-invalid-icon">
                             <i class="fas fa-circle-exclamation text-base"></i>
                         </span>
                     </div>
-                    <p class="prl-hint">Принимаются общедоступные адреса витрин, блогов и посадочных страниц.</p>
+                    <p class="prx-hint">Принимаются общедоступные адреса витрин, блогов и посадочных страниц.</p>
                 </div>
 
                 <div class="grid gap-4 sm:grid-cols-2 sm:gap-5">
                     <div>
-                        <label for="ds-variants" class="prl-label">Количество вариантов</label>
-                        <select id="ds-variants" name="variants" class="prl-input prl-select mt-1.5">
+                        <label for="ds-variants" class="prx-label">Количество вариантов</label>
+                        <select id="ds-variants" name="variants" class="prx-input prx-select mt-1.5">
                             <option>1 вариант</option>
                             <option selected>3 варианта</option>
                             <option>5 вариантов</option>
                         </select>
                     </div>
                     <div>
-                        <label for="ds-engine" class="prl-label">
+                        <label for="ds-engine" class="prx-label">
                             Движок разбора
                         </label>
-                        <select id="ds-engine" name="engine" class="prl-input prl-select mt-1.5">
+                        <select id="ds-engine" name="engine" class="prx-input prx-select mt-1.5">
                             <option selected>Стандартный (DOM + Tailwind v3)</option>
                             <option>Экспериментальный (Semantic AI 2026)</option>
                         </select>
@@ -114,38 +114,38 @@ $e = function ($value) {
                 </div>
 
                 <div>
-                    <label for="ds-wishes" class="prl-label">Пожелания к стилю</label>
+                    <label for="ds-wishes" class="prx-label">Пожелания к стилю</label>
                     <textarea id="ds-wishes" name="wishes" rows="3" placeholder="Например: светлая палитра, крупный акцидентный шрифт, карточки без резких теней..."
-                              class="prl-textarea mt-1.5"></textarea>
+                              class="prx-textarea mt-1.5"></textarea>
                 </div>
 
-                <!-- КНОПКИ ЗАПУСКА: СИНИЙ ПРОЦЕСС + DANGER ОТМЕНА (PRL.run) -->
+                <!-- КНОПКИ ЗАПУСКА: СИНИЙ ПРОЦЕСС + DANGER ОТМЕНА (PRX.run) -->
                 <div class="border-t border-gray-100 pt-4 dark:border-gray-700/60">
                     <div class="flex flex-wrap items-center gap-3">
                         <!-- Синяя кнопка процесса: на время работы — спиннер и секундомер -->
                         <button type="button"
                                 id="btn-long-process"
-                                data-prl-busy-show="#btn-long-cancel, #long-process-hint"
-                                class="prl-btn-process relative px-6">
-                            <span data-prl-idle class="inline-flex items-center gap-2">
+                                data-prx-busy-show="#btn-long-cancel, #long-process-hint"
+                                class="prx-btn-process relative px-6">
+                            <span data-prx-idle class="inline-flex items-center gap-2">
                                 <i class="fas fa-play text-xs"></i>
                                 <span>Запустить анализ</span>
                             </span>
-                            <span data-prl-busy class="hidden inline-flex items-center gap-2">
-                                <i class="fas fa-circle-notch prl-spin text-sm"></i>
-                                <span>Выполняется… (<span data-prl-clock class="font-mono tabular-nums">0:00</span>)</span>
+                            <span data-prx-busy class="hidden inline-flex items-center gap-2">
+                                <i class="fas fa-circle-notch prx-spin text-sm"></i>
+                                <span>Выполняется… (<span data-prx-clock class="font-mono tabular-nums">0:00</span>)</span>
                             </span>
                         </button>
 
                         <!-- ПРИМЕР: Danger-кнопка отмены активного действия -->
                         <button type="button"
                                 id="btn-long-cancel"
-                                class="prl-btn-danger-soft prl-ds-xs hidden">
+                                class="prx-btn-danger-soft prx-ds-xs hidden">
                             <i class="fas fa-xmark text-xs"></i>
                             <span>Прервать задачу</span>
                         </button>
 
-                        <button type="button" id="btn-trigger-error-demo" class="prl-ds-xs text-gray-500 underline-offset-2 hover:underline sm:ml-2">
+                        <button type="button" id="btn-trigger-error-demo" class="prx-ds-xs text-gray-500 underline-offset-2 hover:underline sm:ml-2">
                             Тест ошибки
                         </button>
                     </div>
@@ -162,14 +162,14 @@ $e = function ($value) {
         <div class="space-y-4">
 
             <!-- КАРТОЧКА ПРОЦЕССА: спиннер · этап «2 из 3» · секундомер. Полосы прогресса нет. -->
-            <div class="prl-card w-full max-w-md border-blue-200/90 dark:border-blue-900/60" role="status" aria-live="polite">
+            <div class="prx-card w-full max-w-md border-blue-200/90 dark:border-blue-900/60" role="status" aria-live="polite">
                 <div class="flex items-center justify-between gap-3">
-                    <div class="prl-status">
-                        <i class="fas fa-circle-notch prl-spin text-sm text-blue-600 dark:text-blue-400" aria-hidden="true"></i>
+                    <div class="prx-status">
+                        <i class="fas fa-circle-notch prx-spin text-sm text-blue-600 dark:text-blue-400" aria-hidden="true"></i>
                         <span class="font-bold text-gray-900 dark:text-white">В работе</span>
                         <span class="text-blue-300 dark:text-blue-700">·</span>
-                        <!-- Сервер отдаёт, сколько секунд идёт задача; дальше тикает PRL -->
-                        <span class="prl-clock" data-prl-stopwatch="1023">17:03</span>
+                        <!-- Сервер отдаёт, сколько секунд идёт задача; дальше тикает PRX -->
+                        <span class="prx-clock" data-prx-stopwatch="1023">17:03</span>
                     </div>
                     <span class="font-mono text-xs font-semibold text-gray-400 dark:text-gray-500">dsna35b</span>
                 </div>
@@ -179,16 +179,16 @@ $e = function ($value) {
                         <span>Сборка разметки</span>
                         <span class="font-semibold text-blue-600 dark:text-blue-400">Этап 2 из 3</span>
                     </div>
-                    <p class="prl-ds-sm font-semibold text-gray-900 dark:text-gray-100 truncate" data-ds-progress>
+                    <p class="prx-ds-sm font-semibold text-gray-900 dark:text-gray-100 truncate" data-ds-progress>
                         Анализ сеток и CSS-классов…
                     </p>
                 </div>
 
                 <div class="mt-4 flex items-center justify-between gap-3 border-t border-gray-100 pt-3.5 dark:border-gray-700/60">
-                    <span class="prl-ds-xs text-gray-400 dark:text-gray-500">Осталось: ~30 с</span>
+                    <span class="prx-ds-xs text-gray-400 dark:text-gray-500">Осталось: ~30 с</span>
                     <!-- Красная деликатная кнопка остановки -->
                     <button type="button"
-                            class="prl-btn-danger prl-btn-sm">
+                            class="prx-btn-danger prx-btn-sm">
                         <i class="fas fa-stop text-[11px]"></i>
                         <span>Остановить</span>
                     </button>
@@ -196,9 +196,9 @@ $e = function ($value) {
             </div>
 
             <!-- Реальный полезный контекст: Квота и нагрузка -->
-            <div class="prl-card">
-                <h3 class="prl-ds-sm font-bold text-gray-900 dark:text-white">Текущие квоты</h3>
-                <dl class="mt-3 space-y-2 prl-ds-xs">
+            <div class="prx-card">
+                <h3 class="prx-ds-sm font-bold text-gray-900 dark:text-white">Текущие квоты</h3>
+                <dl class="mt-3 space-y-2 prx-ds-xs">
                     <div class="flex items-center justify-between">
                         <dt class="text-gray-500 dark:text-gray-400">Очередь воркера:</dt>
                         <dd class="font-semibold text-gray-900 dark:text-gray-100">1 задача перед вами</dd>
@@ -214,22 +214,22 @@ $e = function ($value) {
     </div>
 
     <!-- ============ 3. РЕЕСТР ПРОГОНОВ (ТАБЛИЦА + EMPTY STATE) ============ -->
-    <section class="prl-panel mt-8">
+    <section class="prx-panel mt-8">
 
-        <div class="prl-panel-head">
+        <div class="prx-panel-head">
             <div class="flex items-center gap-2.5">
-                <h2 class="prl-h3">История прогонов</h2>
-                <span class="prl-count">2</span>
+                <h2 class="prx-h3">История прогонов</h2>
+                <span class="prx-count">2</span>
             </div>
 
             <div class="flex items-center gap-2">
-                <div class="prl-seg">
-                    <button type="button" class="prl-seg-item" aria-pressed="true">Все (2)</button>
-                    <button type="button" class="prl-seg-item" aria-pressed="false">В работе (1)</button>
-                    <button type="button" class="prl-seg-item" aria-pressed="false">Завершены (1)</button>
+                <div class="prx-seg">
+                    <button type="button" class="prx-seg-item" aria-pressed="true">Все (2)</button>
+                    <button type="button" class="prx-seg-item" aria-pressed="false">В работе (1)</button>
+                    <button type="button" class="prx-seg-item" aria-pressed="false">Завершены (1)</button>
                 </div>
 
-                <button type="button" id="btn-toggle-empty" title="Показать Empty State" class="prl-ds-xs inline-flex min-h-[32px] items-center rounded-lg border border-gray-300 bg-white px-2.5 font-medium text-gray-600 shadow-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                <button type="button" id="btn-toggle-empty" title="Показать Empty State" class="prx-ds-xs inline-flex min-h-[32px] items-center rounded-lg border border-gray-300 bg-white px-2.5 font-medium text-gray-600 shadow-xs hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300">
                     Тест пустоты
                 </button>
             </div>
@@ -243,24 +243,24 @@ $e = function ($value) {
                         <div>
                             <div class="flex items-center gap-2">
                                 <span class="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">dsnf592</span>
-                                <button type="button" data-prl-copy="dsnf592ccad" title="Копировать ID" class="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                                <button type="button" data-prx-copy="dsnf592ccad" title="Копировать ID" class="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
                                     <i class="fas fa-copy text-xs"></i>
                                 </button>
                             </div>
-                            <h3 class="prl-ds-sm font-bold text-gray-900 dark:text-white mt-0.5">Лендинг «Ромашка»</h3>
+                            <h3 class="prx-ds-sm font-bold text-gray-900 dark:text-white mt-0.5">Лендинг «Ромашка»</h3>
                         </div>
-                        <span class="prl-badge prl-badge-ok"><span class="prl-dot"></span>готово</span>
+                        <span class="prx-badge prx-badge-ok"><span class="prx-dot"></span>готово</span>
                     </div>
                     <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
                         <a href="#" onclick="return false;" class="font-mono text-blue-600 dark:text-blue-400 hover:underline">https://romashka.ru</a>
                         <span class="text-gray-400">20.09, 22:32</span>
                     </div>
                     <div class="flex items-center justify-end gap-2 pt-1 border-t border-gray-50 dark:border-gray-700/40">
-                        <button type="button" class="prl-btn-secondary prl-btn-sm">
+                        <button type="button" class="prx-btn-secondary prx-btn-sm">
                             Открыть
                         </button>
                         <!-- Удаление строки: двойной клик, без окна -->
-                        <button type="button" data-prl-arm="Удалить?" title="Удалить" aria-label="Удалить" class="prl-btn-icon-danger">
+                        <button type="button" data-prx-arm="Удалить?" title="Удалить" aria-label="Удалить" class="prx-btn-icon-danger">
                             <i class="fas fa-trash-can text-xs"></i>
                         </button>
                     </div>
@@ -271,23 +271,23 @@ $e = function ($value) {
                         <div>
                             <div class="flex items-center gap-2">
                                 <span class="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">dsna35b</span>
-                                <button type="button" data-prl-copy="dsna35b3900" title="Копировать ID" class="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                                <button type="button" data-prx-copy="dsna35b3900" title="Копировать ID" class="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
                                     <i class="fas fa-copy text-xs"></i>
                                 </button>
                             </div>
-                            <h3 class="prl-ds-sm font-bold text-gray-900 dark:text-white mt-0.5">Блог компании</h3>
+                            <h3 class="prx-ds-sm font-bold text-gray-900 dark:text-white mt-0.5">Блог компании</h3>
                         </div>
-                        <span class="prl-badge prl-badge-run"><span class="prl-dot"></span>в работе</span>
+                        <span class="prx-badge prx-badge-run"><span class="prx-dot"></span>в работе</span>
                     </div>
                     <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
                         <a href="#" onclick="return false;" class="font-mono text-blue-600 dark:text-blue-400 hover:underline">https://example.com/blog</a>
                         <span class="text-gray-400">20.09, 21:07</span>
                     </div>
                     <div class="flex items-center justify-end gap-2 pt-1 border-t border-gray-50 dark:border-gray-700/40">
-                        <button type="button" class="prl-btn-secondary prl-btn-sm">
+                        <button type="button" class="prx-btn-secondary prx-btn-sm">
                             Логи
                         </button>
-                        <button type="button" disabled title="Нельзя удалить: прогон ещё идёт" aria-label="Удалить" class="prl-btn-icon-danger">
+                        <button type="button" disabled title="Нельзя удалить: прогон ещё идёт" aria-label="Удалить" class="prx-btn-icon-danger">
                             <i class="fas fa-trash-can text-xs"></i>
                         </button>
                     </div>
@@ -295,8 +295,8 @@ $e = function ($value) {
             </div>
 
             <!-- Десктопная таблица (>= 640px) -->
-            <div class="hidden sm:block overflow-x-auto prl-scrollbar">
-                <table class="prl-table whitespace-nowrap">
+            <div class="hidden sm:block overflow-x-auto prx-scrollbar">
+                <table class="prx-table whitespace-nowrap">
                     <thead>
                         <tr>
                             <th>Код / Название</th>
@@ -311,25 +311,25 @@ $e = function ($value) {
                             <td>
                                 <div class="flex items-center gap-2">
                                     <span class="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">dsnf592</span>
-                                    <button type="button" data-prl-copy="dsnf592ccad" title="Копировать ID" class="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                                    <button type="button" data-prx-copy="dsnf592ccad" title="Копировать ID" class="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
                                         <i class="fas fa-copy text-xs"></i>
                                     </button>
                                     <span class="font-semibold text-gray-900 dark:text-white">Лендинг «Ромашка»</span>
                                 </div>
                             </td>
                             <td>
-                                <span class="prl-badge prl-badge-ok"><span class="prl-dot"></span>готово</span>
+                                <span class="prx-badge prx-badge-ok"><span class="prx-dot"></span>готово</span>
                             </td>
                             <td class="text-gray-600 dark:text-gray-300">
                                 <a href="#" onclick="return false;" class="truncate font-mono hover:underline max-w-[240px] inline-block align-bottom">https://romashka.ru</a>
                             </td>
-                            <td class="prl-ds-xs text-gray-500 dark:text-gray-400">20.09, 22:32</td>
+                            <td class="prx-ds-xs text-gray-500 dark:text-gray-400">20.09, 22:32</td>
                             <td class="text-right">
                                 <div class="inline-flex items-center justify-end gap-2">
-                                    <button type="button" class="prl-btn-secondary prl-btn-sm">
+                                    <button type="button" class="prx-btn-secondary prx-btn-sm">
                                         Открыть
                                     </button>
-                                    <button type="button" data-prl-arm="Удалить?" title="Удалить" aria-label="Удалить" class="prl-btn-icon-danger">
+                                    <button type="button" data-prx-arm="Удалить?" title="Удалить" aria-label="Удалить" class="prx-btn-icon-danger">
                                         <i class="fas fa-trash-can text-xs"></i>
                                     </button>
                                 </div>
@@ -339,25 +339,25 @@ $e = function ($value) {
                             <td>
                                 <div class="flex items-center gap-2">
                                     <span class="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">dsna35b</span>
-                                    <button type="button" data-prl-copy="dsna35b3900" title="Копировать ID" class="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                                    <button type="button" data-prx-copy="dsna35b3900" title="Копировать ID" class="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
                                         <i class="fas fa-copy text-xs"></i>
                                     </button>
                                     <span class="font-semibold text-gray-900 dark:text-white">Блог компании</span>
                                 </div>
                             </td>
                             <td>
-                                <span class="prl-badge prl-badge-run"><span class="prl-dot"></span>в работе</span>
+                                <span class="prx-badge prx-badge-run"><span class="prx-dot"></span>в работе</span>
                             </td>
                             <td class="text-gray-600 dark:text-gray-300">
                                 <a href="#" onclick="return false;" class="truncate font-mono hover:underline max-w-[240px] inline-block align-bottom">https://example.com/blog</a>
                             </td>
-                            <td class="prl-ds-xs text-gray-500 dark:text-gray-400">20.09, 21:07</td>
+                            <td class="prx-ds-xs text-gray-500 dark:text-gray-400">20.09, 21:07</td>
                             <td class="text-right">
                                 <div class="inline-flex items-center justify-end gap-2">
-                                    <button type="button" class="prl-btn-secondary prl-btn-sm">
+                                    <button type="button" class="prx-btn-secondary prx-btn-sm">
                                         Логи
                                     </button>
-                                    <button type="button" disabled title="Нельзя удалить: прогон ещё идёт" aria-label="Удалить" class="prl-btn-icon-danger">
+                                    <button type="button" disabled title="Нельзя удалить: прогон ещё идёт" aria-label="Удалить" class="prx-btn-icon-danger">
                                         <i class="fas fa-trash-can text-xs"></i>
                                     </button>
                                 </div>
@@ -369,16 +369,16 @@ $e = function ($value) {
         </div>
 
         <!-- ПРИМЕР: Зелёная кнопка в Empty State (Побуждение к созданию) -->
-        <div id="runs-content-empty" class="prl-empty hidden">
-            <div class="prl-empty-icon">
+        <div id="runs-content-empty" class="prx-empty hidden">
+            <div class="prx-empty-icon">
                 <i class="fas fa-folder-open"></i>
             </div>
-            <h3 class="prl-h3 mt-4">Нет активных прогонов</h3>
-            <p class="prl-empty-text">
+            <h3 class="prx-h3 mt-4">Нет активных прогонов</h3>
+            <p class="prx-empty-text">
                 Вы пока не запустили ни одного анализа. Создайте первый прогон, чтобы начать сборку интерфейса.
             </p>
             <div class="mt-5">
-                <button type="button" id="btn-empty-create" class="prl-btn-cta px-5">
+                <button type="button" id="btn-empty-create" class="prx-btn-cta px-5">
                     <i class="fas fa-plus"></i>
                     <span>Создать первый прогон</span>
                 </button>
@@ -386,36 +386,36 @@ $e = function ($value) {
         </div>
 
         <!-- Пагинация -->
-        <div class="prl-panel-foot">
-            <span class="prl-ds-xs text-gray-500 dark:text-gray-400">Показано <strong class="font-semibold text-gray-700 dark:text-gray-200">2</strong> из <strong class="font-semibold text-gray-700 dark:text-gray-200">2</strong></span>
+        <div class="prx-panel-foot">
+            <span class="prx-ds-xs text-gray-500 dark:text-gray-400">Показано <strong class="font-semibold text-gray-700 dark:text-gray-200">2</strong> из <strong class="font-semibold text-gray-700 dark:text-gray-200">2</strong></span>
             <div class="flex items-center gap-1">
-                <button type="button" disabled class="prl-page" aria-label="Предыдущая страница">‹</button>
-                <button type="button" class="prl-page" aria-current="page">1</button>
-                <button type="button" disabled class="prl-page" aria-label="Следующая страница">›</button>
+                <button type="button" disabled class="prx-page" aria-label="Предыдущая страница">‹</button>
+                <button type="button" class="prx-page" aria-current="page">1</button>
+                <button type="button" disabled class="prx-page" aria-label="Следующая страница">›</button>
             </div>
         </div>
     </section>
 
     <!-- ============ 4. ЭТАЛОН ЧИТАЕМОЙ СТАТЬИ (СЕТКА 2/3 + 1/3 НА ВСЮ ШИРИНУ) ============ -->
-    <section id="article-section" class="prl-card mt-8 p-5 sm:p-7">
+    <section id="article-section" class="prx-card mt-8 p-5 sm:p-7">
 
         <header class="border-b border-gray-100 pb-5 dark:border-gray-700/60">
-            <nav class="prl-crumbs" aria-label="Хлебные крошки статьи">
+            <nav class="prx-crumbs" aria-label="Хлебные крошки статьи">
                 <a href="#" onclick="return false;">База знаний</a>
-                <span class="prl-crumbs-sep">/</span>
-                <span class="prl-crumbs-current">Архитектура интерфейсов PRL</span>
+                <span class="prx-crumbs-sep">/</span>
+                <span class="prx-crumbs-current">Архитектура интерфейсов PRX</span>
             </nav>
 
             <div class="mt-2.5 flex flex-wrap items-center justify-between gap-3">
-                <h1 class="prl-h1">
+                <h1 class="prx-h1">
                     Семантика действий и цветовой баланс
                 </h1>
-                <span class="prl-pill">
-                    <i class="fas fa-book-open text-xs"></i>Стандарт PRL
+                <span class="prx-pill">
+                    <i class="fas fa-book-open text-xs"></i>Стандарт PRX
                 </span>
             </div>
 
-            <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 prl-ds-xs text-gray-500 dark:text-gray-400">
+            <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 prx-ds-xs text-gray-500 dark:text-gray-400">
                 <span class="inline-flex items-center gap-1.5"><i class="fas fa-circle-user text-xs"></i> Дизайн-система</span>
                 <span>•</span>
                 <span class="inline-flex items-center gap-1.5"><i class="fas fa-clock text-xs"></i> 4 мин чтения</span>
@@ -452,15 +452,15 @@ $e = function ($value) {
                 <div class="rounded-xl border border-blue-200 bg-blue-50/70 p-5 shadow-xs dark:border-blue-900/60 dark:bg-blue-950/30">
                     <div class="flex items-center gap-2 text-blue-950 dark:text-blue-100">
                         <i class="fas fa-circle-check text-base text-blue-600 dark:text-blue-400"></i>
-                        <h3 class="prl-ds-sm font-bold">Правило неразрывного статуса</h3>
+                        <h3 class="prx-ds-sm font-bold">Правило неразрывного статуса</h3>
                     </div>
-                    <p class="mt-2 prl-ds-sm leading-relaxed text-blue-900/90 dark:text-blue-200/90">
+                    <p class="mt-2 prx-ds-sm leading-relaxed text-blue-900/90 dark:text-blue-200/90">
                         Спиннер, наименование этапа и моноширинный секундомер объединяются в один неделимый бейдж:
                     </p>
                     <div class="mt-3.5 inline-flex items-center gap-2.5 rounded-lg border border-blue-200/80 bg-white px-3.5 py-2 shadow-xs dark:border-gray-700 dark:bg-gray-800">
-                        <i class="fas fa-circle-notch prl-spin text-sm text-blue-600 dark:text-blue-400"></i>
-                        <span class="prl-ds-xs font-bold text-gray-900 dark:text-white">В работе</span>
-                        <span class="prl-ds-xs rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 font-mono font-bold tabular-nums text-blue-800 dark:border-blue-800/60 dark:bg-blue-900/40 dark:text-blue-300">17:03</span>
+                        <i class="fas fa-circle-notch prx-spin text-sm text-blue-600 dark:text-blue-400"></i>
+                        <span class="prx-ds-xs font-bold text-gray-900 dark:text-white">В работе</span>
+                        <span class="prx-ds-xs rounded-md border border-blue-200 bg-blue-50 px-2 py-0.5 font-mono font-bold tabular-nums text-blue-800 dark:border-blue-800/60 dark:bg-blue-900/40 dark:text-blue-300">17:03</span>
                     </div>
                 </div>
 
@@ -477,12 +477,12 @@ $e = function ($value) {
             <!-- Сайдбар статьи (1/3). Не липкий: sticky запрещён правилами UI. -->
             <aside class="space-y-4">
                 <!-- Оглавление -->
-                <div class="prl-card p-4 sm:p-5">
+                <div class="prx-card p-4 sm:p-5">
                     <div class="flex items-center gap-2 text-gray-900 dark:text-white">
                         <i class="fas fa-list-ul text-blue-600 dark:text-blue-400"></i>
-                        <h3 class="prl-ds-sm font-bold">В этом разделе</h3>
+                        <h3 class="prx-ds-sm font-bold">В этом разделе</h3>
                     </div>
-                    <ul class="mt-3 space-y-2.5 prl-ds-xs text-gray-600 dark:text-gray-300">
+                    <ul class="mt-3 space-y-2.5 prx-ds-xs text-gray-600 dark:text-gray-300">
                         <li>
                             <a href="#" onclick="return false;" class="font-semibold text-blue-600 hover:underline dark:text-blue-400">1. Правило четырёх ролей кнопок</a>
                         </li>
@@ -496,9 +496,9 @@ $e = function ($value) {
                 </div>
 
                 <!-- Шпаргалка по цветам контролов -->
-                <div class="prl-card p-4 sm:p-5">
-                    <h3 class="prl-ds-label text-gray-400 dark:text-gray-500">Палитра действий</h3>
-                    <div class="mt-3 space-y-2 prl-ds-xs">
+                <div class="prx-card p-4 sm:p-5">
+                    <h3 class="prx-ds-label text-gray-400 dark:text-gray-500">Палитра действий</h3>
+                    <div class="mt-3 space-y-2 prx-ds-xs">
                         <div class="flex items-center gap-2">
                             <span class="h-3 w-3 rounded-full bg-emerald-600"></span>
                             <span class="font-medium text-gray-700 dark:text-gray-200">Emerald: Сохранение / Создание</span>
@@ -524,8 +524,8 @@ $e = function ($value) {
     <!-- ============ 5. РЕДАКТОР СУЩНОСТИ: ЗЕЛЁНЫЙ CTA + DANGER ДЕЙСТВИЕ ============ -->
     <section id="editor-section" class="mt-10 border-t border-gray-200/80 pt-8 scroll-mt-6 dark:border-gray-700/60">
         <div>
-            <h2 class="prl-h2">Редактор параметров</h2>
-            <p class="prl-ds-sm mt-1 text-gray-500 dark:text-gray-400">
+            <h2 class="prx-h2">Редактор параметров</h2>
+            <p class="prx-ds-sm mt-1 text-gray-500 dark:text-gray-400">
                 Заполните форму вручную или используйте синий ИИ-экстрактор для быстрого разбора сырого текста.
             </p>
         </div>
@@ -538,9 +538,9 @@ $e = function ($value) {
                     <div class="flex items-center justify-between gap-2">
                         <div class="flex items-center gap-2 text-blue-900 dark:text-blue-200">
                             <i class="fas fa-wand-magic-sparkles text-blue-600 dark:text-blue-400"></i>
-                            <h3 class="prl-ds-sm font-bold">Умный ИИ-экстрактор полей</h3>
+                            <h3 class="prx-ds-sm font-bold">Умный ИИ-экстрактор полей</h3>
                         </div>
-                        <span class="prl-ds-xs rounded-md bg-blue-100 px-2.5 py-0.5 font-semibold text-blue-800 dark:bg-blue-900/60 dark:text-blue-300">
+                        <span class="prx-ds-xs rounded-md bg-blue-100 px-2.5 py-0.5 font-semibold text-blue-800 dark:bg-blue-900/60 dark:text-blue-300">
                             Сырой текст
                         </span>
                     </div>
@@ -549,56 +549,56 @@ $e = function ($value) {
                         <textarea id="ai-raw-input" rows="3"
                                   autocomplete="off" autocapitalize="off" spellcheck="false"
                                   placeholder="Вставьте бриф или текст задачи... Например: Проект: Монолит Бетон, слаг monolith, B2B витрина оборудования..."
-                                  class="prl-textarea border-blue-200 focus:ring-blue-500/20 dark:border-blue-800"></textarea>
+                                  class="prx-textarea border-blue-200 focus:ring-blue-500/20 dark:border-blue-800"></textarea>
                     </div>
 
                     <div class="mt-3 flex flex-wrap items-center justify-between gap-2.5">
                         <!-- Синяя кнопка вычисления -->
-                        <button type="button" id="btn-ai-parse" class="prl-btn-process">
+                        <button type="button" id="btn-ai-parse" class="prx-btn-process">
                             <i class="fas fa-bolt text-amber-300"></i>
                             <span>Распознать и заполнить поля</span>
-                            <span class="prl-btn-kbd">Ctrl+Enter</span>
+                            <span class="prx-btn-kbd">Ctrl+Enter</span>
                         </button>
-                        <button type="button" id="btn-ai-demo-fill" class="prl-link prl-ds-xs">
+                        <button type="button" id="btn-ai-demo-fill" class="prx-link prx-ds-xs">
                             Вставить пример
                         </button>
                     </div>
                 </div>
 
                 <!-- Основная форма редактирования -->
-                <div class="prl-card">
+                <div class="prx-card">
                     <form id="item-edit-form" method="post" action="#" autocomplete="off" novalidate onsubmit="return false;" class="space-y-5">
 
                         <div>
-                            <label for="f-title" class="prl-label">
+                            <label for="f-title" class="prx-label">
                                 Название страницы / сущности <span class="text-rose-500">*</span>
                             </label>
                             <input id="f-title" name="item_title" type="text"
                                    autocomplete="new-password"
                                    data-lpignore="true" data-1p-ignore
                                    placeholder="Например: Каталог насосного оборудования"
-                                   class="prl-input mt-1.5">
+                                   class="prx-input mt-1.5">
                         </div>
 
                         <div class="grid gap-4 sm:grid-cols-2 sm:gap-5">
                             <div>
-                                <label for="f-slug" class="prl-label">
+                                <label for="f-slug" class="prx-label">
                                     Слаг идентификатор
                                 </label>
-                                <div class="prl-input-group mt-1.5">
-                                    <span class="prl-input-addon">/view/</span>
+                                <div class="prx-input-group mt-1.5">
+                                    <span class="prx-input-addon">/view/</span>
                                     <input id="f-slug" name="item_slug" type="text"
                                            autocomplete="off"
                                            placeholder="monolith-pumps"
-                                           class="prl-input-bare font-mono">
+                                           class="prx-input-bare font-mono">
                                 </div>
                             </div>
 
                             <div>
-                                <label for="f-category" class="prl-label">
+                                <label for="f-category" class="prx-label">
                                     Категория
                                 </label>
-                                <select id="f-category" name="item_category" class="prl-input prl-select mt-1.5">
+                                <select id="f-category" name="item_category" class="prx-input prx-select mt-1.5">
                                     <option value="">-- Выберите отрасль --</option>
                                     <option value="landing">Промо / Landing</option>
                                     <option value="b2b">Корпоративный B2B</option>
@@ -608,40 +608,40 @@ $e = function ($value) {
                         </div>
 
                         <div>
-                            <label for="f-desc" class="prl-label">Подробное описание</label>
+                            <label for="f-desc" class="prx-label">Подробное описание</label>
                             <textarea id="f-desc" name="item_desc" rows="3"
                                       autocomplete="off"
                                       placeholder="Опишите назначение интерфейса и визуальные ограничения..."
-                                      class="prl-textarea mt-1.5"></textarea>
+                                      class="prx-textarea mt-1.5"></textarea>
                         </div>
 
                         <!-- ЭТАЛОН: ПОЛНЫЙ СПЕКТР КНОПОК В ПОДВАЛЕ (ЗЕЛЕНЫЙ CTA, НЕЙТРАЛЬНЫЙ СБРОС И КРАСНЫЙ DANGER) -->
                         <div class="flex flex-col gap-3 border-t border-gray-100 pt-5 sm:flex-row sm:items-center dark:border-gray-700/60">
 
                             <!-- 1. Зелёный CTA сохранения (побуждение к утверждению) -->
-                            <button type="submit" class="prl-btn-cta w-full px-6 sm:w-auto">
+                            <button type="submit" class="prx-btn-cta w-full px-6 sm:w-auto">
                                 <i class="fas fa-check text-xs"></i>
                                 <span>Сохранить изменения</span>
-                                <span class="prl-btn-kbd">Ctrl+S</span>
+                                <span class="prx-btn-kbd">Ctrl+S</span>
                             </button>
 
                             <!-- 2. Нейтральная вторичная кнопка (сброс) -->
-                            <button type="button" id="btn-form-reset" class="prl-btn-secondary w-full px-5 sm:w-auto">
+                            <button type="button" id="btn-form-reset" class="prx-btn-secondary w-full px-5 sm:w-auto">
                                 Сбросить
                             </button>
 
                             <!-- 3. Красная Danger-кнопка: удаление сущности с файлами — тяжёлое, поэтому окно -->
                             <button type="button" id="btn-item-delete"
-                                    data-prl-confirm="Вы действительно хотите удалить сущность {subject} и все связанные файлы?"
-                                    data-prl-subject="dsnf592"
-                                    data-prl-title="Удалить запись?"
-                                    data-prl-ok="Удалить навсегда"
-                                    class="prl-btn-danger w-full sm:ml-auto sm:w-auto">
+                                    data-prx-confirm="Вы действительно хотите удалить сущность {subject} и все связанные файлы?"
+                                    data-prx-subject="dsnf592"
+                                    data-prx-title="Удалить запись?"
+                                    data-prx-ok="Удалить навсегда"
+                                    class="prx-btn-danger w-full sm:ml-auto sm:w-auto">
                                 <i class="fas fa-trash-can text-xs"></i>
                                 <span>Удалить запись</span>
                             </button>
 
-                            <span id="save-status-msg" class="hidden prl-ds-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                            <span id="save-status-msg" class="hidden prx-ds-xs font-semibold text-emerald-600 dark:text-emerald-400">
                                 <i class="fas fa-circle-check mr-1"></i> Сохранено
                             </span>
                         </div>
@@ -651,16 +651,16 @@ $e = function ($value) {
 
             <!-- Сайдбар редактора -->
             <div class="space-y-4">
-                <div class="prl-card">
-                    <h3 class="prl-ds-label text-gray-400 dark:text-gray-500">Быстрые клавиши</h3>
-                    <div class="mt-3 space-y-2.5 prl-ds-xs">
+                <div class="prx-card">
+                    <h3 class="prx-ds-label text-gray-400 dark:text-gray-500">Быстрые клавиши</h3>
+                    <div class="mt-3 space-y-2.5 prx-ds-xs">
                         <div class="flex items-center justify-between">
                             <span class="text-gray-600 dark:text-gray-300">Сохранение формы:</span>
-                            <kbd class="prl-kbd">Ctrl + S</kbd>
+                            <kbd class="prx-kbd">Ctrl + S</kbd>
                         </div>
                         <div class="flex items-center justify-between">
                             <span class="text-gray-600 dark:text-gray-300">ИИ-парсинг:</span>
-                            <kbd class="prl-kbd">Ctrl + Enter</kbd>
+                            <kbd class="prx-kbd">Ctrl + Enter</kbd>
                         </div>
                     </div>
                 </div>
@@ -668,7 +668,7 @@ $e = function ($value) {
                 <!-- Скелетон ожидания -->
                 <div class="rounded-xl border border-gray-200/80 bg-gray-50/70 p-4 shadow-xs dark:border-gray-700/60 dark:bg-gray-800/40">
                     <div class="flex items-center justify-between">
-                        <span class="prl-ds-label text-gray-400">Скелетон ожидания</span>
+                        <span class="prx-ds-label text-gray-400">Скелетон ожидания</span>
                         <?php /* design-audit: allow tiny — подпись-аннотация демо-блока, как в макете владельца */ ?>
                         <span class="text-[11px] font-mono text-gray-400">animate-pulse</span>
                     </div>
@@ -685,16 +685,16 @@ $e = function ($value) {
     <!-- ============ ДЕМО-СЦЕНАРИИ (общие помощники — в app.js, здесь только имитация) ============ -->
     <script>
     (function () {
-        var PRL = window.PRL;
-        if (!PRL) return;
+        var PRX = window.PRX;
+        if (!PRX) return;
 
-        // 1. Кнопка долгого процесса: PRL.run показывает спиннер, секундомер,
-        //    «Прервать задачу» и подсказку про фоновый воркер (data-prl-busy-show).
+        // 1. Кнопка долгого процесса: PRX.run показывает спиннер, секундомер,
+        //    «Прервать задачу» и подсказку про фоновый воркер (data-prx-busy-show).
         var btnLong = document.getElementById('btn-long-process');
         var btnCancel = document.getElementById('btn-long-cancel');
         if (btnLong && btnCancel) {
-            btnLong.addEventListener('click', function () { PRL.run(btnLong, true); });
-            btnCancel.addEventListener('click', function () { PRL.run(btnLong, false); });
+            btnLong.addEventListener('click', function () { PRX.run(btnLong, true); });
+            btnCancel.addEventListener('click', function () { PRX.run(btnLong, false); });
         }
 
         // 2. Имитация воркера: смена текста этапа. На проде текст приходит
@@ -714,15 +714,15 @@ $e = function ($value) {
             }, 3500);
         }
 
-        // 3. Ошибка поля: PRL.fieldError (рамка, иконка, текст; снимается при правке).
+        // 3. Ошибка поля: PRX.fieldError (рамка, иконка, текст; снимается при правке).
         var btnDemoError = document.getElementById('btn-trigger-error-demo');
         var inputUrl = document.getElementById('ds-url');
         if (btnDemoError && inputUrl) {
             btnDemoError.addEventListener('click', function () {
                 if (inputUrl.getAttribute('aria-invalid') === 'true') {
-                    PRL.fieldError(inputUrl, null);
+                    PRX.fieldError(inputUrl, null);
                 } else {
-                    PRL.fieldError(inputUrl, 'Укажите корректный URL (с http:// или https://)');
+                    PRX.fieldError(inputUrl, 'Укажите корректный URL (с http:// или https://)');
                     inputUrl.focus();
                 }
             });
@@ -743,9 +743,9 @@ $e = function ($value) {
             btnEmptyCreate.addEventListener('click', function () { inputUrl.focus(); });
         }
 
-        // 5. Удаление подтверждено (второй клик data-prl-arm или «Удалить
-        //    навсегда» в окне data-prl-confirm) — событие prl:confirmed.
-        document.addEventListener('prl:confirmed', function (e) {
+        // 5. Удаление подтверждено (второй клик data-prx-arm или «Удалить
+        //    навсегда» в окне data-prx-confirm) — событие prx:confirmed.
+        document.addEventListener('prx:confirmed', function (e) {
             var el = e.target;
             if (el.id === 'btn-item-delete') {
                 var form = document.getElementById('item-edit-form');
@@ -774,19 +774,19 @@ $e = function ($value) {
                                  "Слаг: monolith-pumps\n" +
                                  "Категория: B2B\n" +
                                  "Описание: Каталог высоконагруженных промышленных насосов.";
-                PRL.fieldError(rawInput, null);
+                PRX.fieldError(rawInput, null);
             });
         }
 
         function triggerAiParse() {
             if (!rawInput || !btnParse || btnParse.disabled) return;
             if (!rawInput.value.trim()) {
-                PRL.fieldError(rawInput, 'Вставьте сырой текст для разбора.');
+                PRX.fieldError(rawInput, 'Вставьте сырой текст для разбора.');
                 rawInput.focus();
                 return;
             }
 
-            PRL.busy(btnParse, true, '<i class="fas fa-circle-notch prl-spin"></i><span>Извлечение…</span>');
+            PRX.busy(btnParse, true, '<i class="fas fa-circle-notch prx-spin"></i><span>Извлечение…</span>');
 
             setTimeout(function () {
                 fTitle.value = "Каталог оборудования 'Монолит'";
@@ -801,7 +801,7 @@ $e = function ($value) {
                     }
                 });
 
-                PRL.busy(btnParse, false);
+                PRX.busy(btnParse, false);
                 var origHTML = btnParse.innerHTML;
                 btnParse.innerHTML = '<i class="fas fa-check text-emerald-300"></i><span>Заполнено!</span>';
                 setTimeout(function () { btnParse.innerHTML = origHTML; }, 1800);
@@ -810,7 +810,7 @@ $e = function ($value) {
 
         if (btnParse) { btnParse.addEventListener('click', triggerAiParse); }
 
-        // 7. Сохранение формы и горячие клавиши: PRL.hotkey (любая раскладка).
+        // 7. Сохранение формы и горячие клавиши: PRX.hotkey (любая раскладка).
         function triggerFormSave() {
             var msg = document.getElementById('save-status-msg');
             if (msg) {
@@ -827,8 +827,8 @@ $e = function ($value) {
             });
         }
 
-        PRL.hotkey('mod+s', triggerFormSave);
-        if (rawInput) { PRL.hotkey('mod+enter', triggerAiParse, { within: rawInput }); }
+        PRX.hotkey('mod+s', triggerFormSave);
+        if (rawInput) { PRX.hotkey('mod+enter', triggerAiParse, { within: rawInput }); }
     })();
     </script>
 </div>

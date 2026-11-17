@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # =============================================================================
-# PRL — регрессия «с нуля» (fresh-install check).
+# PRX — регрессия «с нуля» (fresh-install check).
 #
 #   bash bin/check-fresh.sh            # полная проверка на временной БД
 #   bash bin/check-fresh.sh --keep     # не удалять временную БД (разбор полётов)
 #
 # Что делает:
-#   1. Создаёт одноразовую БД prl_check_<метка> в том же PostgreSQL;
+#   1. Создаёт одноразовую БД prx_check_<метка> в том же PostgreSQL;
 #   2. Прогоняет ВСЕ миграции с нуля (порядок модулей, idempotentность);
 #   3. Прогоняет тесты (bin/test) против этой БД;
 #   4. Проверяет CLI обслуживания; опциональный SMOKE_URL — HTTP уже работающего сайта;
@@ -14,9 +14,9 @@
 #   6. Удаляет временную БД (--keep оставляет для разбора).
 #
 # Зачем: почти все исторические баги среды ловились именно свежим
-# разворачиванием (порядок миграций prl208<prl120, отравленные токены .env,
+# разворачиванием (порядок миграций prx208<prx120, отравленные токены .env,
 # BOOLEAN 't'/'f', SQL в сервисах, завязанный на runtime-DDL). Держать в cron:
-#   0 4 * * * cd /path/to/prl.ru && bash bin/check-fresh.sh >> deploy/check-fresh.log 2>&1
+#   0 4 * * * cd /path/to/prx.ru && bash bin/check-fresh.sh >> deploy/check-fresh.log 2>&1
 # =============================================================================
 set -euo pipefail
 
@@ -27,11 +27,11 @@ KEEP=0; [[ "${1:-}" == "--keep" ]] && KEEP=1
 # --- окружение и PHP ---------------------------------------------------------
 # shellcheck source=bin/_env.sh
 source "$(dirname "${BASH_SOURCE[0]}")/_env.sh"
-prl_load_env .env
+prx_load_env .env
 : "${DB_DEFAULT_HOST:=127.0.0.1}"; : "${DB_DEFAULT_PORT:=5432}"
-: "${DB_DEFAULT_USER:=prl}";       : "${DB_DEFAULT_PASS:=}"
+: "${DB_DEFAULT_USER:=prx}";       : "${DB_DEFAULT_PASS:=}"
 
-PHP_BIN="$(prl_php_bin)" || { echo "ERROR: PHP не найден (bin/restore-env.sh)" >&2; exit 1; }
+PHP_BIN="$(prx_php_bin)" || { echo "ERROR: PHP не найден (bin/restore-env.sh)" >&2; exit 1; }
 
 # --- psql: системный или из pgserver ----------------------------------------
 PSQL="$(command -v psql || true)"
@@ -42,7 +42,7 @@ fi
 
 export PGPASSWORD="${DB_DEFAULT_PASS}"
 
-CHECK_DB="prl_check_$(date +%Y%m%d_%H%M%S)"
+CHECK_DB="prx_check_$(date +%Y%m%d_%H%M%S)"
 fail() { echo "✘ ПАДЕНИЕ: $*" >&2; [[ $KEEP -eq 1 ]] || drop_db || true; exit 1; }
 
 # Вывод инструмента показываем ЦЕЛИКОМ, если шаг упал. Раньше здесь всюду стоял

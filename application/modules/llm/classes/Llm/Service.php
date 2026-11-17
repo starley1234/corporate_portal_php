@@ -4,7 +4,11 @@
  * Универсальный сервис для взаимодействия с LLM.
  * Инкапсулирует логику выбора провайдера и вызова его метода chat.
  */
-class Llm_Service { 
+class Llm_Service {
+
+    /** Совместимость на один релиз: старое имя local_lms → local. */
+    const PROVIDER_ALIASES = ['local_lms' => 'local'];
+
     protected $_default_provider_name;
     protected $_default_model_name; // Модель платформы (config llm.default_model)
     protected $_providers = []; // Массив экземпляров провайдеров
@@ -26,6 +30,7 @@ class Llm_Service {
     public $temp_options = [];
 
     public function __construct(string $default_provider_name, array $providers_config, array $model_aliases) {
+        $default_provider_name = self::PROVIDER_ALIASES[$default_provider_name] ?? $default_provider_name;
         $this->_default_provider_name = $default_provider_name;
         $this->_default_model_name = null;
         $this->_current_provider_name = $default_provider_name;
@@ -38,7 +43,7 @@ class Llm_Service {
                     $this->_providers[$provider_name] = new Llm_Provider_OpenAICompatible($provider_name, $config);
                     break;
                 case 'local':
-                case 'local_lms':
+                case 'toolforge':
                 // Сервер эмбеддингов (config/llm.php): OpenAI-совместимый
                 // /v1/embeddings на отдельном эндпоинте EMBEDDING_API_URL.
                 // Раньше провайдер не был известен: в лог лило «Unknown LLM
@@ -59,6 +64,8 @@ class Llm_Service {
     }
 
     public function provider(string $provider_name): self {
+        $provider_name = self::PROVIDER_ALIASES[$provider_name] ?? $provider_name;
+
         if (!isset($this->_providers[$provider_name])) {
             throw new Kohana_Exception('LLM provider ":provider" not found.', [':provider' => $provider_name]);
         }
@@ -84,6 +91,7 @@ class Llm_Service {
      * без модели — тогда модель берётся из настроек провайдера).
      */
     public function set_default_provider(string $provider_name): self {
+        $provider_name = self::PROVIDER_ALIASES[$provider_name] ?? $provider_name;
         $this->_default_provider_name = $provider_name;
         $this->_current_provider_name = $provider_name;
 
@@ -404,6 +412,7 @@ class Llm_Service {
         }
 
         $parts = explode('::', $model_name, 2);
+        $parts[0] = self::PROVIDER_ALIASES[$parts[0]] ?? $parts[0];
 
         // Провайдер не настроен — оставляем имя как есть (старое поведение).
         if ( ! isset($this->_providers[$parts[0]]))

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# PRL — резервная копия: база данных И файлы модулей.
+# PRX — резервная копия: база данных И файлы модулей.
 #
 #   bash bin/backup.sh              создать копию
 #   bash bin/backup.sh --list       что уже лежит
@@ -13,10 +13,10 @@
 #
 # Список файловых хранилищ — тот же DEPLOY_MODULE_STORAGE, что использует
 # bin/deploy.sh: один список, два потребителя. Добавили модулю хранилище —
-# вписали один раз в /etc/default/prl-deploy, и деплой и бэкап узнали оба.
+# вписали один раз в /etc/default/prx-deploy, и деплой и бэкап узнали оба.
 #
-# Настройки (переменные окружения или /etc/default/prl-deploy):
-#   BACKUP_DIR              куда класть            (по умолчанию /var/backups/prl)
+# Настройки (переменные окружения или /etc/default/prx-deploy):
+#   BACKUP_DIR              куда класть            (по умолчанию /var/backups/prx)
 #   BACKUP_KEEP_DAYS        сколько хранить дней   (14)
 #   DEPLOY_MODULE_STORAGE   хранилища модулей      (storage)
 #   BACKUP_PUBLIC_DIRS      публичные каталоги     (public_html/uploads
@@ -34,23 +34,23 @@ cd "$ROOT"
 source "$ROOT/bin/_env.sh"
 
 # Настройки сервера главнее .env проекта, .env главнее умолчаний.
-[ -f /etc/default/prl-deploy ] && . /etc/default/prl-deploy
-prl_load_env "$ROOT/.env"
+[ -f /etc/default/prx-deploy ] && . /etc/default/prx-deploy
+prx_load_env "$ROOT/.env"
 
-: "${BACKUP_DIR:=/var/backups/prl}"
+: "${BACKUP_DIR:=/var/backups/prx}"
 : "${BACKUP_KEEP_DAYS:=14}"
 : "${DEPLOY_MODULE_STORAGE:=storage}"
 : "${BACKUP_PUBLIC_DIRS:=public_html/uploads public_html/avatar public_html/storage}"
 
 : "${DB_DEFAULT_HOST:=127.0.0.1}"
 : "${DB_DEFAULT_PORT:=5432}"
-: "${DB_DEFAULT_USER:=prl}"
-: "${DB_DEFAULT_NAME:=prl}"
+: "${DB_DEFAULT_USER:=prx}"
+: "${DB_DEFAULT_NAME:=prx}"
 : "${DB_DEFAULT_PASS:=}"
 
 STAMP="$(date +%F_%H%M)"
-SQL="$BACKUP_DIR/prl-db-$STAMP.sql.gz"
-TAR="$BACKUP_DIR/prl-files-$STAMP.tar.gz"
+SQL="$BACKUP_DIR/prx-db-$STAMP.sql.gz"
+TAR="$BACKUP_DIR/prx-files-$STAMP.tar.gz"
 
 say()  { echo "[$(date '+%F %T')] $*"; }
 fail() { echo "ОШИБКА: $*" >&2; exit 1; }
@@ -77,7 +77,7 @@ if [ "${1:-}" = "--check" ]; then
     chmod 0700 "$BACKUP_DIR" || fail "не закрыть права на $BACKUP_DIR"
     bad=0
 
-    for f in "$BACKUP_DIR"/prl-db-*.sql.gz "$BACKUP_DIR"/prl-files-*.tar.gz; do
+    for f in "$BACKUP_DIR"/prx-db-*.sql.gz "$BACKUP_DIR"/prx-files-*.tar.gz; do
         [ -e "$f" ] || continue
 
         if ! gzip -t "$f" 2>/dev/null; then
@@ -137,8 +137,8 @@ else
 fi
 
 # --- ротация -----------------------------------------------------------------
-find "$BACKUP_DIR" -maxdepth 1 -name 'prl-db-*.sql.gz'    -mtime "+$BACKUP_KEEP_DAYS" -delete 2>/dev/null || true
-find "$BACKUP_DIR" -maxdepth 1 -name 'prl-files-*.tar.gz' -mtime "+$BACKUP_KEEP_DAYS" -delete 2>/dev/null || true
+find "$BACKUP_DIR" -maxdepth 1 -name 'prx-db-*.sql.gz'    -mtime "+$BACKUP_KEEP_DAYS" -delete 2>/dev/null || true
+find "$BACKUP_DIR" -maxdepth 1 -name 'prx-files-*.tar.gz' -mtime "+$BACKUP_KEEP_DAYS" -delete 2>/dev/null || true
 
 say "готово: $(du -h "$SQL" | cut -f1) база$([ -f "$TAR" ] && echo ", $(du -h "$TAR" | cut -f1) файлы")"
 say "хранить дней: $BACKUP_KEEP_DAYS | каталог: $BACKUP_DIR"

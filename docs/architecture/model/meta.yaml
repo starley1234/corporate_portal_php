@@ -1,10 +1,10 @@
-# PRL · модель архитектуры портала.
+# PRX · модель архитектуры портала.
 # Источник истины — этот каталог; страница и JSON собираются из YAML.
 # Правьте YAML, затем: make architecture
 
-title: PRL · архитектура портала
-heading: PRL — архитектура портала
-subtitle: "Модульный монолит Kohana/PHP 8.4: RBAC, PostgreSQL, очередь prl120 и Python-воркеры. Документация собирается из YAML."
+title: PRX · архитектура портала
+heading: PRX — архитектура портала
+subtitle: "Модульный монолит Kohana/PHP 8.4: RBAC, PostgreSQL, очередь prx120 и Python-воркеры. Документация собирается из YAML."
 sections:
   - { dir: architecture, label: "Архитектура", role: primary }
   - { dir: governance, label: "Управление", role: governance }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# PRL — подготовка локального окружения (идемпотентно).
+# PRX — подготовка локального окружения (идемпотентно).
 #
 #   bash bin/setup.sh
 #
@@ -68,7 +68,7 @@ if [[ ! -f .env ]]; then
     # Токены тоже генерируем: в .env.example у них пустое значение И
     # inline-комментарий. Если оставить строку как есть, парсер .env раньше
     # превращал комментарий в ЗНАЧЕНИЕ (см. application/env.php) — воркеры
-    # получали 401 на /prl120/api/*, /prl597/api/outbox, /prl602/api/*.
+    # получали 401 на /prx120/api/*, /prx597/api/outbox, /prx602/api/*.
     for key in COOKIE_SALT AUTH_HASH_KEY MIGRATIONS_TOKEN WORKER_API_TOKEN SITE_UPDATE_TOKEN; do
         env_set .env "$key" "$(gen_secret)"
     done
@@ -78,10 +78,10 @@ else
     msg ".env уже существует — пропускаю"
 fi
 
-# Первичный администратор. По умолчанию его создаёт миграция prl110_004
+# Первичный администратор. По умолчанию его создаёт миграция prx110_004
 # (admin/admin) — только на пустой базе.
-# Для production: PRL_DEFAULT_ADMIN=0, затем make seed с сильным паролем.
-case "$(env_value .env PRL_DEFAULT_ADMIN)" in
+# Для production: PRX_DEFAULT_ADMIN=0, затем make seed с сильным паролем.
+case "$(env_value .env PRX_DEFAULT_ADMIN)" in
     0|false|no|off)
         if [[ -z "$(env_value .env ADMIN_PASSWORD)" ]]; then
             env_set .env ADMIN_PASSWORD "$(gen_secret)"
@@ -89,7 +89,7 @@ case "$(env_value .env PRL_DEFAULT_ADMIN)" in
         fi
         ;;
     *)
-        msg "Первичный вход: admin / admin (миграция prl110_004). Смените пароль после входа"
+        msg "Первичный вход: admin / admin (миграция prx110_004). Смените пароль после входа"
         ;;
 esac
 
@@ -126,10 +126,10 @@ mkdir -p storage
 # Сессии, временные кадры VLM, логи и файлы модулей — не публичные данные.
 # Не выдаём к ним доступ всем локальным пользователям: в частности, setup
 # запускается при каждом деплое, а application/cache содержит временные фото.
-storage_owner="$(prl_storage_owner)"
+storage_owner="$(prx_storage_owner)"
 for private_dir in "$ROOT/application/logs" "$ROOT/application/cache" \
                    "$ROOT/application/sessions" "$ROOT/storage"; do
-    if ! prl_secure_private_tree "$private_dir" "$storage_owner"; then
+    if ! prx_secure_private_tree "$private_dir" "$storage_owner"; then
         msg "Не удалось ограничить доступ к $private_dir"
         exit 1
     fi
@@ -175,7 +175,7 @@ if (is_file(__DIR__ . '/composer/autoload_real.php')) {
 
 spl_autoload_register(function ($class) {
     // Единственная зависимость проекта — symfony/mailer + symfony/mime
-    // (Service_Prl597_Notify). Карта префиксов держится в composer.json;
+    // (Service_Prx597_Notify). Карта префиксов держится в composer.json;
     // раньше здесь висели Guzzle/Monolog/Carbon/PhpOffice/Dompdf — пакеты,
     // удалённые 28.09.2026 за отсутствием вызовов.
     $prefix = 'Symfony\\';

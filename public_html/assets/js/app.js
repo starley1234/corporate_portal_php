@@ -1,26 +1,26 @@
 /*
- * app.js — общие клиентские утилиты платформы PRL.
+ * app.js — общие клиентские утилиты платформы PRX.
  *
  * Мелкие хелперы, которые до этого копировались в каждый модульный
  * script.php (humanSize, счётчик таймера, скачивание blob, копирование):
  * держим здесь в одном месте. Модульные скрипты используют их через
- * глобальный объект window.PRL; при желании переопределяют локально.
+ * глобальный объект window.PRX; при желании переопределяют локально.
  *
  * Правило сохранено: скрипт подключается в <head>/в конце body ДО модульных
- * инлайн-скриптов (get_bottom_scripts) — модули уже видят PRL.
+ * инлайн-скриптов (get_bottom_scripts) — модули уже видят PRX.
  *
  * Поведение дизайн-системы v6 (docs/DESIGN-SYSTEM.md, тест
- * tests/Js/prl_ui.test.mjs): PRL.run — кнопка долгого процесса с
- * секундомером, PRL.stopwatch / data-prl-stopwatch, PRL.fieldError,
- * PRL.confirm / data-prl-confirm — окно для тяжёлых удалений, data-prl-arm —
- * двойной клик для строк, data-prl-copy, data-prl-dismiss, PRL.hotkey.
+ * tests/Js/prx_ui.test.mjs): PRX.run — кнопка долгого процесса с
+ * секундомером, PRX.stopwatch / data-prx-stopwatch, PRX.fieldError,
+ * PRX.confirm / data-prx-confirm — окно для тяжёлых удалений, data-prx-arm —
+ * двойной клик для строк, data-prx-copy, data-prx-dismiss, PRX.hotkey.
  */
 (function (window, document) {
     'use strict';
 
     function pad(n) { return (n < 10 ? '0' : '') + n; }
 
-    var PRL = {
+    var PRX = {
 
         /**
          * Человекочитаемый размер: 512 → «512 Б», 2048 → «2.0 КБ»,
@@ -34,26 +34,26 @@
         },
 
         /**
-         * Таймер на элементе: PRL.timer(el) — подписать; PRL.timerStop(el) —
+         * Таймер на элементе: PRX.timer(el) — подписать; PRX.timerStop(el) —
          * остановить. Показывает секунды с момента старта вида «3.2s».
          */
         timer: function (el) {
             if (!el) return;
             var t0 = Date.now();
-            window.clearInterval(el._prlTimer);
-            el._prlTimer = window.setInterval(function () {
+            window.clearInterval(el._prxTimer);
+            el._prxTimer = window.setInterval(function () {
                 el.textContent = ((Date.now() - t0) / 1000).toFixed(1) + 's';
             }, 100);
         },
         timerStop: function (el) {
             if (!el) return;
-            window.clearInterval(el._prlTimer);
+            window.clearInterval(el._prxTimer);
             el.textContent = '';
         },
 
         /**
          * Скачать Blob как файл (PDF и пр.).
-         * PRL.downloadBlob(blob, «имя.pdf»)
+         * PRX.downloadBlob(blob, «имя.pdf»)
          */
         downloadBlob: function (blob, filename) {
             var url = URL.createObjectURL(blob);
@@ -67,7 +67,7 @@
 
         /**
          * Скопировать текст в буфер (modern API + fallback execCommand).
-         * PRL.copyText(text).then(ok)
+         * PRX.copyText(text).then(ok)
          */
         copyText: function (text) {
             if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -90,8 +90,8 @@
         },
 
         /**
-         * Уведомление-тост (краткое, исчезает). PRL.toast('Скопировано').
-         * Тон третьим аргументом: PRL.toast('Сеть недоступна', 0, 'err') — rose,
+         * Уведомление-тост (краткое, исчезает). PRX.toast('Скопировано').
+         * Тон третьим аргументом: PRX.toast('Сеть недоступна', 0, 'err') — rose,
          * role=alert, держится 4 с; 'ok' — emerald. Замена window.alert в модулях.
          * Стилизовано токенами tailwind, не трогает разметку страницы.
          */
@@ -114,25 +114,25 @@
         },
 
         /**
-         * Точка входа «кнопка занята/свободна»: PRL.busy(btn, true, «...»).
+         * Точка входа «кнопка занята/свободна»: PRX.busy(btn, true, «...»).
          * Сохраняет исходный innerHTML и восстанавливает при busy=false.
          */
         busy: function (btn, on, label) {
             if (!btn) return;
             if (on) {
-                btn._prlBusyHTML = btn.innerHTML;
+                btn._prxBusyHTML = btn.innerHTML;
                 btn.disabled = true;
                 btn.setAttribute('aria-busy', 'true');
                 if (label) btn.innerHTML = label;
             } else {
                 btn.disabled = false;
                 btn.removeAttribute('aria-busy');
-                if (btn._prlBusyHTML) btn.innerHTML = btn._prlBusyHTML;
+                if (btn._prxBusyHTML) btn.innerHTML = btn._prxBusyHTML;
             }
         },
 
         /**
-         * Обезличенный просмотр публичного сервиса (prl516_metrics).
+         * Обезличенный просмотр публичного сервиса (prx516_metrics).
          * Сервер агрегирует только день/страницу/группу/тип перехода/гость-вошёл;
          * visitor ID, cookies, IP и полный referer не сохраняются.
          * Ошибка аналитики не должна влиять на работу сервиса.
@@ -140,7 +140,7 @@
         trackPageView: function () {
             if (typeof window.fetch !== 'function' || !window.location || !window.location.pathname) return;
             try {
-                window.fetch('/prl516/api/hit', {
+                window.fetch('/prx516/api/hit', {
                     method: 'POST',
                     credentials: 'same-origin',
                     keepalive: true,
@@ -154,8 +154,8 @@
     /* =====================================================================
      * Дизайн-система v6: общие помощники поведения.
      * Эталон — /pages/required_design_sample, рецепты — docs/DESIGN-SYSTEM.md.
-     * Модули НЕ копируют этот код к себе: только вызывают PRL.* или ставят
-     * атрибуты data-prl-* (обработка — делегированием на document).
+     * Модули НЕ копируют этот код к себе: только вызывают PRX.* или ставят
+     * атрибуты data-prx-* (обработка — делегированием на document).
      * ===================================================================== */
 
     /** 75 → «1:15», 3725 → «1:02:05». Моноширинный секундомер процесса. */
@@ -182,17 +182,17 @@
         return target && target.closest ? target.closest(selector) : null;
     }
 
-    PRL.formatClock = formatClock;
+    PRX.formatClock = formatClock;
 
     /**
      * Секундомер «м:сс» на элементе. from — сколько секунд уже прошло (сервер
      * знает время старта задачи). Возвращает { stop() → секунды, seconds() }.
-     * Декларативно: <span data-prl-stopwatch="1023">17:03</span> — запускается
+     * Декларативно: <span data-prx-stopwatch="1023">17:03</span> — запускается
      * сам при загрузке страницы.
      */
-    PRL.stopwatch = function (el, from) {
+    PRX.stopwatch = function (el, from) {
         if (!el) return { stop: function () { return 0; }, seconds: function () { return 0; } };
-        if (el._prlWatch) el._prlWatch.stop();
+        if (el._prxWatch) el._prxWatch.stop();
         var t0 = Date.now() - (Number(from) || 0) * 1000;
         var seconds = function () { return Math.floor((Date.now() - t0) / 1000); };
         var tick = function () { el.textContent = formatClock(seconds()); };
@@ -202,30 +202,30 @@
             seconds: seconds,
             stop: function () {
                 window.clearInterval(id);
-                if (el._prlWatch === api) el._prlWatch = null;
+                if (el._prxWatch === api) el._prxWatch = null;
                 return seconds();
             }
         };
-        el._prlWatch = api;
+        el._prxWatch = api;
         return api;
     };
 
     /**
-     * Кнопка долгого процесса: PRL.run(btn, true) — занята, PRL.run(btn, false)
+     * Кнопка долгого процесса: PRX.run(btn, true) — занята, PRX.run(btn, false)
      * — свободна (вернёт, сколько секунд шло). Внутри кнопки:
-     *   [data-prl-idle]  — подпись в покое;
-     *   [data-prl-busy]  — «Выполняется… (0:12)», изначально class="hidden";
-     *   [data-prl-clock] — сюда идёт секундомер.
-     * data-prl-busy-show="#cancel, #hint" на кнопке — что показать на время
+     *   [data-prx-idle]  — подпись в покое;
+     *   [data-prx-busy]  — «Выполняется… (0:12)», изначально class="hidden";
+     *   [data-prx-clock] — сюда идёт секундомер.
+     * data-prx-busy-show="#cancel, #hint" на кнопке — что показать на время
      * работы (кнопка «Прервать», подсказка про фоновый воркер).
      * Полосы прогресса не рисуем никогда — только спиннер, этап и время.
      */
-    PRL.run = function (btn, on) {
+    PRX.run = function (btn, on) {
         if (!btn) return 0;
-        var idle = btn.querySelector('[data-prl-idle]');
-        var busy = btn.querySelector('[data-prl-busy]');
-        var clock = btn.querySelector('[data-prl-clock]');
-        var extra = btn.getAttribute('data-prl-busy-show');
+        var idle = btn.querySelector('[data-prx-idle]');
+        var busy = btn.querySelector('[data-prx-busy]');
+        var clock = btn.querySelector('[data-prx-clock]');
+        var extra = btn.getAttribute('data-prx-busy-show');
         var sec = 0;
 
         btn.disabled = !!on;
@@ -240,9 +240,9 @@
         }
         if (clock) {
             if (on) {
-                PRL.stopwatch(clock, 0);
+                PRX.stopwatch(clock, 0);
             } else {
-                if (clock._prlWatch) sec = clock._prlWatch.stop();
+                if (clock._prxWatch) sec = clock._prxWatch.stop();
                 clock.textContent = formatClock(0);
             }
         }
@@ -252,18 +252,18 @@
     function errorBox(input, create) {
         var box = null;
         if (input.id) {
-            box = document.querySelector('[data-prl-error-for="' + input.id.replace(/["\\]/g, '\\$&') + '"]');
+            box = document.querySelector('[data-prx-error-for="' + input.id.replace(/["\\]/g, '\\$&') + '"]');
         }
         if (!box) {
-            var field = closestEl(input, '.prl-field');
-            if (field) box = field.querySelector('.prl-field-error');
+            var field = closestEl(input, '.prx-field');
+            if (field) box = field.querySelector('.prx-field-error');
         }
         if (!box && create) {
             box = document.createElement('p');
-            box.className = 'prl-field-error mt-1';
-            if (input.id) box.setAttribute('data-prl-error-for', input.id);
+            box.className = 'prx-field-error mt-1';
+            if (input.id) box.setAttribute('data-prx-error-for', input.id);
             var parent = input.parentElement;
-            var anchor = parent && (parent.classList.contains('prl-input-group') || parent.classList.contains('relative')) ? parent : input;
+            var anchor = parent && (parent.classList.contains('prx-input-group') || parent.classList.contains('relative')) ? parent : input;
             anchor.insertAdjacentElement('afterend', box);
         }
         if (box && !box.id && input.id) box.id = input.id + '-error';
@@ -271,13 +271,13 @@
     }
 
     /**
-     * Ошибка поля: PRL.fieldError(input, 'Укажите адрес') — красная рамка
-     * (aria-invalid), иконка .prl-invalid-icon (если стоит рядом) и текст в
-     * [data-prl-error-for="id"] / .prl-field .prl-field-error (нет — создаст
-     * под полем). PRL.fieldError(input, null) — снять. Ошибка снимается сама,
+     * Ошибка поля: PRX.fieldError(input, 'Укажите адрес') — красная рамка
+     * (aria-invalid), иконка .prx-invalid-icon (если стоит рядом) и текст в
+     * [data-prx-error-for="id"] / .prx-field .prx-field-error (нет — создаст
+     * под полем). PRX.fieldError(input, null) — снять. Ошибка снимается сама,
      * как только пользователь начал править поле.
      */
-    PRL.fieldError = function (input, msg) {
+    PRX.fieldError = function (input, msg) {
         if (!input) return;
         var box = errorBox(input, !!msg);
         if (msg) {
@@ -289,19 +289,19 @@
                 box.classList.remove('hidden');
                 if (box.id) input.setAttribute('aria-describedby', box.id);
             }
-            if (!input._prlErrClear) {
-                input._prlErrClear = function () {
-                    input.removeEventListener('input', input._prlErrClear);
-                    input._prlErrClear = null;
-                    PRL.fieldError(input, null);
+            if (!input._prxErrClear) {
+                input._prxErrClear = function () {
+                    input.removeEventListener('input', input._prxErrClear);
+                    input._prxErrClear = null;
+                    PRX.fieldError(input, null);
                 };
-                input.addEventListener('input', input._prlErrClear);
+                input.addEventListener('input', input._prxErrClear);
             }
         } else {
             input.removeAttribute('aria-invalid');
-            if (input._prlErrClear) {
-                input.removeEventListener('input', input._prlErrClear);
-                input._prlErrClear = null;
+            if (input._prxErrClear) {
+                input.removeEventListener('input', input._prxErrClear);
+                input._prxErrClear = null;
             }
             if (box) {
                 box.hidden = true;
@@ -311,18 +311,18 @@
     };
 
     var CONFIRM_TONES = {
-        danger: { icon: 'prl-modal-icon', glyph: 'fa-triangle-exclamation', btn: 'prl-btn-danger-solid', sub: 'Это действие невозможно отменить.' },
-        cta: { icon: 'prl-modal-icon prl-modal-icon-cta', glyph: 'fa-circle-check', btn: 'prl-btn-cta', sub: '' },
-        process: { icon: 'prl-modal-icon prl-modal-icon-process', glyph: 'fa-circle-question', btn: 'prl-btn-process', sub: '' }
+        danger: { icon: 'prx-modal-icon', glyph: 'fa-triangle-exclamation', btn: 'prx-btn-danger-solid', sub: 'Это действие невозможно отменить.' },
+        cta: { icon: 'prx-modal-icon prx-modal-icon-cta', glyph: 'fa-circle-check', btn: 'prx-btn-cta', sub: '' },
+        process: { icon: 'prx-modal-icon prx-modal-icon-process', glyph: 'fa-circle-question', btn: 'prx-btn-process', sub: '' }
     };
     var confirmSeq = 0;
 
     /**
      * Окно подтверждения — ТОЛЬКО для тяжёлых действий (удалить сущность с
      * файлами, сбросить всё). Строки и списки удаляются двойным кликом
-     * (data-prl-arm). window.confirm в модулях запрещён.
+     * (data-prx-arm). window.confirm в модулях запрещён.
      *
-     * PRL.confirm({
+     * PRX.confirm({
      *     title: 'Удалить запись?',
      *     message: 'Удалить сущность {subject} и все связанные файлы?',
      *     subject: 'dsnf592',              // подставится жирным моноширинным
@@ -331,41 +331,41 @@
      *     note: 'Это действие невозможно отменить.'   // подзаголовок
      * }).then(function (yes) { … });
      */
-    PRL.confirm = function (opts) {
+    PRX.confirm = function (opts) {
         opts = opts || {};
         var tone = CONFIRM_TONES[opts.tone] ? opts.tone : 'danger';
         var t = CONFIRM_TONES[tone];
-        var uid = 'prl-confirm-' + (++confirmSeq);
+        var uid = 'prx-confirm-' + (++confirmSeq);
         var prev = document.activeElement;
-        var large = !!document.querySelector('.prl-ds.is-125');
+        var large = !!document.querySelector('.prx-ds.is-125');
 
         var root = document.createElement('div');
-        root.className = 'prl-ds prl-modal' + (large ? ' is-125' : '');
+        root.className = 'prx-ds prx-modal' + (large ? ' is-125' : '');
         root.setAttribute('role', 'alertdialog');
         root.setAttribute('aria-modal', 'true');
         root.setAttribute('aria-labelledby', uid + '-t');
         root.setAttribute('aria-describedby', uid + '-m');
         root.innerHTML =
-            '<div class="prl-modal-box">' +
+            '<div class="prx-modal-box">' +
                 '<div class="flex items-center gap-3">' +
                     '<div class="' + t.icon + '"><i class="fas ' + t.glyph + '" aria-hidden="true"></i></div>' +
                     '<div>' +
-                        '<h3 id="' + uid + '-t" class="prl-h3"></h3>' +
-                        '<p class="prl-ds-xs mt-0.5 text-gray-500 dark:text-gray-400" data-prl-note></p>' +
+                        '<h3 id="' + uid + '-t" class="prx-h3"></h3>' +
+                        '<p class="prx-ds-xs mt-0.5 text-gray-500 dark:text-gray-400" data-prx-note></p>' +
                     '</div>' +
                 '</div>' +
-                '<p id="' + uid + '-m" class="prl-ds-sm mt-3 text-gray-600 dark:text-gray-300"></p>' +
+                '<p id="' + uid + '-m" class="prx-ds-sm mt-3 text-gray-600 dark:text-gray-300"></p>' +
                 '<div class="mt-5 flex items-center justify-end gap-2.5">' +
-                    '<button type="button" class="prl-btn-secondary" data-prl-cancel></button>' +
-                    '<button type="button" class="' + t.btn + ' px-5" data-prl-ok></button>' +
+                    '<button type="button" class="prx-btn-secondary" data-prx-cancel></button>' +
+                    '<button type="button" class="' + t.btn + ' px-5" data-prx-ok></button>' +
                 '</div>' +
             '</div>';
 
         var titleEl = root.querySelector('#' + uid + '-t');
-        var noteEl = root.querySelector('[data-prl-note]');
+        var noteEl = root.querySelector('[data-prx-note]');
         var msgEl = root.querySelector('#' + uid + '-m');
-        var okBtn = root.querySelector('[data-prl-ok]');
-        var cancelBtn = root.querySelector('[data-prl-cancel]');
+        var okBtn = root.querySelector('[data-prx-ok]');
+        var cancelBtn = root.querySelector('[data-prx-cancel]');
 
         titleEl.textContent = opts.title || (tone === 'danger' ? 'Удалить?' : 'Подтвердите действие');
         var note = opts.note !== undefined && opts.note !== null ? String(opts.note) : t.sub;
@@ -419,12 +419,12 @@
         });
     };
 
-    /* --- Двойной клик для удаления (data-prl-arm) -------------------------
-     * <button data-prl-arm="Удалить?"> — первый клик «взводит» кнопку
+    /* --- Двойной клик для удаления (data-prx-arm) -------------------------
+     * <button data-prx-arm="Удалить?"> — первый клик «взводит» кнопку
      * (сплошной красный, подпись из атрибута, 4 секунды), второй — выполняет
      * исходное действие: submit формы, переход по ссылке, обработчик click
-     * модуля и событие prl:confirmed (всплывает) — слушайте что-то одно.
-     * Подпись меняется в [data-prl-arm-label], если он есть; иначе кнопка
+     * модуля и событие prx:confirmed (всплывает) — слушайте что-то одно.
+     * Подпись меняется в [data-prx-arm-label], если он есть; иначе кнопка
      * показывает иконку + подпись. Если модуль сам сменил содержимое кнопки,
      * пока она взведена («Удаляю…», счётчик выбранных), прежнюю подпись не
      * возвращаем — иначе она затрёт его состояние.
@@ -434,22 +434,22 @@
 
     function disarm(el) {
         if (!el) return;
-        window.clearTimeout(el._prlArmTimer);
+        window.clearTimeout(el._prxArmTimer);
         if (el.classList.contains('is-armed')) {
             el.classList.remove('is-armed');
-            if (el._prlArmHTML !== undefined && el._prlArmHTML !== null && el.innerHTML === el._prlArmView) el.innerHTML = el._prlArmHTML;
+            if (el._prxArmHTML !== undefined && el._prxArmHTML !== null && el.innerHTML === el._prxArmView) el.innerHTML = el._prxArmHTML;
         }
-        el._prlArmHTML = null;
-        el._prlArmView = null;
+        el._prxArmHTML = null;
+        el._prxArmView = null;
         if (armedEl === el) armedEl = null;
     }
 
     function arm(el) {
         if (armedEl && armedEl !== el) disarm(armedEl);
-        var label = el.getAttribute('data-prl-arm') || 'Точно удалить?';
-        el._prlArmHTML = el.innerHTML;
+        var label = el.getAttribute('data-prx-arm') || 'Точно удалить?';
+        el._prxArmHTML = el.innerHTML;
         el.classList.add('is-armed');
-        var slot = el.querySelector('[data-prl-arm-label]');
+        var slot = el.querySelector('[data-prx-arm-label]');
         if (slot) {
             slot.textContent = label;
         } else {
@@ -460,43 +460,43 @@
             span.textContent = label;
             el.appendChild(span);
         }
-        el._prlArmView = el.innerHTML;
+        el._prxArmView = el.innerHTML;
         armedEl = el;
-        el._prlArmTimer = window.setTimeout(function () { disarm(el); }, ARM_MS);
+        el._prxArmTimer = window.setTimeout(function () { disarm(el); }, ARM_MS);
     }
 
-    PRL.arm = arm;
-    PRL.disarm = disarm;
+    PRX.arm = arm;
+    PRX.disarm = disarm;
 
     // Захват (третий аргумент true): срабатывает РАНЬШЕ обработчиков модуля,
     // поэтому первый клик не доходит ни до submit, ни до их click.
     document.addEventListener('click', function (e) {
-        var el = closestEl(e.target, '[data-prl-confirm], [data-prl-arm]');
+        var el = closestEl(e.target, '[data-prx-confirm], [data-prx-arm]');
 
         if (armedEl && armedEl !== el) disarm(armedEl);
         if (!el) return;
 
-        if (el._prlPass) {
+        if (el._prxPass) {
             // Повторный click() после «Да» в окне — пропускаем к модулю.
-            el._prlPass = false;
-            fire(el, 'prl:confirmed');
+            el._prxPass = false;
+            fire(el, 'prx:confirmed');
             return;
         }
 
-        if (el.hasAttribute('data-prl-confirm')) {
+        if (el.hasAttribute('data-prx-confirm')) {
             e.preventDefault();
             e.stopPropagation();
-            PRL.confirm({
-                title: el.getAttribute('data-prl-title'),
-                message: el.getAttribute('data-prl-confirm'),
-                subject: el.getAttribute('data-prl-subject'),
-                ok: el.getAttribute('data-prl-ok'),
-                cancel: el.getAttribute('data-prl-cancel'),
-                tone: el.getAttribute('data-prl-tone'),
-                note: el.getAttribute('data-prl-note')
+            PRX.confirm({
+                title: el.getAttribute('data-prx-title'),
+                message: el.getAttribute('data-prx-confirm'),
+                subject: el.getAttribute('data-prx-subject'),
+                ok: el.getAttribute('data-prx-ok'),
+                cancel: el.getAttribute('data-prx-cancel'),
+                tone: el.getAttribute('data-prx-tone'),
+                note: el.getAttribute('data-prx-note')
             }).then(function (yes) {
                 if (!yes) return;
-                el._prlPass = true;
+                el._prxPass = true;
                 el.click();
             });
             return;
@@ -505,7 +505,7 @@
         if (el.classList.contains('is-armed')) {
             // Второй клик: действие выполняется; подпись вернём после того,
             // как отработают обработчики (им может понадобиться e.target).
-            fire(el, 'prl:confirmed');
+            fire(el, 'prx:confirmed');
             window.setTimeout(function () { disarm(el); }, 0);
             return;
         }
@@ -515,38 +515,38 @@
         arm(el);
     }, true);
 
-    /* --- Копирование и закрытие (data-prl-copy, data-prl-dismiss) --------- */
+    /* --- Копирование и закрытие (data-prx-copy, data-prx-dismiss) --------- */
     document.addEventListener('click', function (e) {
-        var copyBtn = closestEl(e.target, '[data-prl-copy]');
+        var copyBtn = closestEl(e.target, '[data-prx-copy]');
         if (copyBtn) {
-            var value = copyBtn.getAttribute('data-prl-copy');
+            var value = copyBtn.getAttribute('data-prx-copy');
             if (value) {
-                PRL.copyText(value).then(function () {
+                PRX.copyText(value).then(function () {
                     var ico = copyBtn.querySelector('i');
-                    if (!ico) { PRL.toast('Скопировано'); return; }
-                    if (ico._prlCopyClass === undefined || ico._prlCopyClass === null) ico._prlCopyClass = ico.className;
-                    ico.className = ico._prlCopyClass.replace('fa-copy', 'fa-check') + ' text-emerald-600';
-                    window.clearTimeout(ico._prlCopyTimer);
-                    ico._prlCopyTimer = window.setTimeout(function () {
-                        ico.className = ico._prlCopyClass;
-                        ico._prlCopyClass = null;
+                    if (!ico) { PRX.toast('Скопировано'); return; }
+                    if (ico._prxCopyClass === undefined || ico._prxCopyClass === null) ico._prxCopyClass = ico.className;
+                    ico.className = ico._prxCopyClass.replace('fa-copy', 'fa-check') + ' text-emerald-600';
+                    window.clearTimeout(ico._prxCopyTimer);
+                    ico._prxCopyTimer = window.setTimeout(function () {
+                        ico.className = ico._prxCopyClass;
+                        ico._prxCopyClass = null;
                     }, 1200);
-                }, function () { PRL.toast('Не удалось скопировать'); });
+                }, function () { PRX.toast('Не удалось скопировать'); });
             }
         }
 
-        var closeBtn = closestEl(e.target, '[data-prl-dismiss]');
+        var closeBtn = closestEl(e.target, '[data-prx-dismiss]');
         if (closeBtn) {
-            var sel = closeBtn.getAttribute('data-prl-dismiss');
-            var box = sel ? document.querySelector(sel) : closestEl(closeBtn, '.prl-flash, [data-prl-dismissible]');
+            var sel = closeBtn.getAttribute('data-prx-dismiss');
+            var box = sel ? document.querySelector(sel) : closestEl(closeBtn, '.prx-flash, [data-prx-dismissible]');
             if (box) box.remove();
         }
     });
 
     /* --- Горячие клавиши ---------------------------------------------------
-     * PRL.hotkey('mod+s', save) — Ctrl+S / ⌘S, в любой раскладке (буквы
+     * PRX.hotkey('mod+s', save) — Ctrl+S / ⌘S, в любой раскладке (буквы
      * сверяются по e.code, поэтому «Ctrl+Ы» тоже сработает).
-     * PRL.hotkey('mod+enter', parse, { within: textarea }) — только когда
+     * PRX.hotkey('mod+enter', parse, { within: textarea }) — только когда
      * фокус внутри элемента (или селектора). Возвращает функцию отписки.
      */
     function parseCombo(combo) {
@@ -564,7 +564,7 @@
         return spec;
     }
 
-    PRL.hotkey = function (combo, handler, opts) {
+    PRX.hotkey = function (combo, handler, opts) {
         var spec = parseCombo(combo);
         opts = opts || {};
         var fn = function (e) {
@@ -588,17 +588,17 @@
     });
 
     function initDeclarative() {
-        Array.prototype.forEach.call(document.querySelectorAll('[data-prl-stopwatch]'), function (el) {
-            if (!el._prlWatch) PRL.stopwatch(el, Number(el.getAttribute('data-prl-stopwatch')) || 0);
+        Array.prototype.forEach.call(document.querySelectorAll('[data-prx-stopwatch]'), function (el) {
+            if (!el._prxWatch) PRX.stopwatch(el, Number(el.getAttribute('data-prx-stopwatch')) || 0);
         });
     }
 
-    window.PRL = PRL;
+    window.PRX = PRX;
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initDeclarative);
     else initDeclarative();
 
-    // Счётчик знает только pathname; prl516 решает по публичным манифестам,
+    // Счётчик знает только pathname; prx516 решает по публичным манифестам,
     // является ли адрес страницей сервиса. query-параметры не отправляются.
-    PRL.trackPageView();
+    PRX.trackPageView();
 })(window, document);

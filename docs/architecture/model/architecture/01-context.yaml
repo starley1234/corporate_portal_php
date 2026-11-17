@@ -9,18 +9,18 @@ overview:
         size: [1160, 470]
         groups:
           - [20, 40, 230, 390, "Пользователи"]
-          - [285, 40, 330, 390, "Портал PRL"]
+          - [285, 40, 330, 390, "Портал PRX"]
           - [650, 40, 490, 390, "Внешние системы"]
         nodes:
           - { id: employee, at: [135, 110, 190], label: Сотрудник, sub: "браузер, SSO", kind: user }
           - { id: admin, at: [135, 220, 190], label: Администратор, sub: RBAC и аудит, kind: user }
           - { id: integrations, at: [135, 330, 190], label: Сервисы и CLI, sub: API-клиенты, kind: ext }
-          - { id: portal, at: [450, 175, 230], label: Портал PRL, sub: Kohana / PHP 8.4, kind: core, info: "{portal}" }
+          - { id: portal, at: [450, 175, 230], label: Портал PRX, sub: Kohana / PHP 8.4, kind: core, info: "{portal}" }
           - { id: auth, at: [450, 320, 210], label: Auth + ACL, sub: "роли, 2FA, сессии", kind: sec, info: "{auth}" }
           - { id: hr, at: [880, 100, 220], label: HR / ERP, sub: источник кадровых данных, kind: ext }
           - { id: mail, at: [880, 195, 220], label: Почта и мессенджеры, sub: "SMTP, outbox", kind: ext }
           - { id: llm, at: [880, 290, 220], label: LLM-провайдеры, sub: "Toolforge, локальные модели", kind: ai, info: "{llm}" }
-          - { id: storage, at: [880, 375, 220], label: prl212 хранилище, sub: приватные файлы, kind: data, info: "{storage}" }
+          - { id: storage, at: [880, 375, 220], label: prx212 хранилище, sub: приватные файлы, kind: data, info: "{storage}" }
         edges:
           - employee -> portal
           - admin -> portal
@@ -28,7 +28,7 @@ overview:
           - portal -> auth: { rel: uses, label: вход и права }
           - portal -> hr: { label: карточки сотрудников }
           - portal -> mail: { label: уведомления }
-          - portal --> llm: { rel: uses, label: "только через prl120 и воркеры" }
+          - portal --> llm: { rel: uses, label: "только через prx120 и воркеры" }
           - portal -> storage: { rel: uses, label: файлы }
         routes:
           Вход сотрудника: employee -> portal -> auth
@@ -47,7 +47,7 @@ detail:
         - title: Внутри контура
           text: Пользователи, роли, сессии, каталог модулей, документы, сроки, аудит и очередь задач.
           color: "#f59e0b"
-          chips: [PostgreSQL, prl100, prl390–394]
+          chips: [PostgreSQL, prx100, prx390–394]
         - title: Вне контура
           text: Кадровый учёт, почта, мессенджеры и LLM. Портал получает результат и хранит ссылку на источник.
           color: "#8a93a3"
@@ -61,14 +61,14 @@ detail:
         rows:
           - - Кадровые данные
             - ID сотрудника и рабочие поля; чувствительные атрибуты не копируются
-            - HR / prl300
+            - HR / prx300
           - - Уведомления
             - Ссылка на защищённый объект и шаблон, без самих данных
-            - prl597
+            - prx597
           - - LLM
             - Только разрешённый текст задачи; ответ — предложение, не решение
             - Владелец модели
           - - Файлы
             - Метаданные и приватное содержимое; скачивание через проверку ACL
-            - prl212
+            - prx212
         center: []

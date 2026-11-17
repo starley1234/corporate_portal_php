@@ -19,7 +19,7 @@ import time
 
 import pytest
 
-from prl_workers import base, webread
+from prx_workers import base, webread
 
 
 # ---------------------------------------------------------------------------
@@ -143,16 +143,16 @@ def test_hard_watchdog_kills_overdue_job(caplog):
 
     w._deadline_of[42] = time.monotonic() - 1      # срок вышел
     w._limit_of[42] = 600
-    w._stage_of[42] = "prl606.leads: ИИ извлекает компании"
+    w._stage_of[42] = "prx606.leads: ИИ извлекает компании"
 
-    with caplog.at_level(logging.ERROR, logger="prl.worker"):
+    with caplog.at_level(logging.ERROR, logger="prx.worker"):
         assert w.hard_watchdog_pass() == 1
 
     assert q.blocking_fails, "сторож обязан провалить задачу сам"
     job_id, worker, err = q.blocking_fails[0]
     assert (job_id, worker) == (42, "w1")
     assert "сторожевой таймер" in err
-    assert "prl606.leads" in err
+    assert "prx606.leads" in err
     assert "Сторож задач" in caplog.text
 
     # повторный проход не дублирует запись
@@ -212,7 +212,7 @@ async def test_release_orphans_on_start(caplog):
     w = _worker_without_init(q)
     w._worker = ""
 
-    with caplog.at_level(logging.WARNING, logger="prl.worker"):
+    with caplog.at_level(logging.WARNING, logger="prx.worker"):
         await w._release_orphans()
 
     assert q.release_calls == ["w1"]
@@ -223,7 +223,7 @@ async def test_release_orphans_on_start(caplog):
 async def test_release_orphans_can_be_disabled(monkeypatch):
     q = _FakeQueue()
     w = _worker_without_init(q)
-    monkeypatch.setenv("PRL_RELEASE_ORPHANS", "0")
+    monkeypatch.setenv("PRX_RELEASE_ORPHANS", "0")
 
     await w._release_orphans()
 
@@ -234,17 +234,17 @@ async def test_release_orphans_can_be_disabled(monkeypatch):
 async def test_lag_watchdog_reports_frozen_loop(caplog, monkeypatch):
     """Заморозка цикла видна в журнале — с названием задач, которые держали слот."""
     # Порог журнала — не меньше 1 с (мелкие подёргивания не считаем заморозкой).
-    monkeypatch.setenv("PRL_LOOP_LAG_WARN", "1")
+    monkeypatch.setenv("PRX_LOOP_LAG_WARN", "1")
 
     q = _FakeQueue()
     w = _worker_without_init(q)
     w._stopping = False
 
-    with caplog.at_level(logging.WARNING, logger="prl.worker"):
+    with caplog.at_level(logging.WARNING, logger="prx.worker"):
         task = asyncio.create_task(w._lag_watchdog(step=0.05))
         await asyncio.sleep(0.1)
 
-        w._stage_of[9] = "prl591.profile: Читаю главную страницу"
+        w._stage_of[9] = "prx591.profile: Читаю главную страницу"
         w._last_lag_log = 0.0           # без «не спамить» — проверяем саму запись
         time.sleep(1.5)                 # имитация синхронной заморозки цикла
         await asyncio.sleep(0.3)
@@ -256,7 +256,7 @@ async def test_lag_watchdog_reports_frozen_loop(caplog, monkeypatch):
             pass
 
     assert "был занят" in caplog.text
-    assert "prl591.profile" in caplog.text
+    assert "prx591.profile" in caplog.text
 
 
 # ---------------------------------------------------------------------------
@@ -265,9 +265,9 @@ async def test_lag_watchdog_reports_frozen_loop(caplog, monkeypatch):
 
 def test_http_release_mine_asks_site():
     """HTTP-режим: старт воркера освобождает свои задачи на сайте."""
-    from prl_workers.queue import HttpQueue
+    from prx_workers.queue import HttpQueue
 
-    q = HttpQueue("https://prl.ru/prl120/api", "tok")
+    q = HttpQueue("https://prx.ru/prx120/api", "tok")
     seen = {}
 
     async def fake_post(path, payload):
@@ -284,7 +284,7 @@ def test_http_release_mine_asks_site():
 
 def test_http_fail_blocking_uses_sync_client(monkeypatch):
     """Сторож пишет провал СИНХРОННЫМ httpx — цикл воркера тут ни при чём."""
-    from prl_workers.queue import HttpQueue
+    from prx_workers.queue import HttpQueue
 
     calls = {}
 
@@ -314,7 +314,7 @@ def test_http_fail_blocking_uses_sync_client(monkeypatch):
     import httpx
     monkeypatch.setattr(httpx, "Client", _Client)
 
-    q = HttpQueue("https://prl.ru/prl120/api", "tok")
+    q = HttpQueue("https://prx.ru/prx120/api", "tok")
     ok = q.fail_blocking(42, "worker-1", "не уложилась в 600 с")
 
     assert ok is True
@@ -325,7 +325,7 @@ def test_http_fail_blocking_uses_sync_client(monkeypatch):
 
 def test_pg_release_own_orphans_requeues_or_fails():
     """pg-режим: свои processing → pending, а исчерпавшие попытки → failed."""
-    from prl_workers.queue import PgQueue
+    from prx_workers.queue import PgQueue
 
     class _Conn:
         def __init__(self):
@@ -367,14 +367,14 @@ def test_pg_release_own_orphans_requeues_or_fails():
     released = asyncio.run(q.release_own_orphans("worker-1"))
 
     assert released == 3, "две вернулись в очередь + одна провалена"
-    events = [sql for sql, _ in conn.executed if "prl_120_job_events" in sql]
+    events = [sql for sql, _ in conn.executed if "prx_120_job_events" in sql]
     assert len(events) == 3
 
 
 def test_pg_fail_blocking_falls_back_to_asyncpg(monkeypatch):
     """Нет sync-драйвера — сторож всё равно закрывает задачу (свой цикл)."""
     import sys
-    from prl_workers.queue import PgQueue
+    from prx_workers.queue import PgQueue
 
     q = PgQueue.__new__(PgQueue)
     q._dsn = "postgresql://x"
@@ -400,7 +400,7 @@ def test_pg_fail_blocking_falls_back_to_asyncpg(monkeypatch):
 
 def test_stalled_loop_restarts_process(monkeypatch):
     """Цикл встал насмерть: задачи закрываются, процесс уходит на рестарт."""
-    monkeypatch.setenv("PRL_LOOP_STALL_EXIT", "900")
+    monkeypatch.setenv("PRX_LOOP_STALL_EXIT", "900")
 
     q = _FakeQueue()
     w = _worker_without_init(q)
@@ -419,11 +419,11 @@ def test_stalled_loop_restarts_process(monkeypatch):
 
 
 def test_stalled_loop_ignores_healthy_worker(monkeypatch):
-    monkeypatch.setenv("PRL_LOOP_STALL_EXIT", "900")
+    monkeypatch.setenv("PRX_LOOP_STALL_EXIT", "900")
     q = _FakeQueue()
     w = _worker_without_init(q)
     w._stopping = False
-    w._stage_of = {7: "prl602.article: Пишу текст"}
+    w._stage_of = {7: "prx602.article: Пишу текст"}
     w._loop_tick = time.monotonic()      # цикл только что тикал
 
     exits = []
@@ -435,11 +435,11 @@ def test_stalled_loop_ignores_healthy_worker(monkeypatch):
 
 
 def test_stalled_loop_can_be_disabled(monkeypatch):
-    monkeypatch.setenv("PRL_LOOP_STALL_EXIT", "0")
+    monkeypatch.setenv("PRX_LOOP_STALL_EXIT", "0")
     q = _FakeQueue()
     w = _worker_without_init(q)
     w._stopping = False
-    w._stage_of = {7: "prl602.article: Пишу текст"}
+    w._stage_of = {7: "prx602.article: Пишу текст"}
     w._loop_tick = time.monotonic() - 5000
 
     exits = []

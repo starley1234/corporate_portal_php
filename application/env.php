@@ -9,7 +9,7 @@
  * обычные функции в отдельном файле, который точка входа подключает напрямую:
  *
  *     require $root.'application/env.php';
- *     prl_env_load($root);
+ *     prx_env_load($root);
  *
  * Почему приложение читает `.env` само, а не полагается на сервер. Пока
  * переменные приходили только из окружения процесса, развёртывание зависело от
@@ -41,14 +41,14 @@
  *     средствами (`dev:doctor` покажет, откуда пришли значения);
  *  5. если переменные выставила CLI-обёртка (`bin/env.sh`, она экспортирует их
  *     из того же файла), загрузчик понимает это по маркеру
- *     `PRL_ENV_FILE_VARS` и считает значения файловыми, а не серверными —
+ *     `PRX_ENV_FILE_VARS` и считает значения файловыми, а не серверными —
  *     иначе `dev:doctor` показывал бы «взято из окружения» для всего, что
  *     положила обёртка, и по отчёту нельзя было бы понять, чем настроен хост.
  *
- * @package    PRL
+ * @package    PRX
  */
 
-if ( ! function_exists('prl_env_load'))
+if ( ! function_exists('prx_env_load'))
 {
     /**
      * Разобрать файл `.env` в пары ключ => значение.
@@ -56,7 +56,7 @@ if ( ! function_exists('prl_env_load'))
      * @param   string  $path
      * @return  array
      */
-    function prl_env_parse($path)
+    function prx_env_parse($path)
     {
         if ( ! is_file($path) OR ! is_readable($path))
         {
@@ -102,7 +102,7 @@ if ( ! function_exists('prl_env_load'))
                 continue;
             }
 
-            $values[$key] = prl_env_value($value);
+            $values[$key] = prx_env_value($value);
         }
 
         return $values;
@@ -114,7 +114,7 @@ if ( ! function_exists('prl_env_load'))
      * @param   string  $value
      * @return  string
      */
-    function prl_env_value($value)
+    function prx_env_value($value)
     {
         if ($value === '')
         {
@@ -165,7 +165,7 @@ if ( ! function_exists('prl_env_load'))
      * @param   string  $file   путь к файлу (по умолчанию $root/.env)
      * @return  array           отчёт: file, loaded, kept, missing_file
      */
-    function prl_env_load($root, $file = NULL)
+    function prx_env_load($root, $file = NULL)
     {
         $file = $file !== NULL ? $file : rtrim($root, '/\\').DIRECTORY_SEPARATOR.'.env';
 
@@ -181,7 +181,7 @@ if ( ! function_exists('prl_env_load'))
         // Маркер CLI-обёртки: имена, которые она экспортировала из этого же
         // файла. Для них «значение в окружении» вовсе не настройка сервера.
         $exported = array();
-        $marker   = getenv('PRL_ENV_FILE_VARS');
+        $marker   = getenv('PRX_ENV_FILE_VARS');
 
         if ($marker !== FALSE AND trim($marker) !== '')
         {
@@ -191,7 +191,7 @@ if ( ! function_exists('prl_env_load'))
             }
         }
 
-        foreach (prl_env_parse($file) as $key => $value)
+        foreach (prx_env_parse($file) as $key => $value)
         {
             $current     = getenv($key);
             $from_script = isset($exported[$key]);
@@ -217,7 +217,7 @@ if ( ! function_exists('prl_env_load'))
             $report['loaded'][] = $key;
         }
 
-        $GLOBALS['prl_env_report'] = $report;
+        $GLOBALS['prx_env_report'] = $report;
 
         return $report;
     }
@@ -227,8 +227,8 @@ if ( ! function_exists('prl_env_load'))
      *
      * @return  array|null
      */
-    function prl_env_report()
+    function prx_env_report()
     {
-        return isset($GLOBALS['prl_env_report']) ? $GLOBALS['prl_env_report'] : NULL;
+        return isset($GLOBALS['prx_env_report']) ? $GLOBALS['prx_env_report'] : NULL;
     }
 }

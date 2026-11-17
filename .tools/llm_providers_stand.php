@@ -13,7 +13,7 @@
  *     только при заданном EMBEDDING_API_URL (иначе — local::);
  *   - карта провайдеров не потеряла openai/openrouter/local.
  *
- *   PRL_ROOT=/path/to/prl.ru node phpwasm_stand.mjs .tools/llm_providers_stand.php
+ *   PRX_ROOT=/path/to/prx.ru node phpwasm_stand.mjs .tools/llm_providers_stand.php
  */
 
 if ( ! defined('SYSPATH'))

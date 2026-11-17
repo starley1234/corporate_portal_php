@@ -15,7 +15,7 @@
 started_at → created_at — created_at NOT NULL по схеме, поэтому без присмотра не
 остаётся ни одна строка). Тесты держат это правило.
 
-Функциональная проверка (необязательная): если задан PRL_TEST_PG_DSN, тест
+Функциональная проверка (необязательная): если задан PRX_TEST_PG_DSN, тест
 поднимает таблицы и реально прогоняет свипер — так проверено 28.09 на локальном
 PostgreSQL 16.
 """
@@ -25,7 +25,7 @@ import re
 
 import pytest
 
-from prl_workers.queue import PULSE_SQL, PgQueue
+from prx_workers.queue import PULSE_SQL, PgQueue
 
 
 class _Conn:
@@ -92,7 +92,7 @@ async def test_sweep_writes_the_pulse_expression_into_sql():
 # Функциональная проверка на живом PostgreSQL (локальная, необязательная)
 # ---------------------------------------------------------------------------
 DDL = """
-CREATE TABLE prl_120_jobs (
+CREATE TABLE prx_120_jobs (
   id bigserial PRIMARY KEY,
   channel varchar(128) NOT NULL DEFAULT '',
   payload jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -106,7 +106,7 @@ CREATE TABLE prl_120_jobs (
   created_at timestamptz NOT NULL DEFAULT now(),
   started_at timestamptz, finished_at timestamptz
 );
-CREATE TABLE prl_120_job_events (
+CREATE TABLE prx_120_job_events (
   id bigserial PRIMARY KEY, job_id bigint NOT NULL, event varchar(32) NOT NULL,
   message text, meta jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now()
@@ -116,45 +116,45 @@ CREATE TABLE prl_120_job_events (
 
 @pytest.mark.asyncio
 async def test_null_pulse_row_is_cancelled_on_real_postgres():
-    dsn = os.environ.get("PRL_TEST_PG_DSN")
+    dsn = os.environ.get("PRX_TEST_PG_DSN")
 
     if not dsn:
-        pytest.skip("PRL_TEST_PG_DSN не задан — функциональная проверка пропущена")
+        pytest.skip("PRX_TEST_PG_DSN не задан — функциональная проверка пропущена")
 
     asyncpg = pytest.importorskip("asyncpg")
     conn = await asyncpg.connect(dsn)
 
     # Никогда не заменять настоящую очередь тестовыми таблицами.
-    schema = "prl_test_" + secrets.token_hex(8)
+    schema = "prx_test_" + secrets.token_hex(8)
     try:
         await conn.execute('CREATE SCHEMA "' + schema + '"')
         await conn.execute('SET search_path TO "' + schema + '"')
         await conn.execute(DDL)
         # 1) та самая строка: пульс NULL, захват 30 минут назад, попытки 3/3
         await conn.execute(
-            """INSERT INTO prl_120_jobs (channel, status, attempts, max_attempts, timeout_sec,
+            """INSERT INTO prx_120_jobs (channel, status, attempts, max_attempts, timeout_sec,
                                         claimed_by, claimed_at, heartbeat_at)
                VALUES ('semantic.index', 'processing', 3, 3, 600, 'w1', now() - interval '30 minutes', NULL)""")
         # 2) зомби: пульс NULL, захвата нет, создана 3 часа назад
         await conn.execute(
-            """INSERT INTO prl_120_jobs (channel, status, attempts, max_attempts, timeout_sec, created_at)
+            """INSERT INTO prx_120_jobs (channel, status, attempts, max_attempts, timeout_sec, created_at)
                VALUES ('semantic.index', 'processing', 3, 3, 600, now() - interval '3 hours')""")
         # 3) живая: только что захвачена, пульс ещё не пришёл — трогать нельзя
         await conn.execute(
-            """INSERT INTO prl_120_jobs (channel, status, attempts, max_attempts, timeout_sec,
+            """INSERT INTO prx_120_jobs (channel, status, attempts, max_attempts, timeout_sec,
                                         claimed_by, claimed_at, heartbeat_at)
                VALUES ('semantic.index', 'processing', 1, 3, 600, 'w2', now() - interval '1 minute', NULL)""")
         # 4) анти-зомби: пульс ЖИВОЙ, но задача идёт дольше трёх таймаутов —
         #    закрывается по возрасту (иначе «вечный processing» с пульсом)
         await conn.execute(
-            """INSERT INTO prl_120_jobs (channel, status, attempts, max_attempts, timeout_sec,
+            """INSERT INTO prx_120_jobs (channel, status, attempts, max_attempts, timeout_sec,
                                         claimed_by, claimed_at, heartbeat_at, started_at)
                VALUES ('semantic.index', 'processing', 1, 3, 600, 'w3', now(), now(),
                        now() - interval '2 hours')""")
 
         await PgQueue._sweep_stale(conn)
 
-        rows = {r["id"]: r["status"] for r in await conn.fetch("SELECT id, status FROM prl_120_jobs")}
+        rows = {r["id"]: r["status"] for r in await conn.fetch("SELECT id, status FROM prx_120_jobs")}
         assert rows[1] == "cancelled", "строка без пульса обязана закрываться свипером"
         assert rows[2] == "cancelled", "зомби без захвата обязан закрываться (фолбэк на created_at)"
         assert rows[3] == "processing", "свежую задачу трогать нельзя"

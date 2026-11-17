@@ -1,7 +1,7 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
 /** Контроллер прикладных модулей: авторизация обязательна по умолчанию. */
-abstract class Controller_Base extends Controller_Prl100_Base {
+abstract class Controller_Base extends Controller_Prx100_Base {
 
     /**
      * @var bool Требуется ли авторизация для доступа к контроллеру по умолчанию
@@ -40,14 +40,14 @@ abstract class Controller_Base extends Controller_Prl100_Base {
          * $this->set_menu([
          *     [
          *         'title'      => 'Задачи',
-         *         'href'       => '/prl100_tasks',
+         *         'href'       => '/prx100_tasks',
          *         'icon'       => 'fas fa-tasks',
          *         'acl' => 'task.view',
          *         'children'   => []
          *     ],
          *     [
          *         'title'      => 'Настройки системы',
-         *         'href'       => '/prl100_settings',
+         *         'href'       => '/prx100_settings',
          *         'icon'       => 'fas fa-cog',
          *         'acl' => 'settings.manage',
          *         'children'   => []

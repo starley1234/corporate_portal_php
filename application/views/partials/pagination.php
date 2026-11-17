@@ -3,18 +3,18 @@
 /**
  * ОБЩАЯ пагинация списков: «Показано X–Y из Z» + страницы + «строк на странице».
  *
- * Жила в модуле трендов (prl593), 08.10.2026 переехала в общие partials: тот же
+ * Жила в модуле трендов (prx593), 08.10.2026 переехала в общие partials: тот же
  * список нужен каталогу обзоров (/trends) и каталогу отчётов
  * ИИ-радара (/airadar/catalog) — две копии разъехались бы на первой правке.
  *
- * Эталон v6: кнопки — компонент .prl-page (текущая синяя, aria-current), кегль
+ * Эталон v6: кнопки — компонент .prx-page (текущая синяя, aria-current), кегль
  * text-sm (просьба владельца «шрифт побольше»). Выбор «строк на странице» (10/20/50/100) запоминается
- * браузером (ключ prl:per:<путь>): владелец просил «не хватает количества строк
+ * браузером (ключ prx:per:<путь>): владелец просил «не хватает количества строк
  * на страницу, шрифт побольше».
  *
  * Параметры: total, page, pages, per, url_base, params[], anchor, per_options[].
- * Скрипт печатается один раз на страницу ($GLOBALS['__prl_per_js']); стрелка
- * селекта — общий .prl-select из app.css.
+ * Скрипт печатается один раз на страницу ($GLOBALS['__prx_per_js']); стрелка
+ * селекта — общий .prx-select из app.css.
  */
 $total        = (int) $total;
 $page         = max(1, (int) $page);
@@ -74,7 +74,7 @@ else
 
 // База для селектора «строк на странице» — те же параметры, без page/per
 $per_base = $url_base.($params ? '?'.http_build_query($params) : '');
-$btn      = 'prl-page text-sm font-semibold';
+$btn      = 'prx-page text-sm font-semibold';
 $btn_off  = $btn.' pointer-events-none cursor-not-allowed text-gray-300 dark:text-gray-600';
 ?>
 <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-t border-gray-100 px-4 py-3 sm:px-5 dark:border-gray-700/60">
@@ -84,11 +84,11 @@ $btn_off  = $btn.' pointer-events-none cursor-not-allowed text-gray-300 dark:tex
 
         <label class="inline-flex items-center gap-2">
             <span>Строк:</span>
-            <select data-prl-per data-prl-forget
+            <select data-prx-per data-prx-forget
                     data-base="<?php echo HTML::chars($per_base); ?>"
                     data-anchor="<?php echo HTML::chars($anchor); ?>"
                     aria-label="Сколько строк показывать на странице"
-                    class="prl-select min-h-[36px] rounded-lg border border-gray-300 bg-white py-1 pl-3 text-sm font-semibold text-gray-700 outline-none transition focus:border-blue-500 focus:ring-3 focus:ring-blue-500/15 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200">
+                    class="prx-select min-h-[36px] rounded-lg border border-gray-300 bg-white py-1 pl-3 text-sm font-semibold text-gray-700 outline-none transition focus:border-blue-500 focus:ring-3 focus:ring-blue-500/15 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200">
                 <?php foreach ($per_options as $o): ?>
                 <option value="<?php echo (int) $o; ?>"<?php echo (int) $o === $per ? ' selected' : ''; ?>><?php echo (int) $o; ?></option>
                 <?php endforeach; ?>
@@ -123,20 +123,20 @@ $btn_off  = $btn.' pointer-events-none cursor-not-allowed text-gray-300 dark:tex
     <?php endif; ?>
 </div>
 
-<?php if (empty($GLOBALS['__prl_per_js'])): $GLOBALS['__prl_per_js'] = TRUE; ?>
+<?php if (empty($GLOBALS['__prx_per_js'])): $GLOBALS['__prx_per_js'] = TRUE; ?>
 <script>
 /* «Строк: N» — управление страницей, а не поле ввода.
  *
  * Владелец: «при загрузке показывай фактически (а не выбор из браузера, а то
  * нелогично и не перещёлкнуть)». Поэтому:
  *   1) значение в селекте ВСЕГДА равно тому, сколько строк реально показано
- *      (data-prl-forget — общая память PRLPrefs его не подменяет);
+ *      (data-prx-forget — общая память PRXPrefs его не подменяет);
  *   2) выбор пользователя запоминается, но применяется честным переходом: если
  *      в адресе per нет, а в браузере он сохранён — один раз переходим на
  *      сохранённое значение (селект и таблица снова совпадают);
  *   3) явный per в адресе сильнее памяти (ссылку можно передать коллеге). */
-document.querySelectorAll('[data-prl-per]').forEach(function (sel) {
-    var KEY = 'prl:per:' + location.pathname.replace(/\/+$/, '');
+document.querySelectorAll('[data-prx-per]').forEach(function (sel) {
+    var KEY = 'prx:per:' + location.pathname.replace(/\/+$/, '');
 
     function target(value) {
         var url;

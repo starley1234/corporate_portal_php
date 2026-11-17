@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# PRL — часто используемые команды разработки
+# PRX — часто используемые команды разработки
 #
 #   make help        — список команд
 #   make restore     — развернуть среду с нуля (PHP + PostgreSQL + конфиги + миграции)
@@ -91,10 +91,10 @@ migrate-down: ## откатить миграцию: make migrate-down class=pgMi
 seed: ## создать администратора (параметры из .env)
 	$(CONSOLE) auth:user --email=$(ADMIN_EMAIL) --password=$(ADMIN_PASSWORD) --username=$(ADMIN_USERNAME) --admin
 
-fresh: ## ПЕРЕСОЗДАТЬ схему БД с нуля (drop schema public + миграции)
-	@echo "Внимание: все данные будут удалены. Прервите (Ctrl+C) в течение 5 секунд..."; sleep 5
-	$(CONSOLE) db:migrate --status > /dev/null
-	$(DOCKER) exec -T postgres psql -U $(DB_USERNAME) -d $(DB_DATABASE) -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+fresh: ## ПЕРЕСОЗДАТЬ схему БД с нуля (drop schema + миграции + seed)
+	@echo "Внимание: все данные в схеме будут удалены. Прервите (Ctrl+C) в течение 5 секунд..."
+	@sleep 5
+	@SCHEMA="$${DB_DEFAULT_SCHEMA:-public}"; $(DOCKER) exec -T postgres psql -v ON_ERROR_STOP=1 -U "$${DB_DEFAULT_USER:-prx}" -d "$${DB_DEFAULT_NAME:-prx}" -c "DROP SCHEMA IF EXISTS \"$$SCHEMA\" CASCADE; CREATE SCHEMA \"$$SCHEMA\";"
 	$(CONSOLE) db:migrate
 	$(MAKE) seed
 
@@ -107,9 +107,9 @@ architecture: ## собрать документацию архитектуры 
 	@test -d node_modules/yaml || { echo "Нужны node-зависимости: npm ci"; exit 1; }
 	@npm run --silent architecture
 
-docflow-demo: ## положить демонстрационные PDF в папку входящих prl390
-	@mkdir -p "$${PRL390_INBOX_DIR:-public_html/storage/docflow/inbox}" "$${PRL390_PROCESSED_DIR:-public_html/storage/docflow/processed}" "$${PRL390_DUPLICATES_DIR:-public_html/storage/docflow/duplicates}" "$${PRL390_ERROR_DIR:-public_html/storage/docflow/error}"
-	@cp -v application/modules/prl390_intake/demo/*.pdf "$${PRL390_INBOX_DIR:-public_html/storage/docflow/inbox}/"
+docflow-demo: ## положить демонстрационные PDF в папку входящих prx390
+	@mkdir -p "$${PRX390_INBOX_DIR:-public_html/storage/docflow/inbox}" "$${PRX390_PROCESSED_DIR:-public_html/storage/docflow/processed}" "$${PRX390_DUPLICATES_DIR:-public_html/storage/docflow/duplicates}" "$${PRX390_ERROR_DIR:-public_html/storage/docflow/error}"
+	@cp -v application/modules/prx390_intake/demo/*.pdf "$${PRX390_INBOX_DIR:-public_html/storage/docflow/inbox}/"
 	@echo "Готово: откройте /inbox и нажмите «Сканировать папку»."
 
 backup: ## резервная копия: дамп БД + архив файловых хранилищ
@@ -132,15 +132,15 @@ test-coverage: ## тесты с покрытием (нужен xdebug/pcov)
 
 # --- Новые модули -----------------------------------------------------------
 
-new-module: ## создать модуль prl300_employee: make new-module id=300 slug=employee name="Личный кабинет сотрудника"
+new-module: ## создать модуль prx300_employee: make new-module id=300 slug=employee name="Личный кабинет сотрудника"
 	$(CONSOLE) module:scaffold --id=$(id) --slug=$(slug) --name="$(name)"
 
 # --- Экономная разработка по модулям (docs/CONTEXT.md) ----------------------
 
-brief: ## контекст-пак модуля для агента: make brief m=prl120_jobs (→ .context/<модуль>.md)
+brief: ## контекст-пак модуля для агента: make brief m=prx120_jobs (→ .context/<модуль>.md)
 	python3 .tools/context_pack.py pack $(m) --write
 
-backlog: ## что осталось открытым в модулях: make backlog [m=prl120_jobs]
+backlog: ## что осталось открытым в модулях: make backlog [m=prx120_jobs]
 	python3 .tools/context_pack.py backlog $(if $(m),--module $(m),)
 
 doc-index: ## обновить индекс разделов в документе: make doc-index f=AGENTS.md
@@ -151,13 +151,13 @@ doc-index: ## обновить индекс разделов в документ
 composer: ## установить зависимости (локально, если есть composer)
 	cd $(CURDIR) && composer install --no-interaction --no-progress
 
-# --- Python-воркеры (workers/, очередь prl120_jobs) ---------------------------
+# --- Python-воркеры (workers/, очередь prx120_jobs) ---------------------------
 
 worker-install: ## поставить зависимости python-воркеров
 	cd workers && python3 -m pip install -r requirements.txt
 
 worker: ## запустить воркеры локально (каналы: WORKER_CHANNELS=... make worker)
-	cd workers && python3 -m prl_workers
+	cd workers && python3 -m prx_workers
 
 up-worker: ## поднять воркеры в docker (профиль workers)
 	$(DOCKER) --profile workers up -d worker
@@ -177,9 +177,12 @@ up-tools: ## поднять инструменты (adminer :8081, mailpit :8025
 stack: ## полный стек: ядро + инструменты + воркеры
 	$(DOCKER) --profile tools --profile workers up -d
 
-.PHONY: check maintain
+.PHONY: check env-check maintain
 check: ## проверить контракты основы портала без PHP/БД
 	python3 .tools/portal_check.py
+
+env-check: ## сверить .env.example с getenv/os.environ в коде
+	python3 .tools/env_check.py
 
 maintain: ## один проход обслуживания очереди и доставки уведомлений
 	$(CONSOLE) portal:maintain

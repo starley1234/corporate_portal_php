@@ -35,19 +35,19 @@ def request(path, expected, data=None, headers=None):
 request('/', 302)
 login = request('/auth/login', 200)
 request('/auth/register', 404)
-request('/prl100_auth/register', 404)
-for path in ['/search/api?q=test', '/prl110/api/catalog', '/prl597/api/unread', '/employee/api/me', '/employee/api/directory']:
+request('/prx100_auth/register', 404)
+for path in ['/search/api?q=test', '/prx110/api/catalog', '/prx597/api/unread', '/employee/api/me', '/employee/api/directory']:
     json.loads(request(path, 401))
-request('/prl120/api/stats', 403)
+request('/prx120/api/stats', 403)
 request('/services', 403)
 request('/employee', 403)
-request('/prl300/admin', 403)
+request('/prx300/admin', 403)
 request('/about', 200)
 request('/privacy', 200)
 request('/terms', 200)
 design_cookies = {cookie.name for cookie in jar}
 design_lab = request('/design-lab?company=yellow', 200)
-assert 'Выберите характер корпоративного портала PRL' in design_lab
+assert 'Выберите характер корпоративного портала PRX' in design_lab
 assert 'data-company-accent="yellow"' in design_lab
 for slug in ['corporate', 'industrial', 'swiss', 'product', 'editorial', 'command', 'sample-classic', 'sample-compact', 'sample-operations', 'required-design-sample']:
     variant = request(f'/design-lab/{slug}?theme=dark&company=orange', 200)
@@ -75,12 +75,12 @@ password = os.environ.get('ADMIN_PASSWORD', '')
 if not password:
     raise RuntimeError('ADMIN_PASSWORD is required for authenticated smoke; load local .env')
 request('/auth/login?return_url=%2F', 302, {'username': username, 'password': password, 'csrf': token[1]})
-for path in ['/', '/services', '/dashboard', '/admin', '/prl595/admin', '/account/security', '/prl597', '/prl597/admin', '/prl560', '/prl115', '/tasks', '/prl120/monitor', '/prl120/workers', '/migrate_pg', '/llm_admin', '/prl218', '/prl100/errors', '/employee', '/employee/directory', '/prl300/admin', '/prl300/admin/employees', '/prl300/admin/employee/0', '/prl300/admin/import', '/prl300/admin/import_template']:
+for path in ['/', '/services', '/dashboard', '/admin', '/prx595/admin', '/account/security', '/prx597', '/prx597/admin', '/prx560', '/prx115', '/tasks', '/prx120/monitor', '/prx120/workers', '/migrate_pg', '/llm_admin', '/prx218', '/prx100/errors', '/employee', '/employee/directory', '/prx300/admin', '/prx300/admin/employees', '/prx300/admin/employee/0', '/prx300/admin/import', '/prx300/admin/import_template']:
     request(path, 200)
 request('/llm_admin/load', 405)
 request('/llm_admin/unload', 403, {'model': 'test'})
 json.loads(request('/search/api?q=test', 200))
-json.loads(request('/prl110/api/catalog', 200))
+json.loads(request('/prx110/api/catalog', 200))
 json.loads(request('/employee/api/me', 404))  # seed-администратор намеренно не сопоставлен с сотрудником
 json.loads(request('/employee/api/directory', 200))
 json.loads(request('/employee/api/colleague/2147483647', 404))

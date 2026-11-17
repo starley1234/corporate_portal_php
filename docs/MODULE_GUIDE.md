@@ -1,4 +1,4 @@
-# Новый бизнес-модуль PRL
+# Новый бизнес-модуль PRX
 
 ## 1. Выберите ID и границы
 
@@ -15,34 +15,34 @@ Scaffold не перезаписывает каталоги и не приним
 другому slug ID. Создаёт:
 
 ```
-prl301_onboarding/
+prx301_onboarding/
   AGENTS.md
   init.php
-  config/prl_module.php
-  config/prl301_onboarding.php
-  migrations_pg/pgMigration_Prl_301_001_Initial.php
-  classes/Controller/Prl301/Page.php
-  classes/Service/Prl301/Module.php
-  views/prl301_onboarding/index.php
+  config/prx_module.php
+  config/prx301_onboarding.php
+  migrations_pg/pgMigration_Prx_301_001_Initial.php
+  classes/Controller/Prx301/Page.php
+  classes/Service/Prx301/Module.php
+  views/prx301_onboarding/index.php
 ```
 
-Каркас закрыт: нужен вход и право `prl301.view`, которое пока не выдано;
+Каркас закрыт: нужен вход и право `prx301.view`, которое пока не выдано;
 admin имеет полный доступ по базовому контракту. Миграция намеренно пустая,
 публичного API/CRUD и кнопки в каталоге нет. Это не готовый сервис.
 
 ## 2. Реализуйте вертикальный MVP
 
 1. Опишите владельца данных и интеграционный источник истины.
-2. Создайте `prl_301_*` идемпотентной миграцией. Определите индексы, ссылки,
+2. Создайте `prx_301_*` идемпотентной миграцией. Определите индексы, ссылки,
    retention, down/восстановление и ограничения персональных данных.
 3. Реализуйте сервисные методы с object policy/оргконтекстом и валидацией.
    Никакого массового `values($_POST)` и доступа к чужим таблицам.
 4. Контроллер тонкий: auth, permission, CSRF для POST, вызов Service, View/JSON.
    Идентификатор пользователя берётся из сессии, не из входного запроса.
-5. Для долгой задачи используйте `Service_Prl120_JobQueue::instance()`;
+5. Для долгой задачи используйте `Service_Prx120_JobQueue::instance()`;
    публичный контракт очереди уточняйте в её сервисе/README. Добавьте handler
-   в `workers/prl_workers/handlers/`, HANDLERS и `worker.channels` манифеста.
-6. Уведомления — через `prl597`, события — через `Event`/`prl208`.
+   в `workers/prx_workers/handlers/`, HANDLERS и `worker.channels` манифеста.
+6. Уведомления — через `prx597`, события — через `Event`/`prx208`.
    Ссылки на приватные объекты не должны раскрывать их данные.
 7. Добавьте test cases: свой/чужой сотрудник и организация, нет роли,
    нет сессии, нет CSRF, дубль интеграционного события, отказ зависимости.
@@ -56,7 +56,7 @@ admin имеет полный доступ по базовому контрак�
 ```php
 return [
     'id' => 301,
-    'slug' => 'prl301_onboarding',
+    'slug' => 'prx301_onboarding',
     'title' => 'Онбординг-трек',
     'href' => '/onboarding',
     'group' => 'HR и развитие персонала',
@@ -70,12 +70,12 @@ return [
 `audience` определяет видимость каталога, не заменяет ACL маршрута.
 В `portal.php` статус меняйте только по фактической готовности; меню строится
 из подключённых манифестов, не из плана. Публичные URL — существительные,
-админские — `/prlXXX/admin`, API — `/<service>/api/<action>`.
+админские — `/prxXXX/admin`, API — `/<service>/api/<action>`.
 
 ## 4. Дизайн и проверка
 
-Наследуйте `Controller_Base`, используйте `prl-card`, `prl-h1`, `prl-btn`,
-`prl-input` и другие реальные компоненты DESIGN-SYSTEM.md. Не подключайте CDN.
-Разметка адаптивная, dark mode обязателен. `PRL.*` и `data-prl-*` — общий JS.
+Наследуйте `Controller_Base`, используйте `prx-card`, `prx-h1`, `prx-btn`,
+`prx-input` и другие реальные компоненты DESIGN-SYSTEM.md. Не подключайте CDN.
+Разметка адаптивная, dark mode обязателен. `PRX.*` и `data-prx-*` — общий JS.
 Новые классы Tailwind требуют `npm run build:css` и коммита app.css.
 Прогоните проверки из AGENTS.md и обновите памятку модуля.

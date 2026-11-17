@@ -1,12 +1,12 @@
 /*
  * navpalette.js — палитра всех сервисов (кнопка «Все» в сайдбаре) и персонализация меню.
  *
- * Источник данных — GET /prl110/api/catalog (тот же реестр Service_Prl110_Catalog,
+ * Источник данных — GET /prx110/api/catalog (тот же реестр Service_Prx110_Catalog,
  * что собирает сайдбар). Палитра ищет по ВСЕМ видимым сервисам (включая
  * auth/hidden, доступные текущему пользователю), а не только по пунктам меню.
  *
  * Персонализация меню — в localStorage (без серверной стороны до фазы 4):
- *   prl.nav.v1 = { pinned: [href...], hidden: [href...], recents: [href...] }
+ *   prx.nav.v1 = { pinned: [href...], hidden: [href...], recents: [href...] }
  *   recents пополняется при переходе по пункту меню (макс. 12).
  *
  * Звёздочка «в Избранное» есть и в меню (.nav-pin), и на карточках каталога
@@ -17,8 +17,8 @@
 (function (window, document) {
     'use strict';
 
-    var STORE = 'prl.nav.v1';
-    var CACHE = 'prl.palette.v1';
+    var STORE = 'prx.nav.v1';
+    var CACHE = 'prx.palette.v1';
     var CACHE_TTL = 10 * 60 * 1000; // 10 минут
     var MAX_RECENTS = 12;
 
@@ -66,7 +66,7 @@
         var cached = readCache();
         if (cached) { cb(cached); return; }
 
-        fetch('/prl110/api/catalog', { headers: { 'Accept': 'application/json' } })
+        fetch('/prx110/api/catalog', { headers: { 'Accept': 'application/json' } })
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (data && data.items) { writeCache(data); cb(data); }
@@ -123,11 +123,11 @@
 
     /** Короткое подтверждение: «Избранное» в левом меню не всегда на виду. */
     function toast(text) {
-        var el = document.getElementById('prl-nav-toast');
+        var el = document.getElementById('prx-nav-toast');
 
         if (!el) {
             el = document.createElement('div');
-            el.id = 'prl-nav-toast';
+            el.id = 'prx-nav-toast';
             el.className = 'pointer-events-none fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-lg bg-gray-900 px-3.5 py-2 text-sm font-semibold text-white opacity-0 shadow-lg transition-opacity dark:bg-gray-700';
             document.body.appendChild(el);
         }
@@ -335,10 +335,10 @@
             if (backdrop) return;
 
             backdrop = document.createElement('div');
-            backdrop.id = 'prl-nav-palette-dialog';
+            backdrop.id = 'prx-nav-palette-dialog';
             backdrop.setAttribute('role', 'dialog');
             backdrop.setAttribute('aria-modal', 'true');
-            backdrop.setAttribute('aria-label', 'Поиск по всем сервисам PRL');
+            backdrop.setAttribute('aria-label', 'Поиск по всем сервисам PRX');
             backdrop.setAttribute('aria-hidden', 'false');
             backdrop.className = 'fixed inset-0 z-50 flex items-start justify-center bg-gray-900/40 px-4 pt-[10vh] backdrop-blur-sm';
             backdrop.addEventListener('mousedown', function (e) { if (e.target === backdrop) close(); });
