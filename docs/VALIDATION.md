@@ -273,6 +273,9 @@ admin/admin и вход под сессией — на стенде с БД. П�
   модулей без своей `<PRX>_MODEL` (`prx392`, `prx394`), vision-демо сохраняет
   собственный дефолт. Добавлен `make env-check` — сверка с
   `getenv()`/`os.environ`, 0 ошибок и 0 предупреждений.
+- `Service_Prx120_JobQueue` 2 658 → 1 857 строк: обслуживание очереди
+  (`reconcile_outcomes`, `requeue_stale`, авто-остановки, уборка) вынесено в
+  трейт `Service_Prx120_JobQueue_Maintenance`; публичные методы не менялись.
 - Швы worker-runtime: сторожа вынесены в `prx_workers/watchdogs.py`
   (`WatchdogMixin`), реестр провайдеров — в `providers.py`; `base.py`
   932 → 751 строк, `llm.py` 811 → 592. Публичные импорты сохранены через
