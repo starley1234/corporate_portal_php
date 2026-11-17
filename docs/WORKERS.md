@@ -24,7 +24,7 @@ cd workers && python3 -m prl_workers
 | `llm.summarize` | LLM-запрос из payload, возвращает текст |
 | `embeddings.index` | Возвращает sample векторов для инфраструктурных задач |
 | `semantic.index` | Индексирует тексты коллекции prl115 через PG или HTTP |
-| `doc.normalize` | PDF/текст из prl212 → текстовый слой (pypdf, OCR при <40 символов) |
+| `doc.normalize` | PDF/текст из prl212 → текстовый слой (pypdf; OCR, если <100 осмысленных символов) |
 | `doc.analyze` | Карточка-предложение по тексту; ответ только JSON (`parse_json_reply`) |
 | `doc.draft` | Проект ответа по шаблону и карточке; кладёт текст в prl394 |
 
@@ -41,8 +41,29 @@ watchdog `llmwatch.py`, ресурсный учёт `usage.py`, webread не д�
 `{"draft_id": N}` → `doc.draft`. Модель задаётся `PRL392_MODEL` и
 `PRL394_MODEL` (префикс `local::` — для собственного шлюза). Для оффлайн-демо
 есть `workers/mock/mock_llm_server.py` и `MOCK_LLM_ROUTES`; сценарий и три PDF —
-в [демо prl390](../application/modules/prl390_intake/demo/README.md). Без `pypdf`
-`doc.normalize` честно падает в ошибку, а не отдаёт пустой текст.
+в [демо prl390](../application/modules/prl390_intake/demo/README.md). Если
+`pypdf` и активный OCR не дали текста, `doc.normalize` честно падает в ошибку,
+а не отдаёт пустой текст.
+
+### OCR: локальный Tesseract и внешний сервис
+
+`doc.normalize` сначала читает текстовый слой через pypdf. Если в нём меньше
+100 осмысленных символов (букв/цифр) или он похож на мусор, вызывается
+активный OCR-провайдер из `prl_workers/ocr_client.py`:
+
+| Переменная | Значение |
+|---|---|
+| `OCR_PROVIDER` | `tesseract` (по умолчанию, dev) или `remote` (prod) |
+| `OCR_SERVICE_URL` | например `http://ocr.internal:8000/v1/extract` |
+| `OCR_TIMEOUT` | таймаут HTTP в секундах, по умолчанию `120` |
+
+Remote отправляет PDF как `multipart/form-data` (поле `file`) и ждёт JSON
+`{"text": "<markdown>", "pages": 3, "engine": "docling|mineru|paddleocr",
+"confidence": 0.93|null}`. Сеть, таймаут, 4xx/5xx и невалидный JSON — инцидент
+в логе и `engine="failed", text=""`; тело ответа и документ в лог не пишутся.
+Tesseract работает через `pdftoppm` + `tesseract` с `OMP_THREAD_LIMIT=1`;
+PNG живут в `TemporaryDirectory` и удаляются даже при ошибке. Внешний сервис
+не заменяет локальный fallback автоматически: провайдер выбирается окружением.
 
 ## Обслуживание и уведомления
 

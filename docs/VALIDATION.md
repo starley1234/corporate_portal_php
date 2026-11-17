@@ -228,3 +228,33 @@ admin/admin и вход под сессией — на стенде с БД. П�
 - Не проверено: живой вызов VLM (в песочнице нет LLM-шлюза), реальный
   браузерный рендер PDF.js (нет Chromium), HTTP под сессией и PostgreSQL.
   Для запуска нужна загруженная vision-модель и `TOOLFORGE_API_URL/KEY`.
+
+## OCR Provider для doc.normalize (16.11.2026)
+
+- Логика OCR вынесена из `workers/prl_workers/handlers/doc_normalize.py` в
+  `workers/prl_workers/ocr_client.py`: единый `OcrResult`, локальный
+  `TesseractOcrProvider` и `RemoteOcrProvider`.
+- Выбор — `OCR_PROVIDER=tesseract|remote`; URL и таймаут —
+  `OCR_SERVICE_URL`, `OCR_TIMEOUT` (по умолчанию 120 с). Добавлены в
+  `workers/.env.example`.
+- Remote: PDF уходит `multipart/form-data` (поле `file`) через `httpx`;
+  принимается JSON `text/pages/engine/confidence`. Сеть, таймаут, 4xx/5xx и
+  невалидный JSON логируются как инцидент и дают `engine="failed", text=""`.
+- Tesseract оставлен локальным fallback: `pdftoppm` + `tesseract`,
+  `OMP_THREAD_LIMIT=1`, PNG удаляются через `TemporaryDirectory`.
+- `doc_normalize.extract_text()` сначала пробует pypdf; при наличии >= 100
+  осмысленных символов и отсутствии мусора OCR не вызывается. Иначе
+  используется активный провайдер; тело для
+  `POST /prl390/api/text/<message_id>` сохраняет
+  `file_id/text/pages/engine/confidence`.
+- `POST /prl390/api/text/<id>` теперь действительно сохраняет тело
+  `file_id/text/pages/engine/confidence` через `store_text` (раньше действие
+  отдавало только чтение). Ветка проверена WASM-стендом с заглушками
+  `Request/Service/Log`: статус 200 и переданные поля.
+- `PYTHONPATH=workers python3 -m pytest workers/tests -q` — **100 passed,
+  1 skipped**. Новые тесты: `workers/tests/test_ocr_client.py` (17).
+- `bash .tools/php_check_all.sh` — чисто после правки API; `portal_check` —
+  33 модуля, 210 классов, 7 каналов.
+- Не проверено в песочнице: реальный внешний OCR-сервис и локальный
+  `pdftoppm`/`tesseract` (бинарей нет); HTTP-контракт проверен
+  `httpx.MockTransport`, локальный провайдер — подменой `subprocess.run`.

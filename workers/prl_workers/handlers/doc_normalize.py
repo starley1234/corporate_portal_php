@@ -5,31 +5,41 @@
 `POST /prl390/api/text/<message_id>`. Сайт сам решает, хватает ли текста
 (`text_ready` / `needs_ocr`) и публикует событие для prl391.
 
+Порядок:
+  1. pypdf читает текстовый слой;
+  2. если осмысленных символов >= 100 и текст не похож на мусор — OCR нет;
+  3. иначе активный OCR-провайдер из `ocr_client` (tesseract или remote).
+
 Ожидаемый payload:
     {"message_id": 12}
 
 Результат: {"message_id": 12, "chars": 4312, "engine": "pypdf", "pages": 3}
+Тело для сайта: {"file_id", "text", "pages", "engine", "confidence"}.
 """
 
 from __future__ import annotations
 
 import asyncio
-import os
-import re
-import shutil
-import subprocess
+import logging
 import tempfile
+import unicodedata
 from pathlib import Path
+from typing import Any
 
 import httpx
 
-from .. import site
+from .. import ocr_client, site
 from ..base import HandlerContext
+
+log = logging.getLogger("prl.docflow")
 
 CHANNEL = "doc.normalize"
 _PREFIX = "PRL390"
 _ROUTE_BASE = "/prl390/api"
-_MIN_CHARS = 40
+
+# Ниже этого числа осмысленных (букв/цифр) символов включается OCR.
+_MIN_CHARS = 100
+_OCR_MAX_PAGES = 5
 
 
 def _api_base() -> str:
@@ -37,10 +47,38 @@ def _api_base() -> str:
 
 
 def _clean(text: str) -> str:
-    text = (text or "").replace("\xad", "").replace("\ufeff", "")
-    text = re.sub(r"[ \t]+", " ", text)
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    return text.strip()
+    return ocr_client.clean_text(text)
+
+
+def meaningful_chars(text: str) -> int:
+    """Сколько в тексте букв/цифр: пробелы и пунктуация не считаются."""
+    return sum(1 for char in (text or "") if char.isalnum())
+
+
+def looks_like_garbage(text: str) -> bool:
+    """Грубая эвристика для «текста», который pypdf выдал из битых глифов."""
+    chars = [char for char in (text or "") if not char.isspace()]
+    if not chars:
+        return True
+
+    bad = 0
+    for char in chars:
+        if char == "\ufffd" or unicodedata.category(char) in {"Cc", "Co", "Cs", "Cn"}:
+            bad += 1
+    if bad / len(chars) > 0.02:
+        return True
+
+    if len(chars) >= _MIN_CHARS:
+        alnum = sum(1 for char in chars if char.isalnum())
+        if alnum / len(chars) < 0.15:
+            return True
+
+    return False
+
+
+def is_usable_text(text: str) -> bool:
+    """Достаточно ли текстового слоя, чтобы не запускать OCR."""
+    return meaningful_chars(text) >= _MIN_CHARS and not looks_like_garbage(text)
 
 
 def _extract_pypdf(path: Path) -> tuple[str, int]:
@@ -70,37 +108,75 @@ def _extract_pypdf(path: Path) -> tuple[str, int]:
 
 
 def _ocr_available() -> bool:
-    return bool(shutil.which("pdftoppm") and shutil.which("tesseract"))
+    """Есть ли локальный Tesseract (совместимость со старым кодом)."""
+    return ocr_client.tesseract_available()
 
 
 def _extract_ocr(path: Path, max_pages: int = 5) -> tuple[str, int]:
-    """OCR через pdftoppm + tesseract. Если бинарей нет — честно возвращаем пусто."""
-    if not _ocr_available():
-        return "", 0
+    """Совместимая синхронная обёртка над активным OCR-провайдером."""
+    result = ocr_client.extract_sync(path, max_pages=max_pages)
+    return result.text, result.pages
 
-    with tempfile.TemporaryDirectory(prefix="prl390_ocr_") as tmp:
-        prefix = str(Path(tmp) / "page")
-        try:
-            subprocess.run(
-                ["pdftoppm", "-r", "200", "-png", "-f", "1", "-l", str(max_pages), str(path), prefix],
-                check=True, capture_output=True, timeout=180,
-            )
-        except Exception:  # noqa: BLE001
-            return "", 0
 
-        pages = sorted(Path(tmp).glob("page-*.png"))
-        texts: list[str] = []
-        for png in pages:
-            try:
-                out = subprocess.run(
-                    ["tesseract", str(png), "stdout", "-l", "rus+eng", "--psm", "3"],
-                    check=True, capture_output=True, timeout=120,
-                )
-                texts.append(out.stdout.decode("utf-8", errors="replace"))
-            except Exception:  # noqa: BLE001
-                continue
+async def extract_text(path: Path, max_pages: int = _OCR_MAX_PAGES) -> dict[str, Any]:
+    """Текст PDF и метаданные для `POST /prl390/api/text/<message_id>`.
 
-        return _clean("\n\n".join(texts)), len(pages)
+    Сначала пробуем pypdf. Если текстового слоя достаточно (>= 100 осмысленных
+    символов) — OCR не вызывается вообще, даже если провайдер настроен.
+    """
+    pypdf_text, pypdf_pages = "", 0
+    pypdf_error: Exception | None = None
+
+    try:
+        pypdf_text, pypdf_pages = await asyncio.to_thread(_extract_pypdf, path)
+    except Exception as exc:  # noqa: BLE001 — OCR ещё может спасти документ
+        pypdf_error = exc
+        log.warning("doc.normalize: pypdf не прочитал файл: %s", exc)
+
+    if is_usable_text(pypdf_text):
+        return {
+            "text": pypdf_text,
+            "pages": pypdf_pages,
+            "engine": "pypdf",
+            "confidence": None,
+        }
+
+    ocr_error: Exception | None = None
+    try:
+        ocr_result = await ocr_client.extract(path, max_pages=max_pages)
+    except Exception as exc:  # noqa: BLE001 — ошибка провайдера не должна терять pypdf-текст
+        ocr_error = exc
+        ocr_result = ocr_client.OcrResult.failed()
+
+    if ocr_result.text:
+        return {
+            "text": ocr_result.text,
+            "pages": ocr_result.pages or pypdf_pages,
+            "engine": ocr_result.engine or "ocr",
+            "confidence": ocr_result.confidence,
+        }
+
+    if pypdf_text:
+        # OCR не дал текста, но что-то из текстового слоя есть: сайт сам
+        # поставит needs_ocr, а мы не теряем письмо.
+        return {
+            "text": pypdf_text,
+            "pages": pypdf_pages,
+            "engine": "pypdf",
+            "confidence": None,
+        }
+
+    if pypdf_error is not None:
+        raise pypdf_error
+    if ocr_error is not None:
+        raise ocr_error
+
+    return {
+        "text": "",
+        "pages": 0,
+        "engine": "failed",
+        "confidence": None,
+    }
 
 
 async def _download(file_id: int, dest: Path) -> None:
@@ -139,6 +215,7 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
     best_engine = ""
     best_pages = 0
     best_file = 0
+    best_confidence: float | None = None
     errors: list[str] = []
 
     with tempfile.TemporaryDirectory(prefix="prl390_pdf_") as tmp:
@@ -157,25 +234,25 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
                 errors.append(f"{name}: {exc}")
                 continue
 
-            text, pages, engine = "", 0, ""
+            text, pages, engine, confidence = "", 0, "", None
             try:
                 await ctx.progress("Текст", name)
-                text, pages = await asyncio.to_thread(_extract_pypdf, dest)
-                engine = "pypdf"
+                extracted = await extract_text(dest, max_pages=_OCR_MAX_PAGES)
+                text = str(extracted.get("text") or "")
+                pages = int(extracted.get("pages") or 0)
+                engine = str(extracted.get("engine") or "")
+                confidence = extracted.get("confidence")
+
+                if engine == "failed" or not text:
+                    errors.append(f"{name}: OCR-провайдер не дал текст")
+                else:
+                    await ctx.progress("Текст", f"{name} · {engine}")
             except Exception as exc:  # noqa: BLE001
                 errors.append(f"{name}: {exc}")
 
-            if len(text) < _MIN_CHARS and _ocr_available():
-                await ctx.progress("OCR", f"{name} · tesseract")
-                try:
-                    ocr_text, ocr_pages = await asyncio.to_thread(_extract_ocr, dest)
-                    if len(ocr_text) > len(text):
-                        text, pages, engine = ocr_text, ocr_pages or pages, "tesseract"
-                except Exception as exc:  # noqa: BLE001
-                    errors.append(f"{name}: OCR: {exc}")
-
             if len(text) > len(best_text):
                 best_text, best_pages, best_engine, best_file = text, pages, engine, file_id
+                best_confidence = confidence
 
     if not best_text:
         detail = "; ".join(errors[:3]) or "текстового слоя нет"
@@ -190,7 +267,7 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
             "text": best_text,
             "pages": best_pages,
             "engine": best_engine or "pypdf",
-            "confidence": None,
+            "confidence": best_confidence,
         },
         base=_api_base(),
         timeout=120.0,
@@ -206,5 +283,6 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
         "chars": len(best_text),
         "pages": best_pages,
         "engine": best_engine,
+        "confidence": best_confidence,
         "files": len(files),
     }

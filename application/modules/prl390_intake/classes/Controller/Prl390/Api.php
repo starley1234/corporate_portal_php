@@ -85,6 +85,48 @@ class Controller_Prl390_Api extends Controller_Prl39x_Base
         if ($this->_halt) return;
 
         $id = (int) $this->request->param('id');
+
+        // POST — воркер присылает распознанный текст. Контракт:
+        // file_id, text, pages, engine, confidence.
+        if ($this->request->method() === Request::POST)
+        {
+            $text = trim((string) $this->request->post('text'));
+            $file_id = (int) $this->request->post('file_id');
+            if ($text === '')
+            {
+                return $this->_json(['ok' => FALSE, 'error' => 'Текст пуст'], 422);
+            }
+            if ($file_id < 1)
+            {
+                return $this->_json(['ok' => FALSE, 'error' => 'file_id обязателен'], 422);
+            }
+
+            try
+            {
+                $saved = Service_Prl390_Intake::store_text($id, [
+                    'file_id' => $file_id,
+                    'text' => $text,
+                    'pages' => $this->request->post('pages'),
+                    'engine' => substr((string) ($this->request->post('engine') ?: 'pypdf'), 0, 32),
+                    'confidence' => $this->request->post('confidence'),
+                ]);
+            }
+            catch (InvalidArgumentException $e)
+            {
+                return $this->_json(['ok' => FALSE, 'error' => $e->getMessage()], 422);
+            }
+            catch (Exception $e)
+            {
+                Log::instance()->add(Log::ERROR, 'prl390: не удалось сохранить текст: :e', [
+                    ':e' => $e->getMessage(),
+                ]);
+
+                return $this->_json(['ok' => FALSE, 'error' => 'Не удалось сохранить текст'], 500);
+            }
+
+            return $this->_json(['ok' => TRUE] + $saved, 200);
+        }
+
         $message = Service_Prl390_Intake::message($id);
         if ( ! $message)
         {

@@ -10,7 +10,7 @@ from prl_workers.handlers.doc_analyze import parse_json_reply
 from prl_workers.handlers.doc_normalize import _clean, _extract_pypdf
 
 ROOT = Path(__file__).resolve().parents[2]
-DEMO = ROOT / "examples" / "docflow"
+DEMO = ROOT / "application" / "modules" / "prl390_intake" / "demo"
 
 
 def test_demo_pdfs_have_text_layer():

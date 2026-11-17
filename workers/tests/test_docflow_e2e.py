@@ -23,7 +23,7 @@ from prl_workers.handlers import doc_analyze, doc_draft, doc_normalize
 from prl_workers.llm import LlmClient, Provider
 
 ROOT = Path(__file__).resolve().parents[2]
-DEMO = ROOT / "examples" / "docflow"
+DEMO = ROOT / "application" / "modules" / "prl390_intake" / "demo"
 MOCK_SERVER = ROOT / "workers" / "mock" / "mock_llm_server.py"
 
 

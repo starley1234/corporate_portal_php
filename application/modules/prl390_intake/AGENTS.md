@@ -31,7 +31,8 @@ prl212, канал `doc.normalize`, текст и событие `prl390.text.re
 1. `receive_path` проверяет расширение, MIME, размер, считает SHA-256.
 2. Дубликат возвращает `duplicate` и файл уходит в `duplicates/`.
 3. `Service_Prl212_Storage::save()` кладёт файл, затем пишется конверт.
-4. `doc.normalize` (payload `message_id`) → текст → `POST /prl390/api/text/<id>`.
+4. `doc.normalize` (payload `message_id`) → текст → `POST /prl390/api/text/<id>`
+   (`file_id`, `text`, `pages`, `engine`, `confidence`).
 5. `store_text` ставит `text_ready` (≥ 40 символов) или `needs_ocr` и
    публикует `prl390.text.ready`.
 
