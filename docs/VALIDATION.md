@@ -261,3 +261,30 @@ admin/admin и вход под сессией — на стенде с БД. П�
 - Не проверено в песочнице: реальный внешний OCR-сервис и локальный
   `pdftoppm`/`tesseract` (бинарей нет); HTTP-контракт проверен
   `httpx.MockTransport`, локальный провайдер — подменой `subprocess.run`.
+
+## PRX-префикс и структурные швы (16.11.2026)
+
+- Префикс `PRL` заменён на `PRX` целиком: 404 пути, 547 файлов содержимого,
+  0 коллизий; сторонние `assets/vendor/**`, собранные `app.css` и
+  `docs/architecture/dist/**` не переписывались, а пересобраны.
+- `.env.example` снова человекочитаемый контракт: 10 секций с владельцем и
+  обязательностью; канонические `LLM_DEFAULT_PROVIDER`, `LOCAL_API_KEY`,
+  `LOCAL_DEFAULT_MODEL`. Добавлен `make env-check` — сверка с
+  `getenv()`/`os.environ`, 0 ошибок и 0 предупреждений.
+- Worker-API: общий `Controller_Prx39x_Api` (X-Worker-Token, JSON-тело,
+  `_halt`); `Prx390/392/393/394` сокращены до action-методов.
+- OCR: `OcrSettings.from_env()` и `ExtractedText.as_payload(file_id)`;
+  `OcrResult` оставлен псевдонимом, `RemoteOcrProvider` принимает settings.
+- prx391: чтение вынесено в `Service_Prx391_Registry`, запись — в
+  `Service_Prx391_Card`; `Documents` остался фасадом (303 строки вместо 865).
+  Карточка документа собрана из `views/391/partials/*`.
+- prx392: чтение прогонов/предложений — в `Service_Prx392_Runs`.
+- prx597: `admin.php` — каркас вкладок, содержимое — в
+  `views/597/partials/*`; шапка и `<head>` вынесены из
+  `template_tailwindcss.php` в `views/partials/{head,topbar}.php`.
+- Проверки: `portal_check` — 33 модуля, 214 классов, 7 каналов;
+  `php_check_all` — 426 PHP-файлов, 0 ошибок, дизайн-аудит чист;
+  `PYTHONPATH=workers python3 -m pytest workers/tests -q` — **106 passed,
+  1 skipped**; `npm test` — 14/14; `make architecture` — 0 ошибок.
+- Не проверено в песочнице: живой рендер вкладок/карточки под сессией и
+  PostgreSQL; PHP CLI недоступен, синтаксис проверен php-parser и WASM-стендом.
