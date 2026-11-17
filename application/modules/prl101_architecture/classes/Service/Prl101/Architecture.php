@@ -3,15 +3,15 @@
 /**
  * Доступ к собранной странице архитектуры.
  *
- * Источник истины — architecture/arch/*.yaml. Страница и JSON собираются
- * командой `make architecture` (Node-инструмент из INPUT_DATA) и лежат в
- * architecture/dist. Runtime в Node не нуждается: PHP только отдаёт готовый
- * файл после проверки прав.
+ * Источник истины — docs/architecture/model/*.yaml. Страница и JSON собираются
+ * командой `make architecture` (движок в docs/architecture/engine) и лежат в
+ * docs/architecture/dist. Runtime в Node не нуждается: PHP только отдаёт
+ * готовый файл после проверки прав.
  */
 class Service_Prl101_Architecture
 {
-    const HTML = 'architecture/dist/architecture.html';
-    const JSON = 'architecture/dist/architecture.json';
+    const HTML = 'docs/architecture/dist/architecture.html';
+    const JSON = 'docs/architecture/dist/architecture.json';
 
     /**
      * Корень проекта (без завершающего слеша).

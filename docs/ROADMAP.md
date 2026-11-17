@@ -128,4 +128,4 @@ ID зарезервированы; маршруты, таблицы и прав�
 контракт `doc.normalize`.
 
 Демонстрация: `make docflow-demo`, затем `/inbox` → «Сканировать папку»; PDF и
-мок-ответы лежат в [examples/docflow](../examples/docflow/README.md).
+мок-ответы лежат в [демо prl390](../application/modules/prl390_intake/demo/README.md).

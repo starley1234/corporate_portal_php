@@ -21,7 +21,7 @@ class Controller_Prl101_Architecture extends Controller_Base
         if ($html === NULL)
         {
             $this->set_title('Архитектура портала');
-            $this->set_description('Страница ещё не собрана из architecture/arch');
+            $this->set_description('Страница ещё не собрана из docs/architecture/model');
             $this->template->content = View::factory('101/missing');
 
             return;

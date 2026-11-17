@@ -41,7 +41,7 @@ watchdog `llmwatch.py`, ресурсный учёт `usage.py`, webread не д�
 `{"draft_id": N}` → `doc.draft`. Модель задаётся `PRL392_MODEL` и
 `PRL394_MODEL` (префикс `local::` — для собственного шлюза). Для оффлайн-демо
 есть `workers/mock/mock_llm_server.py` и `MOCK_LLM_ROUTES`; сценарий и три PDF —
-в [examples/docflow](../examples/docflow/README.md). Без `pypdf`
+в [демо prl390](../application/modules/prl390_intake/demo/README.md). Без `pypdf`
 `doc.normalize` честно падает в ошибку, а не отдаёт пустой текст.
 
 ## Обслуживание и уведомления

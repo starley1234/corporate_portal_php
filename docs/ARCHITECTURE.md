@@ -78,12 +78,12 @@ prl597. ИИ не пишет в карточку напрямую: резуль�
 
 ## Документация архитектуры
 
-`architecture/arch/*.yaml` — источник истины для схем, слоёв, модулей и ADR.
+`docs/architecture/model/*.yaml` — источник истины для схем, слоёв, модулей и ADR.
 `make architecture` проверяет модель (`check --strict`) и собирает
-`architecture/dist/architecture.html` + `.json`. Модуль `prl101_architecture`
+`docs/architecture/dist/architecture.html` + `.json`. Модуль `prl101_architecture`
 отдаёт страницу после входа (право `prl101.view`) и JSON по
 `/architecture/data.json`; сборка не требует Node на production, потому что
-`dist/` коммитится. Подробности и формат вкладок — `architecture/README.md`.
+`dist/` коммитится. Подробности и формат вкладок — `docs/architecture/README.md`; движок — `docs/architecture/engine`.
 
 ## Границы безопасности
 

@@ -10,7 +10,7 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
 - Карта сервисов: `application/config/portal.php`, `docs/ROADMAP.md` — 50 из
   карты плюс домен `docflow` (`prl390`–`prl394`), всего 55.
   Статус `planned` не означает работающий модуль.
-- Архитектура: `docs/ARCHITECTURE.md`, модель и схемы — `architecture/arch`
+- Архитектура: `docs/ARCHITECTURE.md`, модель и схемы — `docs/architecture/model`
   (`make architecture`, страница `/architecture`); создание: `docs/MODULE_GUIDE.md`.
 - Дизайн: `docs/DESIGN-SYSTEM.md`, `.tools/tailwind/input.css`, `app.js`.
   Явное исключение — публичная демонстрационная `prl140_design_lab`: прямой

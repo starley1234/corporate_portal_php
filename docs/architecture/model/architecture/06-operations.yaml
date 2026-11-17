@@ -1,0 +1,69 @@
+title: Эксплуатация
+overview:
+  lead: >-
+    **Один deploy и явные операции.** Миграции, обслуживание очереди и сборка
+    документации — команды, а не скрытые побочные эффекты загрузки страницы.
+  blocks:
+    - scheme:
+        size: [1120, 470]
+        groups:
+          - [20, 40, 700, 390, "Docker compose"]
+          - [740, 40, 360, 390, "Данные и внешние"]
+        nodes:
+          - { id: nginx, at: [150, 130, 190], label: nginx, sub: TLS и статика, kind: ops }
+          - { id: php, at: [390, 130, 190], label: PHP-FPM, sub: Kohana / PHP 8.4, kind: core, info: "{portal}" }
+          - { id: pg, at: [620, 130, 190], label: PostgreSQL, sub: основная схема, kind: data, info: "{db}" }
+          - { id: worker, at: [390, 270, 190], label: workers, sub: pg или http, kind: queue, info: "{workers}" }
+          - { id: cron, at: [150, 270, 190], label: cron, sub: portal:maintain, kind: ops }
+          - { id: logs, at: [620, 270, 190], label: Логи, sub: site и worker, kind: ops }
+          - { id: llm, at: [870, 130, 190], label: LLM-шлюз, sub: внешние модели, kind: ai, info: "{llm}" }
+          - { id: backup, at: [870, 270, 190], label: Бэкап, sub: дамп и хранилища, kind: data }
+        edges:
+          - nginx -> php
+          - php -> pg: { rel: uses }
+          - worker -> pg: { rel: uses }
+          - worker -> llm: { rel: uses }
+          - cron -> php: { rel: uses, label: CLI }
+          - php -> logs: { rel: carries }
+          - pg -> backup: { rel: carries }
+        routes:
+          Запрос: nginx -> php -> pg
+          Обслуживание: cron -> php -> pg
+          Воркер: worker -> pg
+        hint: Воркер — отдельный процесс. Он не запускает PHP-обслуживание и не заменяет cron.
+    - table:
+        head: [Команда, Когда, Что делает]
+        rows:
+          - - make setup
+            - после клонирования
+            - .env, секреты, каталоги
+          - - make migrate
+            - при изменении схемы
+            - Миграции и первичный администратор
+          - - make architecture
+            - после правки docs/architecture/model
+            - Проверка модели и сборка HTML и JSON
+          - - bin/console portal:maintain
+            - по таймеру
+            - Очередь, уведомления, outbox
+          - - make check
+            - перед коммитом
+            - Контракты модулей без PHP и БД
+          - - PYTHONPATH=workers pytest workers/tests
+            - перед коммитом
+            - Воркеры, docflow и e2e
+        center: []
+detail:
+  lead: >-
+    **Что должно быть проверено до запуска.** Изоляция сети, резервное
+    копирование и мониторинг — не «потом», а условие эксплуатации.
+  blocks:
+    - steps:
+        - "Секреты (`AUTH_HASH_KEY`, `COOKIE_SALT`, токены) хранятся в окружении, не в Git."
+        - "`PRL_DEFAULT_ADMIN=0` на production; администратор создаётся через `make seed` с сильным паролем."
+        - "Логи не содержат паролей, токенов и сырых персональных данных."
+        - "Бэкап проверяется восстановлением, а не только фактом создания файла."
+        - "Почта и мессенджеры включаются осознанно: по умолчанию внешние каналы выключены."
+    - warn: >-
+        Пароль `admin` из миграции — только для локальной установки. После первого
+        входа его нужно сменить в разделе управления пользователями.

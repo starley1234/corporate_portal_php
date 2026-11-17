@@ -146,7 +146,7 @@ CSV и применение пакета из UI проверены ещё **7 �
 - `python3 -m pytest workers/tests -q` — **83 passed, 1 skipped** (skip — тест,
   которому нужен `PRL_TEST_PG_DSN`). В том числе три сквозных теста
   `workers/tests/test_docflow_e2e.py`: настоящий `mock_llm_server.py` с
-  `MOCK_LLM_ROUTES`, настоящие PDF из `examples/docflow/` и подмена только
+  `MOCK_LLM_ROUTES`, настоящие PDF из `application/modules/prl390_intake/demo/` и подмена только
   `site.get_json/post_json`.
 - WASM-стенд `.tools/prl392_normalize_stand.php` — **11 ок, 0 фейл**:
   нормализация ИНН/даты/суммы, HTML в summary, неизвестный тип, пустой ответ.
@@ -162,12 +162,12 @@ CSV и применение пакета из UI проверены ещё **7 �
 Не проверено и остаётся ограничением: живой PostgreSQL (в песочнице нет
 `pdo_pgsql`), HTTP-страницы под реальной сессией, настоящая LLM/GPU, OCR
 (`pdftoppm`/`tesseract` отсутствуют), IMAP и реальная отправка письма.
-Демо-прогон и оффлайн-мок описаны в [examples/docflow](../examples/docflow/README.md).
+Демо-прогон и оффлайн-мок описаны в [демо prl390](../application/modules/prl390_intake/demo/README.md).
 
 ## Архитектура как код и первичный администратор (16.11.2026)
 
 - `make architecture` — **0 ошибок, 0 предупреждений**; собраны
-  `architecture/dist/architecture.html` (110 КБ, 9 вкладок) и `.json` (50 КБ).
+  `docs/architecture/dist/architecture.html` (110 КБ, 9 вкладок) и `.json` (50 КБ).
 - `python3 .tools/portal_check.py` — 32 модуля, 208 PHP-классов, **6 active + 49
   planned**, 55 сервисов, 7 каналов.
 - `bash .tools/php_check_all.sh` — 398 PHP-файлов без синтаксических ошибок,
@@ -192,3 +192,13 @@ admin/admin и вход под сессией — на стенде с БД. П�
   прямой HTTP-доступ закрыт правилом в `public_html/.htaccess`.
 - `make docflow-demo` создаёт каталоги по текущим `PRL390_*_DIR` и копирует PDF
   в новую папку входящих.
+
+## Перестройка структуры (16.11.2026)
+
+- `architecture/` переехал в `docs/architecture/`: YAML — `model/`, собранные
+  файлы — `dist/`, движок отрисовки — `engine/`. `INPUT_DATA` удалён после
+  переноса нужных файлов; `prl101_architecture` читает `docs/architecture/dist`.
+- `examples/docflow` переехал в `application/modules/prl390_intake/demo/`;
+  `make docflow-demo` и ссылки в документации обновлены.
+- Проверки: `make architecture` — 0 ошибок/0 предупреждений, 9 вкладок;
+  `npm test` — 14/14; `npm run test:architecture` — 124/124; `php_check_all` — чисто.

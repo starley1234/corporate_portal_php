@@ -37,7 +37,7 @@ Service Desk, EHS, проектов и культуры запланирован
   десяти направлений дизайна, включая четыре варианта по эталону v6 и
   точную адаптацию `required_design_sample`, без Auth, БД и общего CSS
   рабочего портала.
-- Архитектура как код: `architecture/arch/*.yaml` → страница `/architecture`
+- Архитектура как код: `docs/architecture/model/*.yaml` → страница `/architecture`
   и JSON `/architecture/data.json` (`make architecture`), с проверкой схем и ADR.
 
 ## Запуск с новой БД
@@ -81,7 +81,7 @@ cd workers && python3 -m prl_workers
 
 Каналы: `echo`, `embeddings.index`, `llm.summarize`, `semantic.index`,
 `doc.normalize`, `doc.analyze`, `doc.draft`. Демонстрационные PDF и прогон —
-[examples/docflow](examples/docflow/README.md), `make docflow-demo`.
+[демо prl390](application/modules/prl390_intake/demo/README.md), `make docflow-demo`.
 Сетевые LLM/embedding-адреса в шаблонах пусты: задайте разрешённые внутренние
 эндпоинты. Для разработки без GPU есть `workers/mock/`.
 

@@ -1,9 +1,0 @@
-id: INV-004
-title: Из ingress достижимы все маршруты моделей
-status: active
-severity: warn
-rule: reachable
-tabs: [ tobe/09-network-security, tobe/03-request-path ]
-from: [ n-in, p-ing ]
-to: [ n-local, n-xray, p-ll, p-dest ]
-why: "Разорванная схема выглядит убедительно, но не отвечает на вопрос «как запрос доходит до модели»."

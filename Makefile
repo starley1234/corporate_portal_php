@@ -103,13 +103,13 @@ fresh: ## ПЕРЕСОЗДАТЬ схему БД с нуля (drop schema public
 lint: ## проверка синтаксиса всех PHP-файлов
 	find application system modules public_html -name '*.php' -print0 | xargs -0 -n1 php -l
 
-architecture: ## собрать документацию архитектуры из architecture/arch/*.yaml
+architecture: ## собрать документацию архитектуры из docs/architecture/model/*.yaml
 	@test -d node_modules/yaml || { echo "Нужны node-зависимости: npm ci"; exit 1; }
 	@npm run --silent architecture
 
 docflow-demo: ## положить демонстрационные PDF в папку входящих prl390
 	@mkdir -p "$${PRL390_INBOX_DIR:-public_html/storage/docflow/inbox}" "$${PRL390_PROCESSED_DIR:-public_html/storage/docflow/processed}" "$${PRL390_DUPLICATES_DIR:-public_html/storage/docflow/duplicates}" "$${PRL390_ERROR_DIR:-public_html/storage/docflow/error}"
-	@cp -v examples/docflow/*.pdf "$${PRL390_INBOX_DIR:-public_html/storage/docflow/inbox}/"
+	@cp -v application/modules/prl390_intake/demo/*.pdf "$${PRL390_INBOX_DIR:-public_html/storage/docflow/inbox}/"
 	@echo "Готово: откройте /inbox и нажмите «Сканировать папку»."
 
 backup: ## резервная копия: дамп БД + архив файловых хранилищ
