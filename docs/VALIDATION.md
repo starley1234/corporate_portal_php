@@ -277,6 +277,9 @@ admin/admin и вход под сессией — на стенде с БД. П�
   (`reconcile_outcomes`, `requeue_stale`, авто-остановки, уборка) вынесено в
   трейт `Maintenance`, монитор (`monitor_health`, `diagnose`) — в трейт
   `Monitor`; публичные методы не менялись.
+- `Service_Prx597_Notify` 2 319 → 1 944 строки: чтение ленты и отписка
+  вынесены в трейты `Service_Prx597_Notify_Inbox` и `_Unsubscribe`;
+  публичные методы и DDL не менялись.
 - Швы worker-runtime: сторожа вынесены в `prx_workers/watchdogs.py`
   (`WatchdogMixin`), реестр провайдеров — в `providers.py`; `base.py`
   932 → 751 строк, `llm.py` 811 → 592. Публичные импорты сохранены через
