@@ -3,7 +3,12 @@
 return [
     'id' => 395,
     'slug' => 'document_extract',
-    'title' => 'Извлечение текста из PDF',
+    'title' => 'Распознавание PDF',
+    'href' => '/document-extract',
+    'group' => 'ИИ-сервисы',
+    'icon' => 'fas fa-file-pdf',
+    'audience' => 'admin',
+    'acl' => 'prx395.ui',
     'short' => 'Асинхронный API для корпоративных систем: PDF → текст',
     'status' => 'beta',
     'created_at' => '2026-11-18',
@@ -17,5 +22,4 @@ return [
         'every' => '10 minutes',
         'command' => 'bin/console prx395:purge',
     ]],
-    // Без href: это машинный API, не сессионная страница каталога.
 ];

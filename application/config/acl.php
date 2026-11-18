@@ -18,6 +18,7 @@ return [
     'prx300.manage' => ['hr_admin'],
     'prx300.import' => ['hr_admin'],
     'prx300.identity' => ['hr_admin'],
+    'prx395.ui' => ['admin'],
     'prx595.users.admin' => ['admin'],
     'prx597.admin' => ['admin'],
     'prx560.admin' => ['admin'],

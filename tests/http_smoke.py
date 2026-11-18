@@ -46,6 +46,7 @@ for path in ['/search/api?q=test', '/prx110/api/catalog', '/prx110/api/favorites
     json.loads(request(path, 401))
 json.loads(request('/prx110/api/favorites', 401, {'href': '/employee', 'pinned': '1'}))
 request('/prx120/api/stats', 403)
+request('/document-extract', 403)
 assert json.loads(request('/api/v1/document-extractions/1', 401)) == {'error': {'code': 'unauthorized'}}
 request('/services', 403)
 request('/employee', 403)
@@ -92,18 +93,29 @@ if not password:
     raise RuntimeError('ADMIN_PASSWORD is required for authenticated smoke; load local .env')
 request('/auth/login?return_url=%2F', 302, {'username': username, 'password': password, 'csrf': token[1]})
 pages = {}
-for path in ['/', '/services', '/dashboard', '/admin', '/prx595/admin', '/account/security', '/prx597', '/prx597/admin', '/prx560', '/prx115', '/tasks', '/prx120/monitor', '/prx120/workers', '/migrate_pg', '/llm_admin', '/prx218', '/prx100/errors', '/architecture', '/employee', '/employee/directory', '/prx300/admin', '/prx300/admin/employees', '/prx300/admin/employee/0', '/prx300/admin/import', '/prx300/admin/import_template']:
+for path in ['/', '/services', '/dashboard', '/admin', '/prx595/admin', '/account/security', '/prx597', '/prx597/admin', '/prx560', '/prx115', '/tasks', '/prx120/monitor', '/document-extract', '/prx120/workers', '/migrate_pg', '/llm_admin', '/prx218', '/prx100/errors', '/architecture', '/employee', '/employee/directory', '/prx300/admin', '/prx300/admin/employees', '/prx300/admin/employee/0', '/prx300/admin/import', '/prx300/admin/import_template']:
     pages[path] = request(path, 200)
 assert 'value="probe"' in pages['/prx120/monitor'], 'Worker probe button is missing'
-archived_paths = {'/inbox', '/documents', '/analysis', '/sla', '/replies', '/vlm-demo'}
-for path in sorted(archived_paths | {
-    '/inbox/scan', '/documents/1', '/sla/recalc', '/vlm-demo/analyze',
-    '/assets/js/prx398_vlm_demo.js', '/assets/vendor/pdfjs/pdf.min.mjs',
-    '/incoming_developments/index.html', '/archive/docflow/README.md',
-    *(f'/prx{module}/api/health' for module in range(390, 395)),
-}):
+assert 'Распознать пробный PDF' in pages['/document-extract']
+assert 'href="/document-extract"' in pages['/']
+request('/document-extract', 403, {'sample': '1'})
+legacy = os.environ.get('PRX_DOCFLOW_ENABLED') == '1'
+legacy_paths = {'/inbox', '/documents', '/analysis', '/sla'}
+archived_paths = {'/replies', '/vlm-demo'} | (set() if legacy else legacy_paths)
+for path in sorted(legacy_paths):
+    request(path, 200 if legacy else 404)
+for module in [390, 392, 393]:
+    request(f'/prx{module}/api/health', 403 if legacy else 404)
+if legacy:
+    assert 'Документооборот · тестовый режим' in pages['/']
+    request('/inbox/scan', 405)
+    request('/inbox/upload', 403, {'sample': '1'})
+else:
+    request('/inbox/scan', 404)
+for path in ['/replies', '/vlm-demo', '/vlm-demo/analyze',
+             '/assets/js/prx398_vlm_demo.js', '/assets/vendor/pdfjs/pdf.min.mjs',
+             '/incoming_developments/index.html', '/archive/docflow/README.md', '/prx394/api/health']:
     request(path, 404)
-assert 'Требует доработки' in pages['/']
 
 # Администратор может безопасно управлять DB-подписками; тест использует
 # случайное имя события и удаляет свою запись, не меняя штатные подписки.
@@ -258,7 +270,8 @@ json.loads(request('/search/api?q=test', 200))
 catalog = json.loads(request('/prx110/api/catalog', 200))
 assert catalog['user_id'] == account_id, 'Catalog must identify the session account for stale tabs'
 catalog_hrefs = {item['href'] for item in catalog['items']}
-assert {'/architecture', '/design-lab', '/prx560', '/employee', '/prx597', '/account/security'} <= catalog_hrefs
+assert {'/architecture', '/design-lab', '/prx560', '/employee', '/prx597', '/account/security', '/document-extract'} <= catalog_hrefs
+assert not legacy or legacy_paths <= catalog_hrefs
 assert archived_paths.isdisjoint(catalog_hrefs)
 assert archived_paths.isdisjoint(favorite_hrefs)
 json.loads(request('/employee/api/me', 404))  # seed-администратор намеренно не сопоставлен с сотрудником

@@ -63,8 +63,10 @@ Browser → PHP/HMVC → application/config/modules.php
    знают списки чужих модулей. Владелец определяет SQL recent/search/cleanup,
    подписи каналов и ссылки. Метаданные не заменяют проверку HTTP/Service ACL.
 
-Старый домен `docflow` (`prx390`–`prx394`) [в архиве](../archive/docflow/README.md)
-и не входит в рабочий контур. Новый [документный API](integrations/document-extractions.md) работает независимо от архива.
+Старый `docflow` (`prx390`–`prx393`) выключен по умолчанию и
+[включается для тестирования](QUICK-CHECK.md) через `PRX_DOCFLOW_ENABLED=1`.
+Черновики `prx394` остаются в архиве. Новый [документный API](integrations/document-extractions.md)
+и проверка `/document-extract` от них не зависят.
 
 `application/config/modules.php` — источник истины подключения и порядка
 миграций. Менеджер модулей управляет метаданными; не считайте запись в его БД

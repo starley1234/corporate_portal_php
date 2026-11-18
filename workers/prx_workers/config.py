@@ -1,7 +1,8 @@
 """Конфигурация воркеров: всё из переменных окружения (файл .env опционален).
 
 Порядок приоритета: переменные окружения процесса > workers/.env > значения
-по умолчанию. Файл .env в git не хранится — только workers/.env.example.
+по умолчанию. Только PRX_DOCFLOW_ENABLED дополнительно читается из корневого
+.env при запуске из общего checkout.
 """
 
 from __future__ import annotations
@@ -11,7 +12,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
-def _load_dotenv(path: Path) -> None:
+def _load_dotenv(path: Path, only: str | None = None) -> None:
     """Мини-загрузчик .env: переменные окружения главнее файла."""
     if not path.is_file():
         return
@@ -23,7 +24,7 @@ def _load_dotenv(path: Path) -> None:
             line = line[len("export "):]
         key, _, value = line.partition("=")
         key, value = key.strip(), value.strip().strip("'\"")
-        if key and key not in os.environ:
+        if key and (only is None or key == only) and key not in os.environ:
             os.environ[key] = value
 
 
@@ -101,7 +102,10 @@ class Config:
 
     @classmethod
     def load(cls) -> "Config":
-        _load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+        worker_root = Path(__file__).resolve().parent.parent
+        _load_dotenv(worker_root / ".env")
+        # В одном checkout достаточно включить старый контур в корневом .env.
+        _load_dotenv(worker_root.parent / ".env", only="PRX_DOCFLOW_ENABLED")
 
         channels = [c.strip() for c in _env("WORKER_CHANNELS").split(",") if c.strip()]
 

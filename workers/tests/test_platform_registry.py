@@ -14,6 +14,7 @@ def test_only_active_handlers_are_registered():
 
 
 def test_archived_channels_in_explicit_worker_config_fail_before_claim(monkeypatch, caplog):
+    monkeypatch.setenv('PRX_DOCFLOW_ENABLED', '0')
     from prx_workers import __main__ as worker
     from prx_workers.config import Config
 
@@ -27,6 +28,15 @@ def test_archived_channels_in_explicit_worker_config_fail_before_claim(monkeypat
     monkeypatch.setattr(worker, "make_queue", unexpected_queue)
     assert worker.main() == 2
     assert "doc.normalize" in caplog.text
+
+
+def test_only_requested_legacy_channels_return_with_switch(monkeypatch):
+    from prx_workers.handlers import active_handlers
+
+    monkeypatch.setenv("PRX_DOCFLOW_ENABLED", "1")
+    assert set(active_handlers()) - set(HANDLERS) == {"doc.normalize", "doc.analyze"}
+    monkeypatch.setenv("PRX_DOCFLOW_ENABLED", "0")
+    assert active_handlers() == HANDLERS
 
 
 def test_worker_transport_is_not_an_llm_provider(monkeypatch):

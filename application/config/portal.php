@@ -1,5 +1,6 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 // План, а не список подключённых модулей. Не создаёт маршрутов/таблиц/прав.
+$docflow_status = getenv('PRX_DOCFLOW_ENABLED') === '1' ? 'active' : 'archived';
 return ['domains' => [
     'hr' => ['title' => 'HR и развитие персонала', 'services' => [
         ['module' => 'prx300_employee', 'title' => 'Личный кабинет сотрудника', 'status' => 'active'],
@@ -51,11 +52,11 @@ return ['domains' => [
         ['module' => 'prx385_briefings', 'title' => 'Инструктажи по охране труда', 'status' => 'planned'],
         ['module' => 'prx386_zones', 'title' => 'Карта зон доступа', 'status' => 'planned'],
     ]],
-    'docflow' => ['title' => 'Документооборот', 'status' => 'archived', 'services' => [
-        ['module' => 'prx390_intake', 'title' => 'Входящие документы', 'status' => 'archived'],
-        ['module' => 'prx391_documents', 'title' => 'Реестр входящих', 'status' => 'archived'],
-        ['module' => 'prx392_analysis', 'title' => 'ИИ-анализ входящих', 'status' => 'archived'],
-        ['module' => 'prx393_workflow', 'title' => 'Сроки и маршруты', 'status' => 'archived'],
+    'docflow' => ['title' => 'Документооборот', 'status' => $docflow_status, 'services' => [
+        ['module' => 'prx390_intake', 'title' => 'Входящие документы', 'status' => $docflow_status],
+        ['module' => 'prx391_documents', 'title' => 'Реестр входящих', 'status' => $docflow_status],
+        ['module' => 'prx392_analysis', 'title' => 'ИИ-анализ входящих', 'status' => $docflow_status],
+        ['module' => 'prx393_workflow', 'title' => 'Сроки и маршруты', 'status' => $docflow_status],
         ['module' => 'prx394_drafts', 'title' => 'Ответы на письма', 'status' => 'archived'],
     ]],
     'projects' => ['title' => 'Управление проектами', 'services' => [

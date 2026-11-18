@@ -28,10 +28,22 @@ class Service_Prx395_Extraction
 
     public function submit(string $client, string $key, $upload): int
     {
+        return $this->register($client, $key, self::validated_upload($upload));
+    }
+
+    public function submit_sample(string $client, string $key): int
+    {
+        $path = dirname(__DIR__, 3).'/fixtures/sample.pdf';
+        return $this->register($client, $key, [
+            'tmp_name' => $path, 'name' => 'document.pdf', 'size' => filesize($path), 'type' => 'application/pdf',
+        ]);
+    }
+
+    private function register(string $client, string $key, array $upload): int
+    {
         if ( ! preg_match('/\A[A-Za-z0-9._:-]{1,128}\z/', $key))
             throw new Prx395_Error('invalid_idempotency_key', 400);
         if (trim((string) getenv('WORKER_API_TOKEN')) === '') throw new Prx395_Error('worker_not_configured', 503);
-        $upload = self::validated_upload($upload);
         $key_hash = hash('sha256', $key);
         $sha = hash_file('sha256', $upload['tmp_name']);
         if ($sha === FALSE) throw new Prx395_Error('upload_unavailable', 503);

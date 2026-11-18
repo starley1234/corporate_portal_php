@@ -35,10 +35,8 @@ cd workers && python3 -m prx_workers
 
 ### Распознавание документов
 
-`doc.normalize`, `doc.analyze` и `doc.draft` больше не зарегистрированы.
-Перед обновлением уберите их из явно настроенного `WORKER_CHANNELS` или
-оставьте значение пустым (все активные обработчики). Неизвестные каналы
-блокируют запуск воркера с диагностикой. См. [порядок отключения](../archive/docflow/README.md).
+`doc.normalize` и `doc.analyze` включаются только на тестовом стенде с
+`PRX_DOCFLOW_ENABLED=1`; `doc.draft` выключен. [Быстрая проверка в UI](QUICK-CHECK.md).
 
 Канал `document.extract` поддерживает локальный `tesseract` и `remote` для
 `/parse` с ответом `content`. Запускается только отдельным Python-процессом;

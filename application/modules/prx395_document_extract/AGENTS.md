@@ -1,7 +1,9 @@
 # prx395_document_extract — PDF → текст
 
-Машинный API для СЭД/ERP. Без сессий как способа аутентификации, HR, LLM или
-архивного `docflow`. Оператор смотрит технические стадии в `/prx120/monitor`.
+Машинный API для СЭД/ERP не зависит от сессий, HR, LLM или `docflow`.
+`/document-extract` — отдельный административный UI: сессия + CSRF и
+собственная область владельца `ui:<id>`, недоступная машинным ключам.
+Пробный PDF проходит тот же конвейер; стадии видны в `/prx120/monitor`.
 
 - `POST /api/v1/document-extractions`: Bearer интеграции + `Idempotency-Key` +
   multipart `file`. Атомарная регистрация + `prx120::push`; файловое хранилище

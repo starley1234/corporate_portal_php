@@ -15,6 +15,8 @@ class Controller_Welcome extends Controller_Base {
         $this->set_title('PRX — платформа ИИ-сервисов');
         $this->set_menu(Service_Prx110_Catalog::menu_items());
         $this->template->content = View::factory('welcome/index', [
+            'can_test' => $this->can('prx395.ui'),
+            'docflow_enabled' => isset(Kohana::modules()['prx390_intake']) && $this->can('admin.access'),
             'domains' => (array) Kohana::$config->load('portal')->get('domains'),
         ]);
     }

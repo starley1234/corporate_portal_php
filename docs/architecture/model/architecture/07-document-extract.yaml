@@ -23,7 +23,7 @@ overview:
         hint: Ключ интеграции не даёт доступа к worker API. Результат выдаётся только своему клиенту после complete с квитанцией той же попытки.
     - cards:
         - title: Проверка контура
-          text: echo из монитора или prx120:probe. Для документа — отправка PDF и polling до succeeded либо failed.
+          text: Главная → Распознавание PDF → пробный файл. Отдельная проверка очереди — echo из монитора.
           color: "#10b981"
           chips: [prx120, document.extract]
         - title: Хранение

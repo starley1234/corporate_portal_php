@@ -26,12 +26,15 @@ class PortalNavigationTest extends TestCase
         $items = Service_Prx110_Catalog::search_json($admin)['items'];
         $hrefs = array_column($items, 'href');
         foreach ([
-            '/architecture', '/design-lab', '/prx560', '/employee', '/prx597', '/account/security',
+            '/architecture', '/design-lab', '/prx560', '/employee', '/prx597', '/account/security', '/document-extract',
         ] as $href) {
             $this->assertContains($href, $hrefs, $href);
         }
-        foreach (['/inbox', '/documents', '/analysis', '/sla', '/replies', '/vlm-demo'] as $href) {
+        foreach (['/replies', '/vlm-demo'] as $href) {
             $this->assertNotContains($href, $hrefs, $href);
+        }
+        foreach (['/inbox', '/documents', '/analysis', '/sla'] as $href) {
+            $this->assertSame(getenv('PRX_DOCFLOW_ENABLED') === '1', in_array($href, $hrefs, TRUE), $href);
         }
         foreach ($items as $item) {
             $this->assertArrayHasKey('nav_paths', $item);
@@ -40,7 +43,9 @@ class PortalNavigationTest extends TestCase
         $login = ['guest' => FALSE, 'logged' => TRUE, 'roles' => ['login'], 'admin' => FALSE, 'agent' => FALSE];
         $login_hrefs = array_column(Service_Prx110_Catalog::search_json($login)['items'], 'href');
         $this->assertContains('/employee', $login_hrefs);
-        $this->assertNotContains('/prx560', $login_hrefs);
+        foreach (['/prx560', '/document-extract', '/inbox', '/documents', '/analysis', '/sla'] as $href) {
+            $this->assertNotContains($href, $login_hrefs);
+        }
 
         $guest = ['guest' => TRUE, 'logged' => FALSE, 'roles' => [], 'admin' => FALSE, 'agent' => FALSE];
         $guest_hrefs = array_column(Service_Prx110_Catalog::search_json($guest)['items'], 'href');

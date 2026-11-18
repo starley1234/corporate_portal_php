@@ -1,7 +1,7 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
 // Порядок задаёт каскадную ФС и порядок миграций. События — до очереди.
-return [
+$modules = [
     'encrypt' => MODPATH.'encrypt',
     'auth' => MODPATH.'auth',
     'cache' => MODPATH.'cache',
@@ -25,7 +25,6 @@ return [
     'prx212_file_storage' => APPPATH.'modules/prx212_file_storage',
     'prx218_module_manager' => APPPATH.'modules/prx218_module_manager',
     'prx300_employee' => APPPATH.'modules/prx300_employee',
-    // prx390–prx394 отключены: исходники и инструкция в archive/docflow/.
     'prx395_document_extract' => APPPATH.'modules/prx395_document_extract',
     'prx560_knowledge' => APPPATH.'modules/prx560_knowledge',
     'prx595_useradmin' => APPPATH.'modules/prx595_useradmin',
@@ -33,3 +32,15 @@ return [
     'prx599_account' => APPPATH.'modules/prx599_account',
     'cookie_consent' => APPPATH.'modules/cookie_consent',
 ];
+
+// Старый контур доступен только на стенде по явному разрешению.
+if (getenv('PRX_DOCFLOW_ENABLED') === '1')
+{
+    $modules += [
+        'prx390_intake' => APPPATH.'modules/prx390_intake',
+        'prx391_documents' => APPPATH.'modules/prx391_documents',
+        'prx392_analysis' => APPPATH.'modules/prx392_analysis',
+        'prx393_workflow' => APPPATH.'modules/prx393_workflow',
+    ];
+}
+return $modules;

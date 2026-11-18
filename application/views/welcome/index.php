@@ -5,8 +5,34 @@
         'crumbs' => [['Главная']],
         'title'  => 'Платформа ИИ-сервисов',
         'pill'   => ['Для корпоративных систем', 'fa-layer-group'],
-        'lead'   => 'PRX — модульный монолит для ИИ-пайплайнов. Первый пайплайн — асинхронное извлечение текста из PDF через API для корпоративных интеграций.',
+        'lead'   => 'Проверяйте обработку документов здесь или подключайте корпоративные системы через API.',
     ]); ?>
+
+    <?php if ($can_test): ?>
+    <section class="prx-panel mt-6">
+        <div class="prx-panel-head"><h2 class="prx-h3">Проверить ИИ-сервисы</h2></div>
+        <div class="flex flex-wrap gap-2.5 p-5">
+            <a class="prx-btn-process" href="/document-extract"><i class="fas fa-file-pdf"></i>Распознавание PDF</a>
+            <a class="prx-btn-secondary" href="/prx120/monitor"><i class="fas fa-list-check"></i>Монитор воркеров</a>
+        </div>
+    </section>
+    <?php endif; ?>
+
+    <?php if ($can_test): ?>
+    <section class="prx-panel mt-6">
+        <div class="prx-panel-head"><h2 class="prx-h3">Документооборот · тестовый режим</h2></div>
+        <?php if ($docflow_enabled): ?>
+        <div class="flex flex-wrap gap-2.5 p-5">
+            <a class="prx-btn-secondary" href="/inbox">Входящие документы</a>
+            <a class="prx-btn-secondary" href="/documents">Реестр входящих</a>
+            <a class="prx-btn-secondary" href="/analysis">ИИ-анализ входящих</a>
+            <a class="prx-btn-secondary" href="/sla">Сроки и маршруты</a>
+        </div>
+        <?php else: ?>
+        <p class="p-5">Выключен. Чтобы проверить на стенде, установите <code>PRX_DOCFLOW_ENABLED=1</code> в <code>.env</code>.</p>
+        <?php endif; ?>
+    </section>
+    <?php endif; ?>
 
     <section class="prx-panel mt-6">
         <div class="prx-panel-head">
@@ -23,7 +49,8 @@
         <summary class="prx-h2">Корпоративный портал: отложенный план и архив</summary>
 
         <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <?php foreach ($domains as $domain): ?>
+            <?php foreach ($domains as $key => $domain): ?>
+            <?php if ($key === 'docflow' && $docflow_enabled) continue; ?>
             <section class="prx-card">
                 <h3 class="prx-h3"><?php echo HTML::chars($domain['title']); ?><?php if (($domain['status'] ?? NULL) === 'archived') echo ' · архив'; ?></h3>
                 <ul class="mt-3 space-y-2 text-sm leading-relaxed text-gray-600 dark:text-gray-300">

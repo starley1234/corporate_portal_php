@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .base import BaseWorker
 from .config import Config
-from .handlers import HANDLERS
+from .handlers import active_handlers
 from .queue import make_queue
 from .site import safe_origin
 
@@ -166,7 +166,8 @@ def main() -> int:
     log_file = setup_logging()
 
     problems = config.validate()
-    unknown_channels = sorted(set(config.channels) - HANDLERS.keys())
+    handlers = active_handlers()
+    unknown_channels = sorted(set(config.channels) - handlers.keys())
     if unknown_channels:
         problems.append("WORKER_CHANNELS: нет активных обработчиков: " + ", ".join(unknown_channels))
     if problems:
@@ -188,7 +189,7 @@ def main() -> int:
                  ",".join(config.channels) or "все",
                  safe_origin(site_url) if site_url else "(не задан)")
 
-    worker = BaseWorker(config, make_queue(config), HANDLERS)
+    worker = BaseWorker(config, make_queue(config), handlers)
     try:
         asyncio.run(worker.run())
     except KeyboardInterrupt:
