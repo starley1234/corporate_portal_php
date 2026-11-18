@@ -18,7 +18,10 @@ class ManifestRegistryTest extends TestCase {
         $keys = array_keys($channels);
         sort($keys);
         $expected = ['document.extract', 'echo', 'embeddings.index', 'llm.summarize', 'semantic.index'];
-        if (PRX_DOCFLOW_ENABLED) array_unshift($expected, 'doc.analyze', 'doc.normalize');
+        $modules = Kohana::modules();
+        if (isset($modules['prx392_analysis'])) $expected[] = 'doc.analyze';
+        if (isset($modules['prx390_intake'])) $expected[] = 'doc.normalize';
+        sort($expected);
         $this->assertSame($expected, $keys);
         $this->assertSame('prx395_document_extract', $channels['document.extract']['module']);
         $this->assertSame('prx115_semantic', $channels['semantic.index']['module']);
@@ -58,7 +61,9 @@ class ManifestRegistryTest extends TestCase {
         }
         $this->assertCount(55, array_unique($services));
         $optional = ['prx390_intake', 'prx391_documents', 'prx392_analysis', 'prx393_workflow'];
-        $enabled = PRX_DOCFLOW_ENABLED;
+        $loaded = array_intersect($optional, array_keys(Kohana::modules()));
+        $enabled = $loaded !== [];
+        $this->assertSame($enabled ? $optional : [], $loaded, 'Подключайте старый документооборот целым блоком');
         $this->assertSame(array_merge(['prx300_employee'], $enabled ? $optional : []), $active);
         $this->assertSame(array_merge($enabled ? [] : $optional, ['prx394_drafts']), $archived);
         $this->assertArrayNotHasKey('prx398_vlm_demo', Kohana::modules());

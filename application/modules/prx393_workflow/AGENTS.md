@@ -1,6 +1,6 @@
 # prx393_workflow — маршруты, календарь и сроки
 
-> Тестовый контур: `PRX_DOCFLOW_ENABLED = TRUE` в `application/bootstrap.php`; UI только для администратора. См. `docs/QUICK-CHECK.md`.
+> Тестовый контур: раскомментируйте общий блок в `application/bootstrap.php`; UI только для администратора. См. `docs/QUICK-CHECK.md`.
 
 ## Состояние
 

@@ -64,7 +64,7 @@ Browser → PHP/HMVC → application/config/modules.php
    подписи каналов и ссылки. Метаданные не заменяют проверку HTTP/Service ACL.
 
 Старый `docflow` (`prx390`–`prx393`) выключен по умолчанию и
-[включается для тестирования](QUICK-CHECK.md) через `PRX_DOCFLOW_ENABLED = TRUE` в `application/bootstrap.php`.
+[включается для тестирования](QUICK-CHECK.md) одним блоком в `application/bootstrap.php`.
 Черновики `prx394` остаются в архиве. Новый [документный API](integrations/document-extractions.md)
 и проверка `/document-extract` от них не зависят.
 

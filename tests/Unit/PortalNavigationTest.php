@@ -33,8 +33,9 @@ class PortalNavigationTest extends TestCase
         foreach (['/replies', '/vlm-demo'] as $href) {
             $this->assertNotContains($href, $hrefs, $href);
         }
-        foreach (['/inbox', '/documents', '/analysis', '/sla'] as $href) {
-            $this->assertSame(PRX_DOCFLOW_ENABLED, in_array($href, $hrefs, TRUE), $href);
+        $modules = Kohana::modules();
+        foreach (['/inbox' => 'prx390_intake', '/documents' => 'prx391_documents', '/analysis' => 'prx392_analysis', '/sla' => 'prx393_workflow'] as $href => $module) {
+            $this->assertSame(isset($modules[$module]), in_array($href, $hrefs, TRUE), $href);
         }
         foreach ($items as $item) {
             $this->assertArrayHasKey('nav_paths', $item);

@@ -13,7 +13,9 @@ def check(condition, message):
         errors.append(message)
 
 registry = (ROOT / 'application/config/modules.php').read_text()
-registered = re.findall(r"'([^']+)' => (APP|MOD)PATH\.'([^']+)'", registry)
+bootstrap = (ROOT / 'application/bootstrap.php').read_text()
+# Учитываем и закомментированный стендовый блок: проверяем пути объявлений, а не состояние PHP.
+registered = re.findall(r"'([^']+)' => (APP|MOD)PATH\.'([^']+)'", registry + '\n' + bootstrap)
 check(bool(registered), 'Пустой реестр модулей')
 for name, kind, relative in registered:
     path = ROOT / ('application' if kind == 'APP' else 'modules') / relative
@@ -23,7 +25,7 @@ check(registry.index("'prx208_events'") < registry.index("'prx120_jobs'"), 'Ши
 check((ROOT / 'docs/architecture/model/meta.yaml').is_file(), 'Нет модели docs/architecture/model/meta.yaml')
 check((ROOT / 'docs/architecture/dist/architecture.html').is_file(), 'Нет собранной docs/architecture/dist/architecture.html')
 check((ROOT / 'docs/architecture/dist/architecture.json').is_file(), 'Нет собранной docs/architecture/dist/architecture.json')
-check("config/modules.php" in (ROOT / 'application/bootstrap.php').read_text(), 'Bootstrap обходит реестр')
+check("config/modules.php" in bootstrap, 'Bootstrap обходит реестр')
 
 plan = (ROOT / 'application/config/portal.php').read_text()
 plan_entries = re.findall(r"'module' => '(prx\d+_[a-z_]+)',\s*'title' => '[^']+',\s*'status' => ('(?:planned|active|archived)'|\$docflow_status)", plan)

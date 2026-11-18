@@ -9,7 +9,7 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
 - Реестр подключённых модулей: `application/config/modules.php`.
 - Карта сервисов: `application/config/portal.php`, `docs/ROADMAP.md` — 50 из
   отложенного портального плана плюс старый документооборот. `prx390`–`prx393`
-  подключаются только на стенде по `PRX_DOCFLOW_ENABLED = TRUE` в `application/bootstrap.php`; `prx394` в архиве. Новый фокус —
+  подключаются только на стенде одним блоком в `application/bootstrap.php`; `prx394` в архиве. Новый фокус —
   API-пайплайны для корпоративных систем: `docs/AI-DOCUMENT-PIPELINES.md`.
 - Архитектура: `docs/ARCHITECTURE.md`, модель и схемы — `docs/architecture/model`
   (`make architecture`, страница `/architecture`); создание: `docs/MODULE_GUIDE.md`.

@@ -1,6 +1,6 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 // План, а не список подключённых модулей. Не создаёт маршрутов/таблиц/прав.
-$docflow_status = PRX_DOCFLOW_ENABLED ? 'active' : 'archived';
+$docflow_status = isset(Kohana::modules()['prx390_intake']) ? 'active' : 'archived';
 return ['domains' => [
     'hr' => ['title' => 'HR и развитие персонала', 'services' => [
         ['module' => 'prx300_employee', 'title' => 'Личный кабинет сотрудника', 'status' => 'active'],

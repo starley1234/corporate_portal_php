@@ -16,7 +16,12 @@ class Controller_Prx395_Worker extends Controller_Prx395_Json
         $this->respond(function () {
             if ( ! Gate::worker_request()) throw new Prx395_Error('unauthorized', 401);
             $this->require_method(Request::GET);
-            $this->_json_response(['ok' => TRUE, 'module' => 'prx395', 'docflow_enabled' => PRX_DOCFLOW_ENABLED]);
+            $modules = Kohana::modules();
+            $this->_json_response([
+                'ok' => TRUE,
+                'module' => 'prx395',
+                'docflow_enabled' => isset($modules['prx390_intake'], $modules['prx392_analysis']),
+            ]);
         });
     }
 

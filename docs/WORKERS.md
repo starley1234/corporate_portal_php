@@ -35,8 +35,9 @@ cd workers && python3 -m prx_workers
 
 ### Распознавание документов
 
-`doc.normalize` и `doc.analyze` включаются только на тестовом стенде с
-`PRX_DOCFLOW_ENABLED = TRUE` в `application/bootstrap.php`; `doc.draft` выключен. [Быстрая проверка в UI](QUICK-CHECK.md).
+`doc.normalize` и `doc.analyze` включаются только на тестовом стенде после
+раскомментирования общего блока в `application/bootstrap.php`; `doc.draft` выключен.
+[Быстрая проверка в UI](QUICK-CHECK.md).
 
 Канал `document.extract` поддерживает локальный `tesseract` и `remote` для
 `/parse` с ответом `content`. Запускается только отдельным Python-процессом;

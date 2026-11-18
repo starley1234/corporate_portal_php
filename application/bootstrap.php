@@ -175,9 +175,15 @@ ini_set('session.save_path', APPPATH.'sessions');
 /**
  * Enable modules. Modules are referenced by a relative or absolute path.
  */
-// Старый документооборот (Входящие, Реестр, ИИ-анализ, Сроки): TRUE — стенд, FALSE — выключен.
-define('PRX_DOCFLOW_ENABLED', FALSE);
-Kohana::modules(require APPPATH.'config/modules.php');
+Kohana::modules((require APPPATH.'config/modules.php') + [
+    // Старый документооборот: для проверки на стенде снимите /* и */ со всего блока.
+    /*
+    'prx390_intake' => APPPATH.'modules/prx390_intake',
+    'prx391_documents' => APPPATH.'modules/prx391_documents',
+    'prx392_analysis' => APPPATH.'modules/prx392_analysis',
+    'prx393_workflow' => APPPATH.'modules/prx393_workflow',
+    */
+]);
 
 
 

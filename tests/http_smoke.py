@@ -101,6 +101,11 @@ assert 'Распознать пробный PDF' in pages['/document-extract']
 assert 'href="/document-extract"' in pages['/']
 request('/document-extract', 403, {'sample': '1'})
 legacy = os.environ.get('SMOKE_EXPECT_DOCFLOW') == '1'
+worker_token = os.environ.get('WORKER_API_TOKEN')
+if worker_token:
+    health = json.loads(request('/prx395/worker/health', 200, headers={'X-Worker-Token': worker_token}))
+    assert health.get('ok') is True and health.get('module') == 'prx395'
+    assert health.get('docflow_enabled') is legacy, 'Worker health disagrees with the module block'
 legacy_paths = {'/inbox', '/documents', '/analysis', '/sla'}
 archived_paths = {'/replies', '/vlm-demo'} | (set() if legacy else legacy_paths)
 for path in sorted(legacy_paths):

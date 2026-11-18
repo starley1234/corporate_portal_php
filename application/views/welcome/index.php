@@ -29,7 +29,7 @@
             <a class="prx-btn-secondary" href="/sla">Сроки и маршруты</a>
         </div>
         <?php else: ?>
-        <p class="p-5">Выключен. Чтобы проверить на стенде, установите <code>PRX_DOCFLOW_ENABLED</code> в <code>TRUE</code> в <code>application/bootstrap.php</code>.</p>
+        <p class="p-5">Выключен. Чтобы проверить на стенде, раскомментируйте блок старого документооборота в <code>application/bootstrap.php</code>.</p>
         <?php endif; ?>
     </section>
     <?php endif; ?>
