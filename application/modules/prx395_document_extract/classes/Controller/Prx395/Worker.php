@@ -11,6 +11,15 @@ class Controller_Prx395_Worker extends Controller_Prx395_Json
         return [(int) $this->request->param('id'), (int) $attempt];
     }
 
+    public function action_health(): void
+    {
+        $this->respond(function () {
+            if ( ! Gate::worker_request()) throw new Prx395_Error('unauthorized', 401);
+            $this->require_method(Request::GET);
+            $this->_json_response(['ok' => TRUE, 'module' => 'prx395']);
+        });
+    }
+
     public function action_file(): void
     {
         $this->respond(function () {

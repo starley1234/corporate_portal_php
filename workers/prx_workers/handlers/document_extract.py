@@ -5,10 +5,10 @@
 """
 from __future__ import annotations
 
+import logging
 import re
 import tempfile
 from pathlib import Path
-from urllib.parse import urlsplit
 
 import httpx
 
@@ -17,6 +17,7 @@ from ..base import HandlerContext, PermanentJobError
 from ..document_extract import DocumentJobError, MAX_PDF
 
 CHANNEL = "document.extract"
+log = logging.getLogger("prx.document_extract")
 
 
 def _check(response: httpx.Response) -> None:
@@ -54,17 +55,15 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
     job_id, attempt = int(job.get("id") or 0), int(job.get("attempts") or 0)
     if not job_id or not attempt:
         raise PermanentJobError("worker_config")
-    base = site.module_api_base("PRX395_DOCUMENT_EXTRACT", "/prx395/worker")
-    try:
-        address = urlsplit(base)
-        if (address.scheme not in ("http", "https") or not address.hostname or address.username is not None
-                or address.query or address.fragment or not ctx.config.api_token):
-            raise ValueError
-    except ValueError:
-        raise PermanentJobError("worker_config") from None
+    base, source = site.module_api_config("PRX395_DOCUMENT_EXTRACT", "/prx395/worker")
+    if not site.valid_http_base(base) or not ctx.config.api_token:
+        log.error("document.extract job_id=%s php=%s (%s): проверьте адрес и WORKER_API_TOKEN",
+                  job_id, site.safe_origin(base), source)
+        raise PermanentJobError("worker_config")
     headers = {"X-Worker-Token": ctx.config.api_token, "X-PRX-Worker-Attempt": str(attempt),
                "Accept-Encoding": "identity"}
     url = f"{base}/{job_id}"
+    phase = "download_pdf"
     try:
         async with httpx.AsyncClient(headers=headers, timeout=25, follow_redirects=False) as client:
             with tempfile.TemporaryDirectory(prefix="prx395_") as tmp:
@@ -72,14 +71,24 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
                 await ctx.progress("download_pdf")
                 await _download(client, url + "/file", path)
                 result = await document_extract.extract(path, ctx.progress)
-                await ctx.progress("store_result")
+                phase = "store_result"
+                await ctx.progress(phase)
                 response = await client.post(url + "/result", json=result)
                 _check(response)
                 receipt = response.json().get("receipt")
                 if not isinstance(receipt, str) or not re.fullmatch(r"[a-f0-9]{32}", receipt):
                     raise ValueError
                 return {"receipt": receipt}
-    except (httpx.HTTPError, OSError):
+    except httpx.HTTPError as exc:
+        log.warning("document.extract job_id=%s stage=%s php=%s (%s): %s",
+                    job_id, phase, site.safe_origin(base), source, site.network_error(exc))
         raise DocumentJobError("worker_endpoint_unavailable") from None
+    except OSError:
+        raise DocumentJobError("worker_endpoint_unavailable") from None
+    except (DocumentJobError, PermanentJobError) as exc:
+        if str(exc) in {"worker_endpoint_unavailable", "worker_auth"}:
+            log.warning("document.extract job_id=%s stage=%s php=%s (%s): %s",
+                        job_id, phase, site.safe_origin(base), source, str(exc))
+        raise
     except (ValueError, AttributeError, httpx.InvalidURL):
         raise PermanentJobError("worker_endpoint_unavailable") from None

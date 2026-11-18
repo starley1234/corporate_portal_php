@@ -76,7 +76,7 @@ Docker-стек не запускался в среде с закрытым Dock
 
 ```bash
 python3 -m pip install -r workers/requirements.txt
-# Проверьте workers/.env (setup.sh создаёт его), адреса и общий токен сайта.
+# Один хост: APP_URL, DB_DEFAULT_* и WORKER_API_TOKEN из корневого .env.
 cd workers && python3 -m prx_workers
 # Альтернатива: docker compose --profile workers up -d --build
 ```

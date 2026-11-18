@@ -46,6 +46,7 @@ for path in ['/search/api?q=test', '/prx110/api/catalog', '/prx110/api/favorites
     json.loads(request(path, 401))
 json.loads(request('/prx110/api/favorites', 401, {'href': '/employee', 'pinned': '1'}))
 request('/prx120/api/stats', 403)
+assert json.loads(request('/prx395/worker/health', 401)) == {'error': {'code': 'unauthorized'}}
 request('/document-extract', 403)
 assert json.loads(request('/api/v1/document-extractions/1', 401)) == {'error': {'code': 'unauthorized'}}
 request('/services', 403)

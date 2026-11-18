@@ -51,84 +51,62 @@ def site_token(prefix: str) -> tuple[str, str]:
     return "", ""
 
 
+def site_root() -> tuple[str, str]:
+    """Общий адрес сайта и имя настройки, из которой он взят."""
+    base = os.getenv("PRX120_API_BASE", "").strip().rstrip("/")
+    if base:
+        return base, "PRX120_API_BASE"
+    for name in ("PRX120_API_URL", "WORKER_API_URL"):
+        root = origin_of(os.environ.get(name, ""))
+        if root:
+            return root, name
+    app = os.getenv("APP_URL", "").strip().rstrip("/")
+    return (app, "APP_URL") if app else ("", "не задан")
+
+
+def queue_api_url() -> str:
+    for name in ("PRX120_API_URL", "WORKER_API_URL"):
+        url = os.environ.get(name, "").strip().rstrip("/")
+        if url:
+            return url
+    root, _ = site_root()
+    return root + "/prx120/api" if root else ""
+
+
 def api_base(prefix: str) -> str:
-    """Адрес сайта для обработчика: <PREFIX>_API_BASE → PRX120_API_BASE.
-
-    Один и тот же сайт не должен настраиваться дважды: у очереди prx120 уже есть
-    PRX120_API_BASE, поэтому модульный канал берёт её как запасную — иначе
-    обработчику пришлось бы требовать свою переменную ради того же адреса.
-
-    Каналу с ПОЛНЫМ путём (semantic.index сам формирует /prx115/api/vectors)
-    годится и корень сайта — см. origin_of(); такие каналы дополнительно
-    смотрят на PRX120_API_URL, который в http-режиме уже задан.
-    """
-    import os
-
-    for name in (prefix + "_API_BASE", "PRX120_API_BASE"):
-        value = (os.environ.get(name) or "").strip().rstrip("/")
-
-        if value:
-            return value
-
-    return ""
+    return os.environ.get(prefix + "_API_BASE", "").strip().rstrip("/") or site_root()[0]
 
 
 def module_api_base(prefix: str, default_path: str) -> str:
-    """API-адрес модульного канала: <PREFIX>_API_BASE → общий корень + путь.
-
-    Зачем: у модульных каналов пути короткие ("/items", "/analysis"), поэтому
-    общего PRX120_API_BASE (корень сайта) им мало — вышел бы 404. Но заводить
-    ради этого свою переменную на каждый модуль — размножать один и тот же
-    адрес сайта по .env (замечание владельца 06.10.2026: «не раздувать .env»).
-    Компромисс без переделок:
-
-      * свой <PREFIX>_API_BASE по-прежнему перекрывает всё (канал на другом
-        сайте) — поведение старых каналов не меняется;
-      * без него адрес собирается из общего корня (PRX120_API_BASE, а в
-        http-режиме — корень адреса очереди PRX120_API_URL, см. origin_of)
-        и стандартного пути модуля: root + "/prx115/api".
-
-    Первым её использует prx661_airadar; новые модульные каналы обязаны
-    (правило AGENTS воркеров), старые переводятся по мере касания.
-    """
     return module_api_config(prefix, default_path)[0]
 
 
 def module_api_config(prefix: str, default_path: str) -> tuple[str, str]:
-    """Фактическая база и ИМЯ источника; значение переменной не пишем в лог."""
+    """Модульная база перекрывает общую; общий корень дополняется путём модуля."""
     own_name = prefix + "_API_BASE"
-    own = (os.environ.get(own_name) or "").strip().rstrip("/")
+    own = os.environ.get(own_name, "").strip().rstrip("/")
     if own:
         return own, own_name
+    root, source = site_root()
+    return (root + default_path, source) if root else ("", source)
 
-    root = (os.environ.get("PRX120_API_BASE") or "").strip().rstrip("/")
-    if root:
-        return root + default_path, "PRX120_API_BASE"
 
-    root = origin_of(os.environ.get("PRX120_API_URL", ""))
-    return (root + default_path, "PRX120_API_URL") if root else ("", "не задан")
+def valid_http_base(url: str) -> bool:
+    try:
+        parts = urlsplit(url)
+        return (parts.scheme in ("http", "https") and bool(parts.hostname)
+                and parts.username is None and not parts.query and not parts.fragment
+                and (parts.port is None or parts.port > 0))
+    except ValueError:
+        return False
 
 
 def origin_of(url: str) -> str:
-    """Корень сайта из адреса его API: https://prx.ru/prx120/api → https://prx.ru.
-
-    Зачем (задача 60): воркер в http-режиме уже знает адрес сайта — иначе он не
-    забрал бы задачу из очереди (PRX120_API_URL), и токен у него тот же
-    (WORKER_API_TOKEN = токен сайта). Требовать в этом режиме ЕЩЁ и отдельный
-    адрес доставки — значит просить вписать тот же сайт второй раз; владелец
-    увидел это как «в примерах нет этих переменных», а доставка векторов молчала.
-    Теперь канал берёт корень отсюда.
-    """
-    import re
-
     value = (url or "").strip()
-
-    if not value:
+    if not valid_http_base(value):
         return ""
-
-    m = re.match(r"^(https?://[^/]+)", value)
-
-    return m.group(1).rstrip("/") if m else ""
+    parts = urlsplit(value)
+    return f"{parts.scheme}://{parts.netloc}"
 
 
 def safe_origin(url: str) -> str:

@@ -69,7 +69,9 @@ project docroot не переключаются сами; путь в
 ручной миграции. Диагностика `bin/console dev:doctor` проверяет типовые, а не
 все индивидуально настроенные backend и директории.
 
-Для воркеров есть отдельный workers/.env. Docker использует корневой .env.
+На одном хосте воркер берёт общие настройки из корневого `.env`.
+Приоритет: окружение процесса → `workers/.env` → корневой `.env`. В Compose
+внутренние адреса `postgres` и `nginx` уже настроены.
 Резервируйте БД **и** файлы: `bin/backup.sh` по умолчанию включает `storage`
 и старые `public_html/{storage,uploads,avatar,img}`; если переопределён
 `DEPLOY_MODULE_STORAGE`/`BACKUP_PUBLIC_DIRS`, проверьте состав списка. Внешние
@@ -138,7 +140,7 @@ outbox; проверяйте состояние отдельно и не пер�
 
 `PRX395_DOCUMENT_EXTRACT_CLIENTS` — JSON с отдельным Bearer-ключом каждой
 интеграции; `{}` закрывает доступ. Параметр задаётся на PHP, не на Python.
-Воркеру в любом режиме очереди нужны `PRX120_API_BASE`, `WORKER_API_TOKEN` и
+Воркеру в любом режиме очереди нужны `APP_URL` (или `PRX120_API_BASE`), `WORKER_API_TOKEN` и
 канал `document.extract`. `OCR_PROVIDER=tesseract|remote` выбирает движок;
 для `remote` задайте `OCR_SERVICE_URL` до `/parse`. См. [запуск и проверку](integrations/document-extractions.md).
 

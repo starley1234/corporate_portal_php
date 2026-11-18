@@ -1,31 +1,84 @@
 """Конфигурация воркеров: всё из переменных окружения (файл .env опционален).
 
-Порядок приоритета: переменные окружения процесса > workers/.env > значения
-по умолчанию. Только PRX_DOCFLOW_ENABLED дополнительно читается из корневого
-.env при запуске из общего checkout.
+Приоритет: окружение процесса > workers/.env > настройки воркера из корневого .env.
 """
 
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import quote, urlencode
 
 
-def _load_dotenv(path: Path, only: str | None = None) -> None:
-    """Мини-загрузчик .env: переменные окружения главнее файла."""
-    if not path.is_file():
+# Из корневого файла берём только параметры воркера, не соли, почту и ключи клиентов.
+SHARED_KEYS = re.compile(
+    r"(?:APP_URL|DB_DEFAULT_(?:HOST|PORT|NAME|USER|PASS|SCHEMA)|PRX_DOCFLOW_ENABLED|"
+    r"WORKER_[A-Z0-9_]+|PRX(?:115|120|390|392|395_DOCUMENT_EXTRACT)_(?:API_BASE|API_URL|SITE_TOKEN)|"
+    r"OCR_[A-Z0-9_]+|EMBEDDING_[A-Z0-9_]+|LLM_DEFAULT_PROVIDER|DEFAULT_LLM_MODEL|"
+    r"(?:LOCAL|OPENROUTER|TOOLFORGE)_(?:API_URL|API_KEY|DEFAULT_MODEL))"
+)
+
+
+def _dotenv_value(value: str) -> str:
+    value = value.lstrip()
+    if not value or value.startswith("#"):
+        return ""
+    if value[0] in ("'", '"') and value.rfind(value[0]) > 0:
+        quote_char = value[0]
+        inner = value[1:value.rfind(quote_char)]
+        if quote_char == '"':
+            for before, after in ((r"\n", "\n"), (r"\t", "\t"), (r'\"', '"'), (r"\\", "\\")):
+                inner = inner.replace(before, after)
+        return inner
+    return value.split(" #", 1)[0].rstrip()
+
+
+def _load_dotenv(path: Path, *, shared: bool = False) -> None:
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
         return
-    for raw in path.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        if line.startswith("export "):
-            line = line[len("export "):]
-        key, _, value = line.partition("=")
-        key, value = key.strip(), value.strip().strip("'\"")
-        if key and (only is None or key == only) and key not in os.environ:
-            os.environ[key] = value
+    except PermissionError:
+        if shared:
+            return  # Отдельный системный пользователь может иметь только workers/.env.
+        raise RuntimeError("Нет доступа на чтение workers/.env") from None
+    values = {}
+    for raw in lines:
+        line = raw.strip().removeprefix("export ")
+        key, sep, value = line.partition("=")
+        key = key.strip()
+        if sep and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key) and (not shared or SHARED_KEYS.fullmatch(key)):
+            values[key] = _dotenv_value(value)
+    for key, value in values.items():
+        os.environ.setdefault(key, value)
+
+
+def load_environment(worker_root: Path) -> None:
+    _load_dotenv(worker_root / ".env")
+    _load_dotenv(worker_root.parent / ".env", shared=True)
+
+
+def _pg_dsn() -> str:
+    explicit = _env("WORKER_PG_DSN")
+    if explicit:
+        return explicit
+    host, name, user = _env("DB_DEFAULT_HOST"), _env("DB_DEFAULT_NAME"), _env("DB_DEFAULT_USER")
+    if not (host and name and user):
+        return ""
+    # Локальный TCP/IPv6. Для сокета или особых параметров можно задать DSN явно.
+    port = _env("DB_DEFAULT_PORT", "5432")
+    if not re.fullmatch(r"[A-Za-z0-9_.:\[\]-]+", host) or not port.isascii() or not port.isdecimal():
+        raise RuntimeError("Укажите явный WORKER_PG_DSN для нестандартного DB_DEFAULT_HOST/PORT")
+    if ":" in host and not host.startswith("["):
+        host = f"[{host}]"
+    password = quote(os.getenv("DB_DEFAULT_PASS", ""), safe="")
+    dsn = f"postgresql://{quote(user, safe='')}:{password}@{host}:{port}/{quote(name, safe='')}"
+    schema = _env("DB_DEFAULT_SCHEMA")
+    if schema and schema != "public":
+        dsn += "?" + urlencode({"search_path": schema})
+    return dsn
 
 
 def _env(name: str, default: str = "") -> str:
@@ -102,10 +155,10 @@ class Config:
 
     @classmethod
     def load(cls) -> "Config":
-        worker_root = Path(__file__).resolve().parent.parent
-        _load_dotenv(worker_root / ".env")
-        # В одном checkout достаточно включить старый контур в корневом .env.
-        _load_dotenv(worker_root.parent / ".env", only="PRX_DOCFLOW_ENABLED")
+        load_environment(Path(__file__).resolve().parent.parent)
+        from .site import queue_api_url
+
+        mode = _env("WORKER_QUEUE_MODE", "pg").lower()
 
         channels = [c.strip() for c in _env("WORKER_CHANNELS").split(",") if c.strip()]
 
@@ -121,9 +174,9 @@ class Config:
         model_name = platform_model.split("::", 1)[-1].strip()
 
         return cls(
-            queue_mode=_env("WORKER_QUEUE_MODE", "pg").lower(),
-            pg_dsn=_env("WORKER_PG_DSN"),
-            api_url=_env("PRX120_API_URL", _env("WORKER_API_URL")).rstrip("/"),
+            queue_mode=mode,
+            pg_dsn=_pg_dsn() if mode == "pg" else "",
+            api_url=queue_api_url(),
             api_token=_env("WORKER_API_TOKEN"),
             worker_name=_env("WORKER_NAME", "worker-1"),
             channels=channels,
@@ -154,10 +207,10 @@ class Config:
         if self.queue_mode not in ("pg", "http"):
             problems.append(f"WORKER_QUEUE_MODE должен быть pg|http, а не '{self.queue_mode}'")
         if self.queue_mode == "pg" and not self.pg_dsn:
-            problems.append("WORKER_PG_DSN не задан (режим pg)")
+            problems.append("Для pg задайте DB_DEFAULT_HOST/NAME/USER или WORKER_PG_DSN")
         if self.queue_mode == "http":
             if not self.api_url:
-                problems.append("PRX120_API_URL не задан (режим http)")
+                problems.append("Для http задайте APP_URL или PRX120_API_URL")
             if not self.api_token:
                 problems.append("WORKER_API_TOKEN не задан (режим http)")
         return problems

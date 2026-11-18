@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import logging
 import os
@@ -13,7 +14,7 @@ from .base import BaseWorker
 from .config import Config
 from .handlers import active_handlers
 from .queue import make_queue
-from .site import safe_origin
+from .site import module_api_config, safe_origin
 
 # Корень воркеров (…/workers) — рядом лежат .env, README и каталог логов.
 WORKERS_ROOT = Path(__file__).resolve().parents[1]
@@ -183,11 +184,14 @@ def main() -> int:
                  log_file or "(только stderr)",
                  ", ".join(_quiet_loggers()) or "—",
                  ", ".join(skip) or "—")
-    site_url = os.getenv("PRX120_API_BASE", "") or os.getenv("PRX646_API_BASE", "")
-    logging.info("Очередь: %s · каналы: %s · сайт: %s",
+    site_url, source = module_api_config("PRX395_DOCUMENT_EXTRACT", "/prx395/worker")
+    logging.info("Очередь: %s · каналы: %s · PHP: %s (%s)",
                  config.queue_mode,
                  ",".join(config.channels) or "все",
-                 safe_origin(site_url) if site_url else "(не задан)")
+                 safe_origin(site_url), source)
+    if "doc.normalize" in (config.channels or handlers):
+        legacy_base, legacy_source = module_api_config("PRX390", "/prx390/api")
+        logging.info("PHP для doc.normalize: %s (%s)", safe_origin(legacy_base), legacy_source)
 
     worker = BaseWorker(config, make_queue(config), handlers)
     try:
@@ -198,4 +202,20 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="PRX Python worker")
+    parser.add_argument("--check-site", action="store_true", help="проверить HTTP-связь с PHP, не забирая задачи")
+    args = parser.parse_args()
+    if args.check_site:
+        from .config import load_environment
+        from .site_check import check_site
+
+        try:
+            load_environment(WORKERS_ROOT)
+        except RuntimeError as exc:
+            print(exc, file=sys.stderr)
+            sys.exit(2)
+        logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+        sys.exit(asyncio.run(check_site(os.getenv("WORKER_API_TOKEN", "").strip(),
+                                         legacy=os.getenv("PRX_DOCFLOW_ENABLED") == "1")))
     sys.exit(main())

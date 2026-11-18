@@ -12,11 +12,11 @@ python3 -m pip install -r workers/requirements.txt
 cd workers && python3 -m prx_workers
 ```
 
-Настройки — `workers/.env` (процесс важнее файла). `WORKER_QUEUE_MODE=pg|http`,
-`WORKER_PG_DSN`, `PRX120_API_URL`, `WORKER_API_TOKEN`, `WORKER_CHANNELS`,
-`WORKER_CONCURRENCY`, `WORKER_POLL_INTERVAL`. Логи — `workers/logs/prx-worker.log`.
-Токен воркера должен совпадать с сайтом; разные серверы используют публичный
-адрес сайта, не localhost. В браузерном JS — только относительные URL.
+На одном сервере используются `APP_URL`, `DB_DEFAULT_*` и `WORKER_API_TOKEN`
+из корневого `.env`. `workers/.env` и переменные systemd могут их переопределить.
+Даже `pg`-воркер обращается к PHP по HTTP. `python -m prx_workers --check-site`
+проверяет адрес и токен без постановки задач. Подробности — в
+[инструкции для systemd](systemd-сервис.md). В браузере — относительные URL.
 
 | Канал | Что делает |
 |---|---|

@@ -125,7 +125,7 @@ def test_startup_logs_only_site_origin_without_credentials_or_query(tmp_path, mo
     monkeypatch.setattr(entry, "BaseWorker", lambda *_args: Worker())
     assert entry.main() == 0
     text = target.read_text(encoding="utf-8")
-    assert "сайт: https://portal.example" in text
+    assert "PHP: https://portal.example (PRX120_API_BASE)" in text
     assert secret not in text
 
 

@@ -247,7 +247,7 @@ async def test_http_mode_without_site_settings_is_a_clear_failure(monkeypatch):
     """Молчаливого «skipped» нет: без адреса сайта задача падает с подсказкой."""
     # PRX120_API_URL — тоже: иначе адрес сайта честно находится по нему, а тест
     # про «настройки доставки нет вообще» должен быть детерминированным.
-    for name in ("PRX115_API_BASE", "PRX120_API_BASE", "PRX120_API_URL", "PRX115_SITE_TOKEN",
+    for name in ("APP_URL", "WORKER_API_URL", "PRX115_API_BASE", "PRX120_API_BASE", "PRX120_API_URL", "PRX115_SITE_TOKEN",
                  "WORKER_SITE_TOKEN", "WORKER_API_TOKEN"):
         monkeypatch.delenv(name, raising=False)
 

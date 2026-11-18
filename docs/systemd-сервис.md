@@ -17,20 +17,38 @@ workers/.venv/bin/python -m pip install -r workers/requirements.txt
 
 ### Шаг 2. Конфигурация окружения воркера
 
-Если файл `workers/.env` ещё не создан, скопируйте шаблон (если уже существует — **не перезаписывайте**, а отредактируйте):
+**Если PHP и воркер на одном сервере**, достаточно `/opt/portal.toolforge.ru/.env`:
 
-```bash
-test -f workers/.env || cp workers/.env.example workers/.env
-chmod 600 workers/.env
+```dotenv
+APP_URL=https://portal.toolforge.ru
+# DB_DEFAULT_* — существующие настройки PostgreSQL сайта.
+# WORKER_API_TOKEN — существующий токен сайта; не публикуйте его.
 ```
 
-Отредактируйте `workers/.env`, указав рабочие параметры:
-* `WORKER_QUEUE_MODE=pg` и валидный `WORKER_PG_DSN` (или HTTP-режим с `PRX120_API_URL` и `WORKER_API_TOKEN`).
-* `PRX120_API_BASE=https://portal.toolforge.ru` (реальный URL сайта, доступный **из процесса воркера**). `http://localhost:8080` работает только если сайт действительно слушает этот порт в том же сетевом пространстве.
-* `WORKER_CHANNELS`: оставьте пустым либо укажите активные каналы, например `echo,document.extract` для PDF-пайплайна.
-* Для `document.extract` совпадающий с PHP `WORKER_API_TOKEN` нужен также в PG-режиме. [Настройки OCR и клиентских ключей](integrations/document-extractions.md).
+По умолчанию воркер работает через PostgreSQL и строит DSN из `DB_DEFAULT_*`.
+Даже в этом режиме он скачивает PDF и сдаёт результат по HTTP через `APP_URL`.
+Если нужен внутренний адрес, укажите `PRX120_API_BASE` без пути API.
+`workers/.env` **не обязателен**. Приоритет: systemd → `workers/.env` → корневой `.env`.
+Проверьте, что пользователь службы может читать нужный файл; не делайте его
+общедоступным. На отдельном сервере используйте `workers/.env.example`.
 
-Переменные из systemd-окружения имеют приоритет над `workers/.env`.
+**После обновления старого шаблона:** проверьте оба файла и unit. Старые
+`PRX120_API_BASE`, `PRX120_API_URL`, `PRX390_API_BASE` и `PRX395_DOCUMENT_EXTRACT_API_BASE`
+могут перекрывать `APP_URL`, особенно `http://localhost:8080`. Уберите только
+ненужные переопределения, не стирайте файл с рабочими настройками. Для старого
+контура `WORKER_SITE_TOKEN`/`PRX390_SITE_TOKEN` также перекрывают общий токен.
+
+Из каталога воркера проверьте связь без постановки задач:
+
+```bash
+cd /opt/portal.toolforge.ru/workers
+.venv/bin/python -m prx_workers --check-site
+```
+
+Запускайте от пользователя службы. Если в unit задано `Environment` или
+`EnvironmentFile`, ручная команда может видеть другие значения; сравните адрес
+со стартовой строкой в `journalctl -u prx-worker -n 60 --no-pager -o cat`.
+`--check-site` выводит источник адреса и причину отказа, не выводит токен и PDF.
 
 ---
 
