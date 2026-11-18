@@ -44,7 +44,7 @@ class Service_Prx212_Storage {
 
         if ($backend->driver === 'local') {
             $root = $this->_get_local_root($config);
-            return $root . DIRECTORY_SEPARATOR . ltrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $file->storage_path), DIRECTORY_SEPARATOR);
+            return $this->_local_file_path($root, $file->storage_path);
         }
 
         return FALSE;
@@ -295,7 +295,12 @@ class Service_Prx212_Storage {
     public function save($file, array $metadata = [])
     {
         $file_path = is_array($file) ? $file['tmp_name'] : $file;
-        
+        $module = isset($metadata['module']) ? trim((string) $metadata['module']) : 'default';
+        $module = $module === '' ? 'default' : $module;
+        if ( ! preg_match('/\A[a-zA-Z0-9][a-zA-Z0-9_-]{0,49}\z/', $module)) {
+            throw new InvalidArgumentException('Недопустимый префикс модуля хранилища');
+        }
+
         if (!file_exists($file_path)) {
             throw new Exception("Source file not found: " . $file_path);
         }
@@ -331,7 +336,7 @@ class Service_Prx212_Storage {
         $file_model->extension = $this->_get_extension($file);
         $file_model->hash = hash_file('sha256', $file_path);
         $file_model->is_public = isset($metadata['is_public']) ? (int)$metadata['is_public'] : 0;
-        $file_model->module_prefix = isset($metadata['module']) ? $metadata['module'] : 'default';
+        $file_model->module_prefix = $module;
         
         // Временный путь для прохождения валидации not_empty в модели
         $file_model->storage_path = 'pending/' . $file_model->filename;
@@ -485,17 +490,55 @@ class Service_Prx212_Storage {
         
         if ($backend->driver === 'local') {
             $root = $this->_get_local_root($config);
-            $full_path = $root . DIRECTORY_SEPARATOR . ltrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path), DIRECTORY_SEPARATOR);
+            $full_path = $this->_local_file_path($root, $path);
             $dir = dirname($full_path);
-            if (!is_dir($dir)) mkdir($dir, 0755, true);
-            
-            $success = is_uploaded_file($source) ? move_uploaded_file($source, $full_path) : copy($source, $full_path);
-
-            if (!$success) {
-                throw new Exception("Failed to copy file to $full_path");
+            if (!is_dir($dir) && !@mkdir($dir, 0700, true) && !is_dir($dir)) {
+                throw new RuntimeException('Не удалось создать папку хранилища prx212: '.$dir);
+            }
+            // После mkdir проверяем путь снова: вложенная ссылка не должна
+            // перенаправлять запись из приватного backend в другое место.
+            $full_path = $this->_local_file_path($root, $path);
+            $input = @fopen($source, 'rb');
+            if ($input === FALSE) {
+                throw new RuntimeException('Не удалось прочитать исходный файл prx212: '.$source);
             }
 
-            @chmod($full_path, isset($config['chmod']) ? octdec($config['chmod']) : 0644);
+            // x запрещает перезапись существующего файла, а umask делает
+            // файл приватным с самого создания, а не только после chmod.
+            $previous_mask = umask(0077);
+            try {
+                $output = @fopen($full_path, 'xb');
+            } finally {
+                umask($previous_mask);
+            }
+            if ($output === FALSE) {
+                fclose($input);
+                throw new RuntimeException('Не удалось создать файл в хранилище prx212 (возможно, он уже существует): '.$full_path);
+            }
+
+            $identity = fstat($output);
+            $completed = FALSE;
+            try {
+                $source_stat = fstat($input);
+                $copied = @stream_copy_to_stream($input, $output);
+                if ($source_stat === FALSE || $copied === FALSE || $copied !== $source_stat['size'] || !fflush($output)) {
+                    throw new RuntimeException('Не удалось полностью сохранить файл в хранилище prx212: '.$full_path);
+                }
+                if (!@chmod($full_path, isset($config['chmod']) ? octdec($config['chmod']) : 0600)) {
+                    throw new RuntimeException('Не удалось установить права файла в хранилище prx212: '.$full_path);
+                }
+                $completed = TRUE;
+            } finally {
+                fclose($input);
+                fclose($output);
+                if (!$completed && $identity !== FALSE) {
+                    clearstatcache(TRUE, $full_path);
+                    $current = @lstat($full_path);
+                    if ($current !== FALSE && $current['dev'] === $identity['dev'] && $current['ino'] === $identity['ino']) {
+                        @unlink($full_path);
+                    }
+                }
+            }
         } 
         elseif ($backend->driver === 's3') {
             $s3 = $this->_get_s3_client($config);
@@ -514,7 +557,7 @@ class Service_Prx212_Storage {
         $config = $backend->get_config_array();
         if ($backend->driver === 'local') {
             $root = $this->_get_local_root($config);
-            $full_path = $root . DIRECTORY_SEPARATOR . ltrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path), DIRECTORY_SEPARATOR);
+            $full_path = $this->_local_file_path($root, $path);
             if (is_file($full_path)) unlink($full_path);
         } 
         elseif ($backend->driver === 's3') {
@@ -533,8 +576,49 @@ class Service_Prx212_Storage {
             $path = $local_paths['default'];
         }
 
-        if (!is_dir($path)) mkdir($path, 0755, true);
-        return rtrim(realpath($path), DIRECTORY_SEPARATOR);
+        // Произвольный относительный root_path исторически считался от cwd
+        // процесса (у CLI и FPM он может различаться). Не переключаем его
+        // незаметно на корень проекта; исключение — известный legacy storage.
+        $path = Storage_Path::relocate_legacy($path);
+        if (is_string($path) && $path !== '' && $path[0] !== '/' && !preg_match('~^[A-Za-z]:[\\\\/]~', $path)) {
+            $cwd = getcwd();
+            if ($cwd === FALSE) {
+                throw new RuntimeException('Не удалось определить рабочий каталог для хранилища prx212');
+            }
+            $path = $cwd.DIRECTORY_SEPARATOR.$path;
+        }
+        $path = Storage_Path::absolute($path);
+        if (!is_dir($path) && !@mkdir($path, 0700, true) && !is_dir($path)) {
+            throw new RuntimeException('Не удалось создать папку хранилища prx212: '.$path);
+        }
+
+        $resolved = realpath($path);
+        if ($resolved === FALSE) {
+            throw new RuntimeException('Не удалось определить путь хранилища prx212: '.$path);
+        }
+        return rtrim($resolved, DIRECTORY_SEPARATOR) ?: DIRECTORY_SEPARATOR;
+    }
+
+    /** Путь в backend остаётся внутри него, в том числе при наличии symlink. */
+    protected function _local_file_path($root, $path)
+    {
+        $relative = ltrim(str_replace('\\', '/', (string) $path), '/');
+        if ($relative === '' || strpos($relative, "\0") !== FALSE
+            || preg_match('~(?:^|/)\.\.?(?:/|$)~', $relative)) {
+            throw new RuntimeException('Недопустимый относительный путь файла в prx212');
+        }
+
+        $current = rtrim($root, DIRECTORY_SEPARATOR);
+        foreach (explode('/', $relative) as $part) {
+            if ($part === '') continue;
+            $current .= DIRECTORY_SEPARATOR.$part;
+            clearstatcache(TRUE, $current);
+            if (is_link($current)) {
+                throw new RuntimeException('Symlink внутри хранилища prx212 запрещён: '.$current);
+            }
+        }
+
+        return $current;
     }
 
     protected function _get_s3_client($config)

@@ -70,6 +70,11 @@ production: `PRX_DEFAULT_ADMIN=0` в `.env` и `make seed` с сильным п�
 Docker-стек не запускался в среде с закрытым Docker registry — см. результаты
 реальных проверок в [docs/VALIDATION.md](docs/VALIDATION.md).
 
+### Файлы
+
+`storage/` — вне docroot; старые файлы автоматически не копируются.
+[Порядок переноса](docs/ENVIRONMENT.md#перенос-существующего-public_htmlstorage).
+
 ## Воркеры и доставка уведомлений
 
 ```bash

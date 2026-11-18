@@ -48,12 +48,7 @@ class Service_Prx390_Intake
             throw new InvalidArgumentException('Не настроен путь prx390: '.$key);
         }
 
-        if ($path[0] !== '/' AND ! preg_match('~^[A-Za-z]:[\\\\/]~', $path))
-        {
-            $path = rtrim(dirname(APPPATH), '/').'/'.$path;
-        }
-
-        return rtrim($path, '/');
+        return rtrim(Storage_Path::absolute($path), '/');
     }
 
     public static function ensure_dirs()
@@ -61,7 +56,7 @@ class Service_Prx390_Intake
         foreach (['inbox_dir', 'processed_dir', 'duplicates_dir', 'error_dir'] as $key)
         {
             $dir = self::path($key);
-            if ( ! is_dir($dir) AND ! @mkdir($dir, 0775, TRUE) AND ! is_dir($dir))
+            if ( ! is_dir($dir) AND ! @mkdir($dir, 0700, TRUE) AND ! is_dir($dir))
             {
                 throw new RuntimeException('Не удалось создать папку '.$dir);
             }

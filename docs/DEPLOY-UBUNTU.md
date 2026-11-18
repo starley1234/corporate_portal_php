@@ -9,8 +9,10 @@
 2. `bash bin/setup.sh`, production `KOHANA_ENV`, реальный HTTPS `APP_URL`,
    уникальные DB/AUTH/COOKIE/WORKER/MIGRATION секреты. Сменить dev-пароли БД.
 3. `composer install --no-dev`, проверенный app.css из Git. Node на сервере
-   не требуется. Настроить php-fpm-пользователю доступ к runtime и storage,
-   не использовать chmod 777.
+   не требуется. `storage` находится в корне проекта, не в `public_html`;
+   настройте php-fpm-пользователю и CLI доступ к runtime и storage, не
+   используйте chmod 777. Setup создаёт `storage/docflow/*` и
+   `storage/prx212_file_storage/files` с приватными правами.
 4. Новая БД: `bin/console db:migrate`; на чистой базе миграция создаёт
    admin/admin — сразу смените пароль. Для production задайте
    `PRX_DEFAULT_ADMIN=0` и создайте администратора через `make seed`.
@@ -19,8 +21,9 @@
    разрешённые каналы и внутренние LLM/embedding endpoints.
 6. Таймер `bin/console portal:maintain` раз в минуту с flock; nonzero — alert.
    Проверить тестовую доставку in-app/SMTP и отказы. Внешние мессенджеры — opt-in.
-7. `bin/backup.sh`: БД + storage/ + публичные пользовательские файлы,
+7. `bin/backup.sh`: БД + storage/ + старые пользовательские каталоги,
    защищённые права, отдельный диск/хост, retention и проверка restore.
+   Нестандартные backend и S3 включите в резервирование отдельно.
 8. HTTPS, secure cookies, reverse-proxy/trusted-host настройки, серверное
    ограничение доступа, rate limits, аудит, антивирус файлов и мониторинг.
 9. Утвердить юридические страницы, кадровые/анонимные политики и классификацию
@@ -31,7 +34,12 @@
 иначе используется текущая ветка checkout. Убедитесь, что remote указывает на
 этот корпоративный репозиторий. Ветка и upstream не меняются скриптом.
 Автоматический pull/deploy не настраивается этой задачей; коммит/push агента
-не означает deployment на сервер организации.
+не означает deployment на сервер организации. Если на существующем сервере
+есть `public_html/storage`, **сначала** проведите переход в окне обслуживания
+по [инструкции](ENVIRONMENT.md#перенос-существующего-public_htmlstorage):
+обычный live-deploy переключит пути, но не скопирует прежние файлы. Настройте
+запрет прямой раздачи старого дерева в фактическом конфиге веб-сервера и
+проверьте действующий виртуальный маршрут `/storage/get/<id>`.
 
 Проверено в песочнице — docs/VALIDATION.md. Docker build, внешний SMTP/LLM и
 восстановление production-backup требуют отдельной инфраструктурной проверки.

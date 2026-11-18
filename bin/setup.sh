@@ -6,8 +6,7 @@
 #
 # Что делает:
 #   1. создаёт .env из .env.example (секреты COOKIE_SALT/AUTH_HASH_KEY — новые);
-#   2. создаёт каталоги для записи (runtime/private — только владельцу,
-#      публичные uploads/img — с доступом веб-сервера);
+#   2. создаёт каталоги для записи (runtime и storage — только владельцу);
 #   3. если нет vendor/autoload.php и composer недоступен (закрытая сеть) —
 #      создаёт минимальный автозагрузчик-заглушку, чтобы приложение грузилось.
 #
@@ -119,13 +118,30 @@ fi
 
 # --- 2. Каталоги для записи ----------------------------------------------------
 msg "Создаю каталоги приложения"
+# Новые каталоги приватны сразу, ещё до рекурсивной корректировки прав.
+previous_umask="$(umask)"
+umask 077
 mkdir -p application/logs application/cache application/sessions
-mkdir -p public_html/uploads public_html/img public_html/storage
-mkdir -p storage
 
-# Сессии, временные кадры VLM, логи и файлы модулей — не публичные данные.
-# Не выдаём к ним доступ всем локальным пользователям: в частности, setup
-# запускается при каждом деплое, а application/cache содержит временные фото.
+# Не создаём подкаталоги через symlink: setup запускается и от root.
+if [[ -L "$ROOT/storage" ]]; then
+    printf 'storage: корень хранилища не может быть symlink: %s\n' "$ROOT/storage" >&2
+    exit 1
+fi
+mkdir -p storage
+for dir in storage/docflow storage/docflow/inbox storage/docflow/processed \
+           storage/docflow/duplicates storage/docflow/error \
+           storage/prx212_file_storage storage/prx212_file_storage/files; do
+    if [[ -L "$ROOT/$dir" ]]; then
+        printf 'storage: каталог не может быть symlink: %s\n' "$ROOT/$dir" >&2
+        exit 1
+    fi
+    mkdir -p "$dir"
+done
+umask "$previous_umask"
+
+# Runtime и все файлы модулей приватны. Существующая политика для одного
+# владельца: каталоги 0700, файлы 0600; DEPLOY_WEB_USER — пользователь PHP.
 storage_owner="$(prx_storage_owner)"
 for private_dir in "$ROOT/application/logs" "$ROOT/application/cache" \
                    "$ROOT/application/sessions" "$ROOT/storage"; do
@@ -135,8 +151,14 @@ for private_dir in "$ROOT/application/logs" "$ROOT/application/cache" \
     fi
 done
 
-# Публичные загрузки, изображения и каталог docflow (входящие закрыты .htaccess).
-chmod -R u+rwX,go+rX public_html/uploads public_html/img public_html/storage 2>/dev/null || true
+# Устаревшее хранилище не удаляем и не копируем автоматически: при работающем
+# сайте копирование может потерять новые файлы. См. процедуру переноса.
+if [[ -d "$ROOT/public_html/storage" ]]; then
+    msg "Найден старый public_html/storage; перенос выполняется отдельно: docs/ENVIRONMENT.md"
+fi
+
+# Существующие public_html/uploads, avatar и img не удаляем и не меняем:
+# новые файлы модулей сохраняются через prx212 в корневой storage.
 
 # --- 3. Composer / заглушка автозагрузчика --------------------------------------
 need_vendor_shim=0

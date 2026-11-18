@@ -42,8 +42,12 @@ prx212, канал `doc.normalize`, текст и событие `prx390.text.re
 ## Настройки и данные
 
 `config/prx390_intake.php`: `inbox_dir`, `processed_dir`, `duplicates_dir`,
-`error_dir`, лимит размера. Пути по умолчанию — `public_html/storage/docflow/*` (закрыты от прямой отдачи)
-(gitignored). Демо-PDF — `demo/`, команда `make docflow-demo`.
+`error_dir`, лимит размера. Умолчания — `storage/docflow/*` в корне проекта,
+вне public_html (gitignored); `ensure_dirs()` создаёт недостающие каталоги.
+Старые значения `public_html/storage/*` перенаправляются, но файлы не копируются
+автоматически: процедура остановки записи и переноса — `docs/ENVIRONMENT.md`.
+Демо-PDF — `demo/`, `make docflow-demo` использует настроенный inbox и не
+перезаписывает файлы. Воркер не сканирует папку: нужен `prx390:scan` отдельно.
 
 Текст старше `PRX390_TEXT_RETENTION_DAYS` (365) удаляется manifest-cleanup;
 конверты и карточки остаются.

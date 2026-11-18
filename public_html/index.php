@@ -88,7 +88,7 @@ error_reporting(($strict === '1' OR $strict === 'true') ? E_ALL : (E_ALL & ~E_DE
 // читается .env: он нужен и для настроек, и для путей.
 
 // Set the full path to the docroot — каталог, доступный из веба (public_html).
-// Именно от него модули строят пути к uploads/img/storage.
+// Файлы модулей хранятся отдельно: в storage рядом с public_html.
 define('DOCROOT', realpath(__DIR__).DIRECTORY_SEPARATOR);
 
 // Пути к приложению, модулям и ядру считаем от корня проекта:

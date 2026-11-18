@@ -7,6 +7,8 @@ Scaffold создаёт закрытый модуль, проверяет ID и�
 
 ## Публичные контракты
 - `module:list`, `module:scaffold`, `dev:doctor`, `portal:maintain`.
+  `dev:doctor` проверяет приватный storage и runtime без создания каталогов; права
+  и владельца задаёт `bin/setup.sh`.
 - `Service_Prx100_Health`, `Service_Prx100_Ratelimit` — общие помощники.
 - `/admin`, `/dashboard`, `/prx100/errors`, `/prx100/cleanup`, `/prx100/update`.
 - Реестр подключения: application/config/modules.php. Новый ID не переиспользовать.

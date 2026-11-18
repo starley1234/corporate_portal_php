@@ -107,10 +107,8 @@ architecture: ## собрать документацию архитектуры 
 	@test -d node_modules/yaml || { echo "Нужны node-зависимости: npm ci"; exit 1; }
 	@npm run --silent architecture
 
-docflow-demo: ## положить демонстрационные PDF в папку входящих prx390
-	@mkdir -p "$${PRX390_INBOX_DIR:-public_html/storage/docflow/inbox}" "$${PRX390_PROCESSED_DIR:-public_html/storage/docflow/processed}" "$${PRX390_DUPLICATES_DIR:-public_html/storage/docflow/duplicates}" "$${PRX390_ERROR_DIR:-public_html/storage/docflow/error}"
-	@cp -v application/modules/prx390_intake/demo/*.pdf "$${PRX390_INBOX_DIR:-public_html/storage/docflow/inbox}/"
-	@echo "Готово: откройте /inbox и нажмите «Сканировать папку»."
+docflow-demo: ## положить демонстрационные PDF в настроенную папку входящих prx390
+	$(CONSOLE) prx390:demo
 
 backup: ## резервная копия: дамп БД + архив файловых хранилищ
 	bash bin/backup.sh
@@ -178,8 +176,9 @@ stack: ## полный стек: ядро + инструменты + ворке�
 	$(DOCKER) --profile tools --profile workers up -d
 
 .PHONY: check env-check maintain
-check: ## проверить контракты основы портала без PHP/БД
+check: ## проверить контракты и storage (PHP для HTTP-теста необязателен)
 	python3 .tools/portal_check.py
+	python3 -m unittest discover -s tests -p 'test_storage_ops.py'
 
 env-check: ## сверить .env.example с getenv/os.environ в коде
 	python3 .tools/env_check.py

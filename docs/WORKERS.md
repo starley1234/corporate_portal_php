@@ -48,6 +48,20 @@ cd workers && python3 -m prx_workers
 `pypdf` и активный OCR не дали текста, `doc.normalize` честно падает в ошибку,
 а не отдаёт пустой текст.
 
+Входящая папка по умолчанию — `storage/docflow/inbox` в корне проекта;
+`processed`, `duplicates` и `error` находятся рядом. Её сканирует PHP, а не
+Python-воркер: используйте кнопку `/inbox` или отдельное задание от того же
+пользователя, что имеет доступ к приватному storage. Например:
+
+```cron
+* * * * * cd /srv/portal && flock -n /srv/portal/application/cache/prx390-scan.lock bin/console prx390:scan --limit=50 >> /srv/portal/application/logs/prx390-scan.log 2>&1
+```
+
+Пути и пользователь в примере должны быть адаптированы к серверу. Задание
+сканирования и `portal:maintain` — разные процессы; сам Python-воркер ни одно
+из них не запускает. На время переноса storage остановите все три и любые
+загрузки: [порядок миграции](ENVIRONMENT.md#перенос-существующего-public_htmlstorage).
+
 ### OCR: локальный Tesseract и внешний сервис
 
 `doc.normalize` сначала читает текстовый слой через pypdf. Если в нём меньше

@@ -7,10 +7,12 @@
 # Turn on URL rewriting
 RewriteEngine On
 
-# prx390: входящие документы лежат в public_html/storage/docflow только потому,
-# что на части хостингов PHP не может писать в корень проекта. Напрямую они
-# не отдаются: скачивание идёт через контроллер с проверкой прав.
-RewriteRule ^storage/docflow(/|$) - [F,L]
+# Старый public_html/storage может ещё содержать файлы до переноса. Никогда
+# не раздаём их напрямую; /storage/get/<id> — виртуальный маршрут prx212,
+# который всегда должен попадать в контроллер, даже если файл с таким путём
+# случайно существует на диске.
+RewriteRule ^storage/get/[^/]+/?$ index.php [PT,QSA,L]
+RewriteRule ^storage(/|$) - [F,L]
 
 ###Hides server version on Apache
 ###http://www.ducea.com/2006/06/15/apache-tips-tricks-hide-apache-software-version/
