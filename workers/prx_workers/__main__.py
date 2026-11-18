@@ -13,6 +13,7 @@ from .base import BaseWorker
 from .config import Config
 from .handlers import HANDLERS
 from .queue import make_queue
+from .site import safe_origin
 
 # Корень воркеров (…/workers) — рядом лежат .env, README и каталог логов.
 WORKERS_ROOT = Path(__file__).resolve().parents[1]
@@ -178,10 +179,11 @@ def main() -> int:
                  log_file or "(только stderr)",
                  ", ".join(_quiet_loggers()) or "—",
                  ", ".join(skip) or "—")
+    site_url = os.getenv("PRX120_API_BASE", "") or os.getenv("PRX646_API_BASE", "")
     logging.info("Очередь: %s · каналы: %s · сайт: %s",
                  config.queue_mode,
                  ",".join(config.channels) or "все",
-                 os.getenv("PRX120_API_BASE", "") or os.getenv("PRX646_API_BASE", "") or "(не задан)")
+                 safe_origin(site_url) if site_url else "(не задан)")
 
     worker = BaseWorker(config, make_queue(config), HANDLERS)
     try:

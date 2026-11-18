@@ -101,6 +101,34 @@ def test_level_from_env(tmp_path, monkeypatch):
     assert "INFO" not in target.read_text(encoding="utf-8")
 
 
+def test_startup_logs_only_site_origin_without_credentials_or_query(tmp_path, monkeypatch):
+    secret = "private-token-in-url-42"
+    target = tmp_path / "startup.log"
+    monkeypatch.setenv("WORKER_LOG_ENABLED", "1")
+    monkeypatch.setenv("WORKER_LOG_FILE", str(target))
+    monkeypatch.setenv("WORKER_LOG_LEVEL", "INFO")
+    monkeypatch.setenv("PRX120_API_BASE", f"https://user:{secret}@portal.example/{secret}?token={secret}")
+
+    class Config:
+        queue_mode = "pg"
+        channels = ["doc.normalize"]
+
+        def validate(self):
+            return []
+
+    class Worker:
+        async def run(self):
+            return None
+
+    monkeypatch.setattr(entry.Config, "load", lambda: Config())
+    monkeypatch.setattr(entry, "make_queue", lambda _config: None)
+    monkeypatch.setattr(entry, "BaseWorker", lambda *_args: Worker())
+    assert entry.main() == 0
+    text = target.read_text(encoding="utf-8")
+    assert "сайт: https://portal.example" in text
+    assert secret not in text
+
+
 def test_values_from_workers_env_are_picked_up_after_config_load(tmp_path, monkeypatch):
     """WORKER_LOG_FILE может лежать в workers/.env — его читает Config.load().
 

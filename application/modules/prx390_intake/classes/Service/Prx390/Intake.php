@@ -48,12 +48,7 @@ class Service_Prx390_Intake
             throw new InvalidArgumentException('Не настроен путь prx390: '.$key);
         }
 
-        if ($path[0] !== '/' AND ! preg_match('~^[A-Za-z]:[\\\\/]~', $path))
-        {
-            $path = rtrim(dirname(APPPATH), '/').'/'.$path;
-        }
-
-        return rtrim($path, '/');
+        return rtrim(Storage_Path::absolute($path), '/');
     }
 
     public static function ensure_dirs()
@@ -61,7 +56,7 @@ class Service_Prx390_Intake
         foreach (['inbox_dir', 'processed_dir', 'duplicates_dir', 'error_dir'] as $key)
         {
             $dir = self::path($key);
-            if ( ! is_dir($dir) AND ! @mkdir($dir, 0775, TRUE) AND ! is_dir($dir))
+            if ( ! is_dir($dir) AND ! @mkdir($dir, 0700, TRUE) AND ! is_dir($dir))
             {
                 throw new RuntimeException('Не удалось создать папку '.$dir);
             }
@@ -132,8 +127,8 @@ class Service_Prx390_Intake
                 $report['errors']++;
                 $report['items'][] = ['file' => basename($file), 'state' => 'error', 'error' => $e->getMessage()];
                 @rename($file, self::path('error_dir').'/'.basename($file));
-                Log::instance()->add(Log::ERROR, 'prx390: файл :f не принят: :e', [
-                    ':f' => basename($file), ':e' => $e->getMessage(),
+                Log_Plain::event(Log::ERROR, 'prx390_diag stage=intake result=scan_error error_type=:type reason=:reason', [
+                    ':type' => get_class($e), ':reason' => self::_intake_error_reason($e),
                 ]);
             }
         }
@@ -153,10 +148,37 @@ class Service_Prx390_Intake
     {
         if (empty($file['tmp_name']) OR ! is_uploaded_file($file['tmp_name']))
         {
+            Log_Plain::event(Log::WARNING, 'prx390_diag stage=intake result=upload_invalid');
             throw new InvalidArgumentException('Файл не загружен');
         }
 
-        return self::receive_path($file['tmp_name'], 'upload', $actor, $file['name'] ?? 'upload.pdf');
+        try
+        {
+            return self::receive_path($file['tmp_name'], 'upload', $actor, $file['name'] ?? 'upload.pdf');
+        }
+        catch (Throwable $e)
+        {
+            Log_Plain::event(Log::ERROR, 'prx390_diag stage=intake result=upload_error error_type=:type reason=:reason', [
+                ':type' => get_class($e), ':reason' => self::_intake_error_reason($e),
+            ]);
+            throw $e;
+        }
+    }
+
+    /** Фиксированные категории вместо сообщения с возможным именем файла или SQL. */
+    private static function _intake_error_reason($error)
+    {
+        if ( ! ($error instanceof InvalidArgumentException))
+        {
+            return 'processing_error';
+        }
+
+        $message = $error->getMessage();
+        if ($message === 'Поддерживаются только PDF') return 'invalid_extension';
+        if ($message === 'Размер файла вне допустимого диапазона') return 'invalid_size';
+        if (strpos($message, 'Тип файла не PDF: ') === 0) return 'invalid_mime';
+        if (strpos($message, 'Файл не найден: ') === 0) return 'file_missing';
+        return 'invalid_input';
     }
 
     /**
@@ -198,6 +220,10 @@ class Service_Prx390_Intake
         $existing = self::_row("SELECT id FROM prx_390_messages WHERE sha256 = ".self::_q($sha));
         if ($existing)
         {
+            Log_Plain::event(Log::INFO, 'prx390_diag stage=intake result=duplicate message_id=:id', [
+                ':id' => (int) $existing['id'],
+            ]);
+
             return ['state' => 'duplicate', 'message_id' => (int) $existing['id'], 'sha256' => $sha];
         }
 
@@ -230,9 +256,15 @@ class Service_Prx390_Intake
         catch (Exception $e)
         {
             self::_exec("UPDATE prx_390_messages SET status = '".self::STATUS_ERROR."', error = ".self::_q($e->getMessage())." WHERE id = ".$message_id);
-            Log::instance()->add(Log::ERROR, 'prx390: очередь распознавания недоступна: :e', [':e' => $e->getMessage()]);
+            Log_Plain::event(Log::ERROR, 'prx390_diag stage=enqueue result=error message_id=:id error_type=:type', [
+                ':id' => $message_id, ':type' => get_class($e),
+            ]);
             $state = 'accepted';
         }
+
+        Log_Plain::event(Log::INFO, 'prx390_diag stage=intake result=accepted message_id=:id file_id=:file', [
+            ':id' => $message_id, ':file' => (int) $file_id,
+        ]);
 
         return [
             'state' => $state,
@@ -252,6 +284,10 @@ class Service_Prx390_Intake
             'max_attempts' => 3,
             'timeout_sec' => 300,
             'created_by' => (int) $user_id,
+        ]);
+
+        Log_Plain::event(Log::INFO, 'prx390_diag stage=enqueue result=ok message_id=:message job_id=:job', [
+            ':message' => (int) $message_id, ':job' => (int) $job_id,
         ]);
 
         return (int) $job_id;
@@ -391,6 +427,10 @@ class Service_Prx390_Intake
             SET status = ".self::_q($status).", error = NULL
             WHERE id = ".(int) $message_id."
         ");
+
+        Log_Plain::event(Log::INFO, 'prx390_diag stage=text_saved result=ok message_id=:message file_id=:file status=:status chars=:chars', [
+            ':message' => (int) $message_id, ':file' => $file_id, ':status' => $status, ':chars' => $chars,
+        ]);
 
         if ($status === self::STATUS_TEXT_READY)
         {

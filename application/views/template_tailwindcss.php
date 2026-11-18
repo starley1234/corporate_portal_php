@@ -6,7 +6,8 @@
     </script>
     <?php echo View::factory('partials/sidebar')
             ->set('menu_items', isset($menu_items) ? $menu_items : [])
-            ->set('module_nav', isset($module_nav) ? $module_nav : []); ?>
+            ->set('module_nav', isset($module_nav) ? $module_nav : [])
+            ->set('nav_favorites', isset($nav_favorites) ? $nav_favorites : []); ?>
     <div id="page-wrapper" class="flex min-h-screen flex-col">
     <?php include __DIR__.'/partials/topbar.php'; ?>
 
@@ -158,6 +159,18 @@
                 if (e.key === 'Escape') drawer(false);
             });
             var nav = document.getElementById('sidebar-nav');
+            // Активная ссылка мобильного раздела может лежать за правым краем.
+            // Прокручиваем только сам ряд, не всю страницу.
+            var mobileSection = document.getElementById('mobile-section-nav');
+            var mobileActive = mobileSection && mobileSection.querySelector('[aria-current]');
+            if (mobileActive) window.requestAnimationFrame(function () {
+                if (!mobileSection.clientWidth) return; // на md+ ряд скрыт
+                var bounds = mobileSection.getBoundingClientRect();
+                var activeBounds = mobileActive.getBoundingClientRect();
+                if (activeBounds.left < bounds.left || activeBounds.right > bounds.right) {
+                    mobileSection.scrollLeft += activeBounds.left - bounds.left - (bounds.width - activeBounds.width) / 2;
+                }
+            });
             var sidebarScrollKey = 'prx.sidebar.scrollTop';
 
             sidebar.addEventListener('click', function (e) {
@@ -193,8 +206,9 @@
                 });
             }
             if (best) {
-                best.classList.add('bg-blue-50', 'text-blue-700', 'dark:bg-blue-900/40', 'dark:text-blue-300');
-                best.classList.remove('text-gray-600', 'dark:text-gray-400');
+                best.classList.add('is-active');
+                var bestPath = (best.getAttribute('href') || '').replace(/\/+$/, '') || '/';
+                best.setAttribute('aria-current', bestPath === path ? 'page' : 'location');
             }
 
             if (nav) {
@@ -237,7 +251,9 @@
                     var anyVisible = false;
 
                     sidebar.querySelectorAll('.sidebar-group').forEach(function (groupEl) {
-                        var groupVisible = false;
+                        // Пустое Избранное и подсказка о переносе остаются видимыми
+                        // после сброса фильтра, хотя ссылок в группе пока нет.
+                        var groupVisible = !q;
 
                         groupEl.querySelectorAll('a.sidebar-item').forEach(function (a) {
                             var hay = a.getAttribute('data-search') || '';

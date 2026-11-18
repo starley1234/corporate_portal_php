@@ -17,9 +17,12 @@ class ManifestRegistryTest extends TestCase {
         $channels = Manifest::channels();
         $keys = array_keys($channels);
         sort($keys);
-        $this->assertSame(['echo', 'embeddings.index', 'llm.summarize', 'semantic.index'], $keys);
+        $this->assertSame(['doc.analyze', 'doc.draft', 'doc.normalize', 'echo', 'embeddings.index', 'llm.summarize', 'semantic.index'], $keys);
         $this->assertSame('prx115_semantic', $channels['semantic.index']['module']);
         $this->assertSame('prx120_jobs', $channels['echo']['module']);
+        $this->assertSame('prx390_intake', $channels['doc.normalize']['module']);
+        $this->assertSame('prx392_analysis', $channels['doc.analyze']['module']);
+        $this->assertSame('prx394_drafts', $channels['doc.draft']['module']);
     }
 
     public function test_technical_rag_is_not_a_global_search_source(): void
@@ -30,7 +33,7 @@ class ManifestRegistryTest extends TestCase {
         }
     }
 
-    public function test_fifty_services_match_registration_status(): void
+    public function test_service_plan_matches_registration_status(): void
     {
         $services = [];
         $active = [];
@@ -51,8 +54,11 @@ class ManifestRegistryTest extends TestCase {
                 }
             }
         }
-        $this->assertCount(50, array_unique($services));
-        $this->assertSame(['prx300_employee'], $active);
+        $this->assertCount(55, array_unique($services));
+        $this->assertSame([
+            'prx300_employee', 'prx390_intake', 'prx391_documents',
+            'prx392_analysis', 'prx393_workflow', 'prx394_drafts',
+        ], $active);
     }
 
     public function test_acl_is_deny_by_default(): void

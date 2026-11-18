@@ -34,7 +34,7 @@ $ph_roles = [
 ?>
 <header class="prx-page-head">
 <?php if ($ph_crumbs): ?>
-    <nav class="prx-crumbs" aria-label="Хлебные крошки">
+    <nav class="prx-crumbs flex-wrap" aria-label="Хлебные крошки">
 <?php foreach ($ph_crumbs as $ph_i => $ph_crumb): ?>
 <?php $ph_crumb = array_values((array) $ph_crumb); ?>
 <?php $ph_url = isset($ph_crumb[1]) ? (string) $ph_crumb[1] : ''; ?>

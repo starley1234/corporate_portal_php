@@ -19,9 +19,8 @@
 #   BACKUP_DIR              куда класть            (по умолчанию /var/backups/prx)
 #   BACKUP_KEEP_DAYS        сколько хранить дней   (14)
 #   DEPLOY_MODULE_STORAGE   хранилища модулей      (storage)
-#   BACKUP_PUBLIC_DIRS      публичные каталоги     (public_html/uploads
-#                                                   public_html/avatar
-#                                                   public_html/storage)
+#   BACKUP_PUBLIC_DIRS      старые каталоги в docroot (uploads, avatar, img,
+#                                                    storage; до завершения переноса)
 # =============================================================================
 set -euo pipefail
 # Бэкапы содержат БД и личные файлы, поэтому новые файлы доступны только владельцу.
@@ -40,7 +39,7 @@ prx_load_env "$ROOT/.env"
 : "${BACKUP_DIR:=/var/backups/prx}"
 : "${BACKUP_KEEP_DAYS:=14}"
 : "${DEPLOY_MODULE_STORAGE:=storage}"
-: "${BACKUP_PUBLIC_DIRS:=public_html/uploads public_html/avatar public_html/storage}"
+: "${BACKUP_PUBLIC_DIRS:=public_html/uploads public_html/avatar public_html/img public_html/storage}"
 
 : "${DB_DEFAULT_HOST:=127.0.0.1}"
 : "${DB_DEFAULT_PORT:=5432}"

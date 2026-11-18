@@ -321,10 +321,13 @@ class Controller_Prx208_Events extends Controller_Prx208_Main {
             ->offset($pagination->offset)
             ->find_all();
 
+        $bus_config = Kohana::$config->load('prx208_events')->get('event_bus', array());
         $view = View::factory('prx208/subscriber/list')
             ->set('subscribers', $subscribers)
             ->set('pagination', $pagination)
-            ->set('search', $search);
+            ->set('search', $search)
+            ->set('csrf', Security::token())
+            ->set('db_subscribers_enabled', ! empty($bus_config['load_db_subscribers']));
 
         $this->template->content = $view;
     }
@@ -342,28 +345,41 @@ class Controller_Prx208_Events extends Controller_Prx208_Main {
             throw new HTTP_Exception_403('Access denied');
         }
 
-        $this->_meta['title'] = $subscriber->loaded() ? __('Edit Subscription') : __('Create New Subscription');
-
-        $errors = array();
-        $config = Kohana::$config->load('prx208_events');
-        $available_events = $config->get('event_bus')['predefined_event_names'];
-        
-        // Получаем список доступных модулей из префиксов событий
-        $available_modules = array();
-        foreach ($available_events as $event_name) {
-            $parts = explode('.', $event_name);
-            if (count($parts) > 0) {
-                $available_modules[] = $parts[0];
-            }
-        }
-        $available_modules = array_unique($available_modules);
-
-        if ($post = $this->request->post())
+        if ($id > 0 AND ! $subscriber->loaded())
         {
+            throw new HTTP_Exception_404('Подписка не найдена');
+        }
+
+        $this->_meta['title'] = $subscriber->loaded() ? __('Edit Subscription') : __('Create New Subscription');
+        $errors = array();
+        $bus_config = Kohana::$config->load('prx208_events')->get('event_bus', array());
+
+        if ($this->request->method() === Request::POST)
+        {
+            $this->_check_subscription_post();
+            $post = $this->request->post();
+            foreach (array('event_name', 'module_id', 'callback_method', 'description') as $field)
+            {
+                if (isset($post[$field]) AND ! is_string($post[$field]))
+                {
+                    throw new HTTP_Exception_400('Некорректное поле формы');
+                }
+                $post[$field] = trim($post[$field] ?? '');
+            }
+            foreach (array('is_active', 'is_notification') as $field)
+            {
+                if (isset($post[$field]) AND $post[$field] !== '1')
+                {
+                    throw new HTTP_Exception_400('Некорректный флаг формы');
+                }
+                // Неотмеченный checkbox отсутствует в POST, в том числе при редактировании.
+                $post[$field] = isset($post[$field]);
+            }
+
             try
             {
                 $subscriber->values($post, array('event_name', 'module_id', 'callback_method', 'is_active', 'is_notification', 'description'));
-                
+
                 if ( ! $subscriber->loaded() && $subscriber->is_duplicate($subscriber->event_name, $subscriber->module_id, $subscriber->callback_method))
                 {
                     $errors['event_name'] = __('A subscription with these details already exists.');
@@ -371,7 +387,7 @@ class Controller_Prx208_Events extends Controller_Prx208_Main {
                 else
                 {
                     $subscriber->save();
-                    Event::fire('prx208_events.subscription_saved', $subscriber);
+                    Event::fire('prx208_events.subscription_saved', array('subscriber_id' => (int) $subscriber->id));
                     Session::instance()->set('success_message', __('Subscription saved.'));
                     $this->redirect(Route::url('prx208_events', array('action' => 'list_subscribers')));
                 }
@@ -384,9 +400,9 @@ class Controller_Prx208_Events extends Controller_Prx208_Main {
 
         $view = View::factory('prx208/subscriber/form')
             ->set('subscriber', $subscriber)
-            ->set('available_events', $available_events)
-            ->set('available_modules', $available_modules)
-            ->set('errors', $errors);
+            ->set('errors', $errors)
+            ->set('csrf', Security::token())
+            ->set('db_subscribers_enabled', ! empty($bus_config['load_db_subscribers']));
 
         $this->template->content = $view;
     }
@@ -404,10 +420,12 @@ class Controller_Prx208_Events extends Controller_Prx208_Main {
             throw new HTTP_Exception_403('Access denied');
         }
 
+        $this->_check_subscription_post();
         if ($subscriber->loaded())
         {
+            $subscriber_id = (int) $subscriber->id;
             $subscriber->delete();
-            Event::fire('prx208_events.subscription_deleted', $subscriber);
+            Event::fire('prx208_events.subscription_deleted', array('subscriber_id' => $subscriber_id));
             Session::instance()->set('success_message', __('Subscription deleted.'));
         }
         else
@@ -416,5 +434,18 @@ class Controller_Prx208_Events extends Controller_Prx208_Main {
         }
 
         $this->redirect(Route::url('prx208_events', array('action' => 'list_subscribers')));
+    }
+
+    protected function _check_subscription_post()
+    {
+        if ($this->request->method() !== Request::POST)
+        {
+            throw (new HTTP_Exception_405('Нужен POST'))->allowed('POST');
+        }
+        $csrf = $this->request->post('csrf');
+        if ( ! is_string($csrf) OR ! Security::check($csrf))
+        {
+            throw new HTTP_Exception_403('Сессия устарела, обновите страницу');
+        }
     }
 }

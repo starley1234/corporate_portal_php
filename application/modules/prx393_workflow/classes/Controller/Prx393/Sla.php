@@ -18,13 +18,14 @@ class Controller_Prx393_Sla extends Controller_Prx39x_Base
             Log::instance()->add(Log::WARNING, 'prx393: эскалации не проверены: :e', [':e' => $e->getMessage()]);
         }
 
+        $actor = $this->_actor();
         $this->template->content = View::factory('393/index', [
             'flash' => $this->_flash(),
             'csrf' => $this->_csrf(),
-            'stats' => Service_Prx393_Workflow::stats(),
-            'deadlines' => Service_Prx393_Workflow::deadlines(60, TRUE),
+            'stats' => Service_Prx393_Workflow::visible_stats($actor),
+            'deadlines' => Service_Prx393_Workflow::visible_deadlines($actor, 60, TRUE),
             'rules' => Service_Prx393_Workflow::rules(FALSE),
-            'escalations' => Service_Prx393_Workflow::escalations(20),
+            'escalations' => Service_Prx393_Workflow::visible_escalations($actor, 20),
             'can_manage' => $this->can('prx393.manage'),
         ]);
     }
@@ -37,9 +38,14 @@ class Controller_Prx393_Sla extends Controller_Prx39x_Base
         $this->_post(function () use ($document_id) {
             $deadline = Service_Prx393_Workflow::route($document_id, $this->_actor());
 
+            if ($deadline AND $deadline['status'] === 'met')
+            {
+                return 'Документ закрыт, срок снят с контроля';
+            }
+
             return $deadline
                 ? 'Маршрут: '.$deadline['department'].', срок '.date('d.m.Y H:i', strtotime($deadline['due_at']))
-                : 'Маршрут пересчитан';
+                : 'Маршрут не назначен';
         }, '/documents/'.$document_id);
     }
 

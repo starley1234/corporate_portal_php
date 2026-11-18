@@ -31,12 +31,15 @@ Event::listen('prx390.text.ready', function ($payload, $event_name, $initiator_i
 
     try
     {
-        Service_Prx391_Documents::register_from_message((int) $payload['message_id']);
+        $document_id = Service_Prx391_Documents::register_from_message((int) $payload['message_id']);
+        Log_Plain::event(Log::INFO, 'prx390_diag stage=register result=ok message_id=:message document_id=:document', [
+            ':message' => (int) $payload['message_id'], ':document' => (int) $document_id,
+        ]);
     }
     catch (Exception $e)
     {
-        Log::instance()->add(Log::ERROR, 'prx390: не удалось зарегистрировать документ: :e', [
-            ':e' => $e->getMessage(),
+        Log_Plain::event(Log::ERROR, 'prx390_diag stage=register result=error message_id=:message error_type=:type', [
+            ':message' => (int) $payload['message_id'], ':type' => get_class($e),
         ]);
     }
 });

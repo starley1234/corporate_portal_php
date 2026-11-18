@@ -80,7 +80,9 @@ class Controller_Prx140_DesignLab extends Controller
             ->set('company_accent', $company)
             ->set('company_options', $this->_company_options('design-lab/' . $current['slug'], $theme, $company))
             ->set('revision', $this->_revision())
-            ->set('css', $this->_css($current['css']))
+            // Композиция двух локальных файлов остаётся одним автономным
+            // inline CSS: общий эталон не копируется в вариант навигации.
+            ->set('css', (empty($current['base_css']) ? '' : $this->_css($current['base_css']) . "\n") . $this->_css($current['css']))
             ->set('home_url', $this->_url('design-lab', $theme, $company))
             ->set('theme_urls', [
                 'light' => $this->_url('design-lab/' . $current['slug'], 'light', $company),
@@ -145,6 +147,9 @@ class Controller_Prx140_DesignLab extends Controller
             }
             $variant['slug'] = $slug;
             $variant['css'] = $css;
+            if ( ! empty($variant['base_css'])) {
+                $variant['base_css'] = basename((string) $variant['base_css']);
+            }
             $result[] = $variant;
         }
 
@@ -222,6 +227,9 @@ class Controller_Prx140_DesignLab extends Controller
             $base . 'assets/design-lab/landing.css',
         ];
         foreach ($this->_variants() as $variant) {
+            if ( ! empty($variant['base_css'])) {
+                $files[] = $base . 'assets/design-lab/' . $variant['base_css'];
+            }
             $files[] = $base . 'assets/design-lab/' . $variant['css'];
         }
 

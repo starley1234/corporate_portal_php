@@ -38,7 +38,7 @@
     <div class="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div class="min-w-0">
             <form method="get" action="/documents" class="prx-card">
-                <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_200px_auto]">
+                <div class="grid gap-3 md:grid-cols-2 2xl:grid-cols-[minmax(0,1fr)_180px_200px_auto]">
                     <div>
                         <label class="prx-label" for="docs-q">Поиск</label>
                         <input id="docs-q" name="q" type="search" value="<?php echo HTML::chars($filters['q']); ?>" placeholder="№, тема, корреспондент" class="prx-input mt-1 w-full">
@@ -61,7 +61,7 @@
                             <?php endforeach; ?>
                         </select>
                     </div>
-                    <div class="flex items-end gap-2">
+                    <div class="flex flex-wrap items-end gap-2 md:col-span-2 2xl:col-span-1">
                         <button class="prx-btn-process" type="submit"><i class="fas fa-filter"></i>Применить</button>
                         <a class="prx-btn-secondary" href="/documents">Сбросить</a>
                     </div>

@@ -41,6 +41,9 @@ MVP: регистрация из конверта prx390, карточка с р
 
 - `register_from_message($message_id)` — идемпотентная регистрация.
 - `document($id, $actor)` / `list_documents($filters, $actor)` / `stats($actor)`.
+- `visible_ids($ids, $actor)` — пакетная проверка доступа к предложенным ID;
+  `recent_history($limit, $actor)` не показывает историю скрытых карточек.
+  Без актора оба метода не дают доступ к пользовательским данным.
 - `save_card($id, $input, $actor)` — ручная правка, событие
   `prx391.document.updated` с `recalc`.
 - `apply_analysis($id, $payload, $suggestion_id, $actor, $overwrite)` — только

@@ -71,7 +71,7 @@ class Service_Prx393_Workflow
         $sla_hours = $matched && $matched['sla_hours'] !== NULL
             ? (int) $matched['sla_hours']
             : (int) self::config('default_sla_hours', 120);
-        $business_days = $matched ? ! empty($matched['business_days']) : (bool) self::config('default_business_days', TRUE);
+        $business_days = $matched ? $matched['business_days'] : (bool) self::config('default_business_days', TRUE);
 
         $start = $document['received_at'] ?: date('Y-m-d H:i:s');
         $source = $matched ? 'rule' : 'default';
@@ -81,10 +81,11 @@ class Service_Prx393_Workflow
         // маршрут: срок и исполнитель считаются отдельно.
         if ( ! empty($document['deadline_hint_days']) AND (int) $document['deadline_hint_days'] > 0)
         {
+            $business_days = ($document['deadline_hint_unit'] ?? 'calendar') === 'business';
             $due = self::add_days(
                 $start,
                 (int) $document['deadline_hint_days'],
-                ($document['deadline_hint_unit'] ?? 'calendar') === 'business',
+                $business_days,
                 self::holidays()
             );
             $source = 'hint';
@@ -96,6 +97,8 @@ class Service_Prx393_Workflow
         }
         else
         {
+            // Срочные SLA и правила без рабочих дней считаются в часах.
+            $business_days = FALSE;
             $due = date('Y-m-d H:i:s', strtotime($start.' +'.$sla_hours.' hours'));
         }
 
@@ -114,6 +117,7 @@ class Service_Prx393_Workflow
                 note = EXCLUDED.note, updated_at = now()
         ");
 
+        // Документ снова в работе — срок снова открыт, в том числе после reopen.
         self::_exec("
             INSERT INTO prx_393_deadlines
                 (document_id, reg_no, subject, department, kind, source, due_at, started_at, status, business_days, note)
@@ -126,8 +130,6 @@ class Service_Prx393_Workflow
                 reg_no = EXCLUDED.reg_no, subject = EXCLUDED.subject,
                 department = EXCLUDED.department, source = EXCLUDED.source,
                 due_at = EXCLUDED.due_at, started_at = EXCLUDED.started_at,
-                // Документ снова в работе — и срок снова открыт. Иначе после
-                // reopen он навсегда оставался 'met' и пропадал из контроля.
                 status = 'open',
                 business_days = EXCLUDED.business_days, note = EXCLUDED.note, updated_at = now()
         ");
@@ -168,10 +170,10 @@ class Service_Prx393_Workflow
                 self::route((int) $row['id']);
                 $n++;
             }
-            catch (Exception $e)
+            catch (Throwable $e)
             {
-                Log::instance()->add(Log::WARNING, 'prx393: пересчёт #:id не удался: :e', [
-                    ':id' => $row['id'], ':e' => $e->getMessage(),
+                Log_Plain::event(Log::WARNING, 'prx393_diag stage=recalculate result=error document_id=:id error_type=:type', [
+                    ':id' => (int) $row['id'], ':type' => get_class($e),
                 ]);
             }
         }
@@ -186,8 +188,16 @@ class Service_Prx393_Workflow
     public static function rules($active_only = FALSE)
     {
         $where = $active_only ? 'WHERE is_active = 1' : '';
+        $rules = self::_all("SELECT * FROM prx_393_rules ".$where." ORDER BY priority, id");
+        foreach ($rules as &$rule)
+        {
+            // pg_fetch_assoc() возвращает 't'/'f', а непустая строка 'f' в PHP истинна.
+            $rule['business_days'] = self::_pg_bool($rule['business_days']);
+            $rule['stop'] = self::_pg_bool($rule['stop']);
+        }
+        unset($rule);
 
-        return self::_all("SELECT * FROM prx_393_rules ".$where." ORDER BY priority, id");
+        return $rules;
     }
 
     /**
@@ -222,7 +232,14 @@ class Service_Prx393_Workflow
     public static function deadline_for($document_id)
     {
         return self::_row("
-            SELECT dl.*, a.department, a.role_code, a.priority
+            SELECT dl.*, a.department, a.role_code, a.priority,
+                   CASE
+                     WHEN dl.status = 'met' THEN 'met'
+                     WHEN dl.due_at < now() THEN 'overdue'
+                     WHEN dl.due_at < now() + interval '24 hours' THEN 'soon'
+                     ELSE 'ok'
+                   END AS state,
+                   EXTRACT(EPOCH FROM (dl.due_at - now())) / 3600 AS hours_left
             FROM prx_393_deadlines dl
             LEFT JOIN prx_393_assignments a ON a.document_id = dl.document_id
             WHERE dl.document_id = ".(int) $document_id."
@@ -263,6 +280,37 @@ class Service_Prx393_Workflow
             JOIN prx_393_deadlines dl ON dl.id = e.deadline_id
             ORDER BY e.sent_at DESC, e.id DESC LIMIT ".(int) $limit."
         ");
+    }
+
+    /** Показать только доступные карточки среди ближайших $limit сроков. */
+    public static function visible_deadlines(array $actor, $limit = 60, $only_open = TRUE)
+    {
+        return self::_visible_rows(self::deadlines($limit, $only_open), $actor);
+    }
+
+    /** Показать только доступные карточки среди последних $limit эскалаций. */
+    public static function visible_escalations(array $actor, $limit = 30)
+    {
+        return self::_visible_rows(self::escalations($limit), $actor);
+    }
+
+    /** Общие показатели нельзя раскрывать тем, кто видит не все документы. */
+    public static function visible_stats(array $actor)
+    {
+        return Service_Prx391_Documents::can_view_all($actor) ? self::stats() : NULL;
+    }
+
+    protected static function _visible_rows(array $rows, array $actor)
+    {
+        if ( ! $rows)
+        {
+            return [];
+        }
+        $visible = array_fill_keys(Service_Prx391_Documents::visible_ids(array_column($rows, 'document_id'), $actor), TRUE);
+
+        return array_values(array_filter($rows, function ($row) use ($visible) {
+            return isset($visible[(int) $row['document_id']]);
+        }));
     }
 
     public static function stats()
@@ -353,6 +401,29 @@ class Service_Prx393_Workflow
                 continue;
             }
 
+            // Роль маршрута сама по себе не даёт доступ к персональной или
+            // коммерческой карточке. Проверяем реальные роли каждого адресата
+            // до записи эскалации; при сбое не помечаем её обработанной.
+            try
+            {
+                $document = Service_Prx391_Documents::document((int) $row['document_id'], self::_system_actor());
+                if ( ! $document)
+                {
+                    Log_Plain::event(Log::WARNING, 'prx393_diag stage=escalation_targets result=missing document_id=:id', [
+                        ':id' => (int) $row['document_id'],
+                    ]);
+                    continue;
+                }
+                $targets = self::_role_users((string) ($row['role_code'] ?: 'docflow_manager'), $document);
+            }
+            catch (Throwable $e)
+            {
+                Log_Plain::event(Log::WARNING, 'prx393_diag stage=escalation_targets result=error document_id=:id error_type=:type', [
+                    ':id' => (int) $row['document_id'], ':type' => get_class($e),
+                ]);
+                continue;
+            }
+
             try
             {
                 self::_row("
@@ -366,7 +437,6 @@ class Service_Prx393_Workflow
                 continue; // гонка: уровень уже записан другим запросом
             }
 
-            $targets = self::_role_users((string) ($row['role_code'] ?: 'docflow_manager'));
             Event::fire($event, [
                 'document_id' => (int) $row['document_id'],
                 'reg_no' => $row['reg_no'],
@@ -471,6 +541,11 @@ class Service_Prx393_Workflow
         return FALSE;
     }
 
+    protected static function _pg_bool($value)
+    {
+        return in_array($value, [TRUE, 1, '1', 't', 'true'], TRUE);
+    }
+
     protected static function _pg_array($value)
     {
         if (is_array($value))
@@ -496,25 +571,38 @@ class Service_Prx393_Workflow
         return $out;
     }
 
-    protected static function _role_users($role)
+    protected static function _role_users($role, array $document)
     {
-        $out = [];
-        try
+        // Читаем полный набор ролей кандидатов, а не только роль назначения:
+        // clerk может одновременно быть юристом и иметь доступ к карточке.
+        $actors = [];
+        foreach (self::_all("
+            SELECT DISTINCT ru.user_id, r.name
+            FROM roles_users ru
+            JOIN roles r ON r.id = ru.role_id
+            WHERE EXISTS (
+                SELECT 1 FROM roles_users candidate
+                JOIN roles target_role ON target_role.id = candidate.role_id
+                WHERE candidate.user_id = ru.user_id AND target_role.name = ".self::_q($role)."
+            )
+            ORDER BY ru.user_id, r.name
+        ") as $row)
         {
-            foreach (self::_all("
-                SELECT DISTINCT ru.user_id
-                FROM roles_users ru
-                JOIN roles r ON r.id = ru.role_id
-                WHERE r.name = ".self::_q($role)."
-            ") as $row)
+            $id = (int) $row['user_id'];
+            if ($id > 0)
             {
-                $out[] = (int) $row['user_id'];
+                $actors[$id]['user_id'] = $id;
+                $actors[$id]['roles'][] = (string) $row['name'];
             }
         }
-        catch (Exception $e)
+
+        $out = [];
+        foreach ($actors as $id => $actor)
         {
-            // Схема ролей может отличаться на старом стенде — эскалация всё
-            // равно записана, просто без адресатов.
+            if (Service_Prx391_Documents::can_view($document, $actor))
+            {
+                $out[] = (int) $id;
+            }
         }
 
         return $out;

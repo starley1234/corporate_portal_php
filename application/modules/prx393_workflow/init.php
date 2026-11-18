@@ -26,18 +26,20 @@ Event::listen('prx391.document.registered', function ($payload, $event_name, $in
             'is_system' => TRUE,
         ]);
     }
-    catch (Exception $e)
+    catch (Throwable $e)
     {
-        Log::instance()->add(Log::ERROR, 'prx393: не удалось назначить маршрут: :e', [
-            ':e' => $e->getMessage(),
+        Log_Plain::event(Log::ERROR, 'prx393_diag stage=register_route result=error document_id=:id error_type=:type', [
+            ':id' => (int) $payload['document_id'], ':type' => get_class($e),
         ]);
     }
 });
 
-// Карточку изменили (вручную или принятием предложения ИИ) — пересчитываем
-// срок. Метод route() обновляет снимок в prx391 без повторного события.
+// Карточку изменили или закрыли — обновляем срок. Даже при recalc=false
+// закрытие должно снять открытый срок с контроля. Снимок не создаёт событие.
 Event::listen('prx391.document.updated', function ($payload, $event_name, $initiator_id) {
-    if (empty($payload['document_id']) OR empty($payload['recalc']) OR ! class_exists('Service_Prx393_Workflow'))
+    if (empty($payload['document_id'])
+        OR (empty($payload['recalc']) AND ($payload['reason'] ?? '') !== 'closed')
+        OR ! class_exists('Service_Prx393_Workflow'))
     {
         return;
     }
@@ -50,10 +52,10 @@ Event::listen('prx391.document.updated', function ($payload, $event_name, $initi
             'is_system' => TRUE,
         ]);
     }
-    catch (Exception $e)
+    catch (Throwable $e)
     {
-        Log::instance()->add(Log::WARNING, 'prx393: пересчёт срока не удался: :e', [
-            ':e' => $e->getMessage(),
+        Log_Plain::event(Log::WARNING, 'prx393_diag stage=update_route result=error document_id=:id error_type=:type', [
+            ':id' => (int) $payload['document_id'], ':type' => get_class($e),
         ]);
     }
 });

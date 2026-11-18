@@ -12,16 +12,17 @@ $root = __DIR__ . '/../public_html';
 $uri  = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '/');
 $file = $root . $uri;
 
-// prx390: входящие PDF лежат в public_html/storage/docflow из-за прав
-// хостинга, но наружу не отдаются — только через контроллер с ACL.
-// В nginx/Apache это делает .htaccess или location deny; здесь — роутер.
-if (preg_match('#^/storage/docflow(/|$)#', $uri)) {
+// В старом public_html/storage могут оставаться файлы до переноса. Закрываем
+// весь каталог, но сохраняем виртуальный маршрут /storage/get/<id> prx212:
+// его всегда обрабатывает контроллер, даже если совпал реальный путь на диске.
+$storage_download = (bool) preg_match('#^/storage/get/[^/]+/?$#', $uri);
+if (preg_match('#^/storage(/|$)#', $uri) && !$storage_download) {
     http_response_code(404);
     exit;
 }
 
 // Статика: только реальные файлы (не каталоги) вне «точек»
-if ($uri !== '/' && is_file($file) && strpos($uri, '/.') === false) {
+if (!$storage_download && $uri !== '/' && is_file($file) && strpos($uri, '/.') === false) {
     return false; // встроенный сервер отдаст файл сам
 }
 

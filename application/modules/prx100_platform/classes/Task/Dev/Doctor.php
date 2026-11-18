@@ -103,21 +103,36 @@ class Task_Dev_Doctor extends Minion_Task {
 
     protected function _check_dirs()
     {
-        foreach (['application/cache', 'application/logs', 'application/sessions', 'public_html/uploads'] as $dir)
+        $dirs = ['application/cache', 'application/logs', 'application/sessions',
+                 'storage', 'storage/prx212_file_storage/files',
+                 'storage/docflow/inbox', 'storage/docflow/processed',
+                 'storage/docflow/duplicates', 'storage/docflow/error'];
+        foreach ($dirs as $dir)
         {
-            $path = DOCROOT.'../'.$dir;
+            $path = rtrim(dirname(APPPATH), '/').'/'.$dir;
+            if ($dir === 'storage' OR strpos($dir, 'storage/') === 0)
+            {
+                try
+                {
+                    $path = Storage_Path::absolute($path);
+                }
+                catch (InvalidArgumentException $e)
+                {
+                    $this->_fail("$dir: ".$e->getMessage());
+                    continue;
+                }
+            }
             if ( ! is_dir($path))
             {
-                @mkdir($path, 0775, TRUE);
+                $this->_fail("$dir не найден — подготовьте каталоги через bash bin/setup.sh");
             }
-
-            if (is_writable($path))
+            elseif (is_writable($path))
             {
                 $this->_ok("$dir записываем");
             }
             else
             {
-                $this->_fail("$dir не записываем — chmod/права процесса php");
+                $this->_fail("$dir не записываем — проверьте владельца и права процесса php");
             }
         }
     }

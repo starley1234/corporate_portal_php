@@ -96,18 +96,21 @@ abstract class Controller_Prx100_Base extends Controller {
             {
                 try
                 {
-                    if ( ! Service_Prx599_Account::session_valid((int) $user_model->id))
-                    {
-                        Auth::instance()->logout(TRUE);
-                        HTTP::redirect('/auth/login?kick=1', 302);
-                    }
-
                     // session_valid() обновляет last_seen не чаще одного раза
                     // в 5 минут; отдельный upsert на каждой странице не нужен.
+                    $session_valid = Service_Prx599_Account::session_valid((int) $user_model->id);
                 }
                 catch (Throwable $e)
                 {
+                    $session_valid = TRUE;
                     Kohana::$log->add(Log::WARNING, 'prx599: enforce: :e', [':e' => $e->getMessage()]);
+                }
+                if ( ! $session_valid)
+                {
+                    // HTTP::redirect бросает исключение; не поглощаем его
+                    // общим catch, иначе продолжится запрос прежнего аккаунта.
+                    Auth::instance()->logout(TRUE);
+                    HTTP::redirect('/auth/login?kick=1', 302);
                 }
             }
         }
@@ -259,8 +262,8 @@ abstract class Controller_Prx100_Base extends Controller {
     }
 
     /**
-     * Верхнее меню модуля: чипы над контентом на больших экранах (md+),
-     * на малых уезжает в левую панель (выше перечня сервисов).
+     * Меню модуля: чипы в шапке на больших экранах (md+), на малых —
+     * прокручиваемая строка под ней, отдельно от постоянной левой панели.
      * Фильтрация по ролям/acl — как в set_menu().
      */
     protected function set_module_nav(array $items)
@@ -332,6 +335,31 @@ abstract class Controller_Prx100_Base extends Controller {
             $this->template->meta = $this->_meta;
             $this->template->styles = $this->_styles;
             $this->template->scripts = $this->_scripts;
+
+            // Избранное нужно уже в первом HTML, а не после запроса браузера.
+            // API без шаблона эту выборку не выполняет. Сбой БД не должен
+            // блокировать страницу миграций и остальные разделы.
+            $nav_favorites = ['status' => 'guest', 'user_id' => 0, 'csrf' => '', 'items' => []];
+            if ($this->_current_user)
+            {
+                $nav_favorites['user_id'] = (int) $this->_current_user->id;
+                $nav_favorites['status'] = 'error';
+                $this->response->headers('Cache-Control', 'private, no-store');
+                try
+                {
+                    $nav_favorites['csrf'] = Security::token();
+                    $items = Service_Prx110_Favorites::items($nav_favorites['user_id']);
+                    $nav_favorites['items'] = Service_Prx110_Favorites::mark_active($items, '/'.ltrim($this->request->uri(), '/'));
+                    $nav_favorites['status'] = 'ready';
+                }
+                catch (Throwable $e)
+                {
+                    Kohana::$log->add(Log::ERROR, 'prx110: не удалось отобразить Избранное (:type)', [':type' => get_class($e)]);
+                }
+            }
+            // Доступно и общему шаблону, и ещё не отрендеренным карточкам каталога.
+            View::set_global('nav_favorites', $nav_favorites);
+            $this->template->nav_favorites = $nav_favorites;
             $this->response->body($this->template->render());
         }
 		
