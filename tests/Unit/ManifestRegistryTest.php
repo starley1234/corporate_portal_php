@@ -17,7 +17,8 @@ class ManifestRegistryTest extends TestCase {
         $channels = Manifest::channels();
         $keys = array_keys($channels);
         sort($keys);
-        $this->assertSame(['echo', 'embeddings.index', 'llm.summarize', 'semantic.index'], $keys);
+        $this->assertSame(['document.extract', 'echo', 'embeddings.index', 'llm.summarize', 'semantic.index'], $keys);
+        $this->assertSame('prx395_document_extract', $channels['document.extract']['module']);
         $this->assertSame('prx115_semantic', $channels['semantic.index']['module']);
         $this->assertSame('prx120_jobs', $channels['echo']['module']);
     }

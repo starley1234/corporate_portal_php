@@ -128,6 +128,10 @@ class HandlerContext:
 Handler = Callable[[HandlerContext, dict], Awaitable[dict | None]]
 
 
+class PermanentJobError(RuntimeError):
+    """Безопасный код/сообщение: повтор той же задачи не поможет."""
+
+
 class BaseWorker(WatchdogMixin):
     # Значения по умолчанию: воркер собирают и через __new__ (тесты контракта
     # complete/fail) — сторожевые структуры обязаны существовать в любом случае.
@@ -466,14 +470,14 @@ class BaseWorker(WatchdogMixin):
             rejected = (isinstance(e, EmbeddingServerError)
                         and e.status in EmbeddingServerError.FATAL)
 
-            config_error = (isinstance(e, LlmConfigError) or rejected
+            config_error = (isinstance(e, (LlmConfigError, PermanentJobError)) or rejected
                             or "LLM-провайдер" in str(e)
                             or "LLM-провайдеры не настроены" in str(e))
 
             if config_error:
                 log.error("Задача %s: ошибка, которую повтор не лечит (%s) — "
                           "повтор отменён. %s",
-                          job_id, "запрос отклонён сервером" if rejected else "настройка LLM",
+                          job_id, type(e).__name__,
                           brief)
 
             try:

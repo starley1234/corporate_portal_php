@@ -97,6 +97,7 @@ services:
       PRX120_API_URL: http://nginx/prx120/api
       PRX120_API_BASE: http://nginx
       PRX115_API_BASE: http://nginx/prx115/api
+      PRX395_DOCUMENT_EXTRACT_CLIENTS: '{}'
       WORKER_NAME: ${WORKER_NAME:-worker-1}
       WORKER_CHANNELS: ${WORKER_CHANNELS:-}
     volumes:

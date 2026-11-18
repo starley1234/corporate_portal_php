@@ -17,6 +17,7 @@ overview:
           - { id: queue, at: [700, 310, 200], label: prx120 очередь, sub: PostgreSQL, kind: queue, info: "{queue}" }
           - { id: notifications, at: [700, 420, 200], label: prx597 уведомления, sub: in-app и outbox, kind: module, info: "{notifications}" }
           - { id: employee, at: [990, 110, 210], label: prx300_employee, sub: сотрудник и оргструктура, kind: module, info: "{employee}" }
+          - { id: extraction, at: [990, 230, 210], label: prx395 PDF → текст, sub: API и OCR, kind: ai }
           - { id: ai, at: [990, 350, 210], label: llm и prx115, sub: ИИ и поиск, kind: ai, info: "{llm}" }
         edges:
           - core -> platform: { rel: uses }
@@ -27,6 +28,8 @@ overview:
           - core -> queue: { rel: uses }
           - core -> notifications: { rel: uses }
           - catalog --> employee: { label: манифест }
+          - extraction -> queue: { rel: uses }
+          - extraction -> storage: { rel: uses }
           - catalog --> ai: { label: манифест }
           - employee -> storage: { rel: uses, label: аватары }
         hint: Стрелка «манифест» — только чтение метаданных. Права и данные по-прежнему проверяет сервис-владелец.
@@ -71,6 +74,9 @@ detail:
           - - Люди
             - prx300_employee, prx595_useradmin, prx599_account
             - Оргструктура, роли, TOTP и сессии
+          - - ИИ-пайплайн
+            - prx395_document_extract
+            - API PDF → текст для интеграций, асинхронно через prx120
           - - ИИ
             - llm, prx560_knowledge
             - Провайдеры моделей, техническая база знаний

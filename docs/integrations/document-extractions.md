@@ -1,0 +1,138 @@
+# PDF → текст: запуск и контракт API v1
+
+`prx395` — первый ИИ-пайплайн PRX. Схема есть во вкладке **«ИИ-пайплайн · PDF →
+текст»** на `/architecture`. Архивный документооборот не нужен.
+
+## 1. Развёртывание
+
+1. На стороне PHP выполните `bin/console db:migrate`. В корневом `.env` задайте
+   `PRX395_DOCUMENT_EXTRACT_CLIENTS` — JSON-объект вида `{"erp":"<секрет>"}`,
+   в файле его заключают в **одинарные** кавычки. Для каждого клиента нужен
+   свой случайный ключ (например, сгенерировать локально `openssl rand -hex 32`).
+   Пустой объект не разрешает доступ. ID оставляйте стабильным при ротации
+   ключа, не переиспользуйте ID для другой системы. `WORKER_API_TOKEN` —
+   отдельный секрет, он должен совпадать на PHP и Python.
+2. На Python включите `WORKER_CHANNELS=echo,document.extract` для пилота
+   или добавьте оба канала к рабочему списку. Пустой список включает все
+   зарегистрированные каналы. Уберите старые `doc.normalize`, `doc.analyze`,
+   `doc.draft`. Не используйте одно имя `WORKER_NAME` для нескольких одновременно
+   работающих процессов: оно нужно очереди для восстановления задач после рестарта.
+3. Выберите способ подключения:
+   - **Рядом с PostgreSQL:** `WORKER_QUEUE_MODE=pg`, `WORKER_PG_DSN` к **той же
+     БД и схеме**, что и PHP. Если схема не `public`, передайте asyncpg
+     `?search_path=<схема>` в DSN либо задайте `search_path` роли в БД.
+   - **Без доступа к БД:** `WORKER_QUEUE_MODE=http` и полный
+     `PRX120_API_URL=https://<сайт>/prx120/api`.
+   - **В обоих режимах** Python обращается к PHP за файлом и для сохранения
+     результата: `PRX120_API_BASE` — корень сайта, достижимый **из воркера**,
+     без `/prx120/api`. Если в HTTP-режиме база пустая, используется origin
+     `PRX120_API_URL`. В Compose используются внутренние адреса `postgres` и
+     `nginx`; `localhost` в контейнере — сам контейнер. Раздача папки не нужна.
+4. OCR в окружении **Python**:
+   - `OCR_PROVIDER=tesseract`: `pypdf` читает нормальный текстовый слой.
+     Для страниц без текста нужны `pdftoppm` и `tesseract` с `rus+eng`.
+     Проверьте `command -v pdftoppm tesseract` и `tesseract --list-langs`
+     **от имени процесса воркера**. На Debian/Ubuntu это `poppler-utils`,
+     `tesseract-ocr`, `tesseract-ocr-rus`, `tesseract-ocr-eng`.
+   - `OCR_PROVIDER=remote`: укажите полный `OCR_SERVICE_URL` до `/parse`.
+     Запрос `POST`, `multipart file`, query `engine=auto&output_format=md&do_ocr=true`,
+     ответ JSON с `content`. `OCR_EXTRA_PARAMS` добавляет query-параметры,
+     `OCR_API_KEY` / `OCR_AUTH_HEADER_NAME` — опциональная авторизация;
+     `OCR_TIMEOUT` по умолчанию 120 с, задача целиком ограничена 300 с.
+     Перенаправления и автоматическое переключение провайдера отключены.
+5. Нативный запуск: `python3 -m pip install -r workers/requirements.txt`,
+   затем `cd workers && python3 -m prx_workers` (читается `workers/.env`).
+   Системное окружение имеет приоритет. `make worker` экспортирует корневой
+   `.env`, поэтому при разных файлах используйте осознанно. Compose использует
+   корневой `.env`: `docker compose --profile workers up -d --build worker`,
+   затем `docker compose logs -f worker`. Пакеты OCR уже в Dockerfile воркера.
+
+Используйте TLS для внешнего API и доверенную сеть для внутренних callback.
+Убедитесь, что прокси передаёт `Authorization` и `X-Worker-Token`. Настройте
+`upload_max_filesize` ≥ 10 MiB, `post_max_size` и прокси-лимит с запасом на
+multipart. Не пишите заголовки авторизации или тела запросов в access-логи.
+
+## 2. Проверка воркера без OCR
+
+На `/prx120/monitor` администратор нажимает **«Проверить воркер»** — появится
+реальная `echo`-задача. Откройте её по номеру; `done` и поле `worker` в
+результате доказывают, что Python забрал и завершил задачу. То же из CLI:
+
+```bash
+bin/console prx120:probe --wait=30
+# В Compose: docker compose exec php bin/console prx120:probe --wait=30
+```
+
+- **`pending`, попытка 0:** проверьте запуск процесса, `WORKER_CHANNELS`,
+  БД/схему или URL и токен, а также приоритет `.env`. Для systemd смотрите
+  `journalctl -u prx-worker.service`; для Compose — `docker compose logs worker`.
+- **`echo` проходит, PDF остаётся `queued`:** проверьте, что воркер обновлён и
+  подписан на `document.extract`. Обслуживание `portal:maintain` не заменяет
+  воркер и не выполняет задачи.
+- **PDF взят, но не завершается:** карточка `/prx120/task/<id>` показывает
+  `download_pdf`, `validate_pdf`, `ocr_page`/`ocr_remote`, `store_result`.
+  Последняя стадия и код ошибки отделяют сеть PHP от проблем самого OCR.
+  Пульс задач показывает работу, а не присутствие простаивающего процесса.
+
+## 3. API
+
+```bash
+# PRX_URL и PRX_API_KEY должны быть заданы клиентом, а не записаны в репозиторий.
+curl --fail-with-body "$PRX_URL/api/v1/document-extractions" \
+  -H "Authorization: Bearer $PRX_API_KEY" \
+  -H 'Idempotency-Key: erp-order-42-v1' \
+  -F 'file=@example.pdf;type=application/pdf'
+# 202 Accepted
+# {"job_id":42,"status_url":"/api/v1/document-extractions/42"}
+
+curl --fail-with-body "$PRX_URL/api/v1/document-extractions/42" \
+  -H "Authorization: Bearer $PRX_API_KEY"
+```
+
+- Отправляйте PDF ≤ 10 MiB, до 20 страниц. Ответ ≤ 1 MiB текста; превышение
+  лимита — явный отказ, не усечение. `Idempotency-Key` — 1–128 знаков из
+  `A–Z a–z 0–9 . _ : -`. Те же байты и тот же ключ дают тот же `job_id`, даже
+  при повторе после сетевой ошибки. Другой PDF с тем же ключом — `409`.
+  Ключ дедуплицируется в разрезе клиента и срока хранения. Между истечением
+  срока и очисткой повтор с этим ключом даёт `409 idempotency_key_expired`.
+- Опрашивайте `status_url` каждые 1–3 с, реже при длительном ожидании. `202`
+  означает постановку, не OCR. `GET` возвращает `status` (`queued`, `running`,
+  `succeeded`, `failed`, `canceled`), `attempt` и `expires_at`. При `succeeded`
+  есть `result`: `text`, `format` (`plain|markdown`), `provider`, `pages_total`,
+  `pages_processed` (`null`, если шлюз не сообщил), `warnings` (например,
+  `empty_page`). `format=markdown` — недоверенный текст, не готовый HTML.
+- Ошибки HTTP: `401` нет ключа, `404` чужое/истёкшее/неизвестное задание,
+  `409` конфликт ключа, `413` размер, `415` не PDF, `503` инфраструктура.
+  Ответ `{"error":{"code":"…"}}`. Ошибка фоновой задачи приходит в HTTP 200
+  со статусом `failed` и `error.code`: например `invalid_pdf`, `encrypted_pdf`,
+  `page_limit`, `no_text`, `ocr_unavailable`, `ocr_timeout`, `ocr_invalid_response`,
+  `worker_auth`, `file_unavailable`. Сетевые/сервисные сбои повторяются до трёх
+  попыток с backoff очереди; некорректный PDF или конфигурация — без повтора.
+- Зашифрованные PDF отклоняются. Смешанный PDF локально обрабатывается
+  постранично; страницы с валидным текстовым слоем не OCR-ятся. Пустые
+  страницы допускаются с предупреждением, полностью пустой результат — ошибка.
+
+## 4. Хранение и сквозная проверка
+
+Исходник и текст закрыты в `prx212`; в записи очереди и мониторе — квитанция,
+не текст. Чужое задание скрывается и в процессе обработки, и после результата.
+После 24 ч API скрывает артефакты; физическое удаление выполняет команда
+`bin/console prx395:purge`. Настройте её отдельно раз в 5–15 минут под тем же
+сервисным пользователем, что PHP, например с `flock`. Команда возвращает число
+удалённых записей, сирот и ошибок; ненулевой код требует внимания. Историческая
+копия в backup живёт по политике backup. Не используйте «Очистить все записи» в
+мониторе как чистку документов: очередь тогда потеряет статус до истечения TTL.
+
+Для отдельного тестового стенда задайте два ключа `PRX_TEST_CLIENT_TOKEN`,
+`PRX_TEST_OTHER_CLIENT_TOKEN` в окружении теста (оба внесите в карту на стороне
+PHP). Запуск против уже работающих сайта и воркера:
+
+```bash
+python3 tests/document_pipeline_e2e.py --url http://127.0.0.1:8080
+# Для remote: --expect-provider remote
+# Для безопасного скана: --pdf synthetic-scan.pdf --contains 'ожидаемый текст'
+```
+
+Тест создаёт реальные задания и использует только синтетические данные по
+умолчанию. Для оценки качества шлюза выполните контрольный прогон из сети
+**воркера** на разрешённом PDF; mock проверяет контракт, а не точность OCR.

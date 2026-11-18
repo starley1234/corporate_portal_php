@@ -3,8 +3,9 @@ from prx_workers.handlers import HANDLERS
 from prx_workers.llm import scan_providers
 
 
-def test_only_foundation_handlers_are_registered():
+def test_only_active_handlers_are_registered():
     assert set(HANDLERS) == {
+        "document.extract",
         "echo",
         "embeddings.index",
         "llm.summarize",
@@ -46,9 +47,9 @@ def test_pg_mode_may_keep_http_token_for_callbacks():
 
 
 def test_platform_model_falls_back_to_default_llm_model(monkeypatch):
-    import prx_workers.llm as llm
+    from prx_workers import providers
 
-    monkeypatch.setattr(llm, "scan_providers", lambda: {})
+    monkeypatch.setattr(providers, "scan_providers", lambda: {})
     monkeypatch.setenv("DEFAULT_LLM_MODEL", "local::platform-27b")
     from prx_workers.config import Config
 

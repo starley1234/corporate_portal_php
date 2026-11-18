@@ -2,8 +2,8 @@
 
 Модульный монолит на PHP 8.4 и PostgreSQL, с Python-воркерами для длительных задач.
 Основные потребители новых ИИ-пайплайнов — корпоративные информационные системы.
-Первый предложенный сервис — извлечение текста из PDF: [разбор прототипов и план пилота](docs/AI-DOCUMENT-PIPELINES.md).
-Новый документный API пока не реализован.
+Первый пайплайн: [асинхронный PDF → текст (API и запуск)](docs/integrations/document-extractions.md).
+Воркеры проверяются через `/prx120/monitor` → «Проверить воркер» или `bin/console prx120:probe`.
 
 Корпоративный портал отложен; `prx300_employee` остаётся доступным как HR-MVP.
 Старый контур `prx390`–`prx394` [отключён и отправлен в архив](archive/docflow/README.md)
@@ -81,7 +81,7 @@ cd workers && python3 -m prx_workers
 # Альтернатива: docker compose --profile workers up -d --build
 ```
 
-Каналы: `echo`, `embeddings.index`, `llm.summarize`, `semantic.index`.
+Каналы: `echo`, `document.extract`, `embeddings.index`, `llm.summarize`, `semantic.index`.
 Сетевые LLM/embedding-адреса в шаблонах пусты: задайте разрешённые внутренние
 эндпоинты. Для разработки без GPU есть `workers/mock/`.
 

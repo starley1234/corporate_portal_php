@@ -11,6 +11,11 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
+# OCR выполняется внутри воркера; наличие Tesseract только на хосте не помогает.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        poppler-utils tesseract-ocr tesseract-ocr-rus tesseract-ocr-eng \
+    && rm -rf /var/lib/apt/lists/*
+
 # Зависимости кэшируем отдельным слоем
 COPY workers/requirements.txt /app/workers/requirements.txt
 RUN pip install --no-cache-dir -r workers/requirements.txt

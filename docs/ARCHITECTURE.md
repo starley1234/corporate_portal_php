@@ -39,6 +39,7 @@ Browser → PHP/HMVC → application/config/modules.php
 | `prx212_file_storage` | Файлы, приватное хранение, ссылки/разрешения |
 | `prx218_module_manager` | Инвентаризация и метаданные жизненного цикла |
 | `prx300_employee` | Организации, площадки, подразделения, профиль сотрудника, внешние ID, сопоставление Auth↔сотрудник и delta-импорт HR-данных |
+| `prx395_document_extract` | PDF → текст: машинный API, приватные файлы prx212 и очередь prx120 |
 | `prx560_knowledge` | Технический RAG-кэш наработок, дедупликация, admin UI |
 | `prx595_useradmin` | Управление пользователями и ролями |
 | `prx597_notifications` | Уведомления, шаблоны, предпочтения каналов и outbox |
@@ -63,7 +64,7 @@ Browser → PHP/HMVC → application/config/modules.php
    подписи каналов и ссылки. Метаданные не заменяют проверку HTTP/Service ACL.
 
 Старый домен `docflow` (`prx390`–`prx394`) [в архиве](../archive/docflow/README.md)
-и не входит в рабочий контур. Первый новый пайплайн [предложен отдельно](AI-DOCUMENT-PIPELINES.md).
+и не входит в рабочий контур. Новый [документный API](integrations/document-extractions.md) работает независимо от архива.
 
 `application/config/modules.php` — источник истины подключения и порядка
 миграций. Менеджер модулей управляет метаданными; не считайте запись в его БД

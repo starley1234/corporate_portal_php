@@ -267,25 +267,22 @@ class Service_Prx212_Storage {
     /**
      * Сохранение файла из сырых данных
      */
-    public function saveRaw($content, $filename, array $metadata = [])
+    public function saveRaw($content, $filename, array $metadata = [], ?string $mime_type = NULL)
     {
         $tmp_file = tempnam(sys_get_temp_dir(), 'prx_storage_');
-        file_put_contents($tmp_file, $content);
-        
+        if ($tmp_file === FALSE) throw new RuntimeException('Не удалось создать временный файл prx212');
         try {
-            $file_data = [
+            if (file_put_contents($tmp_file, $content) !== strlen($content)) {
+                throw new RuntimeException('Не удалось записать временный файл prx212');
+            }
+            return $this->save([
                 'tmp_name' => $tmp_file,
                 'name' => $filename,
                 'size' => strlen($content),
-                'type' => $this->_detect_mime($tmp_file)
-            ];
-            
-            $file_id = $this->save($file_data, $metadata);
-            @unlink($tmp_file);
-            return $file_id;
-        } catch (Exception $e) {
-            @unlink($tmp_file);
-            throw $e;
+                'type' => $mime_type ?? $this->_detect_mime($tmp_file),
+            ], $metadata);
+        } finally {
+            unlink($tmp_file);
         }
     }
 
@@ -391,6 +388,60 @@ class Service_Prx212_Storage {
             throw new Exception('Access denied for file ID '.$file_id);
         }
 
+        return $this->_delete_file($file);
+    }
+
+    /** Внутренний доступ: вызывающий модуль сам проверяет права на свой объект. */
+    public function read_owned(int $file_id, string $module, int $max_bytes): ?string
+    {
+        $file = $this->_owned_private_file($file_id, $module);
+        if ($file === NULL) return NULL;
+        if ((int) $file->file_size > $max_bytes) throw new RuntimeException('Артефакт превышает лимит чтения');
+        $source = $this->_prepare_file_data($file)['stream'];
+        $stream = is_string($source) ? @fopen($source, 'rb') : $source;
+        if ( ! is_resource($stream)) throw new RuntimeException('Артефакт prx212 недоступен');
+        try {
+            $bytes = stream_get_contents($stream, $max_bytes + 1);
+            if ($bytes === FALSE || strlen($bytes) !== (int) $file->file_size) {
+                throw new RuntimeException('Не удалось прочитать артефакт prx212 целиком');
+            }
+            return $bytes;
+        } finally {
+            fclose($stream);
+        }
+    }
+
+    /** Только для приватных файлов без пользователя; повтор безопасен. */
+    public function delete_owned(int $file_id, string $module): bool
+    {
+        $file = $this->_owned_private_file($file_id, $module);
+        return $file === NULL || $this->_delete_file($file);
+    }
+
+    /** Инвентаризация приватных артефактов после аварий до регистрации в модуле. */
+    public function owned_file_ids_before(string $module, int $hours, int $limit = 100): array
+    {
+        $rows = DB::select('id')->from('prx_212_files')
+            ->where('module_prefix', '=', $module)->where('user_id', 'IS', NULL)
+            ->where('deleted_at', 'IS', NULL)->where('is_public', '=', 0)
+            ->where('created_at', '<', DB::expr('now() - interval \'1 hour\' * '.max(1, $hours)))
+            ->order_by('id')->limit(max(1, min(1000, $limit)))->execute()->as_array();
+        return array_map('intval', array_column($rows, 'id'));
+    }
+
+    private function _owned_private_file(int $file_id, string $module)
+    {
+        $file = ORM::factory('Prx212_File', $file_id);
+        if ( ! $file->loaded() || $file->deleted_at !== NULL) return NULL;
+        if ($file->module_prefix !== $module || (int) $file->is_public !== 0 || $file->user_id !== NULL) {
+            throw new LogicException('Запрещён доступ к чужому артефакту prx212');
+        }
+        return $file;
+    }
+
+    private function _delete_file($file): bool
+    {
+        $file_id = (int) $file->id;
         $metadata = $this->get_extended_metadata($file_id);
         $backend = ORM::factory('Prx212_Backend', $file->backend_id);
         
@@ -402,7 +453,7 @@ class Service_Prx212_Storage {
             
             return TRUE;
         } catch (Exception $e) {
-            Kohana::$log->add(Log::ERROR, 'Delete error: ' . $e->getMessage());
+            Log_Plain::event(Log::ERROR, 'prx212 delete file_id=:id error_type=:type', [':id' => $file_id, ':type' => get_class($e)]);
             return FALSE;
         }
     }
@@ -558,7 +609,9 @@ class Service_Prx212_Storage {
         if ($backend->driver === 'local') {
             $root = $this->_get_local_root($config);
             $full_path = $this->_local_file_path($root, $path);
-            if (is_file($full_path)) unlink($full_path);
+            if (is_file($full_path) && ! @unlink($full_path) && is_file($full_path)) {
+                throw new RuntimeException('Не удалось удалить файл prx212');
+            }
         } 
         elseif ($backend->driver === 's3') {
             $s3 = $this->_get_s3_client($config);

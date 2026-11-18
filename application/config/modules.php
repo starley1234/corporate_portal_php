@@ -26,6 +26,7 @@ return [
     'prx218_module_manager' => APPPATH.'modules/prx218_module_manager',
     'prx300_employee' => APPPATH.'modules/prx300_employee',
     // prx390–prx394 отключены: исходники и инструкция в archive/docflow/.
+    'prx395_document_extract' => APPPATH.'modules/prx395_document_extract',
     'prx560_knowledge' => APPPATH.'modules/prx560_knowledge',
     'prx595_useradmin' => APPPATH.'modules/prx595_useradmin',
     'prx597_notifications' => APPPATH.'modules/prx597_notifications',

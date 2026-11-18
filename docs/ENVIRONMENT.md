@@ -134,6 +134,14 @@ staging с копией настроек и проверенной резерв�
 outbox; проверяйте состояние отдельно и не передавайте текст ошибок без проверки
 на приватные данные.
 
+### API PDF → текст (`prx395`)
+
+`PRX395_DOCUMENT_EXTRACT_CLIENTS` — JSON с отдельным Bearer-ключом каждой
+интеграции; `{}` закрывает доступ. Параметр задаётся на PHP, не на Python.
+Воркеру в любом режиме очереди нужны `PRX120_API_BASE`, `WORKER_API_TOKEN` и
+канал `document.extract`. `OCR_PROVIDER=tesseract|remote` выбирает движок;
+для `remote` задайте `OCR_SERVICE_URL` до `/parse`. См. [запуск и проверку](integrations/document-extractions.md).
+
 ### Восстановление сроков prx393 (история)
 
 > [Контур отключён и требует доработки](../archive/docflow/README.md).

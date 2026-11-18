@@ -46,6 +46,7 @@ for path in ['/search/api?q=test', '/prx110/api/catalog', '/prx110/api/favorites
     json.loads(request(path, 401))
 json.loads(request('/prx110/api/favorites', 401, {'href': '/employee', 'pinned': '1'}))
 request('/prx120/api/stats', 403)
+assert json.loads(request('/api/v1/document-extractions/1', 401)) == {'error': {'code': 'unauthorized'}}
 request('/services', 403)
 request('/employee', 403)
 request('/prx208_events/list_subscribers', 403)
@@ -93,6 +94,7 @@ request('/auth/login?return_url=%2F', 302, {'username': username, 'password': pa
 pages = {}
 for path in ['/', '/services', '/dashboard', '/admin', '/prx595/admin', '/account/security', '/prx597', '/prx597/admin', '/prx560', '/prx115', '/tasks', '/prx120/monitor', '/prx120/workers', '/migrate_pg', '/llm_admin', '/prx218', '/prx100/errors', '/architecture', '/employee', '/employee/directory', '/prx300/admin', '/prx300/admin/employees', '/prx300/admin/employee/0', '/prx300/admin/import', '/prx300/admin/import_template']:
     pages[path] = request(path, 200)
+assert 'value="probe"' in pages['/prx120/monitor'], 'Worker probe button is missing'
 archived_paths = {'/inbox', '/documents', '/analysis', '/sla', '/replies', '/vlm-demo'}
 for path in sorted(archived_paths | {
     '/inbox/scan', '/documents/1', '/sla/recalc', '/vlm-demo/analyze',

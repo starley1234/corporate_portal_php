@@ -77,7 +77,7 @@ for path in (ROOT / 'workers/prx_workers').rglob('*.py'):
         check(bool(match), f'Нет CHANNEL в {path.name}')
         if match:
             channel_names.append(match[1])
-check(set(channel_names) == {'echo', 'embeddings.index', 'llm.summarize', 'semantic.index'}, 'Лишние/потерянные worker-каналы')
+check(set(channel_names) == {'document.extract', 'echo', 'embeddings.index', 'llm.summarize', 'semantic.index'}, 'Лишние/потерянные worker-каналы')
 manifest_text = '\n'.join(p.read_text() for p in (ROOT / 'application/modules').glob('*/config/prx_module.php'))
 for channel in channel_names:
     check(f"'{channel}'" in manifest_text, f'Канал не объявлен в манифесте: {channel}')
