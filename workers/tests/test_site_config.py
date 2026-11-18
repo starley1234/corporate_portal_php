@@ -67,3 +67,18 @@ async def test_check_site_rejects_login_wrong_token_and_redirect(monkeypatch, ca
     assert await check_site('secret', legacy=False, transport=httpx.MockTransport(lambda _: response)) == 1
     assert f'HTTP {response.status_code}' in caplog.text
     assert 'private-token' not in caplog.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('enabled', [True, False])
+async def test_legacy_state_comes_from_authenticated_php_route(monkeypatch, enabled):
+    from prx_workers.site_check import docflow_enabled
+
+    monkeypatch.setenv('PRX395_DOCUMENT_EXTRACT_API_BASE', 'https://portal.toolforge.ru/prx395/worker')
+
+    def handler(request):
+        assert request.headers['X-Worker-Token'] == 'test-token'
+        assert request.url.path == '/prx395/worker/health'
+        return httpx.Response(200, json={'ok': True, 'module': 'prx395', 'docflow_enabled': enabled})
+
+    assert await docflow_enabled('test-token', transport=httpx.MockTransport(handler)) is enabled

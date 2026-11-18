@@ -1,6 +1,6 @@
 # prx392_analysis — ИИ-разбор входящих
 
-> Тестовый контур: `PRX_DOCFLOW_ENABLED=1`; UI только для администратора. См. `docs/QUICK-CHECK.md`.
+> Тестовый контур: `PRX_DOCFLOW_ENABLED = TRUE` в `application/bootstrap.php`; UI только для администратора. См. `docs/QUICK-CHECK.md`.
 
 ## Состояние
 

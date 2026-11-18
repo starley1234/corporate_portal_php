@@ -175,6 +175,8 @@ ini_set('session.save_path', APPPATH.'sessions');
 /**
  * Enable modules. Modules are referenced by a relative or absolute path.
  */
+// Старый документооборот (Входящие, Реестр, ИИ-анализ, Сроки): TRUE — стенд, FALSE — выключен.
+define('PRX_DOCFLOW_ENABLED', FALSE);
 Kohana::modules(require APPPATH.'config/modules.php');
 
 

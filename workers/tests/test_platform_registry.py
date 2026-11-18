@@ -13,30 +13,37 @@ def test_only_active_handlers_are_registered():
     }
 
 
-def test_archived_channels_in_explicit_worker_config_fail_before_claim(monkeypatch, caplog):
-    monkeypatch.setenv('PRX_DOCFLOW_ENABLED', '0')
+def test_disabled_legacy_channels_do_not_stop_pdf_worker(monkeypatch, caplog):
     from prx_workers import __main__ as worker
     from prx_workers.config import Config
 
-    config = Config(queue_mode="pg", pg_dsn="postgres://example", channels=["echo", "doc.normalize"])
+    config = Config(queue_mode="pg", pg_dsn="postgres://example", channels=["echo", "document.extract", "doc.normalize", "doc.draft"])
     monkeypatch.setattr(worker.Config, "load", lambda: config)
     monkeypatch.setattr(worker, "setup_logging", lambda: None)
+    monkeypatch.setattr(worker, "make_queue", lambda _: None)
 
-    def unexpected_queue(_config):
-        raise AssertionError("Archived configuration must not create a queue client")
+    async def off(_token):
+        return False
 
-    monkeypatch.setattr(worker, "make_queue", unexpected_queue)
-    assert worker.main() == 2
-    assert "doc.normalize" in caplog.text
+    class Worker:
+        def __init__(self, config, _queue, handlers):
+            assert config.channels == ["echo", "document.extract"]
+            assert handlers == HANDLERS
+
+        async def run(self):
+            pass
+
+    monkeypatch.setattr(worker, "docflow_enabled", off)
+    monkeypatch.setattr(worker, "BaseWorker", Worker)
+    assert worker.main() == 0
+    assert "Пропущены выключенные каналы: doc.draft, doc.normalize" in caplog.text
 
 
-def test_only_requested_legacy_channels_return_with_switch(monkeypatch):
+def test_only_requested_legacy_channels_return_with_switch():
     from prx_workers.handlers import active_handlers
 
-    monkeypatch.setenv("PRX_DOCFLOW_ENABLED", "1")
-    assert set(active_handlers()) - set(HANDLERS) == {"doc.normalize", "doc.analyze"}
-    monkeypatch.setenv("PRX_DOCFLOW_ENABLED", "0")
-    assert active_handlers() == HANDLERS
+    assert set(active_handlers(True)) - set(HANDLERS) == {"doc.normalize", "doc.analyze"}
+    assert active_handlers(False) == HANDLERS
 
 
 def test_worker_transport_is_not_an_llm_provider(monkeypatch):

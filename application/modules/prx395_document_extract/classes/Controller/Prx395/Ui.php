@@ -5,7 +5,7 @@ class Controller_Prx395_Ui extends Controller_Base
     public function before()
     {
         parent::before();
-        if ( ! $this->can('prx395.ui')) throw HTTP_Exception::factory(403);
+        if ( ! $this->can('prx395.ui')) throw HTTP_Exception::factory(403, 'Распознавание PDF доступно администратору');
         $this->response->headers('Cache-Control', 'no-store');
         $this->set_title('Распознавание PDF');
     }

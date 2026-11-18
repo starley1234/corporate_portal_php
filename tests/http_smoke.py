@@ -100,7 +100,7 @@ assert 'value="probe"' in pages['/prx120/monitor'], 'Worker probe button is miss
 assert 'Распознать пробный PDF' in pages['/document-extract']
 assert 'href="/document-extract"' in pages['/']
 request('/document-extract', 403, {'sample': '1'})
-legacy = os.environ.get('PRX_DOCFLOW_ENABLED') == '1'
+legacy = os.environ.get('SMOKE_EXPECT_DOCFLOW') == '1'
 legacy_paths = {'/inbox', '/documents', '/analysis', '/sla'}
 archived_paths = {'/replies', '/vlm-demo'} | (set() if legacy else legacy_paths)
 for path in sorted(legacy_paths):

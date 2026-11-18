@@ -1,6 +1,6 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 // План, а не список подключённых модулей. Не создаёт маршрутов/таблиц/прав.
-$docflow_status = getenv('PRX_DOCFLOW_ENABLED') === '1' ? 'active' : 'archived';
+$docflow_status = PRX_DOCFLOW_ENABLED ? 'active' : 'archived';
 return ['domains' => [
     'hr' => ['title' => 'HR и развитие персонала', 'services' => [
         ['module' => 'prx300_employee', 'title' => 'Личный кабинет сотрудника', 'status' => 'active'],

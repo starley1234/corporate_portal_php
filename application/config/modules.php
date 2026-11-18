@@ -34,7 +34,7 @@ $modules = [
 ];
 
 // Старый контур доступен только на стенде по явному разрешению.
-if (getenv('PRX_DOCFLOW_ENABLED') === '1')
+if (PRX_DOCFLOW_ENABLED)
 {
     $modules += [
         'prx390_intake' => APPPATH.'modules/prx390_intake',

@@ -12,7 +12,8 @@ from pathlib import Path
 
 from .base import BaseWorker
 from .config import Config
-from .handlers import active_handlers
+from .handlers import ARCHIVED_CHANNELS, LEGACY_CHANNELS, active_handlers
+from .site_check import docflow_enabled
 from .queue import make_queue
 from .site import module_api_config, safe_origin
 
@@ -167,14 +168,26 @@ def main() -> int:
     log_file = setup_logging()
 
     problems = config.validate()
+    requested = set(config.channels)
     handlers = active_handlers()
-    unknown_channels = sorted(set(config.channels) - handlers.keys())
+    unknown_channels = sorted(requested - handlers.keys() - LEGACY_CHANNELS - ARCHIVED_CHANNELS)
     if unknown_channels:
-        problems.append("WORKER_CHANNELS: нет активных обработчиков: " + ", ".join(unknown_channels))
+        problems.append("WORKER_CHANNELS: неизвестные каналы: " + ", ".join(unknown_channels)
+                        + ". Уберите их или оставьте WORKER_CHANNELS пустым.")
     if problems:
         for p in problems:
             logging.error("Конфигурация: %s", p)
         return 2
+
+    if (not requested or requested & LEGACY_CHANNELS) and asyncio.run(docflow_enabled(config.api_token)):
+        handlers = active_handlers(True)
+    disabled = requested - handlers.keys()
+    if disabled:
+        logging.warning("Пропущены выключенные каналы: %s", ", ".join(sorted(disabled)))
+        config.channels = [channel for channel in config.channels if channel in handlers]
+        if not config.channels:
+            logging.error("Нет разрешённых каналов. Уберите WORKER_CHANNELS или укажите echo,document.extract.")
+            return 2
 
     # Стартовая строка: по ней видно, с чем воркер подняли — и куда прислать
     # лог, а заодно чем приглушён шум (иначе «почему нет запросов httpx» —
@@ -217,5 +230,5 @@ if __name__ == "__main__":
         logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
         logging.getLogger("httpx").setLevel(logging.WARNING)
         sys.exit(asyncio.run(check_site(os.getenv("WORKER_API_TOKEN", "").strip(),
-                                         legacy=os.getenv("PRX_DOCFLOW_ENABLED") == "1")))
+                                         legacy=None)))
     sys.exit(main())

@@ -34,7 +34,7 @@ class PortalNavigationTest extends TestCase
             $this->assertNotContains($href, $hrefs, $href);
         }
         foreach (['/inbox', '/documents', '/analysis', '/sla'] as $href) {
-            $this->assertSame(getenv('PRX_DOCFLOW_ENABLED') === '1', in_array($href, $hrefs, TRUE), $href);
+            $this->assertSame(PRX_DOCFLOW_ENABLED, in_array($href, $hrefs, TRUE), $href);
         }
         foreach ($items as $item) {
             $this->assertArrayHasKey('nav_paths', $item);

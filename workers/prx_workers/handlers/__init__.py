@@ -1,6 +1,4 @@
 """Платформенные каналы. Доменные обработчики добавляются явно."""
-import os
-
 from . import document_extract, echo, embeddings, llm_task, semantic_index
 
 HANDLERS = {
@@ -12,9 +10,13 @@ HANDLERS = {
 }
 
 
-def active_handlers():
+LEGACY_CHANNELS = {"doc.normalize", "doc.analyze"}
+ARCHIVED_CHANNELS = {"doc.draft"}
+
+
+def active_handlers(docflow_enabled: bool = False):
     handlers = dict(HANDLERS)
-    if os.getenv("PRX_DOCFLOW_ENABLED") == "1":
+    if docflow_enabled:
         from . import doc_analyze, doc_normalize
 
         handlers.update({doc_analyze.CHANNEL: doc_analyze.handle, doc_normalize.CHANNEL: doc_normalize.handle})

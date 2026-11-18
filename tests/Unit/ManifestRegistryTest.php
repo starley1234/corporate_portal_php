@@ -18,7 +18,7 @@ class ManifestRegistryTest extends TestCase {
         $keys = array_keys($channels);
         sort($keys);
         $expected = ['document.extract', 'echo', 'embeddings.index', 'llm.summarize', 'semantic.index'];
-        if (getenv('PRX_DOCFLOW_ENABLED') === '1') array_unshift($expected, 'doc.analyze', 'doc.normalize');
+        if (PRX_DOCFLOW_ENABLED) array_unshift($expected, 'doc.analyze', 'doc.normalize');
         $this->assertSame($expected, $keys);
         $this->assertSame('prx395_document_extract', $channels['document.extract']['module']);
         $this->assertSame('prx115_semantic', $channels['semantic.index']['module']);
@@ -58,7 +58,7 @@ class ManifestRegistryTest extends TestCase {
         }
         $this->assertCount(55, array_unique($services));
         $optional = ['prx390_intake', 'prx391_documents', 'prx392_analysis', 'prx393_workflow'];
-        $enabled = getenv('PRX_DOCFLOW_ENABLED') === '1';
+        $enabled = PRX_DOCFLOW_ENABLED;
         $this->assertSame(array_merge(['prx300_employee'], $enabled ? $optional : []), $active);
         $this->assertSame(array_merge($enabled ? [] : $optional, ['prx394_drafts']), $archived);
         $this->assertArrayNotHasKey('prx398_vlm_demo', Kohana::modules());

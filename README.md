@@ -7,7 +7,7 @@
 
 Для интеграций: [контракт API PDF → текст](docs/integrations/document-extractions.md).
 Старые входящие, реестр, ИИ-разбор и сроки доступны на тестовом стенде при
-`PRX_DOCFLOW_ENABLED=1`. Черновики ответов `prx394` остаются в архиве,
+`PRX_DOCFLOW_ENABLED = TRUE` в `application/bootstrap.php`. Черновики ответов `prx394` остаются в архиве,
 VLM-демо удалено. `prx300_employee` остаётся доступным как HR-MVP.
 
 Рабочие страницы портала приведены к эталону

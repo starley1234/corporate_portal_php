@@ -14,7 +14,7 @@ from urllib.parse import quote, urlencode
 
 # Из корневого файла берём только параметры воркера, не соли, почту и ключи клиентов.
 SHARED_KEYS = re.compile(
-    r"(?:APP_URL|DB_DEFAULT_(?:HOST|PORT|NAME|USER|PASS|SCHEMA)|PRX_DOCFLOW_ENABLED|"
+    r"(?:APP_URL|DB_DEFAULT_(?:HOST|PORT|NAME|USER|PASS|SCHEMA)|"
     r"WORKER_[A-Z0-9_]+|PRX(?:115|120|390|392|395_DOCUMENT_EXTRACT)_(?:API_BASE|API_URL|SITE_TOKEN)|"
     r"OCR_[A-Z0-9_]+|EMBEDDING_[A-Z0-9_]+|LLM_DEFAULT_PROVIDER|DEFAULT_LLM_MODEL|"
     r"(?:LOCAL|OPENROUTER|TOOLFORGE)_(?:API_URL|API_KEY|DEFAULT_MODEL))"
