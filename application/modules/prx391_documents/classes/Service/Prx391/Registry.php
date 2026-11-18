@@ -181,14 +181,57 @@ class Service_Prx391_Registry
         return $row;
     }
 
-    public static function recent_history($limit = 20)
+    /** Проверяет только переданные ID; порядок и уникальность сохраняются. */
+    public static function visible_ids(array $ids, array $actor = [])
     {
+        $candidates = [];
+        foreach ($ids as $id)
+        {
+            if ( ! is_int($id) AND ! (is_string($id) AND ctype_digit($id)))
+            {
+                continue;
+            }
+            $id = (int) $id;
+            if ($id > 0)
+            {
+                $candidates[$id] = $id;
+            }
+        }
+        if ( ! $candidates)
+        {
+            return [];
+        }
+
+        $visible = [];
+        foreach (self::_all('SELECT id, sensitivity FROM prx_391_documents WHERE id IN ('.implode(',', $candidates).')') as $doc)
+        {
+            if (Service_Prx391_Documents::can_view($doc, $actor))
+            {
+                $visible[(int) $doc['id']] = TRUE;
+            }
+        }
+
+        return array_values(array_filter($candidates, function ($id) use ($visible) {
+            return isset($visible[$id]);
+        }));
+    }
+
+    public static function recent_history($limit = 20, array $actor = [])
+    {
+        if ( ! Service_Prx391_Documents::can_view(['sensitivity' => 'public'], $actor))
+        {
+            return [];
+        }
+        $where = Service_Prx391_Documents::can_view_all($actor)
+            ? '' : "WHERE d.sensitivity IN ('public', 'internal')";
+
         return self::_all("
             SELECT h.*, d.reg_no, d.subject
             FROM prx_391_history h
             JOIN prx_391_documents d ON d.id = h.document_id
+            ".$where."
             ORDER BY h.created_at DESC, h.id DESC
-            LIMIT ".(int) $limit."
+            LIMIT ".max(0, (int) $limit)."
         ");
     }
 

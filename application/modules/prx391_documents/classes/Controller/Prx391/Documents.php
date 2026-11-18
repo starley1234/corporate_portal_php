@@ -29,7 +29,7 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
             'page' => $list['page'],
             'pages' => $list['pages'],
             'filters' => $filters,
-            'history' => Service_Prx391_Documents::recent_history(12),
+            'history' => Service_Prx391_Documents::recent_history(12, $this->_actor()),
             'ai_stats' => class_exists('Service_Prx392_Analysis') ? Service_Prx392_Analysis::stats() : [],
             'sla_stats' => class_exists('Service_Prx393_Workflow') ? Service_Prx393_Workflow::stats() : [],
         ]);

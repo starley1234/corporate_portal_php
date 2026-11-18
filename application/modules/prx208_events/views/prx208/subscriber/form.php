@@ -6,6 +6,12 @@
             <?php echo HTML::chars($subscriber->loaded() ? __('Edit Subscription') : __('Create New Subscription')); ?>
         </h1>
 
+        <?php if (empty($db_subscribers_enabled)): ?>
+            <div class="prx-flash prx-flash-warn mb-4" role="status">
+                Загрузка подписок из базы отключена. Флаг «Активна» сохранится, но обработчик не будет запущен до проверки и включения настройки оператором.
+            </div>
+        <?php endif; ?>
+
         <?php if (isset($errors) && !empty($errors)): ?>
             <div class="bg-rose-100 dark:bg-rose-900 border border-rose-400 text-rose-700 dark:text-rose-300 px-4 py-3 rounded relative mb-4" role="alert">
                 <strong class="font-bold"><?php echo __('Validation Error!'); ?></strong>
@@ -19,6 +25,7 @@
         <?php endif; ?>
 
         <form action="<?php echo HTML::chars(Route::url('prx208_events', array('action' => 'manage_subscription', 'id' => $subscriber->id))); ?>" method="post" class="space-y-6">
+            <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
             <div>
                 <label for="event_name" class="prx-label mb-1">
                     <?php echo __('Event Name'); ?> <span class="text-rose-500">*</span>
@@ -36,16 +43,9 @@
                 <label for="module_id" class="prx-label mb-1">
                     <?php echo __('Module ID'); ?>
                 </label>
-                <select id="module_id" name="module_id"
-                        class="prx-input prx-select mt-1 w-full"<?php echo isset($errors['module_id']) ? ' aria-invalid="true"' : ''; ?>>
-                    <option value=""><?php echo __('Select a module (optional)'); ?></option>
-                    <?php foreach ($available_modules as $module_id_option): ?>
-                        <option value="<?php echo HTML::chars($module_id_option); ?>"
-                            <?php echo ($subscriber->module_id === $module_id_option) ? 'selected' : ''; ?>>
-                            <?php echo HTML::chars($module_id_option); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
+                <input type="text" id="module_id" name="module_id" autocomplete="off"
+                       value="<?php echo HTML::chars($subscriber->module_id); ?>"
+                       class="prx-input mt-1 w-full"<?php echo isset($errors['module_id']) ? ' aria-invalid="true"' : ''; ?>>
                 <?php if (isset($errors['module_id'])): ?>
                     <p class="mt-2 text-sm text-rose-600 dark:text-rose-400"><?php echo HTML::chars($errors['module_id']); ?></p>
                 <?php endif; ?>
@@ -83,7 +83,7 @@
                 <div class="flex items-center">
                     <input id="is_active" name="is_active" type="checkbox" value="1"
                            class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
-                           <?php echo ($subscriber->is_active || !$subscriber->loaded()) ? 'checked' : ''; ?>>
+                           <?php echo ($subscriber->is_active === NULL ? ! $subscriber->loaded() : $subscriber->is_active) ? 'checked' : ''; ?>>
                     <label for="is_active" class="ml-2 block text-sm text-gray-900 dark:text-gray-300">
                         <?php echo __('Is Active'); ?>
                     </label>

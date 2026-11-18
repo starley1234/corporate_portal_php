@@ -168,9 +168,15 @@ class Service_Prx391_Documents
         return Service_Prx391_Registry::stats($actor);
     }
 
-    public static function recent_history($limit = 20)
+    /** ID из предложенного списка, чьи карточки доступны актору. */
+    public static function visible_ids(array $ids, array $actor = [])
     {
-        return Service_Prx391_Registry::recent_history($limit);
+        return Service_Prx391_Registry::visible_ids($ids, $actor);
+    }
+
+    public static function recent_history($limit = 20, array $actor = [])
+    {
+        return Service_Prx391_Registry::recent_history($limit, $actor);
     }
 
     // ------------------------------------------------------------------
@@ -226,9 +232,21 @@ class Service_Prx391_Documents
             return TRUE;
         }
 
-        return in_array('docflow_lawyer', $actor['roles'] ?? [], TRUE)
-            OR in_array('docflow_manager', $actor['roles'] ?? [], TRUE)
-            OR in_array('admin', $actor['roles'] ?? [], TRUE);
+        return self::can_view_all($actor);
+    }
+
+    /** Может ли актор видеть карточки с любым грифом, включая персональные. */
+    public static function can_view_all(array $actor = [])
+    {
+        if (self::_is_system($actor))
+        {
+            return TRUE;
+        }
+        $roles = $actor['roles'] ?? [];
+        return ACL::check($roles, 'prx391.view')
+            && (in_array('docflow_lawyer', $roles, TRUE)
+                || in_array('docflow_manager', $roles, TRUE)
+                || in_array('admin', $roles, TRUE));
     }
 
     public static function can_edit(array $actor = [])

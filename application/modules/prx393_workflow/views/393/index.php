@@ -16,13 +16,14 @@
     echo View::factory('partials/docflow_flash', ['flash' => $flash]);
     ?>
 
+    <?php if ($stats !== NULL): ?>
     <section class="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5" aria-label="Показатели сроков">
         <?php
         $kpis = [
             ['Открыто', $stats['open_count'], 'fas fa-hourglass-half', 'info', 'в работе'],
             ['Просрочено', $stats['overdue'], 'fas fa-fire', $stats['overdue'] ? 'err' : 'ok', 'срок истёк'],
             ['Меньше суток', $stats['soon'], 'fas fa-triangle-exclamation', $stats['soon'] ? 'warn' : 'ok', 'требуют внимания'],
-            ['Закрыто в срок', $stats['met'], 'fas fa-circle-check', 'ok', 'статус met'],
+            ['Снято с контроля', $stats['met'], 'fas fa-circle-check', 'ok', 'закрытые сроки'],
             ['Средний срок', $stats['avg_hours'] !== NULL ? $stats['avg_hours'].' ч' : '—', 'fas fa-gauge-high', 'info', 'от постановки до срока'],
         ];
         foreach ($kpis as $kpi): ?>
@@ -36,12 +37,16 @@
             </div>
         <?php endforeach; ?>
     </section>
+    <?php else: ?>
+        <p class="prx-flash prx-flash-info mt-5">Общие показатели скрыты: не все карточки доступны вашей роли.</p>
+    <?php endif; ?>
 
     <section class="prx-card mt-5 overflow-x-auto">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <h2 class="text-base font-semibold text-gray-900 dark:text-white"><i class="fas fa-list-ol mr-2 text-amber-500"></i>Открытые сроки</h2>
             <span class="prx-count"><?php echo count($deadlines); ?></span>
         </div>
+        <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Доступные карточки среди 60 ближайших сроков.</p>
         <table class="prx-table mt-3 min-w-[1060px]">
             <thead><tr><th>Документ</th><th>Отдел / роль</th><th>Источник</th><th>Срок</th><th>Осталось</th><th>Состояние</th><th></th></tr></thead>
             <tbody>
@@ -59,7 +64,7 @@
                     <td class="text-right"><a class="prx-btn-secondary prx-btn-sm" href="/documents/<?php echo (int) $dl['document_id']; ?>">Карточка</a></td>
                 </tr>
             <?php endforeach; ?>
-            <?php if (empty($deadlines)): ?><tr><td colspan="7" class="text-center text-gray-500 dark:text-gray-400">Открытых сроков нет. Они появятся после регистрации документа.</td></tr><?php endif; ?>
+            <?php if (empty($deadlines)): ?><tr><td colspan="7" class="text-center text-gray-500 dark:text-gray-400">Доступных карточек среди ближайших сроков нет.</td></tr><?php endif; ?>
             </tbody>
         </table>
     </section>
@@ -90,6 +95,7 @@
         <aside class="space-y-4">
             <section class="prx-card">
                 <h2 class="text-base font-semibold text-gray-900 dark:text-white"><i class="fas fa-bullhorn mr-2 text-red-500"></i>Эскалации</h2>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Доступные карточки среди 20 последних записей.</p>
                 <?php if ($escalations): ?>
                     <ul class="mt-3 space-y-3">
                         <?php foreach ($escalations as $e): ?>
@@ -100,7 +106,7 @@
                         <?php endforeach; ?>
                     </ul>
                 <?php else: ?>
-                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Эскалаций нет — все сроки под контролем.</p>
+                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Доступных записей об эскалациях нет.</p>
                 <?php endif; ?>
             </section>
 

@@ -15,6 +15,11 @@ return [
     ],
 
     'event_bus' => [
+        // На старых установках загрузка DB-подписок годами могла не работать.
+        // Не активируем неизвестные обработчики и уведомления без аудита.
+        'load_db_subscribers' => in_array(strtolower(trim((string) getenv('PRX208_DB_SUBSCRIBERS_ENABLED'))),
+            ['1', 'true', 'yes', 'on'], TRUE),
+
         // ЖУРНАЛ СОБЫТИЙ: писать каждое publish() в prx_208_events
         // (активность платформы; чистка старых — /prx100/cleanup)
         'log_published_events' => TRUE,

@@ -16,11 +16,41 @@ class Model_Prx208_Subscriber extends ORM {
         'module_id'       => array('type' => 'string'),
         'callback_method' => array('type' => 'string'),
         'is_active'       => array('type' => 'boolean'),
-        'is_notification'   => array('type' => 'is_notification'),
+        'is_notification' => array('type' => 'boolean'),
         'description' => array('type' => 'string'),
         'created_at'      => array('type' => 'timestamp'),
         
     );
+
+    /** Нормализуем булевы значения до строк, которые проходят not_empty и SQL. */
+    public function set($column, $value)
+    {
+        if (in_array($column, array('is_active', 'is_notification'), TRUE))
+        {
+            if (in_array($value, array(TRUE, 1, '1', 't', 'true'), TRUE))
+            {
+                $value = '1';
+            }
+            elseif (in_array($value, array(FALSE, 0, '0', 'f', 'false'), TRUE))
+            {
+                $value = '0';
+            }
+        }
+
+        return parent::set($column, $value);
+    }
+
+    /** PostgreSQL возвращает BOOLEAN как строки 't'/'f'; 'f' в PHP истинно. */
+    public function get($column)
+    {
+        $value = parent::get($column);
+        if (in_array($column, array('is_active', 'is_notification'), TRUE) AND $value !== NULL)
+        {
+            return in_array($value, array(TRUE, 1, '1', 't', 'true'), TRUE);
+        }
+
+        return $value;
+    }
 
     /**
      * Определяет связи "один ко многим" (has many).
@@ -72,7 +102,13 @@ class Model_Prx208_Subscriber extends ORM {
             ),
             'is_active' => array(
                 array('not_empty'),
-                array('in_array', array(':value', array(TRUE, FALSE))),
+                array('in_array', array(':value', array('0', '1', 't', 'f'), TRUE)),
+            ),
+            'is_notification' => array(
+                array('in_array', array(':value', array('0', '1', 't', 'f'), TRUE)),
+            ),
+            'description' => array(
+                array('max_length', array(':value', 255)),
             ),
         );
     }

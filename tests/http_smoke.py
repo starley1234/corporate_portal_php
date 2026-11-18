@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
-"""HTTP smoke против работающего dev-сайта; секреты берёт только из окружения."""
+"""HTTP smoke только для изолированного dev/staging с тестовыми данными.
+
+Использует секреты из окружения, создаёт/удаляет подписки и публикует тестовые
+события, которые остаются в журнале. Не запускать против production-данных.
+"""
 import http.cookiejar
 import html as html_module
 import json
 import os
 import re
+import secrets
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -43,6 +48,9 @@ json.loads(request('/prx110/api/favorites', 401, {'href': '/inbox', 'pinned': '1
 request('/prx120/api/stats', 403)
 request('/services', 403)
 request('/employee', 403)
+request('/prx208_events/list_subscribers', 403)
+for path in ['/prx208_events/api/subscribe', '/prx208_events/api/unsubscribe', '/prx208_events/api/publish_event']:
+    request(path, 403, {})
 request('/prx300/admin', 403)
 request('/prx595/admin', 403)
 request('/about', 200)
@@ -85,6 +93,95 @@ request('/auth/login?return_url=%2F', 302, {'username': username, 'password': pa
 pages = {}
 for path in ['/', '/services', '/dashboard', '/admin', '/prx595/admin', '/account/security', '/prx597', '/prx597/admin', '/prx560', '/prx115', '/tasks', '/prx120/monitor', '/prx120/workers', '/migrate_pg', '/llm_admin', '/prx218', '/prx100/errors', '/architecture', '/employee', '/employee/directory', '/prx300/admin', '/prx300/admin/employees', '/prx300/admin/employee/0', '/prx300/admin/import', '/prx300/admin/import_template', '/inbox', '/documents', '/analysis', '/sla', '/replies', '/vlm-demo']:
     pages[path] = request(path, 200)
+assert 'Снято с контроля' in pages['/sla']
+assert 'Закрыто в срок' not in pages['/sla']  # met означает закрытие, не соблюдение даты
+request('/sla/recalc', 405)
+request('/sla/recalc', 403, {})
+request('/sla/recalc', 403, {'csrf[]': 'invalid'})
+
+# Администратор может безопасно управлять DB-подписками; тест использует
+# случайное имя события и удаляет свою запись, не меняя штатные подписки.
+# Сам факт сохранения НЕ означает, что загрузка из БД включена в настройках.
+subscription_path = '/prx208_events/manage_subscription'
+form = request(subscription_path, 200)
+subscription_csrf = html_module.unescape(re.search(r'name="csrf" value="([^"]+)"', form)[1])
+
+def is_checked(page, name):
+    tag = re.search(r'<input\b[^>]*\bid="' + re.escape(name) + r'"[^>]*>', page, re.S)
+    assert tag, f'Checkbox {name} not found'
+    return 'checked' in tag[0]
+
+assert is_checked(form, 'is_active') and not is_checked(form, 'is_notification')
+request(subscription_path, 403, {'event_name': 'prx208.test.csrf'})
+request(subscription_path, 403, {'csrf[]': subscription_csrf, 'event_name': 'prx208.test.csrf'})
+invalid = request(subscription_path, 200, {'csrf': subscription_csrf, 'event_name': '', 'is_notification': '1'})
+assert 'aria-invalid="true"' in invalid
+assert not is_checked(invalid, 'is_active') and is_checked(invalid, 'is_notification')
+
+test_event = 'prx208.test.ui.' + secrets.token_hex(8)
+subscriber_id = None
+try:
+    request(subscription_path, 302, {
+        'csrf': subscription_csrf, 'event_name': test_event, 'module_id': 'integration-test',
+        'callback_method': '', 'is_active': '1', 'is_notification': '1',
+    })
+    listing = request('/prx208_events/list_subscribers?search=' + test_event, 200)
+    row = re.search(r'<tr>(?:(?!</tr>).)*' + re.escape(test_event) + r'(?:(?!</tr>).)*</tr>', listing, re.S)
+    assert row, 'Created subscription was not listed'
+    match = re.search(r'manage_subscription/(\d+)', row[0])
+    assert match, 'Created subscription has no edit link'
+    subscriber_id = match[1]
+    assert 'prx-badge-ok' in row[0] and 'prx-badge-info' in row[0]
+    edit = subscription_path + '/' + subscriber_id
+    saved = request(edit, 200)
+    assert is_checked(saved, 'is_active') and is_checked(saved, 'is_notification')
+    request(edit, 302, {'csrf': subscription_csrf, 'event_name': test_event, 'module_id': 'integration-test'})
+    unchecked = request(edit, 200)
+    assert not is_checked(unchecked, 'is_active') and not is_checked(unchecked, 'is_notification')
+    listing = request('/prx208_events/list_subscribers?search=' + test_event, 200)
+    row = re.search(r'<tr>(?:(?!</tr>).)*' + re.escape(test_event) + r'(?:(?!</tr>).)*</tr>', listing, re.S)
+    assert row and row[0].count('prx-badge-wait') >= 2
+    delete = '/prx208_events/delete_subscription/' + subscriber_id
+    request(delete, 405)
+    request(delete, 403, {})
+finally:
+    if subscriber_id:
+        request('/prx208_events/delete_subscription/' + subscriber_id, 302, {'csrf': subscription_csrf})
+
+# API подписок использует ту же сессию и требует CSRF, а не только право роли.
+api_subscribe = '/prx208_events/api/subscribe'
+api_unsubscribe = '/prx208_events/api/unsubscribe'
+api_publish = '/prx208_events/api/publish_event'
+for path in [api_subscribe, api_unsubscribe, api_publish]:
+    json.loads(request(path, 405))
+    json.loads(request(path, 403, {}))
+    json.loads(request(path, 403, {'csrf[]': subscription_csrf}))
+api_event = 'prx208.test.api.' + secrets.token_hex(8)
+base_api_data = {'csrf': subscription_csrf, 'event_name': api_event,
+                 'module_id': 'integration-test', 'callback_method': 'Prx208TestSubscriber::receive'}
+json.loads(request(api_subscribe, 400, {**base_api_data, 'is_active': 'invalid'}))
+json.loads(request(api_subscribe, 400, {**base_api_data, 'is_active[]': '1'}))
+json.loads(request(api_unsubscribe, 400, {'csrf': subscription_csrf, 'subscriber_id[]': '1'}))
+json.loads(request(api_unsubscribe, 400, {'csrf': subscription_csrf, 'subscriber_id': '1', 'deactivate_only': 'invalid'}))
+api_id = None
+try:
+    created = json.loads(request(api_subscribe, 201, {
+        'csrf': subscription_csrf, 'event_name': api_event, 'module_id': 'integration-test',
+        'callback_method': 'Prx208TestSubscriber::receive', 'is_active': 'false',
+    }))
+    api_id = str(created['subscriber_id'])
+    assert not is_checked(request(subscription_path + '/' + api_id, 200), 'is_active')
+    json.loads(request(api_unsubscribe, 200, {'csrf': subscription_csrf, 'subscriber_id': api_id, 'deactivate_only': '1'}))
+    assert not is_checked(request(subscription_path + '/' + api_id, 200), 'is_active')
+    json.loads(request(api_unsubscribe, 200, {'csrf': subscription_csrf, 'subscriber_id': api_id, 'deactivate_only': 'false'}))
+    request(subscription_path + '/' + api_id, 404)
+    api_id = None
+finally:
+    if api_id:
+        request('/prx208_events/delete_subscription/' + api_id, 302, {'csrf': subscription_csrf})
+json.loads(request(api_publish, 400, {'csrf': subscription_csrf, 'event_name': api_event, 'payload': 'null'}))
+published = json.loads(request(api_publish, 200, {'csrf': subscription_csrf, 'event_name': api_event, 'payload': '{"value":1}'}))
+assert published['status'] == 'success' and published['event_id'] is None
 
 # Избранное приходит с первым HTML, без браузерного запроса и плейсхолдера.
 favorites = json.loads(request('/prx110/api/favorites', 200))

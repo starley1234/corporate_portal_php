@@ -53,9 +53,21 @@ class Controller_Prx208_Api extends Controller_Base {
             return;
         }
 
+        if ( ! $this->_require_post_csrf())
+        {
+            return;
+        }
+
         if ($post = $this->request->post())
         {
-            $event_name = isset($post['event_name']) ? (string) $post['event_name'] : NULL;
+            if ((isset($post['event_name']) AND ! is_string($post['event_name']))
+                OR (isset($post['payload']) AND ! is_string($post['payload'])))
+            {
+                $this->response->status(400);
+                $this->response->body(json_encode(array('status' => 'error', 'message' => 'Некорректные поля события.')));
+                return;
+            }
+            $event_name = isset($post['event_name']) ? trim($post['event_name']) : NULL;
             $payload_raw = isset($post['payload']) ? (string) $post['payload'] : '{}';
 
             if (empty($event_name))
@@ -69,32 +81,37 @@ class Controller_Prx208_Api extends Controller_Base {
             }
 
             $payload = json_decode($payload_raw, TRUE);
-            if (json_last_error() !== JSON_ERROR_NONE)
+            if (json_last_error() !== JSON_ERROR_NONE OR ! is_array($payload))
             {
                 $this->response->status(400);
                 $this->response->body(json_encode(array(
                     'status'  => 'error',
-                    'message' => 'Неверный формат JSON для данных события: ' . json_last_error_msg()
+                    'message' => 'Данные события должны быть JSON-объектом или массивом.'
                 )));
                 return;
             }
 
             try
             {
-                $event_model = $this->_event_bus->publish($event_name, $payload);
+                // publish() возвращает bool о наличии слушателей, а не модель
+                // события. ID из журнала шина здесь не возвращает.
+                $initiator_id = $this->_current_user ? (int) $this->_current_user->id : NULL;
+                $this->_event_bus->publish($event_name, $payload, $initiator_id);
 
                 $this->response->status(200);
                 $this->response->body(json_encode(array(
                     'status'    => 'success',
-                    'message'   => 'Событие успешно опубликовано.',
+                    'message'   => 'Событие опубликовано; выполнение обработчиков проверяется отдельно.',
                     'event_name' => $event_name,
-                    'event_id'  => $event_model->loaded() ? $event_model->id : NULL
+                    'event_id'  => NULL
                 )));
-                Event::fire('prx208_events.published', $event_model);
+                Event::fire('prx208_events.published', array('event_name' => $event_name));
             }
-            catch (Exception $e)
+            catch (Throwable $e)
             {
-                Kohana::$log->add(Log::ERROR, 'Ошибка публикации события через API: :error', array(':error' => $e->getMessage()));
+                Log_Plain::event(Log::ERROR, 'prx208_diag stage=api_publish result=error error_type=:type', array(
+                    ':type' => get_class($e),
+                ));
                 $this->response->status(500);
                 $this->response->body(json_encode(array(
                     'status'  => 'error',
@@ -299,12 +316,32 @@ class Controller_Prx208_Api extends Controller_Base {
             return;
         }
 
+        if ( ! $this->_require_post_csrf())
+        {
+            return;
+        }
+
         if ($post = $this->request->post())
         {
-            $event_name      = isset($post['event_name']) ? (string) $post['event_name'] : NULL;
-            $module_id       = isset($post['module_id']) ? (string) $post['module_id'] : NULL;
-            $callback_method = isset($post['callback_method']) ? (string) $post['callback_method'] : NULL;
-            $is_active       = isset($post['is_active']) ? (bool) $post['is_active'] : TRUE;
+            foreach (array('event_name', 'module_id', 'callback_method') as $field)
+            {
+                if (isset($post[$field]) AND ! is_string($post[$field]))
+                {
+                    $this->response->status(400);
+                    $this->response->body(json_encode(array('status' => 'error', 'message' => 'Некорректное поле подписки.')));
+                    return;
+                }
+            }
+            $event_name      = isset($post['event_name']) ? trim($post['event_name']) : NULL;
+            $module_id       = isset($post['module_id']) ? trim($post['module_id']) : NULL;
+            $callback_method = isset($post['callback_method']) ? trim($post['callback_method']) : NULL;
+            $is_active       = $this->_boolean_post($post, 'is_active', TRUE);
+            if ($is_active === NULL)
+            {
+                $this->response->status(400);
+                $this->response->body(json_encode(array('status' => 'error', 'message' => 'Некорректный флаг активности.')));
+                return;
+            }
 
             if (empty($event_name) || empty($module_id) || empty($callback_method))
             {
@@ -343,7 +380,7 @@ class Controller_Prx208_Api extends Controller_Base {
                     'message'       => 'Подписка успешно создана.',
                     'subscriber_id' => $subscriber->id
                 )));
-                Event::fire('prx208_events.subscribed', $subscriber);
+                Event::fire('prx208_events.subscribed', array('subscriber_id' => (int) $subscriber->id));
             }
             catch (ORM_Validation_Exception $e)
             {
@@ -355,9 +392,11 @@ class Controller_Prx208_Api extends Controller_Base {
                     'errors'  => $errors
                 )));
             }
-            catch (Exception $e)
+            catch (Throwable $e)
             {
-                Kohana::$log->add(Log::ERROR, 'Ошибка создания подписки через API: :error', array(':error' => $e->getMessage()));
+                Log_Plain::event(Log::ERROR, 'prx208_diag stage=api_subscribe result=error error_type=:type', array(
+                    ':type' => get_class($e),
+                ));
                 $this->response->status(500);
                 $this->response->body(json_encode(array(
                     'status'  => 'error',
@@ -396,12 +435,24 @@ class Controller_Prx208_Api extends Controller_Base {
             return;
         }
 
+        if ( ! $this->_require_post_csrf())
+        {
+            return;
+        }
+
         if ($post = $this->request->post())
         {
-            $subscriber_id   = isset($post['subscriber_id']) ? (int) $post['subscriber_id'] : NULL;
-            $deactivate_only = isset($post['deactivate_only']) ? (bool) $post['deactivate_only'] : FALSE;
+            $raw_id = $post['subscriber_id'] ?? NULL;
+            $subscriber_id = is_string($raw_id) && ctype_digit($raw_id) ? (int) $raw_id : 0;
+            $deactivate_only = $this->_boolean_post($post, 'deactivate_only', FALSE);
+            if ($deactivate_only === NULL)
+            {
+                $this->response->status(400);
+                $this->response->body(json_encode(array('status' => 'error', 'message' => 'Некорректный флаг деактивации.')));
+                return;
+            }
 
-            if (empty($subscriber_id))
+            if ($subscriber_id <= 0)
             {
                 $this->response->status(400);
                 $this->response->body(json_encode(array(
@@ -430,14 +481,13 @@ class Controller_Prx208_Api extends Controller_Base {
                     $subscriber->is_active = FALSE;
                     $subscriber->save();
                     $message = 'Подписка успешно деактивирована.';
-                    Event::fire('prx208_events.deactivated', $subscriber);
+                    Event::fire('prx208_events.deactivated', array('subscriber_id' => $subscriber_id));
                 }
                 else
                 {
-                    $subscriber_data = clone $subscriber; // Клонируем для передачи в событие
                     $subscriber->delete();
                     $message = 'Подписка успешно удалена.';
-                    Event::fire('prx208_events.unsubscribed', $subscriber_data);
+                    Event::fire('prx208_events.unsubscribed', array('subscriber_id' => $subscriber_id));
                 }
 
                 $this->response->status(200);
@@ -446,11 +496,10 @@ class Controller_Prx208_Api extends Controller_Base {
                     'message' => $message
                 )));
             }
-            catch (Exception $e)
+            catch (Throwable $e)
             {
-                Kohana::$log->add(Log::ERROR, 'Ошибка отмены/деактивации подписки :id через API: :error', array(
-                    ':id'    => $subscriber_id,
-                    ':error' => $e->getMessage()
+                Log_Plain::event(Log::ERROR, 'prx208_diag stage=api_unsubscribe result=error subscriber_id=:id error_type=:type', array(
+                    ':id' => $subscriber_id, ':type' => get_class($e),
                 ));
                 $this->response->status(500);
                 $this->response->body(json_encode(array(
@@ -467,5 +516,48 @@ class Controller_Prx208_Api extends Controller_Base {
                 'message' => 'Для этой конечной точки разрешены только POST-запросы.'
             )));
         }
+    }
+
+    /** Изменяющий API использует сессионную авторизацию, поэтому нужен CSRF. */
+    protected function _require_post_csrf()
+    {
+        if ($this->request->method() !== Request::POST)
+        {
+            $this->response->status(405);
+            $this->response->headers('Allow', 'POST');
+            $this->response->body(json_encode(array('status' => 'error', 'message' => 'Нужен POST.')));
+            return FALSE;
+        }
+        $csrf = $this->request->post('csrf');
+        if ( ! is_string($csrf) OR ! Security::check($csrf))
+        {
+            $this->response->status(403);
+            $this->response->body(json_encode(array('status' => 'error', 'message' => 'Сессия устарела, обновите страницу.')));
+            return FALSE;
+        }
+        return TRUE;
+    }
+
+    /** TRUE/FALSE или NULL для ошибочного значения формы. */
+    protected function _boolean_post(array $post, $key, $default)
+    {
+        if ( ! array_key_exists($key, $post))
+        {
+            return $default;
+        }
+        if ( ! is_string($post[$key]))
+        {
+            return NULL;
+        }
+        $value = strtolower(trim($post[$key]));
+        if (in_array($value, array('1', 'true', 'yes', 'on'), TRUE))
+        {
+            return TRUE;
+        }
+        if (in_array($value, array('0', 'false', 'no', 'off', ''), TRUE))
+        {
+            return FALSE;
+        }
+        return NULL;
     }
 }

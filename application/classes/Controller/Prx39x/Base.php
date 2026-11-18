@@ -55,9 +55,10 @@ abstract class Controller_Prx39x_Base extends Controller_Base
     {
         if ($this->request->method() !== Request::POST)
         {
-            throw HTTP_Exception::factory(405, 'Нужен POST');
+            throw (HTTP_Exception::factory(405, 'Нужен POST'))->allowed('POST');
         }
-        if ( ! Security::check((string) $this->request->post('csrf')))
+        $csrf = $this->request->post('csrf');
+        if ( ! is_string($csrf) OR ! Security::check($csrf))
         {
             throw HTTP_Exception::factory(403, 'Сессия устарела, обновите страницу');
         }

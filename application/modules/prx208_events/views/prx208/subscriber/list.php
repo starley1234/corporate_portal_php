@@ -27,6 +27,16 @@
         ],
     ]); ?>
 
+    <?php if (empty($db_subscribers_enabled)): ?>
+        <div class="prx-flash prx-flash-warn mt-6" role="status">
+            Загрузка подписок из базы отключена. Пометка «Активна» показывает настройку записи, а не фактическое исполнение; включение выполняет оператор после аудита.
+        </div>
+    <?php else: ?>
+        <div class="prx-flash prx-flash-info mt-6" role="status">
+            Загрузка подписок из базы разрешена настройкой. Ошибки загрузки и обработчиков проверяйте в журнале; изменения применяются при следующей инициализации шины.
+        </div>
+    <?php endif; ?>
+
     <section class="prx-panel mt-6">
         <div class="prx-panel-head block">
             <form action="<?php echo Route::url('prx208_events', array('action' => 'list_subscribers')); ?>" method="get" class="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-4">
@@ -120,9 +130,12 @@
                                     <a href="<?php echo Route::url('prx208_events', array('action' => 'manage_subscription', 'id' => $subscriber->id)); ?>" class="prx-btn-icon" title="<?php echo __('Edit'); ?>" aria-label="<?php echo __('Edit'); ?>">
                                         <i class="fas fa-pen"></i>
                                     </a>
-                                    <a href="<?php echo Route::url('prx208_events', array('action' => 'delete_subscription', 'id' => $subscriber->id)); ?>" class="prx-btn-icon-danger" title="<?php echo __('Delete'); ?>" aria-label="<?php echo __('Delete'); ?>" data-prx-arm="Точно удалить?">
-                                        <i class="fas fa-trash-can"></i>
-                                    </a>
+                                    <form method="post" action="<?php echo HTML::chars(Route::url('prx208_events', array('action' => 'delete_subscription', 'id' => $subscriber->id))); ?>" class="inline">
+                                        <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
+                                        <button type="submit" class="prx-btn-icon-danger" title="<?php echo __('Delete'); ?>" aria-label="<?php echo __('Delete'); ?>" data-prx-arm="Точно удалить?">
+                                            <i class="fas fa-trash-can"></i>
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                         <?php endforeach; ?>

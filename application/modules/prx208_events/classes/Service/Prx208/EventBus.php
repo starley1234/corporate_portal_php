@@ -35,8 +35,11 @@ class Service_Prx208_EventBus {
 
         $this->_config = isset($config_array['event_bus']) ? $config_array['event_bus'] : array();
         $this->_config['logging'] = isset($config_array['logging']) ? $config_array['logging'] : array();
-        
-        $this->_load_subscribers_from_db();
+
+        if ( ! empty($this->_config['load_db_subscribers']))
+        {
+            $this->_load_subscribers_from_db();
+        }
     }
 
     /**
@@ -142,11 +145,12 @@ class Service_Prx208_EventBus {
                     // Передаем массив (payload), имя события и инициатора в callback
                     call_user_func($callback, $payload, $event_name, $initiator_id);
                 }
-                catch (Exception $e)
+                catch (Throwable $e)
                 {
-                    $this->_log(Log::ERROR, 'Listener Error in ":event_name": :error', array(
-                        ':event_name' => $event_name,
-                        ':error'      => $e->getMessage()
+                    // Исключение обработчика может содержать данные события.
+                    // Ошибка одного слушателя не должна ломать остальных.
+                    Log_Plain::event(Log::ERROR, 'prx208_diag stage=listener result=error error_type=:type', array(
+                        ':type' => get_class($e),
                     ));
                 }
             }
@@ -164,28 +168,44 @@ class Service_Prx208_EventBus {
         try
         {
             $subscribers = ORM::factory('Prx208_Subscriber')
-                ->where('is_active', '=', 1)
+                ->where('is_active', '=', DB::expr('TRUE'))
                 ->find_all();
 
+            $notification_events = array();
             foreach ($subscribers as $subscriber)
             {
-                // Если это уведомление, можно добавить специальную логику проксирования
-                if ($subscriber->is_notification) {
+                // Несколько подписок одного события не должны многократно
+                // отправлять одно и то же уведомление одинаковым получателям.
+                if ($subscriber->is_notification AND ! isset($notification_events[$subscriber->event_name])) {
+                    $notification_events[$subscriber->event_name] = TRUE;
                     $this->listen($subscriber->event_name, array($this, '_bridge_to_prx597'));
                 }
 
                 if ($subscriber->callback_method) {
-                    $callback = $this->_create_callable_from_string($subscriber->callback_method);
-                    if ($callback !== NULL)
+                    try
                     {
-                        $this->listen($subscriber->event_name, $callback);
+                        $callback = $this->_create_callable_from_string($subscriber->callback_method);
+                        if ($callback !== NULL)
+                        {
+                            $this->listen($subscriber->event_name, $callback);
+                        }
+                    }
+                    catch (Throwable $e)
+                    {
+                        // Ошибка автозагрузки одной подписки не мешает остальным.
+                        Log_Plain::event(Log::WARNING, 'prx208_diag stage=callback_init result=error error_type=:type', array(
+                            ':type' => get_class($e),
+                        ));
                     }
                 }
             }
         }
-        catch (Exception $e)
+        catch (Throwable $e)
         {
-            $this->_log(Log::ERROR, 'Failed to load DB subscribers: :error', array(':error' => $e->getMessage()));
+            // Сообщение БД может содержать SQL и данные; логируем только класс.
+            Log_Plain::event(Log::ERROR, 'prx208_diag stage=subscribers result=error error_type=:type', array(
+                ':type' => get_class($e),
+            ));
         }
     }
     
@@ -198,8 +218,8 @@ class Service_Prx208_EventBus {
      * уходит в prx597: там реестр событий, шаблоны, лимиты и реальная доставка
      * в колокольчик, на почту и в мессенджеры.
      *
-     * События, которых нет в реестре prx597, движок положит в ленту с кодом
-     * `prx597.legacy.<имя>` — мост не ломается на незнакомом событии.
+     * Неизвестное событие prx597 регистрирует на лету с нормализованным
+     * именем и настройками по умолчанию; их должен проверить администратор.
      *
      * Поддерживает массивы получателей и исключает инициатора.
      *
@@ -228,24 +248,47 @@ class Service_Prx208_EventBus {
             return;   // центр уведомлений не подключён — молча, шина не виновата
         }
 
-        // 3. ФИЛЬТРАЦИЯ: Убираем дубли и исключаем того, кто совершил действие (initiator_id)
-        $targets = array_unique($targets);
-
-        foreach ($targets as $user_id) {
-            // ГЛАВНОЕ ПРАВИЛО: Не уведомляем инициатора о его собственных действиях
-            if ($initiator_id !== NULL && (int)$user_id === (int)$initiator_id) {
-                // Если в событии нет флага "принудительно", пропускаем
-                if (empty($payload['force_notification'])) {
-                    continue; 
-                }
+        // 3. Только положительные ID, без дублей и (если не разрешено явно)
+        // инициатора. Массив/boolean нельзя неявно превратить в user_id=1.
+        $recipients = array();
+        $force_value = $payload['force_notification'] ?? FALSE;
+        $force = ($force_value === TRUE || $force_value === 1
+            || (is_string($force_value) && in_array(strtolower(trim($force_value)), array('1', 'true', 'yes', 'on'), TRUE)));
+        foreach ($targets as $user_id)
+        {
+            if ( ! is_int($user_id) AND ! (is_string($user_id) AND ctype_digit($user_id)))
+            {
+                continue;
             }
-
-            // 4. Публикация в центр уведомлений: получателя передаём явно,
-            // дальше prx597 сам решит, кому и по каким каналам доставлять.
-            Service_Prx597_Notify::emit($event_name, (array) $payload, array(
-                'user_id' => (int) $user_id,
-            ));
+            $user_id = (int) $user_id;
+            if ($user_id <= 0 OR ( ! $force AND $initiator_id !== NULL AND $user_id === (int) $initiator_id))
+            {
+                continue;
+            }
+            $recipients[$user_id] = $user_id;
         }
+        if ( ! $recipients)
+        {
+            return;
+        }
+
+        // prx597 трактует часть полей payload как служебные: дополнительные
+        // адресаты, channels (обходит роли/матрицу события) и force_self.
+        // Данные события не должны расширять рассылку или менять её политику.
+        // Значения для шаблона при необходимости передаются внутри data.
+        $notification = (array) $payload;
+        unset($notification['user_id'], $notification['user_ids'], $notification['recipients'],
+            $notification['channels'], $notification['force_self']);
+        $options = array('user_ids' => array_values($recipients));
+        if ($initiator_id !== NULL)
+        {
+            $options['initiator_id'] = (int) $initiator_id;
+        }
+        if ($force)
+        {
+            $options['force_self'] = TRUE;
+        }
+        Service_Prx597_Notify::emit($event_name, $notification, $options);
     }
 
     /**
@@ -257,7 +300,10 @@ class Service_Prx208_EventBus {
         if (strpos($callback_string, '::') !== FALSE)
         {
             list($class, $method) = explode('::', $callback_string, 2);
-            return (class_exists($class) && method_exists($class, $method)) ? array($class, $method) : NULL;
+            $callback = array($class, $method);
+            // method_exists() также принимает private и нестатические методы:
+            // вызов такого обработчика в PHP 8 завершился бы ошибкой.
+            return (class_exists($class) && is_callable($callback)) ? $callback : NULL;
         }
         
         // Метод объекта: Class->method
@@ -276,7 +322,8 @@ class Service_Prx208_EventBus {
                     // Если конструктора нет или он не требует обязательных параметров
                     if ($constructor === NULL || $constructor->getNumberOfRequiredParameters() === 0) {
                         $obj = new $class();
-                        return method_exists($obj, $method) ? array($obj, $method) : NULL;
+                        $callback = array($obj, $method);
+                        return is_callable($callback) ? $callback : NULL;
                     } else {
                         $this->_log(Log::ERROR, 'Cannot instantiate class :class for callback :method: constructor requires parameters', array(
                             ':class' => $class,
@@ -284,7 +331,10 @@ class Service_Prx208_EventBus {
                         ));
                         return NULL;
                     }
-                } catch (Exception $e) {
+                } catch (Throwable $e) {
+                    Log_Plain::event(Log::WARNING, 'prx208_diag stage=callback_init result=error error_type=:type', array(
+                        ':type' => get_class($e),
+                    ));
                     return NULL;
                 }
             }

@@ -20,8 +20,7 @@ class StorageIntegrationTest extends TestCase
     {
         $tmp = sys_get_temp_dir().'/prx212-integration-'.bin2hex(random_bytes(8));
         mkdir($tmp, 0700);
-        // EventBus инициализируется до транзакции (его загрузка подписчиков
-        // на PostgreSQL в текущей версии может завершиться ошибкой).
+        // Инициализируем общую шину до тестовой транзакции.
         Event::has('prx212_storage.uploaded');
         $db = Database::instance();
         $db->begin();
@@ -128,6 +127,14 @@ class StorageIntegrationTest extends TestCase
                 'file_id' => $item['file_id'], 'text' => $private_text, 'engine' => 'pypdf', 'pages' => 1,
             ]);
             $this->assertSame('text_ready', $saved['status']);
+            $message = Service_Prx390_Intake::message($item['message_id']);
+            $document_id = (int) $message['document_id'];
+            $this->assertGreaterThan(0, $document_id);
+            $deadline = Service_Prx393_Workflow::deadline_for($document_id);
+            $this->assertNotNull($deadline);
+            $this->assertSame('open', $deadline['status']);
+            $document = Service_Prx391_Documents::document($document_id, ['is_system' => TRUE]);
+            $this->assertSame($deadline['due_at'], $document['deadline_at']);
             $lines = preg_grep('/prx390_diag/', explode("\n", file_get_contents($tmp.'/diagnostics.log')));
             $diagnostics = implode("\n", $lines);
             $this->assertStringContainsString('stage=enqueue result=ok message_id='.$item['message_id'].' job_id='.(int) $job[0]['id'], $diagnostics);
