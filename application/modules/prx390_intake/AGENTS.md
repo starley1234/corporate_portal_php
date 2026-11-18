@@ -37,7 +37,11 @@ prx212, канал `doc.normalize`, текст и событие `prx390.text.re
    публикует `prx390.text.ready`.
 
 Слушатель события — в `init.php` этого модуля; он вызывает
-`Service_Prx391_Documents::register_from_message()`.
+`Service_Prx391_Documents::register_from_message()`. Диагностика приёма,
+API и регистрации использует `prx390_diag`; Python-этапы `doc.normalize`
+сопоставляются по `job_id`, `message_id`, `file_id`. В эти записи не включать
+имена файлов, текст, тело HTTP-ответа, адреса с секретами и значения токенов.
+Порядок сбора — `docs/systemd-сервис.md`, шаг 7.
 
 ## Настройки и данные
 

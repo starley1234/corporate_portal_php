@@ -70,6 +70,10 @@ class StorageIntegrationTest extends TestCase
         $config_property->setAccessible(TRUE);
         $original_config = $config_property->getValue();
         Event::has('prx212_storage.uploaded');
+        $old_log_enabled = getenv('PRX_LOG_ENABLED');
+        putenv('PRX_LOG_ENABLED=1');
+        $writer = new Log_Plain($tmp.'/diagnostics.log', 0, 0, Log::INFO);
+        Kohana::$log->attach($writer);
         $db = Database::instance();
         $db->begin();
         try {
@@ -118,9 +122,28 @@ class StorageIntegrationTest extends TestCase
             $errors = Service_Prx390_Intake::scan_folder();
             $this->assertSame(1, $errors['errors']);
             $this->assertSame('not a PDF', file_get_contents($config['error_dir'].'/invalid.pdf'));
+
+            $private_text = str_repeat('private-document-content-42 ', 4);
+            $saved = Service_Prx390_Intake::store_text($item['message_id'], [
+                'file_id' => $item['file_id'], 'text' => $private_text, 'engine' => 'pypdf', 'pages' => 1,
+            ]);
+            $this->assertSame('text_ready', $saved['status']);
+            $lines = preg_grep('/prx390_diag/', explode("\n", file_get_contents($tmp.'/diagnostics.log')));
+            $diagnostics = implode("\n", $lines);
+            $this->assertStringContainsString('stage=enqueue result=ok message_id='.$item['message_id'].' job_id='.(int) $job[0]['id'], $diagnostics);
+            $this->assertStringContainsString('stage=intake result=accepted message_id='.$item['message_id'].' file_id='.$item['file_id'], $diagnostics);
+            $this->assertStringContainsString('stage=intake result=duplicate message_id='.$item['message_id'], $diagnostics);
+            $this->assertStringContainsString('stage=intake result=scan_error error_type=InvalidArgumentException reason=invalid_mime', $diagnostics);
+            $this->assertStringContainsString('stage=text_saved result=ok message_id='.$item['message_id'], $diagnostics);
+            $this->assertStringNotContainsString('private-document-content-42', $diagnostics);
+            $this->assertStringNotContainsString('unique.pdf', $diagnostics);
+            $this->assertStringNotContainsString('invalid.pdf', $diagnostics);
+            $this->assertStringNotContainsString('not a PDF', $diagnostics);
         } finally {
             $db->rollback();
             $config_property->setValue(NULL, $original_config);
+            Kohana::$log->detach($writer);
+            $old_log_enabled === FALSE ? putenv('PRX_LOG_ENABLED') : putenv('PRX_LOG_ENABLED='.$old_log_enabled);
             $this->remove_tree($tmp);
         }
     }

@@ -42,7 +42,16 @@ from typing import Any, Mapping
 
 import httpx
 
+from . import site
+from .docflow_trace import NORMALIZE_TRACE
+
 log = logging.getLogger("prx.ocr")
+
+
+def _event(level: int, stage: str, message: str, *args: Any) -> None:
+    job_id, message_id, file_id = NORMALIZE_TRACE.get()
+    log.log(level, "doc.normalize job_id=%d message_id=%d file_id=%d stage=ocr_%s " + message,
+            job_id, message_id, file_id, stage, *args)
 
 DEFAULT_PROVIDER = "tesseract"
 DEFAULT_TIMEOUT = 120.0
@@ -250,7 +259,7 @@ class TesseractOcrProvider(BaseOcrProvider):
                     timeout=180,
                 )
             except Exception as exc:  # noqa: BLE001 — OCR не должен ронять канал
-                log.warning("ocr: pdftoppm не смог обработать %s: %s", getattr(path, "name", path), exc)
+                _event(logging.WARNING, "pdftoppm", "result=error error_type=%s", type(exc).__name__)
                 return ExtractedText(text="", pages=0, engine=self.name, confidence=None)
 
             pages = sorted(Path(tmp).glob("page-*.png"))
@@ -269,7 +278,7 @@ class TesseractOcrProvider(BaseOcrProvider):
                     )
                     texts.append(out.stdout.decode("utf-8", errors="replace"))
                 except Exception as exc:  # noqa: BLE001 — одна страница не должна убить документ
-                    log.warning("ocr: tesseract не смог обработать страницу %s: %s", png.name, exc)
+                    _event(logging.WARNING, "tesseract", "result=error error_type=%s", type(exc).__name__)
                     continue
 
             return ExtractedText(
@@ -335,7 +344,7 @@ class RemoteOcrProvider(BaseOcrProvider):
 
     async def extract(self, path: Path, max_pages: int = 5) -> ExtractedText:
         if not self.settings.service_url:
-            log.error("ocr: OCR_PROVIDER=remote, но OCR_SERVICE_URL не задан")
+            _event(logging.ERROR, "remote", "OCR_PROVIDER=remote, но OCR_SERVICE_URL не задан")
             return ExtractedText.failed()
 
         try:
@@ -356,25 +365,29 @@ class RemoteOcrProvider(BaseOcrProvider):
                     )
                 response.raise_for_status()
                 data = response.json()
-        except (httpx.HTTPError, OSError) as exc:
-            log.error(
-                "ocr: remote-сервис %s недоступен: %s: %s",
-                self.settings.service_url, exc.__class__.__name__, exc,
-            )
+        except (httpx.HTTPError, httpx.InvalidURL, OSError) as exc:
+            if isinstance(exc, httpx.HTTPStatusError):
+                reason = site.private_http_error(exc.response)
+            else:
+                reason = site.network_error(exc)
+            _event(logging.ERROR, "remote", "origin=%s ошибка=%s",
+                   site.safe_origin(self.settings.service_url), reason)
             return ExtractedText.failed()
         except ValueError as exc:
             # response.json() на невалидном JSON
-            log.error("ocr: remote-сервис %s вернул не JSON: %s",
-                      self.settings.service_url, exc.__class__.__name__)
+            _event(logging.ERROR, "remote", "origin=%s вернул не JSON: error_type=%s",
+                   site.safe_origin(self.settings.service_url), exc.__class__.__name__)
             return ExtractedText.failed()
 
         if not isinstance(data, dict):
-            log.error("ocr: remote-сервис %s вернул JSON не объектом", self.settings.service_url)
+            _event(logging.ERROR, "remote", "origin=%s вернул JSON не объектом",
+                   site.safe_origin(self.settings.service_url))
             return ExtractedText.failed()
 
         text = data.get("text")
         if not isinstance(text, str):
-            log.error("ocr: remote-сервис %s вернул поле text не строкой", self.settings.service_url)
+            _event(logging.ERROR, "remote", "origin=%s вернул поле text не строкой",
+                   site.safe_origin(self.settings.service_url))
             return ExtractedText.failed()
 
         engine = str(data.get("engine") or "remote").strip()[:64] or "remote"
