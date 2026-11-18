@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ru" class="h-full bg-slate-50">
+<head>
+  <meta charset="UTF-8">
+  <title>Классификация и тегирование писем</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body class="p-6 md:p-10 text-slate-800 flex flex-col min-h-full">
+
+  <div class="max-w-7xl mx-auto w-full flex-1 flex flex-col space-y-6">
+    
+    <!-- Шапка -->
+    <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+      <div>
+        <div class="flex items-center space-x-2">
+          <a href="../index.html" class="text-xs text-slate-400 hover:text-slate-600 transition-colors">← В меню</a>
+          <span class="text-slate-300">/</span>
+          <h1 class="text-2xl font-bold tracking-tight text-slate-900">Пакетный рубрикатор и тегирование</h1>
+        </div>
+        <p class="text-sm text-slate-500 mt-1">Определение типа документа, ответственного отдела, приоритета и тегов для маршрутизации</p>
+      </div>
+      <div class="flex items-center space-x-3">
+        <button id="exportBtn" disabled
+          class="bg-emerald-600 disabled:opacity-50 hover:bg-emerald-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors flex items-center space-x-2 shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <span>Экспорт маршрутизации (.xlsx)</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Drag & Drop -->
+    <div id="dropZone" class="border-2 border-dashed border-slate-300 hover:border-indigo-500 bg-white hover:bg-indigo-50/20 rounded-xl p-6 transition-all text-center cursor-pointer">
+      <input type="file" id="fileInput" accept="application/pdf" multiple class="hidden">
+      <div class="space-y-1">
+        <svg class="mx-auto h-8 w-8 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+        </svg>
+        <div class="text-sm text-slate-700">
+          <span class="font-semibold text-indigo-600">Выберите файлы</span> или перетащите пачку PDF для авто-рубрикации
+        </div>
+        <p class="text-xs text-slate-400">LLM классифицирует тип, выставит приоритет и назначит отдел-исполнитель</p>
+      </div>
+    </div>
+
+    <!-- Прогресс -->
+    <div id="progressContainer" class="hidden bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2">
+      <div class="flex justify-between text-xs font-semibold text-slate-600">
+        <span id="progressText">Классификация...</span>
+        <span id="progressCount">0 / 0</span>
+      </div>
+      <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+        <div id="progressBar" class="bg-indigo-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+      </div>
+    </div>
+
+    <!-- Панель быстрых фильтров таблицы -->
+    <div class="flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div class="flex items-center space-x-2">
+        <span class="text-slate-400 font-medium">Фильтр по отделу:</span>
+        <select id="filterDept" class="bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-indigo-500 text-slate-700">
+          <option value="ALL">Все отделы</option>
+          <option value="Юристы">Юристы</option>
+          <option value="Бухгалтерия">Бухгалтерия</option>
+          <option value="Закупки">Закупки</option>
+          <option value="Кадры / HR">Кадры / HR</option>
+          <option value="Руководство">Руководство</option>
+          <option value="Общий">Общий / Другое</option>
+        </select>
+      </div>
+      <div id="counterBadge" class="text-slate-500">Документов в реестре: 0</div>
+    </div>
+
+    <!-- Таблица результатов -->
+    <div class="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+      <div class="overflow-x-auto flex-1">
+        <table class="w-full text-left text-xs whitespace-nowrap">
+          <thead class="bg-slate-50 border-b border-slate-200 uppercase text-slate-500 font-semibold sticky top-0">
+            <tr>
+              <th class="px-4 py-3 w-16">Статус</th>
+              <th class="px-4 py-3 w-48">Файл</th>
+              <th class="px-4 py-3 w-36">Тип документа</th>
+              <th class="px-4 py-3 w-36">Отдел-адресат</th>
+              <th class="px-4 py-3 w-28">Приоритет</th>
+              <th class="px-4 py-3 max-w-xs whitespace-normal">Теги / Метки</th>
+              <th class="px-4 py-3 max-w-sm whitespace-normal">Обоснование</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody" class="divide-y divide-slate-100 font-normal text-slate-700">
+            <tr id="emptyRow">
+              <td colspan="7" class="px-4 py-10 text-center text-slate-400">Загрузите файлы для классификации</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const PARSER_ENDPOINT = 'http://172.31.70.22:8000/parse?engine=auto&output_format=md&do_ocr=true';
+    const LLM_ENDPOINT = 'http://rag.servers.local:8080/v1/chat/completions';
+
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const tableBody = document.getElementById('tableBody');
+    const emptyRow = document.getElementById('emptyRow');
+    const exportBtn = document.getElementById('exportBtn');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const progressCount = document.getElementById('progressCount');
+    const filterDept = document.getElementById('filterDept');
+    const counterBadge = document.getElementById('counterBadge');
+
+    let queue = [];
+    let records = []; // Все разобранные данные
+    let isProcessing = false;
+    let totalFiles = 0;
+    let doneFiles = 0;
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-indigo-500', 'bg-indigo-50/20'); });
+    dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('border-indigo-500', 'bg-indigo-50/20'); });
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('border-indigo-500', 'bg-indigo-50/20');
+      handleFiles(Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf'));
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      handleFiles(Array.from(e.target.files));
+      fileInput.value = '';
+    });
+
+    function handleFiles(files) {
+      if (!files.length) return;
+      if (emptyRow) emptyRow.remove();
+
+      totalFiles += files.length;
+      updateProgress();
+      progressContainer.classList.remove('hidden');
+
+      files.forEach(file => {
+        const id = 'f_' + Math.random().toString(36).substring(2, 9);
+        const row = createRow(id, file.name);
+        tableBody.appendChild(row);
+        queue.push({ id, file, row });
+      });
+
+      counterBadge.textContent = `Документов в реестре: ${tableBody.children.length}`;
+      if (!isProcessing) processNext();
+    }
+
+    function createRow(id, fileName) {
+      const tr = document.createElement('tr');
+      tr.id = id;
+      tr.className = "hover:bg-slate-50/60 transition-colors";
+      tr.innerHTML = `
+        <td class="px-4 py-3 text-center status-col">
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600">Очередь</span>
+        </td>
+        <td class="px-4 py-3 font-medium text-slate-900 truncate max-w-[180px]" title="${fileName}">${fileName}</td>
+        <td class="px-4 py-3 col-type text-slate-400">—</td>
+        <td class="px-4 py-3 col-dept text-slate-400">—</td>
+        <td class="px-4 py-3 col-priority text-slate-400">—</td>
+        <td class="px-4 py-3 col-tags text-slate-400 whitespace-normal">—</td>
+        <td class="px-4 py-3 col-reason text-slate-500 whitespace-normal text-[11px]">—</td>
+      `;
+      return tr;
+    }
+
+    async function processNext() {
+      if (queue.length === 0) {
+        isProcessing = false;
+        progressText.textContent = 'Обработка завершена';
+        exportBtn.disabled = false;
+        return;
+      }
+
+      isProcessing = true;
+      const item = queue.shift();
+      const tr = item.row;
+      const statusCol = tr.querySelector('.status-col');
+
+      statusCol.innerHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700 animate-pulse">OCR</span>`;
+      progressText.textContent = `Анализ: ${item.file.name}`;
+
+      try {
+        // Шаг 1: OCR
+        const formData = new FormData();
+        formData.append('file', item.file);
+
+        const parseRes = await fetch(PARSER_ENDPOINT, { method: 'POST', body: formData });
+        if (!parseRes.ok) throw new Error(`Ошибка парсера: ${parseRes.statusText}`);
+        const parseData = await parseRes.json();
+
+        // Шаг 2: Классификация LLM
+        statusCol.innerHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-100 text-indigo-700 animate-pulse">Классификация</span>`;
+
+        const systemPrompt = `Ты — автоматический диспетчер канцелярии компании.
+Проанализируй текст входящего документа и определи его атрибуты строго по схеме.
+Ответь ТОЛЬКО валидным JSON:
+{
+  "doc_type": "Претензия | Договор | Счет/Акт | Запрос госорганов | Коммерческое предложение | Информационное письмо | Служебная записка",
+  "department": "Юристы | Бухгалтерия | Закупки | Кадры / HR | Руководство | Общий",
+  "priority": "Срочно | Планово | Низкий",
+  "tags": ["массив", "из", "2-4", "кратких", "тегов"],
+  "reason": "1 короткое предложение, почему выбрана эта категория"
+}`;
+
+        const llmRes = await fetch(LLM_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: parseData.content.substring(0, 4000) } // первых 4K символов обычно достаточно для рубрикации
+            ],
+            temperature: 0.1
+          })
+        });
+
+        if (!llmRes.ok) throw new Error(`Ошибка LLM: ${llmRes.statusText}`);
+        const llmData = await llmRes.json();
+
+        let raw = llmData.choices[0].message.content.trim();
+        raw = raw.replace(/^```json/i, '').replace(/```$/i, '').trim();
+        const res = JSON.parse(raw);
+
+        // Рендерим ячейки
+        tr.dataset.dept = res.department || 'Общий';
+
+        tr.querySelector('.col-type').innerHTML = `<span class="font-semibold text-slate-800">${res.doc_type || 'Не определен'}</span>`;
+        
+        // Отдел
+        tr.querySelector('.col-dept').innerHTML = `<span class="bg-indigo-50 border border-indigo-200 text-indigo-700 px-2 py-0.5 rounded text-[11px] font-medium">${res.department || 'Общий'}</span>`;
+
+        // Приоритет со светофором
+        const pColor = res.priority === 'Срочно' ? 'bg-red-50 text-red-700 border-red-200' :
+                       res.priority === 'Планово' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-600 border-slate-200';
+        tr.querySelector('.col-priority').innerHTML = `<span class="border px-2 py-0.5 rounded text-[10px] font-semibold ${pColor}">${res.priority || 'Инфо'}</span>`;
+
+        // Теги
+        const tagsHtml = (res.tags || []).map(t => `<span class="inline-block bg-slate-100 text-slate-600 rounded px-1.5 py-0.5 text-[10px] mr-1 mb-0.5">#${t}</span>`).join('');
+        tr.querySelector('.col-tags').innerHTML = tagsHtml || '—';
+
+        tr.querySelector('.col-reason').textContent = res.reason || '—';
+        statusCol.innerHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800">OK</span>`;
+
+        // Сохраняем в реестр для выгрузки
+        records.push({
+          "Имя файла": item.file.name,
+          "Тип документа": res.doc_type || '',
+          "Отдел-адресат": res.department || '',
+          "Приоритет": res.priority || '',
+          "Теги": (res.tags || []).join(', '),
+          "Обоснование маршрутизации": res.reason || ''
+        });
+
+      } catch (err) {
+        statusCol.innerHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700" title="${err.message}">Ошибка</span>`;
+      } finally {
+        doneFiles++;
+        updateProgress();
+        processNext();
+      }
+    }
+
+    function updateProgress() {
+      const pct = totalFiles === 0 ? 0 : Math.round((doneFiles / totalFiles) * 100);
+      progressBar.style.width = pct + '%';
+      progressCount.textContent = `${doneFiles} / ${totalFiles}`;
+    }
+
+    // Фильтрация таблицы
+    filterDept.addEventListener('change', (e) => {
+      const val = e.target.value;
+      const rows = tableBody.querySelectorAll('tr');
+      rows.forEach(r => {
+        if (!r.dataset.dept) return;
+        r.style.display = (val === 'ALL' || r.dataset.dept === val) ? '' : 'none';
+      });
+    });
+
+    // Экспорт в XLSX
+    exportBtn.addEventListener('click', () => {
+      if (!records.length) return;
+      const worksheet = XLSX.utils.json_to_sheet(records);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Маршрутизация");
+      XLSX.writeFile(workbook, `Маршрутизация_писем_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ru" class="h-full bg-slate-50">
+<head>
+  <meta charset="UTF-8">
+  <title>Пакетная обработка входящих писем</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Библиотека SheetJS для генерации XLSX прямо в браузере -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body class="p-6 md:p-10 text-slate-800 flex flex-col h-full">
+
+  <div class="max-w-7xl mx-auto w-full flex-1 flex flex-col space-y-6">
+    
+    <!-- Заголовок и выгрузка -->
+    <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Пакетный реестр писем</h1>
+        <p class="text-sm text-slate-500">Массовый парсинг (Docling/OCR) + классификация входящей корреспонденции через LLM</p>
+      </div>
+      <div class="flex items-center space-x-3">
+        <button id="exportBtn" disabled
+          class="bg-emerald-600 disabled:opacity-50 hover:bg-emerald-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors flex items-center space-x-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <span>Экспорт в Excel (.xlsx)</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Зона Drag & Drop -->
+    <div id="dropZone" class="border-2 border-dashed border-slate-300 hover:border-blue-500 bg-white hover:bg-blue-50/30 rounded-xl p-6 transition-all text-center cursor-pointer">
+      <input type="file" id="fileInput" accept="application/pdf" multiple class="hidden">
+      <div class="space-y-1">
+        <svg class="mx-auto h-8 w-8 text-slate-400" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        <div class="text-sm text-slate-600">
+          <span class="font-semibold text-blue-600">Нажмите для выбора пачки PDF</span> или перетащите файлы сюда
+        </div>
+        <p class="text-xs text-slate-400">Файлы будут автоматически поставлены в очередь обработки</p>
+      </div>
+    </div>
+
+    <!-- Прогресс-бар -->
+    <div id="progressContainer" class="hidden bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2">
+      <div class="flex justify-between text-xs font-semibold text-slate-600">
+        <span id="progressText">Обработка...</span>
+        <span id="progressCount">0 / 0</span>
+      </div>
+      <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+        <div id="progressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+      </div>
+    </div>
+
+    <!-- Таблица результатов -->
+    <div class="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+      <div class="overflow-x-auto flex-1">
+        <table class="w-full text-left text-xs whitespace-nowrap">
+          <thead class="bg-slate-50 border-b border-slate-200 uppercase text-slate-500 font-semibold sticky top-0">
+            <tr>
+              <th class="px-4 py-3 w-12">Статус</th>
+              <th class="px-4 py-3 w-48">Файл</th>
+              <th class="px-4 py-3 w-48">От кого</th>
+              <th class="px-4 py-3 w-48">Кому</th>
+              <th class="px-4 py-3 max-w-xs whitespace-normal">Краткая суть</th>
+              <th class="px-4 py-3 w-28">Срок</th>
+              <th class="px-4 py-3 w-40">Важность / Риски</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody" class="divide-y divide-slate-100 font-normal text-slate-700">
+            <!-- Сюда вставляются строки -->
+            <tr id="emptyRow">
+              <td colspan="7" class="px-4 py-8 text-center text-slate-400">Файлы еще не добавлены</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const PARSER_ENDPOINT = 'http://172.31.70.22:8000/parse?engine=auto&output_format=md&do_ocr=true';
+    const LLM_ENDPOINT = 'http://rag.servers.local:8080/v1/chat/completions';
+
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const tableBody = document.getElementById('tableBody');
+    const emptyRow = document.getElementById('emptyRow');
+    const exportBtn = document.getElementById('exportBtn');
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    const progressCount = document.getElementById('progressCount');
+
+    let queue = [];
+    let processedRecords = [];
+    let isProcessing = false;
+    let totalFiles = 0;
+    let doneFiles = 0;
+
+    // Drag and Drop
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-blue-500', 'bg-blue-50/30'); });
+    dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('border-blue-500', 'bg-blue-50/30'); });
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('border-blue-500', 'bg-blue-50/30');
+      handleFiles(Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf'));
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      handleFiles(Array.from(e.target.files));
+      fileInput.value = ''; // сброс
+    });
+
+    function handleFiles(files) {
+      if (!files.length) return;
+      if (emptyRow) emptyRow.remove();
+
+      totalFiles += files.length;
+      updateProgress();
+      progressContainer.classList.remove('hidden');
+
+      files.forEach(file => {
+        const id = 'f_' + Math.random().toString(36).substring(2, 9);
+        const row = createRow(id, file.name);
+        tableBody.appendChild(row);
+        queue.push({ id, file, row });
+      });
+
+      if (!isProcessing) processNext();
+    }
+
+    function createRow(id, fileName) {
+      const tr = document.createElement('tr');
+      tr.id = id;
+      tr.innerHTML = `
+        <td class="px-4 py-3 text-center status-col">
+          <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600">В очереди</span>
+        </td>
+        <td class="px-4 py-3 font-medium text-slate-900 truncate max-w-xs" title="${fileName}">${fileName}</td>
+        <td class="px-4 py-3 col-sender text-slate-500">—</td>
+        <td class="px-4 py-3 col-recipient text-slate-500">—</td>
+        <td class="px-4 py-3 col-summary whitespace-normal text-slate-600 line-clamp-2">—</td>
+        <td class="px-4 py-3 col-deadline text-slate-500">—</td>
+        <td class="px-4 py-3 col-remarks text-slate-500">—</td>
+      `;
+      return tr;
+    }
+
+    async function processNext() {
+      if (queue.length === 0) {
+        isProcessing = false;
+        progressText.textContent = 'Все файлы обработаны';
+        exportBtn.disabled = false;
+        return;
+      }
+
+      isProcessing = true;
+      const item = queue.shift();
+      const tr = item.row;
+      const statusCol = tr.querySelector('.status-col');
+
+      // Шаг 1: OCR
+      statusCol.innerHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-700 animate-pulse">OCR...</span>`;
+      progressText.textContent = `Обработка: ${item.file.name}`;
+
+      try {
+        const formData = new FormData();
+        formData.append('file', item.file);
+
+        const parseRes = await fetch(PARSER_ENDPOINT, { method: 'POST', body: formData });
+        if (!parseRes.ok) throw new Error(`Парсер: ${parseRes.statusText}`);
+        const parseData = await parseRes.json();
+
+        // Шаг 2: LLM
+        statusCol.innerHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-purple-100 text-purple-700 animate-pulse">LLM...</span>`;
+        
+        const systemPrompt = `Ты — эксперт канцелярии. Извлеки информацию из письма. Ответь ТОЛЬКО сырым JSON:
+{
+  "sender": "От кого (ФИО, организация, реквизиты)",
+  "recipient": "Кому",
+  "summary": "Суть (1-2 предложения)",
+  "deadline": "Дата/срок если есть (иначе 'Нет')",
+  "risk_level": "Низкий/Средний/Высокий",
+  "remarks": "Краткая суть риска, претензий или нестыковок"
+}`;
+
+        const llmRes = await fetch(LLM_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: parseData.content }
+            ],
+            temperature: 0.1
+          })
+        });
+
+        if (!llmRes.ok) throw new Error(`LLM: ${llmRes.statusText}`);
+        const llmData = await llmRes.json();
+        
+        let rawContent = llmData.choices[0].message.content.trim();
+        rawContent = rawContent.replace(/^```json/i, '').replace(/```$/i, '').trim();
+        const info = JSON.parse(rawContent);
+
+        // Заполнение ячеек
+        tr.querySelector('.col-sender').textContent = info.sender || '—';
+        tr.querySelector('.col-recipient').textContent = info.recipient || '—';
+        tr.querySelector('.col-summary').textContent = info.summary || '—';
+        
+        const deadlineCol = tr.querySelector('.col-deadline');
+        if (info.deadline && info.deadline !== 'Нет') {
+          deadlineCol.innerHTML = `<span class="text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded text-[11px] font-semibold">${info.deadline}</span>`;
+        } else {
+          deadlineCol.textContent = 'Не указан';
+        }
+
+        const remarksCol = tr.querySelector('.col-remarks');
+        const badgeColor = info.risk_level === 'Высокий' ? 'bg-red-50 text-red-700 border-red-200' : 
+                           info.risk_level === 'Средний' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-700 border-slate-200';
+        
+        remarksCol.innerHTML = `<span class="border px-1.5 py-0.5 rounded text-[10px] font-medium ${badgeColor}">${info.risk_level || 'Инфо'}</span> <span class="text-slate-600 block mt-1 truncate" title="${info.remarks}">${info.remarks || ''}</span>`;
+
+        statusCol.innerHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-800">Готово</span>`;
+
+        // Данные для Excel
+        processedRecords.push({
+          "Имя файла": item.file.name,
+          "От кого": info.sender || '',
+          "Кому": info.recipient || '',
+          "Суть": info.summary || '',
+          "Срок": info.deadline || '',
+          "Уровень риска": info.risk_level || '',
+          "Примечания": info.remarks || ''
+        });
+
+      } catch (err) {
+        statusCol.innerHTML = `<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-red-100 text-red-700" title="${err.message}">Ошибка</span>`;
+      } finally {
+        doneFiles++;
+        updateProgress();
+        processNext();
+      }
+    }
+
+    function updateProgress() {
+      const pct = totalFiles === 0 ? 0 : Math.round((doneFiles / totalFiles) * 100);
+      progressBar.style.width = pct + '%';
+      progressCount.textContent = `${doneFiles} / ${totalFiles}`;
+    }
+
+    // Экспорт реестра в XLSX
+    exportBtn.addEventListener('click', () => {
+      if (!processedRecords.length) return;
+      const worksheet = XLSX.utils.json_to_sheet(processedRecords);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Реестр писем");
+      XLSX.writeFile(workbook, `Входящие_письма_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    });
+  </script>
+</body>
+</html>

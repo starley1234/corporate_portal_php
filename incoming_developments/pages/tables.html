@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ru" class="h-full bg-slate-50">
+<head>
+  <meta charset="UTF-8">
+  <title>Экстрактор таблиц в Excel</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Библиотека SheetJS для мгновенной генерации XLSX прямо в браузере -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    [contenteditable="true"]:focus {
+      outline: 2px solid #2563eb;
+      background-color: #eff6ff;
+    }
+  </style>
+</head>
+<body class="p-6 md:p-10 text-slate-800 flex flex-col min-h-full">
+
+  <div class="max-w-7xl mx-auto w-full flex-1 flex flex-col space-y-6">
+    
+    <!-- Шапка -->
+    <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+      <div>
+        <h1 class="text-2xl font-bold tracking-tight text-slate-900">Извлечение таблиц из PDF</h1>
+        <p class="text-sm text-slate-500">Автоматическая реконструкция сложных таблиц (Docling TS) с редактированием и выгрузкой в Excel</p>
+      </div>
+      <div class="flex items-center space-x-3">
+        <button id="exportAllBtn" disabled
+          class="bg-emerald-600 disabled:opacity-50 hover:bg-emerald-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition-colors flex items-center space-x-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <span>Экспорт всех в один .xlsx</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Загрузка файла -->
+    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+      <form id="uploadForm" class="flex flex-col sm:flex-row items-center gap-4">
+        <input type="file" id="pdfFile" accept="application/pdf" required
+          class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer border border-slate-200 rounded-lg" />
+        <button type="submit" id="submitBtn"
+          class="w-full sm:w-auto shrink-0 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg transition-colors flex items-center justify-center space-x-2 text-sm">
+          <span>Найти таблицы</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- Индикатор загрузки -->
+    <div id="statusBox" class="hidden bg-blue-50 border border-blue-200 text-blue-700 p-4 rounded-xl flex items-center space-x-3 text-sm">
+      <svg class="animate-spin h-5 w-5 text-blue-600 shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+      </svg>
+      <span>Идет распознавание документа и восстановление структуры таблиц (do_table_structure=true)...</span>
+    </div>
+
+    <!-- Блок ошибок -->
+    <div id="errorBox" class="hidden bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl text-sm whitespace-pre-wrap"></div>
+
+    <!-- Инфо-сообщение о подсказке -->
+    <div id="hintBox" class="hidden bg-slate-100 border border-slate-200 text-slate-600 px-4 py-2 rounded-lg text-xs flex items-center justify-between">
+      <span>💡 Кликните по любой ячейке, чтобы внести правку перед экспортом в Excel.</span>
+      <span id="tablesCounter" class="font-bold text-slate-800">Найдено таблиц: 0</span>
+    </div>
+
+    <!-- Контейнер со всеми таблицами -->
+    <div id="tablesContainer" class="space-y-6 flex-1">
+      <div id="emptyPlaceholder" class="bg-white rounded-xl border border-slate-200 p-12 text-center text-slate-400 text-sm">
+        Загрузите документ со сметой, счетом или табличной спецификацией
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Запрос с жестким включением сборки структуры таблиц
+    const PARSER_ENDPOINT = 'http://172.31.70.22:8000/parse?engine=auto&output_format=md&do_ocr=true&do_table_structure=true';
+
+    const form = document.getElementById('uploadForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const statusBox = document.getElementById('statusBox');
+    const errorBox = document.getElementById('errorBox');
+    const hintBox = document.getElementById('hintBox');
+    const tablesCounter = document.getElementById('tablesCounter');
+    const tablesContainer = document.getElementById('tablesContainer');
+    const emptyPlaceholder = document.getElementById('emptyPlaceholder');
+    const exportAllBtn = document.getElementById('exportAllBtn');
+
+    let extractedTables = []; // Массив матриц: [ [ [row1], [row2] ], ... ]
+    let currentFileName = "document";
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fileInput = document.getElementById('pdfFile');
+      if (!fileInput.files.length) return;
+
+      const file = fileInput.files[0];
+      currentFileName = file.name.replace(/\.[^/.]+$/, "");
+
+      errorBox.classList.add('hidden');
+      hintBox.classList.add('hidden');
+      exportAllBtn.disabled = true;
+      tablesContainer.innerHTML = '';
+      statusBox.classList.remove('hidden');
+      submitBtn.disabled = true;
+
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch(PARSER_ENDPOINT, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => null);
+          const detail = errData ? JSON.stringify(errData.detail) : response.statusText;
+          throw new Error(`Ошибка сервиса (${response.status}): ${detail}`);
+        }
+
+        const data = await response.json();
+        const md = data.content || '';
+
+        // Извлекаем Markdown-таблицы из общего текста
+        extractedTables = parseMarkdownTables(md);
+
+        if (extractedTables.length === 0) {
+          tablesContainer.innerHTML = `
+            <div class="bg-amber-50 border border-amber-200 text-amber-800 p-6 rounded-xl text-center text-sm">
+              Таблиц в распознанном тексте не обнаружено. Возможно, документ содержит только обычный сплошной текст.
+            </div>`;
+        } else {
+          tablesCounter.textContent = `Найдено таблиц: ${extractedTables.length}`;
+          hintBox.classList.remove('hidden');
+          exportAllBtn.disabled = false;
+          renderTablesUI();
+        }
+
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.classList.remove('hidden');
+        tablesContainer.appendChild(emptyPlaceholder);
+      } finally {
+        statusBox.classList.add('hidden');
+        submitBtn.disabled = false;
+      }
+    });
+
+    // Регулярка для вычленения MD-таблиц (строки, начинающиеся и заканчивающиеся на '|')
+    function parseMarkdownTables(md) {
+      const lines = md.split('\n');
+      const tables = [];
+      let currentTable = [];
+
+      for (let line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+          // Пропускаем строки-разделители |---|---|
+          if (/^\|[-:\s|]+\|$/.test(trimmed)) continue;
+          
+          // Разбиваем строку на ячейки
+          const cells = trimmed
+            .slice(1, -1)
+            .split('|')
+            .map(c => c.trim());
+          
+          currentTable.push(cells);
+        } else {
+          if (currentTable.length > 0) {
+            tables.push(currentTable);
+            currentTable = [];
+          }
+        }
+      }
+      if (currentTable.length > 0) {
+        tables.push(currentTable);
+      }
+      return tables;
+    }
+
+    // Отрисовка таблиц с кнопками индивидуального скачивания
+    function renderTablesUI() {
+      tablesContainer.innerHTML = '';
+
+      extractedTables.forEach((tableData, tableIdx) => {
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden';
+
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'bg-slate-50 border-b border-slate-200 px-5 py-3 flex items-center justify-between';
+        headerDiv.innerHTML = `
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Таблица #${tableIdx + 1} (${tableData.length} строк, ${tableData[0]?.length || 0} столбцов)</span>
+          <button onclick="exportSingleTable(${tableIdx})" class="text-xs font-medium text-blue-600 hover:text-blue-800 flex items-center space-x-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            <span>Скачать лист</span>
+          </button>
+        `;
+
+        const tableWrapper = document.createElement('div');
+        tableWrapper.className = 'overflow-x-auto';
+
+        const table = document.createElement('table');
+        table.className = 'w-full text-left text-xs';
+        table.id = `table-dom-${tableIdx}`;
+
+        // Thead
+        if (tableData.length > 0) {
+          const thead = document.createElement('thead');
+          thead.className = 'bg-slate-100/75 border-b border-slate-200 text-slate-700 font-semibold uppercase';
+          const tr = document.createElement('tr');
+          tableData[0].forEach((cellText, cellIdx) => {
+            const th = document.createElement('th');
+            th.className = 'px-4 py-2.5 border-r border-slate-200 last:border-0';
+            th.contentEditable = "true";
+            th.textContent = cellText;
+            th.addEventListener('input', (e) => syncData(tableIdx, 0, cellIdx, e.target.textContent));
+            tr.appendChild(th);
+          });
+          thead.appendChild(tr);
+          table.appendChild(thead);
+        }
+
+        // Tbody
+        if (tableData.length > 1) {
+          const tbody = document.createElement('tbody');
+          tbody.className = 'divide-y divide-slate-100 text-slate-600';
+          for (let r = 1; r < tableData.length; r++) {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-slate-50/50';
+            tableData[r].forEach((cellText, cellIdx) => {
+              const td = document.createElement('td');
+              td.className = 'px-4 py-2 border-r border-slate-100 last:border-0';
+              td.contentEditable = "true";
+              td.textContent = cellText;
+              td.addEventListener('input', (e) => syncData(tableIdx, r, cellIdx, e.target.textContent));
+              tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+          }
+          table.appendChild(tbody);
+        }
+
+        tableWrapper.appendChild(table);
+        card.appendChild(headerDiv);
+        card.appendChild(tableWrapper);
+        tablesContainer.appendChild(card);
+      });
+    }
+
+    // Синхронизация правок пользователя из UI обратно в массив
+    function syncData(tableIdx, rowIdx, colIdx, value) {
+      if (extractedTables[tableIdx] && extractedTables[tableIdx][rowIdx]) {
+        extractedTables[tableIdx][rowIdx][colIdx] = value.trim();
+      }
+    }
+
+    // Скачать одну конкретную таблицу
+    window.exportSingleTable = function(tableIdx) {
+      const data = extractedTables[tableIdx];
+      if (!data) return;
+      const worksheet = XLSX.utils.aoa_to_sheet(data);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, `Таблица ${tableIdx + 1}`);
+      XLSX.writeFile(workbook, `${currentFileName}_tab_${tableIdx + 1}.xlsx`);
+    };
+
+    // Скачать все таблицы в один Excel (на разные листы)
+    exportAllBtn.addEventListener('click', () => {
+      if (!extractedTables.length) return;
+      const workbook = XLSX.utils.book_new();
+
+      extractedTables.forEach((tableData, idx) => {
+        const worksheet = XLSX.utils.aoa_to_sheet(tableData);
+        XLSX.utils.book_append_sheet(workbook, worksheet, `Лист ${idx + 1}`);
+      });
+
+      XLSX.writeFile(workbook, `${currentFileName}_tables.xlsx`);
+    });
+  </script>
+</body>
+</html>

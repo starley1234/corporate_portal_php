@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ru" class="h-full bg-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <title>Чат с документом</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body class="h-full flex flex-col text-slate-800">
+
+  <!-- Шапка -->
+  <header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between shadow-sm shrink-0">
+    <div class="flex items-center space-x-3">
+      <h1 class="text-base font-bold text-slate-900">Чат с документом</h1>
+      <span id="docStatus" class="text-xs bg-slate-100 text-slate-500 px-2.5 py-1 rounded-md border border-slate-200">Документ не загружен</span>
+    </div>
+
+    <!-- Загрузка PDF -->
+    <div class="flex items-center space-x-2">
+      <input type="file" id="pdfFile" accept="application/pdf" class="hidden">
+      <button onclick="document.getElementById('pdfFile').click()" id="uploadBtn"
+        class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold py-2 px-3.5 rounded-lg transition-colors flex items-center space-x-1.5">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+        <span id="uploadBtnText">Выбрать PDF</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Ошибка -->
+  <div id="errorBox" class="hidden bg-red-100 border-b border-red-200 text-red-700 px-6 py-2 text-xs font-mono shrink-0"></div>
+
+  <!-- Двухоконная зона -->
+  <main class="flex-1 flex overflow-hidden p-4 gap-4">
+
+    <!-- Левое окно: Просмотр PDF -->
+    <section class="w-1/2 flex flex-col bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+      <div class="bg-slate-50 border-b border-slate-200 px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider flex justify-between items-center">
+        <span>Просмотр оригинала</span>
+        <span id="fileBadge" class="normal-case font-mono font-normal text-slate-400 truncate max-w-xs"></span>
+      </div>
+      <div class="flex-1 bg-slate-200 flex items-center justify-center relative">
+        <embed id="pdfViewer" type="application/pdf" class="w-full h-full hidden" />
+        <div id="pdfPlaceholder" class="text-xs text-slate-400">Выберите PDF-документ для начала работы</div>
+        
+        <!-- Оверлей загрузки при OCR -->
+        <div id="ocrOverlay" class="hidden absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] flex flex-col items-center justify-center text-white space-y-2">
+          <svg class="animate-spin h-7 w-7 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>
+          <span class="text-xs font-medium">Распознавание и индексация текста...</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Правое окно: Чат с LLM -->
+    <section class="w-1/2 flex flex-col bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+      
+      <!-- Заголовок чата -->
+      <div class="bg-slate-50 border-b border-slate-200 px-4 py-2.5 flex items-center justify-between shrink-0">
+        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Диалог с нейросетью</span>
+        <button id="clearChatBtn" class="text-xs text-slate-400 hover:text-slate-600 transition-colors">Очистить историю</button>
+      </div>
+
+      <!-- Лента сообщений -->
+      <div id="chatHistory" class="flex-1 overflow-y-auto p-4 space-y-4 text-sm">
+        <div class="bg-slate-50 text-slate-500 p-3.5 rounded-lg border border-slate-100 text-xs leading-relaxed">
+          👋 Загрузите документ слева. После распознавания текста вы сможете задавать вопросы по суммам, срокам, обязательствам и проверять документ на риски.
+        </div>
+      </div>
+
+      <!-- Быстрые вопросы-чипсы -->
+      <div id="quickPrompts" class="hidden px-4 py-2 border-t border-slate-100 bg-slate-50/50 flex gap-1.5 overflow-x-auto text-[11px] shrink-0">
+        <button class="chip px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-md text-slate-600 transition-colors whitespace-nowrap">Суммы и платежи</button>
+        <button class="chip px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-md text-slate-600 transition-colors whitespace-nowrap">Сроки и дедлайны</button>
+        <button class="chip px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-md text-slate-600 transition-colors whitespace-nowrap">Штрафы и ответственность</button>
+        <button class="chip px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-200 rounded-md text-slate-600 transition-colors whitespace-nowrap">Кто подписант?</button>
+      </div>
+
+      <!-- Форма ввода вопроса -->
+      <div class="p-3 bg-white border-t border-slate-200 shrink-0">
+        <form id="chatForm" class="flex gap-2">
+          <input type="text" id="userInput" placeholder="Задайте вопрос по документу..." disabled
+            class="flex-1 text-xs border border-slate-200 rounded-lg px-3.5 py-2.5 focus:outline-none focus:border-blue-500 disabled:bg-slate-50 disabled:text-slate-400" />
+          <button type="submit" id="sendBtn" disabled
+            class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-lg text-xs font-semibold transition-colors flex items-center justify-center">
+            <span>Отправить</span>
+          </button>
+        </form>
+      </div>
+
+    </section>
+
+  </main>
+
+  <script>
+    const PARSER_ENDPOINT = 'http://172.31.70.22:8000/parse?engine=auto&output_format=md&do_ocr=true';
+    const LLM_ENDPOINT = 'http://rag.servers.local:8080/v1/chat/completions';
+
+    const pdfFile = document.getElementById('pdfFile');
+    const pdfViewer = document.getElementById('pdfViewer');
+    const pdfPlaceholder = document.getElementById('pdfPlaceholder');
+    const ocrOverlay = document.getElementById('ocrOverlay');
+    const docStatus = document.getElementById('docStatus');
+    const fileBadge = document.getElementById('fileBadge');
+    const errorBox = document.getElementById('errorBox');
+    
+    const chatHistory = document.getElementById('chatHistory');
+    const chatForm = document.getElementById('chatForm');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const quickPrompts = document.getElementById('quickPrompts');
+    const clearChatBtn = document.getElementById('clearChatBtn');
+
+    let documentContext = ""; 
+    let messagesHistory = []; 
+
+    // Загрузка и распознавание документа
+    pdfFile.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      errorBox.classList.add('hidden');
+      fileBadge.textContent = file.name;
+      
+      // Показываем PDF в embed
+      const fileURL = URL.createObjectURL(file);
+      pdfViewer.src = fileURL;
+      pdfViewer.classList.remove('hidden');
+      pdfPlaceholder.classList.add('hidden');
+      ocrOverlay.classList.remove('hidden');
+
+      docStatus.textContent = 'Распознавание...';
+      docStatus.className = 'text-xs bg-amber-50 text-amber-700 px-2.5 py-1 rounded-md border border-amber-200';
+
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const res = await fetch(PARSER_ENDPOINT, { method: 'POST', body: formData });
+        if (!res.ok) throw new Error(`Ошибка распознавания (${res.status}): ${res.statusText}`);
+        
+        const data = await res.json();
+        documentContext = data.content || '';
+
+        // Инициализируем диалог с системным контекстом
+        initConversation(documentContext);
+
+        docStatus.textContent = 'Готов к вопросам';
+        docStatus.className = 'text-xs bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-md border border-emerald-200';
+        
+        userInput.disabled = false;
+        sendBtn.disabled = false;
+        quickPrompts.classList.remove('hidden');
+        userInput.focus();
+
+        appendSystemMessage(`Документ **${file.name}** успешно обработан. Задавайте вопросы по его содержанию.`);
+
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.classList.remove('hidden');
+        docStatus.textContent = 'Ошибка';
+        docStatus.className = 'text-xs bg-red-50 text-red-700 px-2.5 py-1 rounded-md border border-red-200';
+      } finally {
+        ocrOverlay.classList.add('hidden');
+      }
+    });
+
+    function initConversation(context) {
+      messagesHistory = [
+        {
+          role: "system",
+          content: `Ты — аналитик входящей документации и юрист. 
+Отвечай на вопросы пользователя СТРОГО на основе приведенного текста документа. 
+Если информации в тексте нет — прямо скажи об этом, не выдумывай. 
+Форматируй ответы понятно, используя markdown (списки, жирный шрифт).
+
+ТЕКСТ ДОКУМЕНТА:
+${context}`
+        }
+      ];
+    }
+
+    // Обработка отправки вопроса
+    chatForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const question = userInput.value.trim();
+      if (!question || !documentContext) return;
+
+      appendUserMessage(question);
+      userInput.value = '';
+      userInput.disabled = true;
+      sendBtn.disabled = true;
+
+      const aiMsgEl = appendAIMessagePlaceholder();
+
+      try {
+        messagesHistory.push({ role: "user", content: question });
+
+        const res = await fetch(LLM_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: messagesHistory,
+            temperature: 0.2
+          })
+        });
+
+        if (!res.ok) throw new Error(`Ошибка LLM (${res.status}): ${res.statusText}`);
+
+        const data = await res.json();
+        const reply = data.choices[0].message.content;
+
+        messagesHistory.push({ role: "assistant", content: reply });
+        aiMsgEl.innerHTML = marked.parse(reply);
+
+      } catch (err) {
+        aiMsgEl.textContent = 'Ошибка: ' + err.message;
+        aiMsgEl.classList.add('text-red-600');
+      } finally {
+        userInput.disabled = false;
+        sendBtn.disabled = false;
+        userInput.focus();
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+      }
+    });
+
+    // Быстрые вопросы
+    document.querySelectorAll('.chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (userInput.disabled) return;
+        userInput.value = btn.textContent;
+        chatForm.dispatchEvent(new Event('submit'));
+      });
+    });
+
+    // Очистить историю
+    clearChatBtn.addEventListener('click', () => {
+      if (!documentContext) return;
+      initConversation(documentContext);
+      chatHistory.innerHTML = '';
+      appendSystemMessage("История очищена. Контекст документа сохранен.");
+    });
+
+    function appendUserMessage(text) {
+      const msg = document.createElement('div');
+      msg.className = 'flex justify-end';
+      msg.innerHTML = `
+        <div class="bg-blue-600 text-white rounded-xl rounded-tr-none px-3.5 py-2 max-w-[85%] text-xs shadow-sm whitespace-pre-wrap">
+          ${text}
+        </div>`;
+      chatHistory.appendChild(msg);
+      chatHistory.scrollTop = chatHistory.scrollHeight;
+    }
+
+    function appendAIMessagePlaceholder() {
+      const msg = document.createElement('div');
+      msg.className = 'flex justify-start';
+      msg.innerHTML = `
+        <div class="bg-slate-100 border border-slate-200 text-slate-800 rounded-xl rounded-tl-none p-3 max-w-[90%] text-xs prose prose-slate max-w-none">
+          <div class="flex items-center space-x-1.5 text-slate-400">
+            <span class="animate-pulse">Думает...</span>
+          </div>
+        </div>`;
+      chatHistory.appendChild(msg);
+      chatHistory.scrollTop = chatHistory.scrollHeight;
+      return msg.querySelector('.prose');
+    }
+
+    function appendSystemMessage(mdText) {
+      const msg = document.createElement('div');
+      msg.className = 'bg-slate-50 text-slate-500 p-2.5 rounded-lg border border-slate-100 text-xs prose prose-slate max-w-none';
+      msg.innerHTML = marked.parse(mdText);
+      chatHistory.appendChild(msg);
+      chatHistory.scrollTop = chatHistory.scrollHeight;
+    }
+  </script>
+</body>
+</html>
