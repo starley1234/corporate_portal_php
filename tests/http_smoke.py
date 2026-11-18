@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """HTTP smoke против работающего dev-сайта; секреты берёт только из окружения."""
 import http.cookiejar
+import html as html_module
 import json
 import os
 import re
@@ -36,8 +37,9 @@ request('/', 302)
 login = request('/auth/login', 200)
 request('/auth/register', 404)
 request('/prx100_auth/register', 404)
-for path in ['/search/api?q=test', '/prx110/api/catalog', '/prx597/api/unread', '/employee/api/me', '/employee/api/directory']:
+for path in ['/search/api?q=test', '/prx110/api/catalog', '/prx110/api/favorites', '/prx597/api/unread', '/employee/api/me', '/employee/api/directory']:
     json.loads(request(path, 401))
+json.loads(request('/prx110/api/favorites', 401, {'href': '/inbox', 'pinned': '1'}))
 request('/prx120/api/stats', 403)
 request('/services', 403)
 request('/employee', 403)
@@ -84,13 +86,58 @@ pages = {}
 for path in ['/', '/services', '/dashboard', '/admin', '/prx595/admin', '/account/security', '/prx597', '/prx597/admin', '/prx560', '/prx115', '/tasks', '/prx120/monitor', '/prx120/workers', '/migrate_pg', '/llm_admin', '/prx218', '/prx100/errors', '/architecture', '/employee', '/employee/directory', '/prx300/admin', '/prx300/admin/employees', '/prx300/admin/employee/0', '/prx300/admin/import', '/prx300/admin/import_template', '/inbox', '/documents', '/analysis', '/sla', '/replies', '/vlm-demo']:
     pages[path] = request(path, 200)
 
-# Постоянное меню не зависит от маршрута и прав; службы остаются в каталоге.
+# Избранное приходит с первым HTML, без браузерного запроса и плейсхолдера.
+favorites = json.loads(request('/prx110/api/favorites', 200))
+assert isinstance(favorites['user_id'], int) and isinstance(favorites['items'], list)
+favorite_hrefs = [item['href'] for item in favorites['items']]
 for path in ['/', '/services', '/inbox', '/documents', '/vlm-demo']:
     html = pages[path]
     assert re.search(r'<html[^>]+data-company-accent="(?:orange|blue|yellow)"', html), path
+    assert 'data-nav-status="ready"' in html, path
+    assert 'Загрузка Избранного' not in html, path
     nav = re.search(r'<nav id="sidebar-nav"[^>]*>(.*?)</nav>', html, re.S)
     assert nav, path
-    assert re.findall(r'<a\s+href="([^"]+)"', nav[1]) == ['/services'], path
+    assert [html_module.unescape(href) for href in re.findall(r'<a\s+href="([^"]+)"', nav[1])] == favorite_hrefs + ['/services'], path
+    group = re.search(r'<div class="sidebar-group" data-nav-group="pinned">(.*?)</ul>', nav[1], re.S)
+    assert group, path
+    assert [html_module.unescape(href) for href in re.findall(r'<a\s+href="([^"]+)"', group[1])] == favorite_hrefs, path
+
+# POST не принимает чужой account_id, неверный сервис и запрос без CSRF.
+sidebar_tag = re.search(r'<aside id="sidebar"(.*?)>', pages['/services'], re.S)
+assert sidebar_tag
+nav_csrf = html_module.unescape(re.search(r'data-nav-csrf="([^"]+)"', sidebar_tag[1])[1])
+account_id = favorites['user_id']
+json.loads(request('/prx110/api/favorites', 403, {'account_id': account_id, 'href': '/inbox', 'pinned': '1'}))
+json.loads(request('/prx110/api/favorites', 403, {'csrf[]': nav_csrf, 'account_id': account_id, 'href': '/inbox', 'pinned': '1'}))
+json.loads(request('/prx110/api/favorites', 409, {'csrf': nav_csrf, 'account_id': account_id + 1, 'href': '/inbox', 'pinned': '1'}))
+json.loads(request('/prx110/api/favorites', 409, {'csrf': nav_csrf, 'account_id[]': account_id, 'href': '/inbox', 'pinned': '1'}))
+json.loads(request('/prx110/api/favorites', 422, {'csrf': nav_csrf, 'account_id': account_id, 'href': '//evil.test', 'pinned': '1'}))
+json.loads(request('/prx110/api/favorites', 422, {'csrf': nav_csrf, 'account_id': account_id, 'href': '/inbox', 'pinned': 'invalid'}))
+json.loads(request('/prx110/api/favorites', 422, {'csrf': nav_csrf, 'account_id': account_id, 'href': '/inbox', 'pinned[]': '1'}))
+json.loads(request('/prx110/api/favorites_import', 405))
+json.loads(request('/prx110/api/favorites_import', 403, {'account_id': account_id, 'hrefs': '["/inbox"]'}))
+json.loads(request('/prx110/api/favorites_import', 422, {'csrf': nav_csrf, 'account_id': account_id, 'hrefs': '{"href":"/inbox"}'}))
+json.loads(request('/prx110/api/favorites_import', 422, {'csrf': nav_csrf, 'account_id': account_id, 'hrefs': json.dumps(['/inbox'] * 101)}))
+assert json.loads(request('/prx110/api/favorites?user_id=' + str(account_id + 1), 200)) == favorites
+
+# Реальное сохранение и первый HTML без JS. Если записи не было, удаляем её
+# в finally; остальные закладки и порядок сохраняются, повторное pin идемпотентно.
+was_pinned = '/inbox' in favorite_hrefs
+try:
+    saved = json.loads(request('/prx110/api/favorites', 200, {'csrf': nav_csrf, 'account_id': account_id, 'href': '/inbox', 'pinned': '1'}))
+    assert [item['href'] for item in saved['items']].count('/inbox') == 1
+    saved_again = json.loads(request('/prx110/api/favorites', 200, {'csrf': nav_csrf, 'account_id': account_id, 'href': '/inbox', 'pinned': '1'}))
+    assert saved_again == saved
+    services_pinned = request('/services', 200)
+    card = re.search(r'<button\s+type="button"\s+data-nav-pin-card="/inbox"[^>]*>', services_pinned, re.S)
+    assert card and 'aria-pressed="true"' in card[0], 'Card state must be present in HTML'
+    inbox_pinned = request('/inbox', 200)
+    link = re.search(r'<a href="/inbox"[^>]*>', inbox_pinned, re.S)
+    assert link and 'aria-current="page"' in link[0], 'Favorite must be active in HTML'
+finally:
+    if not was_pinned:
+        json.loads(request('/prx110/api/favorites', 200, {'csrf': nav_csrf, 'account_id': account_id, 'href': '/inbox', 'pinned': '0'}))
+assert json.loads(request('/prx110/api/favorites', 200)) == favorites
 # Мобильный ряд содержит контекстные ссылки, в том числе те, которых нет
 # в каталоге; он отдельный от короткого sidebar и без повторяющихся href.
 for path, expected in {
@@ -115,6 +162,7 @@ request('/llm_admin/load', 405)
 request('/llm_admin/unload', 403, {'model': 'test'})
 json.loads(request('/search/api?q=test', 200))
 catalog = json.loads(request('/prx110/api/catalog', 200))
+assert catalog['user_id'] == account_id, 'Catalog must identify the session account for stale tabs'
 catalog_hrefs = {item['href'] for item in catalog['items']}
 assert {'/architecture', '/design-lab', '/prx560', '/employee', '/inbox', '/documents', '/analysis', '/sla', '/replies', '/vlm-demo', '/prx597', '/account/security'} <= catalog_hrefs
 json.loads(request('/employee/api/me', 404))  # seed-администратор намеренно не сопоставлен с сотрудником

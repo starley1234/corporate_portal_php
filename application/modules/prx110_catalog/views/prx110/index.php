@@ -5,6 +5,8 @@
  * /services — полный каталог опубликованных сервисов PRX.
  * SSR: всё видимо поисковику и без JS; поле поиска фильтрует на клиенте.
  */
+$nav_favorite_hrefs = array_fill_keys(array_column((array) ($nav_favorites['items'] ?? []), 'href'), TRUE);
+$nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
 ?>
 
 <?php /* каталог — каркас эталона v6: плоский фон, шапка page_header, разделы .prx-card */ ?>
@@ -49,13 +51,16 @@
                         <span class="prx-count shrink-0 uppercase"><?php echo HTML::chars((string) $m['badge']); ?></span>
                         <?php endif; ?>
                     </a>
-                    <?php // Звёздочка всегда видна, в том числе на сенсорных экранах. ?>
+                    <?php // Состояние звезды приходит в первом HTML вместе с аккаунтом. ?>
+                    <?php $nav_is_pinned = isset($nav_favorite_hrefs[$m['href']]);
+                          $nav_pin_label = ! $nav_favorites_ready ? 'Избранное недоступно' : ($nav_is_pinned ? 'Убрать из Избранного' : 'В Избранное'); ?>
                     <button type="button"
                             data-nav-pin-card="<?php echo HTML::chars($m['href']); ?>"
                             data-nav-pin-title="<?php echo HTML::chars($m['title']); ?>"
                             data-nav-pin-icon="<?php echo HTML::chars($m['icon']); ?>"
-                            class="prx-btn-icon nav-pin-card h-10 w-10 shrink-0 text-sm text-gray-400"
-                            title="В Избранное" aria-label="В Избранное: <?php echo HTML::chars($m['title']); ?>"><i class="fas fa-star"></i></button>
+                            class="prx-btn-icon nav-pin-card h-10 w-10 shrink-0 text-sm <?php echo $nav_is_pinned ? 'text-amber-500' : 'text-gray-400'; ?>"
+                            title="<?php echo HTML::chars($nav_pin_label); ?>" aria-label="<?php echo HTML::chars($nav_pin_label.': '.$m['title']); ?>"
+                            aria-pressed="<?php echo $nav_is_pinned ? 'true' : 'false'; ?>"<?php echo $nav_favorites_ready ? '' : ' disabled'; ?>><i class="fas fa-star"></i></button>
                 </li>
                 <?php endforeach; ?>
             </ul>

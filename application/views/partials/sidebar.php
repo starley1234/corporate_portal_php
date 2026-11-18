@@ -26,6 +26,12 @@ $items = class_exists('Service_Prx110_Catalog')
     ? Service_Prx110_Catalog::menu_items()
     : (isset($menu_items) && is_array($menu_items) ? $menu_items : []);
 
+$nav_state = isset($nav_favorites) && is_array($nav_favorites) ? $nav_favorites : [];
+$nav_status = in_array(($nav_state['status'] ?? ''), ['guest', 'ready', 'error'], TRUE) ? $nav_state['status'] : 'guest';
+$nav_items = isset($nav_state['items']) && is_array($nav_state['items']) ? $nav_state['items'] : [];
+$nav_json = json_encode($nav_items, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
+    | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?: '[]';
+
 $groups = [];
 foreach ($items as $item)
 {
@@ -57,7 +63,11 @@ foreach ($items as $item)
 }
 
 ?>
-<aside id="sidebar" aria-label="Навигация по сервисам">
+<aside id="sidebar" aria-label="Навигация по сервисам"
+       data-nav-status="<?php echo HTML::chars($nav_status); ?>"
+       data-nav-user-id="<?php echo (int) ($nav_state['user_id'] ?? 0); ?>"
+       data-nav-csrf="<?php echo HTML::chars((string) ($nav_state['csrf'] ?? '')); ?>"
+       data-nav-items="<?php echo HTML::chars($nav_json); ?>">
     <!-- Бренд + сворачивание -->
     <div class="flex h-16 shrink-0 items-center gap-2 border-b border-gray-200/70 px-4 dark:border-gray-700/60">
         <a href="/" class="sidebar-brand flex min-w-0 items-center gap-2 text-blue-600 dark:text-blue-400" title="На главную">
@@ -90,6 +100,39 @@ foreach ($items as $item)
 
     <!-- Навигация -->
     <nav id="sidebar-nav" class="flex-1 space-y-4 overflow-y-auto overflow-x-hidden px-3 py-4" aria-label="Сервисы и разделы">
+        <div class="sidebar-group" data-nav-group="pinned">
+            <div class="sidebar-group-title px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Избранное</div>
+            <ul class="space-y-0.5" data-nav-pinned-list>
+                <?php foreach ($nav_items as $favorite): ?>
+                <li class="group relative">
+                    <a href="<?php echo HTML::chars((string) $favorite['href']); ?>"
+                       class="sidebar-item relative flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 pr-10 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100<?php echo ! empty($favorite['active']) ? ' is-active' : ''; ?>"
+                       title="<?php echo HTML::chars((string) $favorite['title']); ?>"
+                       data-search="<?php echo HTML::chars(mb_strtolower((string) $favorite['title'])); ?>"
+                       data-active="<?php echo ! empty($favorite['active']) ? '1' : '0'; ?>"<?php echo ! empty($favorite['aria_current']) ? ' aria-current="'.HTML::chars($favorite['aria_current']).'"' : ''; ?>>
+                        <i class="<?php echo HTML::chars((string) $favorite['icon']); ?> w-5 shrink-0 text-center text-[15px]"></i>
+                        <span class="sidebar-label min-w-0 flex-1 break-words leading-snug"><?php echo HTML::chars((string) $favorite['title']); ?></span>
+                    </a>
+                    <button type="button" data-nav-pin="<?php echo HTML::chars((string) $favorite['href']); ?>"
+                            class="sidebar-label nav-pin is-pinned absolute right-1 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-md hover:bg-gray-200 dark:hover:bg-gray-700"
+                            title="Убрать из Избранного" aria-label="Убрать из Избранного: <?php echo HTML::chars((string) $favorite['title']); ?>" aria-pressed="true"><i class="fas fa-star text-xs"></i></button>
+                </li>
+                <?php endforeach; ?>
+                <?php if ( ! $nav_items): ?>
+                <li class="sidebar-label px-3 py-2 text-xs text-gray-400" data-nav-pinned-empty><?php echo $nav_status === 'guest'
+                    ? 'Войдите, чтобы сохранять Избранное' : ($nav_status === 'error'
+                        ? 'Не удалось загрузить Избранное. Обновите страницу.' : 'Добавляйте сервисы звёздочкой в каталоге'); ?></li>
+                <?php endif; ?>
+            </ul>
+            <div id="nav-legacy-import" class="sidebar-label hidden px-3 pt-2 text-xs text-gray-500 dark:text-gray-400">
+                <p>В этом браузере есть прежнее Избранное. Перенести доступные сервисы в текущий аккаунт?</p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                    <button type="button" data-nav-import class="rounded-md border border-gray-300 px-2 py-1 font-semibold hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-800">Перенести</button>
+                    <button type="button" data-nav-import-dismiss class="rounded-md px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-800">Не сейчас</button>
+                </div>
+            </div>
+            <div id="nav-favorite-status" class="sidebar-label hidden px-3 pt-2 text-xs text-rose-600 dark:text-rose-400" role="status" aria-live="polite"></div>
+        </div>
         <?php foreach ($groups as $group => $group_items): ?>
             <div class="sidebar-group">
                 <div class="sidebar-group-title px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">

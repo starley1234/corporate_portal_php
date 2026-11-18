@@ -12,6 +12,7 @@ class PortalNavigationTest extends TestCase
         $sidebar = View::factory('partials/sidebar', [
             'site_name' => 'PRX',
             'module_nav' => [['title' => 'Входящие', 'href' => '/inbox']],
+            'nav_favorites' => ['status' => 'guest', 'items' => []],
         ])->render();
         $this->assertStringContainsString('href="/services"', $sidebar);
         $this->assertStringNotContainsString('href="/inbox"', $sidebar);

@@ -6,7 +6,8 @@
     </script>
     <?php echo View::factory('partials/sidebar')
             ->set('menu_items', isset($menu_items) ? $menu_items : [])
-            ->set('module_nav', isset($module_nav) ? $module_nav : []); ?>
+            ->set('module_nav', isset($module_nav) ? $module_nav : [])
+            ->set('nav_favorites', isset($nav_favorites) ? $nav_favorites : []); ?>
     <div id="page-wrapper" class="flex min-h-screen flex-col">
     <?php include __DIR__.'/partials/topbar.php'; ?>
 
@@ -250,7 +251,9 @@
                     var anyVisible = false;
 
                     sidebar.querySelectorAll('.sidebar-group').forEach(function (groupEl) {
-                        var groupVisible = false;
+                        // Пустое Избранное и подсказка о переносе остаются видимыми
+                        // после сброса фильтра, хотя ссылок в группе пока нет.
+                        var groupVisible = !q;
 
                         groupEl.querySelectorAll('a.sidebar-item').forEach(function (a) {
                             var hay = a.getAttribute('data-search') || '';
