@@ -39,6 +39,7 @@ def request(path, expected, data=None, headers=None):
     return body
 
 request('/', 302)
+request('/portal-plan', 302)
 login = request('/auth/login', 200)
 request('/auth/register', 404)
 request('/prx100_auth/register', 404)
@@ -96,6 +97,19 @@ request('/auth/login?return_url=%2F', 302, {'username': username, 'password': pa
 pages = {}
 for path in ['/', '/services', '/dashboard', '/admin', '/prx595/admin', '/account/security', '/prx597', '/prx597/admin', '/prx560', '/prx115', '/tasks', '/prx120/monitor', '/document-extract', '/prx120/workers', '/migrate_pg', '/llm_admin', '/prx218', '/prx100/errors', '/architecture', '/employee', '/employee/directory', '/prx300/admin', '/prx300/admin/employees', '/prx300/admin/employee/0', '/prx300/admin/import', '/prx300/admin/import_template']:
     pages[path] = request(path, 200)
+home = pages['/']
+assert '<h1 class="prx-h1">Сервисы-пайплайны предприятия</h1>' in home
+assert 'href="/portal-plan"' in home
+for heading in ['Ведение проектов', 'Разработка конструкций', 'Разработка РЭА',
+                'Производство и сборка', 'Отработка рекламаций']:
+    assert f'<h3 class="prx-h3">{heading}</h3>' in home, heading
+archive_title = 'Корпоративный портал: отложенный план и архив'
+assert archive_title not in home and 'Лента новостей' not in home
+archive = request('/portal-plan', 200)
+assert f'<h1 class="prx-h1">{archive_title}</h1>' in archive
+assert 'Лента новостей' in archive and 'Ответы на письма' in archive
+assert 'href="/employee"' in archive
+assert 'Отработка рекламаций' not in archive
 assert 'value="probe"' in pages['/prx120/monitor'], 'Worker probe button is missing'
 assert 'Распознать пробный PDF' in pages['/document-extract']
 assert 'href="/document-extract"' in pages['/']

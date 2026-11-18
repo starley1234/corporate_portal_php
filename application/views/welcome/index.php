@@ -1,15 +1,21 @@
 <?php defined('SYSPATH') or die('No direct script access.'); ?>
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
-    <?php echo View::factory('partials/page_header', [
-        'crumbs' => [['Главная']],
-        'title'  => 'Платформа ИИ-сервисов',
-        'pill'   => ['Для корпоративных систем', 'fa-layer-group'],
-        'lead'   => 'Проверяйте обработку документов здесь или подключайте корпоративные системы через API.',
+    <?php
+    $actions = [['label' => 'План и архив портала', 'href' => '/portal-plan', 'icon' => 'fa-box-archive']];
+    if ($can_test) $actions[] = ['label' => 'Проверить ИИ-сервисы', 'href' => '#service-checks', 'icon' => 'fa-flask'];
+    echo View::factory('partials/page_header', [
+        'crumbs'  => [['Главная']],
+        'title'   => $title,
+        'pill'    => ['План', 'fa-layer-group'],
+        'actions' => $actions,
+        'lead'    => 'Планируемые сервисы для разработки и изготовления конструкций и радиоэлектронной аппаратуры (РЭА): от ведения проектов до отработки рекламаций.',
     ]); ?>
 
+    <?php echo View::factory('welcome/parts/enterprise_plan', ['phases' => $phases]); ?>
+
     <?php if ($can_test): ?>
-    <section class="prx-panel mt-6">
+    <section id="service-checks" class="prx-panel mt-6 scroll-mt-24">
         <div class="prx-panel-head"><h2 class="prx-h3">Проверить ИИ-сервисы</h2></div>
         <div class="flex flex-wrap gap-2.5 p-5">
             <a class="prx-btn-process" href="/document-extract"><i class="fas fa-file-pdf"></i>Распознавание PDF</a>
@@ -45,31 +51,4 @@
         </div>
     </section>
 
-    <details class="mt-8">
-        <summary class="prx-h2">Корпоративный портал: отложенный план и архив</summary>
-
-        <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <?php foreach ($domains as $key => $domain): ?>
-            <?php if ($key === 'docflow' && $docflow_enabled) continue; ?>
-            <section class="prx-card">
-                <h3 class="prx-h3"><?php echo HTML::chars($domain['title']); ?><?php if (($domain['status'] ?? NULL) === 'archived') echo ' · архив'; ?></h3>
-                <ul class="mt-3 space-y-2 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
-                    <?php foreach ($domain['services'] as $service): ?>
-                    <li>
-                        <?php if ($service['status'] === 'active' AND $service['module'] === 'prx300_employee'): ?>
-                            <a class="prx-link font-semibold" href="/employee"><?php echo HTML::chars($service['title']); ?></a>
-                            <span class="prx-badge prx-badge-ok ml-2"><span class="prx-dot"></span>доступно</span>
-                        <?php else: ?>
-                            <?php echo HTML::chars($service['title']); ?>
-                            <?php if ($service['status'] === 'archived'): ?>
-                                <span class="prx-badge ml-2">Требует доработки</span>
-                            <?php endif; ?>
-                        <?php endif; ?>
-                    </li>
-                    <?php endforeach; ?>
-                </ul>
-            </section>
-            <?php endforeach; ?>
-        </div>
-    </details>
 </div>
