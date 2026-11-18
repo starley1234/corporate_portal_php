@@ -166,6 +166,9 @@ def main() -> int:
     log_file = setup_logging()
 
     problems = config.validate()
+    unknown_channels = sorted(set(config.channels) - HANDLERS.keys())
+    if unknown_channels:
+        problems.append("WORKER_CHANNELS: нет активных обработчиков: " + ", ".join(unknown_channels))
     if problems:
         for p in problems:
             logging.error("Конфигурация: %s", p)

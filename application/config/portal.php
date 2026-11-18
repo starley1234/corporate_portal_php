@@ -51,12 +51,12 @@ return ['domains' => [
         ['module' => 'prx385_briefings', 'title' => 'Инструктажи по охране труда', 'status' => 'planned'],
         ['module' => 'prx386_zones', 'title' => 'Карта зон доступа', 'status' => 'planned'],
     ]],
-    'docflow' => ['title' => 'Документооборот', 'services' => [
-        ['module' => 'prx390_intake', 'title' => 'Входящие документы', 'status' => 'active'],
-        ['module' => 'prx391_documents', 'title' => 'Реестр входящих', 'status' => 'active'],
-        ['module' => 'prx392_analysis', 'title' => 'ИИ-анализ входящих', 'status' => 'active'],
-        ['module' => 'prx393_workflow', 'title' => 'Сроки и маршруты', 'status' => 'active'],
-        ['module' => 'prx394_drafts', 'title' => 'Ответы на письма', 'status' => 'active'],
+    'docflow' => ['title' => 'Документооборот', 'status' => 'archived', 'services' => [
+        ['module' => 'prx390_intake', 'title' => 'Входящие документы', 'status' => 'archived'],
+        ['module' => 'prx391_documents', 'title' => 'Реестр входящих', 'status' => 'archived'],
+        ['module' => 'prx392_analysis', 'title' => 'ИИ-анализ входящих', 'status' => 'archived'],
+        ['module' => 'prx393_workflow', 'title' => 'Сроки и маршруты', 'status' => 'archived'],
+        ['module' => 'prx394_drafts', 'title' => 'Ответы на письма', 'status' => 'archived'],
     ]],
     'projects' => ['title' => 'Управление проектами', 'services' => [
         ['module' => 'prx400_projects', 'title' => 'Доска общих проектов', 'status' => 'planned'],

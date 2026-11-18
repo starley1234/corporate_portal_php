@@ -164,9 +164,8 @@ class StorageSetupTest(unittest.TestCase):
         result = self.run_setup()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertFalse((self.root / "public_html/storage").exists())
-        for rel in ("storage", "storage/docflow/inbox", "storage/docflow/processed",
-                    "storage/docflow/duplicates", "storage/docflow/error",
-                    "storage/prx212_file_storage/files"):
+        self.assertFalse((self.root / "storage/docflow").exists())
+        for rel in ("storage", "storage/prx212_file_storage/files"):
             directory = self.root / rel
             self.assertTrue(directory.is_dir(), rel)
             self.assertEqual(stat.S_IMODE(directory.stat().st_mode), 0o700, rel)
@@ -196,12 +195,12 @@ class StorageSetupTest(unittest.TestCase):
         marker = outside / "keep"
         marker.write_text("untouched", encoding="utf-8")
         (self.root / "storage").mkdir()
-        (self.root / "storage/docflow").symlink_to(outside, target_is_directory=True)
+        (self.root / "storage/prx212_file_storage").symlink_to(outside, target_is_directory=True)
         result = self.run_setup()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("symlink", result.stderr)
         self.assertEqual(marker.read_text(encoding="utf-8"), "untouched")
-        self.assertFalse((outside / "inbox").exists())
+        self.assertFalse((outside / "files").exists())
 
 
 class StorageRouterTest(unittest.TestCase):

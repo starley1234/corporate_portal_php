@@ -1,9 +1,3 @@
-# PDF.js (prx398) поставляется как ES-модуль .mjs. Apache до 2.4.56
-# не знает этот тип и отдаёт application/octet-stream — модуль не выполнится.
-<IfModule mod_mime.c>
-    AddType text/javascript .mjs
-</IfModule>
-
 # Turn on URL rewriting
 RewriteEngine On
 

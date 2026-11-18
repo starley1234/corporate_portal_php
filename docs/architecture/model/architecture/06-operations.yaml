@@ -51,7 +51,7 @@ overview:
             - Контракты модулей без PHP и БД
           - - PYTHONPATH=workers pytest workers/tests
             - перед коммитом
-            - Воркеры, docflow и e2e
+            - Активные worker-каналы и инфраструктура
         center: []
 detail:
   lead: >-

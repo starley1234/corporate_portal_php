@@ -17,12 +17,9 @@ class ManifestRegistryTest extends TestCase {
         $channels = Manifest::channels();
         $keys = array_keys($channels);
         sort($keys);
-        $this->assertSame(['doc.analyze', 'doc.draft', 'doc.normalize', 'echo', 'embeddings.index', 'llm.summarize', 'semantic.index'], $keys);
+        $this->assertSame(['echo', 'embeddings.index', 'llm.summarize', 'semantic.index'], $keys);
         $this->assertSame('prx115_semantic', $channels['semantic.index']['module']);
         $this->assertSame('prx120_jobs', $channels['echo']['module']);
-        $this->assertSame('prx390_intake', $channels['doc.normalize']['module']);
-        $this->assertSame('prx392_analysis', $channels['doc.analyze']['module']);
-        $this->assertSame('prx394_drafts', $channels['doc.draft']['module']);
     }
 
     public function test_technical_rag_is_not_a_global_search_source(): void
@@ -37,12 +34,13 @@ class ManifestRegistryTest extends TestCase {
     {
         $services = [];
         $active = [];
+        $archived = [];
         foreach ((array) Kohana::$config->load('portal')->get('domains') as $domain)
         {
             foreach ($domain['services'] as $service)
             {
                 $services[] = $service['module'];
-                $this->assertContains($service['status'], ['planned', 'active']);
+                $this->assertContains($service['status'], ['planned', 'active', 'archived']);
                 if ($service['status'] === 'active')
                 {
                     $active[] = $service['module'];
@@ -51,14 +49,16 @@ class ManifestRegistryTest extends TestCase {
                 else
                 {
                     $this->assertArrayNotHasKey($service['module'], Kohana::modules());
+                    if ($service['status'] === 'archived') { $archived[] = $service['module']; }
                 }
             }
         }
         $this->assertCount(55, array_unique($services));
+        $this->assertSame(['prx300_employee'], $active);
         $this->assertSame([
-            'prx300_employee', 'prx390_intake', 'prx391_documents',
-            'prx392_analysis', 'prx393_workflow', 'prx394_drafts',
-        ], $active);
+            'prx390_intake', 'prx391_documents', 'prx392_analysis', 'prx393_workflow', 'prx394_drafts',
+        ], $archived);
+        $this->assertArrayNotHasKey('prx398_vlm_demo', Kohana::modules());
     }
 
     public function test_acl_is_deny_by_default(): void

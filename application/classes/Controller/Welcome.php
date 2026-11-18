@@ -12,7 +12,7 @@ class Controller_Welcome extends Controller_Base {
 
     public function action_index()
     {
-        $this->set_title('PRX — корпоративный портал');
+        $this->set_title('PRX — платформа ИИ-сервисов');
         $this->set_menu(Service_Prx110_Catalog::menu_items());
         $this->template->content = View::factory('welcome/index', [
             'domains' => (array) Kohana::$config->load('portal')->get('domains'),

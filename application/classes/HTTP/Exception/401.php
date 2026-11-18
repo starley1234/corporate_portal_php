@@ -36,7 +36,7 @@ class HTTP_Exception_401 extends Kohana_HTTP_Exception_403
             ->body(json_encode([
                 'ok'      => FALSE,
                 'error'   => 'auth',
-                'message' => 'Требуется вход в корпоративный портал.',
+                'message' => 'Требуется вход в PRX.',
                 'login'   => $login,
             ], JSON_UNESCAPED_UNICODE));
     }

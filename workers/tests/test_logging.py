@@ -111,7 +111,7 @@ def test_startup_logs_only_site_origin_without_credentials_or_query(tmp_path, mo
 
     class Config:
         queue_mode = "pg"
-        channels = ["doc.normalize"]
+        channels = ["echo"]
 
         def validate(self):
             return []

@@ -129,9 +129,7 @@ if [[ -L "$ROOT/storage" ]]; then
     exit 1
 fi
 mkdir -p storage
-for dir in storage/docflow storage/docflow/inbox storage/docflow/processed \
-           storage/docflow/duplicates storage/docflow/error \
-           storage/prx212_file_storage storage/prx212_file_storage/files; do
+for dir in storage/prx212_file_storage storage/prx212_file_storage/files; do
     if [[ -L "$ROOT/$dir" ]]; then
         printf 'storage: каталог не может быть symlink: %s\n' "$ROOT/$dir" >&2
         exit 1

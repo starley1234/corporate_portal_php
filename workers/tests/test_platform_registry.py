@@ -9,11 +9,23 @@ def test_only_foundation_handlers_are_registered():
         "embeddings.index",
         "llm.summarize",
         "semantic.index",
-        # документооборот prx390–prx394
-        "doc.normalize",
-        "doc.analyze",
-        "doc.draft",
     }
+
+
+def test_archived_channels_in_explicit_worker_config_fail_before_claim(monkeypatch, caplog):
+    from prx_workers import __main__ as worker
+    from prx_workers.config import Config
+
+    config = Config(queue_mode="pg", pg_dsn="postgres://example", channels=["echo", "doc.normalize"])
+    monkeypatch.setattr(worker.Config, "load", lambda: config)
+    monkeypatch.setattr(worker, "setup_logging", lambda: None)
+
+    def unexpected_queue(_config):
+        raise AssertionError("Archived configuration must not create a queue client")
+
+    monkeypatch.setattr(worker, "make_queue", unexpected_queue)
+    assert worker.main() == 2
+    assert "doc.normalize" in caplog.text
 
 
 def test_worker_transport_is_not_an_llm_provider(monkeypatch):

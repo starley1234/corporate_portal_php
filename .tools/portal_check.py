@@ -26,17 +26,22 @@ check((ROOT / 'docs/architecture/dist/architecture.json').is_file(), 'Нет с�
 check("config/modules.php" in (ROOT / 'application/bootstrap.php').read_text(), 'Bootstrap обходит реестр')
 
 plan = (ROOT / 'application/config/portal.php').read_text()
-plan_entries = re.findall(r"'module' => '(prx\d+_[a-z_]+)',\s*'title' => '[^']+',\s*'status' => '(planned|active)'", plan)
+plan_entries = re.findall(r"'module' => '(prx\d+_[a-z_]+)',\s*'title' => '[^']+',\s*'status' => '(planned|active|archived)'", plan)
 planned = [name for name, _status in plan_entries]
 active_services = [name for name, status in plan_entries if status == 'active']
+archived_services = [name for name, status in plan_entries if status == 'archived']
 check(len(planned) == 55, 'План должен содержать 55 сервисов')
 check(len(set(planned)) == 55, 'Дубли в плане')
 check(len({re.search(r'\d+', name)[0] for name in planned}) == 55, 'Дубли ID в плане')
 for name, status in plan_entries:
     exists = (ROOT / 'application/modules' / name).exists()
-    registered_service = f"'{name}' =>" in registry
+    registered_service = name in {entry[0] for entry in registered}
     if status == 'active':
         check(exists and registered_service, f'Активный сервис не реализован/не подключён: {name}')
+    elif status == 'archived':
+        check(not exists and not registered_service, f'Архивный сервис подключён: {name}')
+        check((ROOT / 'archive/docflow/application/modules' / name / 'config/prx_module.php').is_file(),
+              f'Не найден архивный манифест: {name}')
     else:
         check(not exists and not registered_service, f'Planned-сервис ошибочно подключён: {name}')
 
@@ -72,7 +77,7 @@ for path in (ROOT / 'workers/prx_workers').rglob('*.py'):
         check(bool(match), f'Нет CHANNEL в {path.name}')
         if match:
             channel_names.append(match[1])
-check(set(channel_names) == {'echo', 'embeddings.index', 'llm.summarize', 'semantic.index', 'doc.normalize', 'doc.analyze', 'doc.draft'}, 'Лишние/потерянные worker-каналы')
+check(set(channel_names) == {'echo', 'embeddings.index', 'llm.summarize', 'semantic.index'}, 'Лишние/потерянные worker-каналы')
 manifest_text = '\n'.join(p.read_text() for p in (ROOT / 'application/modules').glob('*/config/prx_module.php'))
 for channel in channel_names:
     check(f"'{channel}'" in manifest_text, f'Канал не объявлен в манифесте: {channel}')
@@ -88,4 +93,4 @@ check('portal:maintain' in (ROOT / 'docs/WORKERS.md').read_text(), 'Не опи�
 if errors:
     print('\n'.join('FAIL: ' + item for item in errors))
     sys.exit(1)
-print(f'PRX contracts OK: {len(registered)} registered modules, {len(classes)} PHP classes, {len(active_services)} active + {55 - len(active_services)} planned services, {len(channel_names)} worker channels')
+print(f'PRX contracts OK: {len(registered)} registered modules, {len(classes)} PHP classes, {len(active_services)} active + {len(archived_services)} archived + {len(planned) - len(active_services) - len(archived_services)} planned services, {len(channel_names)} worker channels')
