@@ -795,6 +795,7 @@ class Service_Prx120_JobQueue {
         if ($will_retry)
         {
             // Backoff: 15s, 60s, 135s... (15 * n^2)
+            $delay = 15 * $attempts * $attempts;
             try
             {
                 $ok = $this->_update_status($job_id, $worker, [

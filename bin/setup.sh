@@ -92,28 +92,11 @@ case "$(env_value .env PRX_DEFAULT_ADMIN)" in
         ;;
 esac
 
-# --- 1b. workers/.env -----------------------------------------------------------
-# Воркерные секреты в git не хранятся (workers/.gitignore), поэтому при
-# пересоздании клона/песочницы workers/.env «пропадает». Если его нет —
-# создаём из шаблона и сразу вписываем общий токен сайта (значение
-# WORKER_API_TOKEN сайта): воркеры смогут сдавать результаты без ручной правки.
-# Токен может быть пустым (например, .env просто скопирован из .env.example) —
-# тогда ничего не вписываем: пустой WORKER_SITE_TOKEN честнее мусора.
+# Настройки одного хоста берутся из корневого .env. Не копируем токен/адрес
+# в отдельный файл, иначе после их обновления воркер продолжит брать старые.
 if [[ -f workers/.env.example && ! -f workers/.env ]]; then
-    msg "Создаю workers/.env из workers/.env.example"
-    cp workers/.env.example workers/.env
-
-    site_token="$(env_value .env WORKER_API_TOKEN)"
-
-    if [[ -n "$site_token" ]]; then
-        env_set workers/.env WORKER_SITE_TOKEN "$site_token"
-        env_set workers/.env WORKER_API_TOKEN "$site_token"
-        msg "workers/.env создан (WORKER_SITE_TOKEN = токен сайта)"
-    else
-        msg "workers/.env создан (WORKER_API_TOKEN пуст — WORKER_SITE_TOKEN оставлен как есть)"
-    fi
-else
-    msg "workers/.env уже существует — пропускаю"
+    (umask 077; cp workers/.env.example workers/.env)
+    msg "workers/.env создан для необязательных переопределений"
 fi
 
 # --- 2. Каталоги для записи ----------------------------------------------------
@@ -129,9 +112,7 @@ if [[ -L "$ROOT/storage" ]]; then
     exit 1
 fi
 mkdir -p storage
-for dir in storage/docflow storage/docflow/inbox storage/docflow/processed \
-           storage/docflow/duplicates storage/docflow/error \
-           storage/prx212_file_storage storage/prx212_file_storage/files; do
+for dir in storage/prx212_file_storage storage/prx212_file_storage/files; do
     if [[ -L "$ROOT/$dir" ]]; then
         printf 'storage: каталог не может быть symlink: %s\n' "$ROOT/$dir" >&2
         exit 1

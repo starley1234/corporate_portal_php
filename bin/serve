@@ -22,4 +22,4 @@ if [[ -z "$PHP_BIN" ]]; then
 fi
 
 echo "==> http://0.0.0.0:${PORT}  (docroot: public_html, PHP: $("$PHP_BIN" -r 'echo PHP_VERSION;'))"
-exec "$PHP_BIN" -S "0.0.0.0:${PORT}" -t "$ROOT/public_html" "$ROOT/bin/router.php"
+exec "$PHP_BIN" -d upload_max_filesize=10M -d post_max_size=12M -S "0.0.0.0:${PORT}" -t "$ROOT/public_html" "$ROOT/bin/router.php"

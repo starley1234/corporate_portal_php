@@ -3,17 +3,47 @@ from prx_workers.handlers import HANDLERS
 from prx_workers.llm import scan_providers
 
 
-def test_only_foundation_handlers_are_registered():
+def test_only_active_handlers_are_registered():
     assert set(HANDLERS) == {
+        "document.extract",
         "echo",
         "embeddings.index",
         "llm.summarize",
         "semantic.index",
-        # документооборот prx390–prx394
-        "doc.normalize",
-        "doc.analyze",
-        "doc.draft",
     }
+
+
+def test_disabled_legacy_channels_do_not_stop_pdf_worker(monkeypatch, caplog):
+    from prx_workers import __main__ as worker
+    from prx_workers.config import Config
+
+    config = Config(queue_mode="pg", pg_dsn="postgres://example", channels=["echo", "document.extract", "doc.normalize", "doc.draft"])
+    monkeypatch.setattr(worker.Config, "load", lambda: config)
+    monkeypatch.setattr(worker, "setup_logging", lambda: None)
+    monkeypatch.setattr(worker, "make_queue", lambda _: None)
+
+    async def off(_token):
+        return False
+
+    class Worker:
+        def __init__(self, config, _queue, handlers):
+            assert config.channels == ["echo", "document.extract"]
+            assert handlers == HANDLERS
+
+        async def run(self):
+            pass
+
+    monkeypatch.setattr(worker, "docflow_enabled", off)
+    monkeypatch.setattr(worker, "BaseWorker", Worker)
+    assert worker.main() == 0
+    assert "Пропущены выключенные каналы: doc.draft, doc.normalize" in caplog.text
+
+
+def test_only_requested_legacy_channels_return_with_switch():
+    from prx_workers.handlers import active_handlers
+
+    assert set(active_handlers(True)) - set(HANDLERS) == {"doc.normalize", "doc.analyze"}
+    assert active_handlers(False) == HANDLERS
 
 
 def test_worker_transport_is_not_an_llm_provider(monkeypatch):
@@ -34,9 +64,9 @@ def test_pg_mode_may_keep_http_token_for_callbacks():
 
 
 def test_platform_model_falls_back_to_default_llm_model(monkeypatch):
-    import prx_workers.llm as llm
+    from prx_workers import providers
 
-    monkeypatch.setattr(llm, "scan_providers", lambda: {})
+    monkeypatch.setattr(providers, "scan_providers", lambda: {})
     monkeypatch.setenv("DEFAULT_LLM_MODEL", "local::platform-27b")
     from prx_workers.config import Config
 

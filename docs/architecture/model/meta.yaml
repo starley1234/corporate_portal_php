@@ -2,8 +2,8 @@
 # Источник истины — этот каталог; страница и JSON собираются из YAML.
 # Правьте YAML, затем: make architecture
 
-title: PRX · архитектура портала
-heading: PRX — архитектура портала
+title: PRX · архитектура платформы
+heading: PRX — архитектура платформы
 subtitle: "Модульный монолит Kohana/PHP 8.4: RBAC, PostgreSQL, очередь prx120 и Python-воркеры. Документация собирается из YAML."
 sections:
   - { dir: architecture, label: "Архитектура", role: primary }

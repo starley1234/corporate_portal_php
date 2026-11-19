@@ -9,12 +9,14 @@
     echo View::factory('partials/page_header', [
         'crumbs' => [['Кабинет', '/dashboard'], ['Документооборот'], ['Входящие']],
         'title' => 'Входящие документы',
-        'pill' => ['prx390 · приём', 'fa-inbox'],
+        'pill' => ['Тестовый режим', 'fa-inbox'],
         'actions' => $can_manage ? [
+            ['html' => '<form method="post" action="/inbox/upload"><input type="hidden" name="csrf" value="'.HTML::chars($csrf).'">'
+                .'<button class="prx-btn-process" type="submit" name="sample" value="1"><i class="fas fa-play"></i>Принять пробное письмо</button></form>'],
             ['html' => $scan_form],
             ['label' => 'Реестр', 'href' => '/documents', 'icon' => 'fa-folder-open', 'role' => 'secondary'],
         ] : [['label' => 'Реестр', 'href' => '/documents', 'icon' => 'fa-folder-open', 'role' => 'secondary']],
-        'lead' => 'PDF из папки на сервере: проверка, дедупликация по SHA-256, файл в prx212 и распознанный текст. Карточку создаёт реестр — приём можно показывать отдельно.',
+        'lead' => 'Нажмите «Принять пробное письмо» или загрузите свой тестовый PDF. После распознавания появится карточка в реестре. Не используйте реальные документы на этом стенде.',
     ]);
     echo View::factory('partials/docflow_flash', ['flash' => $flash]);
     ?>
@@ -121,7 +123,7 @@
                         </tr>
                     <?php endforeach; ?>
                     <?php if (empty($messages)): ?>
-                        <tr><td colspan="6" class="text-center text-gray-500 dark:text-gray-400">Пока пусто. Положите PDF в папку и нажмите «Сканировать папку».</td></tr>
+                        <tr><td colspan="6" class="text-center text-gray-500 dark:text-gray-400">Пока пусто. Примите пробное письмо или загрузите PDF.</td></tr>
                     <?php endif; ?>
                     </tbody>
                 </table>
@@ -170,7 +172,6 @@
             <section class="prx-card">
                 <h2 class="text-base font-semibold text-gray-900 dark:text-white"><i class="fas fa-circle-info mr-2 text-blue-500"></i>Что дальше</h2>
                 <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">После текста документ автоматически появляется в <a class="text-blue-600 hover:underline dark:text-blue-400" href="/documents">реестре</a>. Разбор ИИ запускается в карточке или на странице <a class="text-blue-600 hover:underline dark:text-blue-400" href="/analysis">ИИ-разбор</a>.</p>
-                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Демонстрационные PDF лежат в <code class="break-all font-mono">application/modules/prx390_intake/demo/</code>; команда <code class="font-mono">make docflow-demo</code> копирует их в папку входящих.</p>
             </section>
         </aside>
     </div>

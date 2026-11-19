@@ -47,14 +47,14 @@ class Controller_Prx120_Monitor extends Controller_Prx100_Base {
             $act    = (string) $this->request->post('act');
             $job_id = (int) $this->request->post('job_id');
 
-            // действия массового действия (kill_stale/clear) не требуют job_id
-            $mass_act = in_array($act, ['kill_stale', 'clear'], TRUE);
+            // Общие операции и новая проверка не требуют job_id.
+            $needs_id = ! in_array($act, ['kill_stale', 'clear', 'probe'], TRUE);
 
             if ( ! Security::check((string) $this->request->post('csrf')))
             {
                 $flash = 'Сессия устарела — попробуйте ещё раз';
             }
-            elseif ($job_id <= 0 AND ! $mass_act)
+            elseif ($job_id <= 0 AND $needs_id)
             {
                 $flash = 'Не указана задача';
             }
@@ -64,6 +64,11 @@ class Controller_Prx120_Monitor extends Controller_Prx100_Base {
                 {
                     switch ($act)
                     {
+                        case 'probe':
+                            [$id] = Service_Prx120_Probe::submit();
+                            $flash = 'PHP поставил проверку #'.$id.' (echo). Дождитесь результата Python в списке задач.';
+                            break;
+
                         case 'clear':
                             $n = $queue->clear_all();
                             $flash = $n > 0 ? 'Очищено записей: '.$n : 'Очищать нечего (очередь пуста)';

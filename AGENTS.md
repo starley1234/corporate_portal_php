@@ -1,4 +1,4 @@
-# PRX — правила разработки корпоративного портала
+# PRX — правила разработки платформы ИИ-сервисов
 
 ## Проект
 PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind/jQuery,
@@ -8,8 +8,9 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
 ## Вход в задачу
 - Реестр подключённых модулей: `application/config/modules.php`.
 - Карта сервисов: `application/config/portal.php`, `docs/ROADMAP.md` — 50 из
-  карты плюс домен `docflow` (`prx390`–`prx394`), всего 55.
-  Статус `planned` не означает работающий модуль.
+  отложенного портального плана плюс старый документооборот. `prx390`–`prx393`
+  подключаются только на стенде одним блоком в `application/bootstrap.php`; `prx394` в архиве. Новый фокус —
+  API-пайплайны для корпоративных систем: `docs/AI-DOCUMENT-PIPELINES.md`.
 - Архитектура: `docs/ARCHITECTURE.md`, модель и схемы — `docs/architecture/model`
   (`make architecture`, страница `/architecture`); создание: `docs/MODULE_GUIDE.md`.
 - Дизайн: `docs/DESIGN-SYSTEM.md`, `.tools/tailwind/input.css`, `app.js`.
@@ -35,8 +36,6 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
    `ACL::check` даёт RBAC; объектные ограничения/оргконтекст проверяет сервис.
    Скрытая кнопка не является защитой. Чужие записи — 403/404; гостевой API —
    401 JSON. Worker callback проверяет токен отдельно и не принимает его из UI.
-   Общий контракт worker-API — `Controller_Prx39x_Api`: наследник задаёт только
-   `_token_prefix()`, остальное (X-Worker-Token, JSON-тело, `_halt`) — в базе.
 5. Персональные, кадровые и производственные документы не складывать в общий
    технический RAG-кэш `prx560`. Для корпоративного RAG нужны ACL-aware
    коллекции, фильтрация и проверка доступа перед ответом. LLM не определяет права.
@@ -49,8 +48,6 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
    задайте `PRX_DEFAULT_ADMIN=0` и создайте администратора через `make seed`.
 8. LLM/эмбеддинги и тяжёлые операции — очередь `prx120_jobs`; общий код воркера
    `workers/prx_workers/{base,llm,llmwatch,usage,webread}.py` не дублировать.
-   Единственное исключение — `prx398_vlm_demo`: синхронная AJAX-витрина VLM
-   без очереди и БД; это демонстрация, production-путь должен идти через prx120.
    Heartbeat, retry, cancel, usage сохраняются. Новый канал регистрируется в
    Python HANDLERS и в манифесте PHP-владельца.
 9. Внешние JS/CSS/шрифты в HTML запрещены: только локальные ресурсы

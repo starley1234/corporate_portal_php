@@ -16,7 +16,7 @@ return [
     'group' => 'Документооборот',
     'sort' => 392,
     'status' => 'beta',
-    'audience' => 'auth',
+    'audience' => 'admin',
     'acl' => 'prx392.view',
     'keywords' => 'ии анализ документа тип реквизиты краткое содержание риск извлечение llm',
     'api' => ['/prx392/api/health'],

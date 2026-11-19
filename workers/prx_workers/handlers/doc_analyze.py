@@ -44,8 +44,8 @@ def parse_json_reply(text: str) -> dict:
 
     try:
         data = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"модель вернула не JSON: {exc}; начало: {raw[:180]!r}") from exc
+    except json.JSONDecodeError:
+        raise ValueError("модель вернула невалидный JSON") from None
 
     if not isinstance(data, dict):
         raise ValueError("ответ модели должен быть JSON-объектом")

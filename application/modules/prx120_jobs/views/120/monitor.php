@@ -40,6 +40,12 @@ $v = $verdict[$health['verdict']] ?? $verdict['idle'];
             <a href="/prx120/workers" class="prx-btn-secondary prx-btn-sm">
                 <i class="fas fa-book text-xs"></i>Документация воркеров
             </a>
+            <form method="post" action="/prx120/monitor" class="inline">
+                <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
+                <button type="submit" name="act" value="probe" class="prx-btn-secondary prx-btn-sm">
+                    <i class="fas fa-heart-pulse text-xs"></i>Проверить воркер
+                </button>
+            </form>
             <?php if ((int) $stale > 0): ?>
             <!-- Зависшие задачи: чистятся одним кликом -->
             <form data-njmon-ajax method="post" action="/prx120/monitor<?php echo $p !== '' ? '?p='.$p : ''; ?>" class="inline">

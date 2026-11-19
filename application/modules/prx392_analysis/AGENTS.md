@@ -1,5 +1,7 @@
 # prx392_analysis — ИИ-разбор входящих
 
+> Тестовый контур: раскомментируйте общий блок в `application/bootstrap.php`; UI только для администратора. См. `docs/QUICK-CHECK.md`.
+
 ## Состояние
 
 MVP: профиль `classify_extract_v1`, прогоны `prx_392_runs`, предложения

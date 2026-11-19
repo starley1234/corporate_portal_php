@@ -17,12 +17,15 @@ class ManifestRegistryTest extends TestCase {
         $channels = Manifest::channels();
         $keys = array_keys($channels);
         sort($keys);
-        $this->assertSame(['doc.analyze', 'doc.draft', 'doc.normalize', 'echo', 'embeddings.index', 'llm.summarize', 'semantic.index'], $keys);
+        $expected = ['document.extract', 'echo', 'embeddings.index', 'llm.summarize', 'semantic.index'];
+        $modules = Kohana::modules();
+        if (isset($modules['prx392_analysis'])) $expected[] = 'doc.analyze';
+        if (isset($modules['prx390_intake'])) $expected[] = 'doc.normalize';
+        sort($expected);
+        $this->assertSame($expected, $keys);
+        $this->assertSame('prx395_document_extract', $channels['document.extract']['module']);
         $this->assertSame('prx115_semantic', $channels['semantic.index']['module']);
         $this->assertSame('prx120_jobs', $channels['echo']['module']);
-        $this->assertSame('prx390_intake', $channels['doc.normalize']['module']);
-        $this->assertSame('prx392_analysis', $channels['doc.analyze']['module']);
-        $this->assertSame('prx394_drafts', $channels['doc.draft']['module']);
     }
 
     public function test_technical_rag_is_not_a_global_search_source(): void
@@ -37,12 +40,13 @@ class ManifestRegistryTest extends TestCase {
     {
         $services = [];
         $active = [];
+        $archived = [];
         foreach ((array) Kohana::$config->load('portal')->get('domains') as $domain)
         {
             foreach ($domain['services'] as $service)
             {
                 $services[] = $service['module'];
-                $this->assertContains($service['status'], ['planned', 'active']);
+                $this->assertContains($service['status'], ['planned', 'active', 'archived']);
                 if ($service['status'] === 'active')
                 {
                     $active[] = $service['module'];
@@ -51,14 +55,18 @@ class ManifestRegistryTest extends TestCase {
                 else
                 {
                     $this->assertArrayNotHasKey($service['module'], Kohana::modules());
+                    if ($service['status'] === 'archived') { $archived[] = $service['module']; }
                 }
             }
         }
         $this->assertCount(55, array_unique($services));
-        $this->assertSame([
-            'prx300_employee', 'prx390_intake', 'prx391_documents',
-            'prx392_analysis', 'prx393_workflow', 'prx394_drafts',
-        ], $active);
+        $optional = ['prx390_intake', 'prx391_documents', 'prx392_analysis', 'prx393_workflow'];
+        $loaded = array_intersect($optional, array_keys(Kohana::modules()));
+        $enabled = $loaded !== [];
+        $this->assertSame($enabled ? $optional : [], $loaded, 'Подключайте старый документооборот целым блоком');
+        $this->assertSame(array_merge(['prx300_employee'], $enabled ? $optional : []), $active);
+        $this->assertSame(array_merge($enabled ? [] : $optional, ['prx394_drafts']), $archived);
+        $this->assertArrayNotHasKey('prx398_vlm_demo', Kohana::modules());
     }
 
     public function test_acl_is_deny_by_default(): void

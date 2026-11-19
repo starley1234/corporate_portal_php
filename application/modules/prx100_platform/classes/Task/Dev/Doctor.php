@@ -104,9 +104,7 @@ class Task_Dev_Doctor extends Minion_Task {
     protected function _check_dirs()
     {
         $dirs = ['application/cache', 'application/logs', 'application/sessions',
-                 'storage', 'storage/prx212_file_storage/files',
-                 'storage/docflow/inbox', 'storage/docflow/processed',
-                 'storage/docflow/duplicates', 'storage/docflow/error'];
+                 'storage', 'storage/prx212_file_storage/files'];
         foreach ($dirs as $dir)
         {
             $path = rtrim(dirname(APPPATH), '/').'/'.$dir;

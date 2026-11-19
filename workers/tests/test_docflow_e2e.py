@@ -19,7 +19,7 @@ from urllib.parse import urlparse
 
 import pytest
 
-from prx_workers.handlers import doc_analyze, doc_draft, doc_normalize
+from prx_workers.handlers import doc_analyze, doc_normalize
 from prx_workers.llm import LlmClient, Provider
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -151,33 +151,3 @@ def test_analyze_against_mock_llm_routes(mock_llm, monkeypatch):
     assert posted["result"]["fields"]["amount"]["value"]
     assert posted["tokens"] > 0
     assert result["duration_ms"] >= 0
-
-
-def test_draft_against_mock_llm_routes(mock_llm, monkeypatch):
-    posted = {}
-
-    async def fake_get(prefix, path, **kwargs):
-        return True, "ok", {
-            "model": "local::mock-llm",
-            "messages": [{"role": "user", "content": "Составь проект ответа на претензию"}],
-            "citations": [{"page": 1, "quote": "1 245 000,00"}],
-        }
-
-    async def fake_post(prefix, path, body, **kwargs):
-        posted.update(body)
-        posted["_path"] = path
-        return True, "ok", {"saved": True}
-
-    monkeypatch.setattr(doc_draft.site, "get_json", fake_get)
-    monkeypatch.setattr(doc_draft.site, "post_json", fake_post)
-
-    client = _llm(mock_llm)
-    result = asyncio.run(doc_draft.handle(Ctx(client), {"draft_id": 4}))
-    asyncio.run(client.close())
-
-    expected = json.loads((DEMO / "mock" / "draft.json").read_text(encoding="utf-8"))
-    assert posted["_path"] == "/result/4"
-    assert posted["body"] == expected["body"]
-    assert len(posted["body"]) >= 40
-    assert posted["citations"][0]["page"] == 1
-    assert result["chars"] == len(posted["body"])

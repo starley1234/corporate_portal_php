@@ -25,16 +25,7 @@ return [
     'prx212_file_storage' => APPPATH.'modules/prx212_file_storage',
     'prx218_module_manager' => APPPATH.'modules/prx218_module_manager',
     'prx300_employee' => APPPATH.'modules/prx300_employee',
-    // Документооборот prx390–prx394: приём → реестр → ИИ-разбор → сроки → ответы.
-    // Порядок важен: prx390 создаёт конверт, prx391 — карточку, остальные
-    // подписываются на события предыдущих.
-    'prx390_intake' => APPPATH.'modules/prx390_intake',
-    'prx391_documents' => APPPATH.'modules/prx391_documents',
-    'prx392_analysis' => APPPATH.'modules/prx392_analysis',
-    'prx393_workflow' => APPPATH.'modules/prx393_workflow',
-    'prx394_drafts' => APPPATH.'modules/prx394_drafts',
-    // Демо VLM-разбора PDF: браузерный PDF.js + синхронный AJAX, без worker/БД.
-    'prx398_vlm_demo' => APPPATH.'modules/prx398_vlm_demo',
+    'prx395_document_extract' => APPPATH.'modules/prx395_document_extract',
     'prx560_knowledge' => APPPATH.'modules/prx560_knowledge',
     'prx595_useradmin' => APPPATH.'modules/prx595_useradmin',
     'prx597_notifications' => APPPATH.'modules/prx597_notifications',

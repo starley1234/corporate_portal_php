@@ -79,7 +79,7 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
             'can_edit' => $this->can('prx391.edit'),
             'can_run_ai' => $this->can('prx392.run'),
             'can_route' => $this->can('prx393.manage'),
-            'can_draft' => $this->can('prx394.draft'),
+            'can_draft' => class_exists('Service_Prx394_Drafts') && $this->can('prx394.draft'),
             'analysis' => $analysis,
             'runs' => $runs,
             'deadline' => $deadline,

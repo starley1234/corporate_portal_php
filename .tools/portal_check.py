@@ -13,7 +13,9 @@ def check(condition, message):
         errors.append(message)
 
 registry = (ROOT / 'application/config/modules.php').read_text()
-registered = re.findall(r"'([^']+)' => (APP|MOD)PATH\.'([^']+)'", registry)
+bootstrap = (ROOT / 'application/bootstrap.php').read_text()
+# Учитываем и закомментированный стендовый блок: проверяем пути объявлений, а не состояние PHP.
+registered = re.findall(r"'([^']+)' => (APP|MOD)PATH\.'([^']+)'", registry + '\n' + bootstrap)
 check(bool(registered), 'Пустой реестр модулей')
 for name, kind, relative in registered:
     path = ROOT / ('application' if kind == 'APP' else 'modules') / relative
@@ -23,20 +25,28 @@ check(registry.index("'prx208_events'") < registry.index("'prx120_jobs'"), 'Ши
 check((ROOT / 'docs/architecture/model/meta.yaml').is_file(), 'Нет модели docs/architecture/model/meta.yaml')
 check((ROOT / 'docs/architecture/dist/architecture.html').is_file(), 'Нет собранной docs/architecture/dist/architecture.html')
 check((ROOT / 'docs/architecture/dist/architecture.json').is_file(), 'Нет собранной docs/architecture/dist/architecture.json')
-check("config/modules.php" in (ROOT / 'application/bootstrap.php').read_text(), 'Bootstrap обходит реестр')
+check("config/modules.php" in bootstrap, 'Bootstrap обходит реестр')
 
 plan = (ROOT / 'application/config/portal.php').read_text()
-plan_entries = re.findall(r"'module' => '(prx\d+_[a-z_]+)',\s*'title' => '[^']+',\s*'status' => '(planned|active)'", plan)
+plan_entries = re.findall(r"'module' => '(prx\d+_[a-z_]+)',\s*'title' => '[^']+',\s*'status' => ('(?:planned|active|archived)'|\$docflow_status)", plan)
+plan_entries = [(name, status.strip("'")) for name, status in plan_entries]
 planned = [name for name, _status in plan_entries]
 active_services = [name for name, status in plan_entries if status == 'active']
+archived_services = [name for name, status in plan_entries if status == 'archived']
 check(len(planned) == 55, 'План должен содержать 55 сервисов')
 check(len(set(planned)) == 55, 'Дубли в плане')
 check(len({re.search(r'\d+', name)[0] for name in planned}) == 55, 'Дубли ID в плане')
 for name, status in plan_entries:
     exists = (ROOT / 'application/modules' / name).exists()
-    registered_service = f"'{name}' =>" in registry
+    registered_service = name in {entry[0] for entry in registered}
     if status == 'active':
         check(exists and registered_service, f'Активный сервис не реализован/не подключён: {name}')
+    elif status == '$docflow_status':
+        check(exists and registered_service, f'Нет условного модуля стенда: {name}')
+    elif status == 'archived':
+        check(not exists and not registered_service, f'Архивный сервис подключён: {name}')
+        check((ROOT / 'archive/docflow/application/modules' / name / 'config/prx_module.php').is_file(),
+              f'Не найден архивный манифест: {name}')
     else:
         check(not exists and not registered_service, f'Planned-сервис ошибочно подключён: {name}')
 
@@ -72,7 +82,7 @@ for path in (ROOT / 'workers/prx_workers').rglob('*.py'):
         check(bool(match), f'Нет CHANNEL в {path.name}')
         if match:
             channel_names.append(match[1])
-check(set(channel_names) == {'echo', 'embeddings.index', 'llm.summarize', 'semantic.index', 'doc.normalize', 'doc.analyze', 'doc.draft'}, 'Лишние/потерянные worker-каналы')
+check(set(channel_names) == {'doc.analyze', 'doc.normalize', 'document.extract', 'echo', 'embeddings.index', 'llm.summarize', 'semantic.index'}, 'Лишние/потерянные worker-каналы')
 manifest_text = '\n'.join(p.read_text() for p in (ROOT / 'application/modules').glob('*/config/prx_module.php'))
 for channel in channel_names:
     check(f"'{channel}'" in manifest_text, f'Канал не объявлен в манифесте: {channel}')
@@ -88,4 +98,8 @@ check('portal:maintain' in (ROOT / 'docs/WORKERS.md').read_text(), 'Не опи�
 if errors:
     print('\n'.join('FAIL: ' + item for item in errors))
     sys.exit(1)
-print(f'PRX contracts OK: {len(registered)} registered modules, {len(classes)} PHP classes, {len(active_services)} active + {55 - len(active_services)} planned services, {len(channel_names)} worker channels')
+optional_count = sum(status == '$docflow_status' for _, status in plan_entries)
+planned_count = sum(status == 'planned' for _, status in plan_entries)
+print(f'PRX contracts OK: {len(registered)} available modules, {len(classes)} PHP classes, '
+      f'{len(active_services)} active + {optional_count} optional + {len(archived_services)} archived + '
+      f'{planned_count} planned services, {len(channel_names)} available worker channels')

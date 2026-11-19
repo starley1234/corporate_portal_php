@@ -22,13 +22,13 @@
     $__is_service = ((bool) preg_match('~^/(prx[0-9]+|dashboard|auth|tasks|migrate_pg|prefs|update|prx[0-9a-z_]*|cron)(/|$)~i', $__path)
         OR stripos($__path, '/admin') !== FALSE);
 ?>
-    <title><?php echo HTML::chars(isset($title) && $title ? $title : 'PRX — корпоративный портал'); ?></title>
+    <title><?php echo HTML::chars(isset($title) && $title ? $title : 'PRX — платформа ИИ-сервисов'); ?></title>
     <meta name="description" content="<?php echo HTML::chars(isset($meta['description']) && $meta['description'] ? $meta['description'] : 'Единое рабочее пространство сотрудников холдинга.'); ?>">
-    <meta name="keywords" content="<?php echo HTML::chars(isset($meta['keywords']) && $meta['keywords'] ? $meta['keywords'] : 'корпоративный портал, PRX'); ?>">
+    <meta name="keywords" content="<?php echo HTML::chars(isset($meta['keywords']) && $meta['keywords'] ? $meta['keywords'] : 'ИИ-сервисы, PRX'); ?>">
     <meta name="robots" content="noindex, nofollow">
     <link rel="canonical" href="<?php echo HTML::chars($__canonical); ?>">
 
-    <meta property="og:title" content="<?php echo HTML::chars(isset($title) && $title ? $title : 'PRX — корпоративный портал'); ?>">
+    <meta property="og:title" content="<?php echo HTML::chars(isset($title) && $title ? $title : 'PRX — платформа ИИ-сервисов'); ?>">
     <meta property="og:description" content="<?php echo HTML::chars(isset($meta['description']) && $meta['description'] ? $meta['description'] : 'Сервисы сотрудников, знания и коммуникации.'); ?>">
     <meta property="og:type" content="website">
     <meta property="og:url" content="<?php echo HTML::chars($__canonical); ?>">

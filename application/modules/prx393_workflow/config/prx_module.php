@@ -16,7 +16,7 @@ return [
     'group' => 'Документооборот',
     'sort' => 393,
     'status' => 'beta',
-    'audience' => 'auth',
+    'audience' => 'admin',
     'acl' => 'prx393.view',
     'keywords' => 'срок дедлайн маршрут исполнитель календарь просрочка эскалация',
     'api' => ['/prx393/api/health'],

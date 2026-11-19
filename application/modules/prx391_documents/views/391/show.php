@@ -65,7 +65,7 @@ echo View::factory('partials/docflow_flash', ['flash' => $flash]);
 
 <?php include __DIR__.'/partials/sla_sidebar.php'; ?>
 
-<?php include __DIR__.'/partials/drafts_sidebar.php'; ?>
+<?php if ($can_draft) include __DIR__.'/partials/drafts_sidebar.php'; ?>
 
 <?php include __DIR__.'/partials/journal_sidebar.php'; ?>
         </aside>

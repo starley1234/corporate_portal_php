@@ -20,16 +20,22 @@ class PortalNavigationTest extends TestCase
         $this->assertStringNotContainsString('href="/account/security"', $sidebar);
     }
 
-    public function test_removed_services_remain_in_the_catalog_for_an_authorized_user(): void
+    public function test_catalog_excludes_archived_and_deleted_services_even_for_admin(): void
     {
         $admin = ['guest' => FALSE, 'logged' => TRUE, 'roles' => ['login', 'admin'], 'admin' => TRUE, 'agent' => TRUE];
         $items = Service_Prx110_Catalog::search_json($admin)['items'];
         $hrefs = array_column($items, 'href');
         foreach ([
-            '/architecture', '/design-lab', '/prx560', '/employee', '/inbox',
-            '/documents', '/analysis', '/sla', '/replies', '/vlm-demo', '/prx597', '/account/security',
+            '/architecture', '/design-lab', '/prx560', '/employee', '/prx597', '/account/security', '/document-extract',
         ] as $href) {
             $this->assertContains($href, $hrefs, $href);
+        }
+        foreach (['/replies', '/vlm-demo'] as $href) {
+            $this->assertNotContains($href, $hrefs, $href);
+        }
+        $modules = Kohana::modules();
+        foreach (['/inbox' => 'prx390_intake', '/documents' => 'prx391_documents', '/analysis' => 'prx392_analysis', '/sla' => 'prx393_workflow'] as $href => $module) {
+            $this->assertSame(isset($modules[$module]), in_array($href, $hrefs, TRUE), $href);
         }
         foreach ($items as $item) {
             $this->assertArrayHasKey('nav_paths', $item);
@@ -37,8 +43,10 @@ class PortalNavigationTest extends TestCase
 
         $login = ['guest' => FALSE, 'logged' => TRUE, 'roles' => ['login'], 'admin' => FALSE, 'agent' => FALSE];
         $login_hrefs = array_column(Service_Prx110_Catalog::search_json($login)['items'], 'href');
-        $this->assertContains('/inbox', $login_hrefs);
-        $this->assertNotContains('/prx560', $login_hrefs);
+        $this->assertContains('/employee', $login_hrefs);
+        foreach (['/prx560', '/document-extract', '/inbox', '/documents', '/analysis', '/sla'] as $href) {
+            $this->assertNotContains($href, $login_hrefs);
+        }
 
         $guest = ['guest' => TRUE, 'logged' => FALSE, 'roles' => [], 'admin' => FALSE, 'agent' => FALSE];
         $guest_hrefs = array_column(Service_Prx110_Catalog::search_json($guest)['items'], 'href');

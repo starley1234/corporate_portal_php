@@ -12,21 +12,19 @@ python3 -m pip install -r workers/requirements.txt
 cd workers && python3 -m prx_workers
 ```
 
-Настройки — `workers/.env` (процесс важнее файла). `WORKER_QUEUE_MODE=pg|http`,
-`WORKER_PG_DSN`, `PRX120_API_URL`, `WORKER_API_TOKEN`, `WORKER_CHANNELS`,
-`WORKER_CONCURRENCY`, `WORKER_POLL_INTERVAL`. Логи — `workers/logs/prx-worker.log`.
-Токен воркера должен совпадать с сайтом; разные серверы используют публичный
-адрес сайта, не localhost. В браузерном JS — только относительные URL.
+На одном сервере используются `APP_URL`, `DB_DEFAULT_*` и `WORKER_API_TOKEN`
+из корневого `.env`. `workers/.env` и переменные systemd могут их переопределить.
+Даже `pg`-воркер обращается к PHP по HTTP. `python -m prx_workers --check-site`
+проверяет адрес и токен без постановки задач. Подробности — в
+[инструкции для systemd](systemd-сервис.md). В браузере — относительные URL.
 
 | Канал | Что делает |
 |---|---|
-| `echo` | Дымовая проверка runtime |
+| `echo` | Живая проверка PHP → Python → PHP (`prx120:probe` / монитор) |
+| `document.extract` | Извлекает текст из PDF, возвращает квитанцию после записи в prx395 |
 | `llm.summarize` | LLM-запрос из payload, возвращает текст |
 | `embeddings.index` | Возвращает sample векторов для инфраструктурных задач |
 | `semantic.index` | Индексирует тексты коллекции prx115 через PG или HTTP |
-| `doc.normalize` | PDF/текст из prx212 → текстовый слой (pypdf; OCR, если <100 осмысленных символов) |
-| `doc.analyze` | Карточка-предложение по тексту; ответ только JSON (`parse_json_reply`) |
-| `doc.draft` | Проект ответа по шаблону и карточке; кладёт текст в prx394 |
 
 Секреты и адреса моделей — окружение, не payload. Общие клиенты `llm.py`,
 реестр провайдеров `providers.py`, сторожа `watchdogs.py`, watchdog
@@ -35,73 +33,17 @@ cd workers && python3 -m prx_workers
 Для HTTP-доставки semantic.index нужны `PRX115_API_BASE`, `PRX115_SITE_TOKEN`
 (или `WORKER_SITE_TOKEN`). В PG-режиме индексация пишет в БД напрямую.
 
-### Документооборот (prx390–prx394)
+### Распознавание документов
 
-Полезная нагрузка содержит только ID, секреты и токены в очередь не кладутся:
-`{"message_id": N}` → `doc.normalize`, `{"run_id": N}` → `doc.analyze`,
-`{"draft_id": N}` → `doc.draft`. Модель модуля — `PRX392_MODEL` /
-`PRX394_MODEL`; если они пусты, берётся `DEFAULT_LLM_MODEL` платформы
-(`PRX394` сначала наследует `PRX392_MODEL`). Префикс — `local::` для
-собственного сервера или `toolforge::` для корпоративного шлюза. Для оффлайн-демо
-есть `workers/mock/mock_llm_server.py` и `MOCK_LLM_ROUTES`; сценарий и три PDF —
-в [демо prx390](../application/modules/prx390_intake/demo/README.md). Если
-`pypdf` и активный OCR не дали текста, `doc.normalize` честно падает в ошибку,
-а не отдаёт пустой текст.
+`doc.normalize` и `doc.analyze` включаются только на тестовом стенде после
+раскомментирования общего блока в `application/bootstrap.php`; `doc.draft` выключен.
+[Быстрая проверка в UI](QUICK-CHECK.md).
 
-Входящая папка по умолчанию — `storage/docflow/inbox` в корне проекта;
-`processed`, `duplicates` и `error` находятся рядом. Её сканирует PHP, а не
-Python-воркер: используйте кнопку `/inbox` или отдельное задание от того же
-пользователя, что имеет доступ к приватному storage. Например:
-
-```cron
-* * * * * cd /srv/portal && flock -n /srv/portal/application/cache/prx390-scan.lock bin/console prx390:scan --limit=50 >> /srv/portal/application/logs/prx390-scan.log 2>&1
-```
-
-Пути и пользователь в примере должны быть адаптированы к серверу. Задание
-сканирования и `portal:maintain` — разные процессы; сам Python-воркер ни одно
-из них не запускает. На время переноса storage остановите все три и любые
-загрузки: [порядок миграции](ENVIRONMENT.md#перенос-существующего-public_htmlstorage).
-
-Диагностика `doc.normalize` при `WORKER_LOG_LEVEL=INFO` пишет в журнал
-`job_id`, `message_id`, `file_id`, этапы, происхождение конфигурации и
-классификацию сетевых ошибок; PHP пишет события `prx390_diag`. Значения токенов,
-имена файлов, тексты и тела ответов в эти события не включаются. Другие и
-старые журналы могут содержать частные данные: отбирайте нужные строки и
-проверяйте их перед отправкой. Пошаговый прогон одного PDF, сбор journalctl и
-сопоставление с PHP-логом — [инструкция systemd, шаг 7](systemd-сервис.md#шаг-7-прогон-одного-pdf-и-сбор-диагностики).
-Это диагностика обработки PDF, а не реализация ещё отсутствующего IMAP-канала.
-
-Для новых документов автоматически запускается назначение срока; сбой слушателя
-может оставить карточку без срока, а прежние пропуски не исправляются при
-обновлении кода. Порядок сверки, ограничения ручного пересчёта и осторожное
-включение исторических DB-подписок шины — в [ENVIRONMENT.md](ENVIRONMENT.md#существующие-db-подписки-и-сроки-документов).
-Дефекты срока и шины сами по себе не объясняют сетевой `ConnectError` воркера.
-
-### OCR: локальный Tesseract и внешний сервис
-
-`doc.normalize` сначала читает текстовый слой через pypdf. Если в нём меньше
-100 осмысленных символов (букв/цифр) или он похож на мусор, вызывается
-активный OCR-провайдер из `prx_workers/ocr_client.py`:
-
-| Переменная | Значение |
-|---|---|
-| `OCR_PROVIDER` | `tesseract` (по умолчанию, dev) или `remote` (prod) |
-| `OCR_SERVICE_URL` | например `http://ocr.internal:8000/v1/extract` |
-| `OCR_TIMEOUT` | таймаут HTTP в секундах, по умолчанию `120` |
-| `OCR_API_KEY` | опциональный токен; по умолчанию `Authorization: Bearer <key>` |
-| `OCR_AUTH_HEADER_NAME` | например `X-API-Key`: отправить сырой ключ в этом заголовке |
-| `OCR_EXTRA_PARAMS` | JSON-объект параметров парсинга, уходит в `data=` |
-| `OCR_EXTRA_HEADERS` | JSON-объект дополнительных HTTP-заголовков |
-
-Remote отправляет PDF как `multipart/form-data`: поле `file`, имя
-`document.pdf`, `Content-Type: application/pdf`; параметры из
-`OCR_EXTRA_PARAMS` добавляются в `data=`. Ответ — JSON
-`{"text": "<markdown>", "pages": 3, "engine": "docling|mineru|paddleocr",
-"confidence": 0.93|null}`. Сеть, таймаут, 4xx/5xx и невалидный JSON — инцидент
-в логе и `engine="failed", text=""`; тело ответа и документ в лог не пишутся.
-Tesseract работает через `pdftoppm` + `tesseract` с `OMP_THREAD_LIMIT=1`;
-PNG живут в `TemporaryDirectory` и удаляются даже при ошибке. Внешний сервис
-не заменяет локальный fallback автоматически: провайдер выбирается окружением.
+Канал `document.extract` поддерживает локальный `tesseract` и `remote` для
+`/parse` с ответом `content`. Запускается только отдельным Python-процессом;
+даже при PG-очереди доступ к сайту нужен для выдачи PDF и приёмки результата.
+Инструкция запуска, проверка через `echo` и диагностика стадий:
+[PDF → текст](integrations/document-extractions.md).
 
 ## Обслуживание и уведомления
 

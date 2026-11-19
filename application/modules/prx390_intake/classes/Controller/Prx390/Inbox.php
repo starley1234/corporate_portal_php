@@ -49,6 +49,14 @@ class Controller_Prx390_Inbox extends Controller_Prx39x_Base
         $this->_require('prx390.manage');
 
         $this->_post(function () {
+            if ($this->request->post('sample') === '1')
+            {
+                $path = dirname(__DIR__, 3).'/demo/01_claim_romashka.pdf';
+                $sample = Service_Prx390_Intake::receive_path($path, 'upload', $this->_actor(), 'Пробное письмо.pdf');
+                return $sample['state'] === 'duplicate'
+                    ? 'Пробное письмо уже принято (#'.$sample['message_id'].'). Обновлять его можно кнопкой повтора в журнале.'
+                    : 'Пробное письмо #'.$sample['message_id'].' в очереди. Обновите страницу, затем откройте карточку в реестре.';
+            }
             if (empty($_FILES['file']))
             {
                 throw new InvalidArgumentException('Выберите PDF-файл');

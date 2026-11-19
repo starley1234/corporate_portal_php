@@ -1,0 +1,44 @@
+title: ИИ-пайплайн · PDF → текст
+overview:
+  lead: >-
+    **PRX отвечает за обработку, корпоративная система — за решение.** prx395 — модуль
+    монолита, без реестра, сроков, LLM и зависимостей от архивного документооборота.
+  blocks:
+    - scheme:
+        size: [1150, 490]
+        nodes:
+          - { id: client, at: [135, 150, 190], label: СЭД / ERP, sub: ключ интеграции, kind: ext }
+          - { id: extraction, at: [390, 150, 200], label: prx395 · PHP API, sub: idempotency и ACL объекта, kind: core }
+          - { id: storage, at: [390, 330, 200], label: prx212 · файлы, sub: исходный PDF и текст, kind: data }
+          - { id: queue, at: [655, 150, 200], label: prx120 · очередь, sub: статус и квитанция без текста, kind: queue }
+          - { id: worker, at: [935, 150, 210], label: Python · document.extract, sub: PG или HTTP claim, kind: queue }
+          - { id: ocr, at: [935, 330, 210], label: OCR-провайдер, sub: Tesseract / HTTP parse, kind: ai }
+        edges:
+          - client -> extraction: { label: POST / GET }
+          - extraction -> storage: { label: приватные артефакты }
+          - extraction -> queue: { label: push / status }
+          - queue -> worker: { label: claim }
+          - worker -> ocr: { label: PDF }
+          - worker --> extraction: { label: внутренний API с токеном }
+        hint: Ключ интеграции не даёт доступа к worker API. Результат выдаётся только своему клиенту после complete с квитанцией той же попытки.
+    - cards:
+        - title: Проверка контура
+          text: Главная → Распознавание PDF → пробный файл. Отдельная проверка очереди — echo из монитора.
+          color: "#10b981"
+          chips: [prx120, document.extract]
+        - title: Хранение
+          text: Исходник и текст закрыты в prx212; после 24 часов API их скрывает, отдельная CLI-задача удаляет артефакты.
+          color: "#6366f1"
+          chips: [prx395, prx212, TTL]
+detail:
+  lead: >-
+    **Операционные границы.** Прогоны по каналу document.extract не требуют модели LLM,
+    но даже PG-воркеру нужен сетевой доступ к PHP для чтения и записи артефактов.
+  blocks:
+    - table:
+        head: [Этап, Контракт, Диагностика]
+        rows:
+          - [Приём, PDF до 10 MiB и ключ идемпотентности, 'HTTP 202 означает постановку, а не успех OCR']
+          - [Воркер, claim / progress / complete, 'Статусы и попытки: /prx120/monitor']
+          - [OCR, 'До 20 страниц: постраничный локальный или HTTP /parse', Стабильные коды отказов без содержимого]
+          - [Результат, 'Текст до 1 MiB и метаданные', 'Текст в prx212; prx395:purge по таймеру']

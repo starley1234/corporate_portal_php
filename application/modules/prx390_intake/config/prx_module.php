@@ -16,7 +16,7 @@ return [
     'group' => 'Документооборот',
     'sort' => 390,
     'status' => 'beta',
-    'audience' => 'auth',
+    'audience' => 'admin',
     'acl' => 'prx390.view',
     'keywords' => 'входящие документы приём папка pdf сканы распознавание текст конверт',
     'api' => ['/prx390/api/health'],

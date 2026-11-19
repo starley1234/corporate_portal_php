@@ -38,18 +38,18 @@ class FavoritesTest extends TestCase
     {
         $ctx = $this->login_context();
         $this->with_users(function ($first, $second) use ($ctx) {
-            $this->assertTrue(Service_Prx110_Favorites::set($first, '/inbox', TRUE, $ctx));
-            $this->assertTrue(Service_Prx110_Favorites::set($first, '/documents', TRUE, $ctx));
-            $this->assertTrue(Service_Prx110_Favorites::set($first, '/inbox', TRUE, $ctx));
-            $this->assertTrue(Service_Prx110_Favorites::set($second, '/documents', TRUE, $ctx));
-            $this->assertSame(['/inbox', '/documents'], array_column(Service_Prx110_Favorites::items($first, $ctx), 'href'));
-            $this->assertSame(['/documents'], array_column(Service_Prx110_Favorites::items($second, $ctx), 'href'));
-            $this->assertTrue(Service_Prx110_Favorites::set($first, '/inbox', FALSE, $ctx));
-            $this->assertSame(['/documents'], array_column(Service_Prx110_Favorites::items($first, $ctx), 'href'));
-            $this->assertSame(['/documents'], array_column(Service_Prx110_Favorites::items($second, $ctx), 'href'));
+            $this->assertTrue(Service_Prx110_Favorites::set($first, '/employee', TRUE, $ctx));
+            $this->assertTrue(Service_Prx110_Favorites::set($first, '/prx597', TRUE, $ctx));
+            $this->assertTrue(Service_Prx110_Favorites::set($first, '/employee', TRUE, $ctx));
+            $this->assertTrue(Service_Prx110_Favorites::set($second, '/prx597', TRUE, $ctx));
+            $this->assertSame(['/employee', '/prx597'], array_column(Service_Prx110_Favorites::items($first, $ctx), 'href'));
+            $this->assertSame(['/prx597'], array_column(Service_Prx110_Favorites::items($second, $ctx), 'href'));
+            $this->assertTrue(Service_Prx110_Favorites::set($first, '/employee', FALSE, $ctx));
+            $this->assertSame(['/prx597'], array_column(Service_Prx110_Favorites::items($first, $ctx), 'href'));
+            $this->assertSame(['/prx597'], array_column(Service_Prx110_Favorites::items($second, $ctx), 'href'));
             DB::delete('users')->where('id', '=', $first)->execute();
             $this->assertSame([], Service_Prx110_Favorites::items($first, $ctx));
-            $this->assertSame(['/documents'], array_column(Service_Prx110_Favorites::items($second, $ctx), 'href'));
+            $this->assertSame(['/prx597'], array_column(Service_Prx110_Favorites::items($second, $ctx), 'href'));
         });
     }
 
@@ -59,16 +59,16 @@ class FavoritesTest extends TestCase
         $admin = $this->admin_context();
         $this->with_users(function ($first) use ($login, $admin) {
             $this->assertTrue(Service_Prx110_Favorites::set($first, '/prx560', TRUE, $admin));
-            $this->assertTrue(Service_Prx110_Favorites::set($first, '/inbox', TRUE, $admin));
-            $this->assertSame(['/inbox'], array_column(Service_Prx110_Favorites::items($first, $login), 'href'));
-            $this->assertSame(['/prx560', '/inbox'], array_column(Service_Prx110_Favorites::items($first, $admin), 'href'));
+            $this->assertTrue(Service_Prx110_Favorites::set($first, '/employee', TRUE, $admin));
+            $this->assertSame(['/employee'], array_column(Service_Prx110_Favorites::items($first, $login), 'href'));
+            $this->assertSame(['/prx560', '/employee'], array_column(Service_Prx110_Favorites::items($first, $admin), 'href'));
             $this->assertFalse(Service_Prx110_Favorites::set($first, '/prx560', TRUE, $login));
-            foreach (['//evil.test', 'https://evil.test', '/not-a-service', '/services', "/inbox\n"] as $href) {
+            foreach (['//evil.test', 'https://evil.test', '/not-a-service', '/inbox', '/services', "/employee\n"] as $href) {
                 $this->assertFalse(Service_Prx110_Favorites::set($first, $href, TRUE, $login), $href);
             }
             // Удалить свою невидимую запись можно, но только по своему user_id.
             $this->assertTrue(Service_Prx110_Favorites::set($first, '/prx560', FALSE, $login));
-            $this->assertSame(['/inbox'], array_column(Service_Prx110_Favorites::items($first, $admin), 'href'));
+            $this->assertSame(['/employee'], array_column(Service_Prx110_Favorites::items($first, $admin), 'href'));
         });
     }
 
@@ -76,15 +76,15 @@ class FavoritesTest extends TestCase
     {
         $ctx = $this->login_context();
         $this->with_users(function ($first, $second) use ($ctx) {
-            Service_Prx110_Favorites::set($first, '/documents', TRUE, $ctx);
+            Service_Prx110_Favorites::set($first, '/prx597', TRUE, $ctx);
             $result = Service_Prx110_Favorites::import($first,
-                ['/inbox', '/prx560', '//evil.test', '/documents', '/inbox'], $ctx);
+                ['/employee', '/prx560', '//evil.test', '/prx597', '/employee'], $ctx);
             $this->assertSame(['added' => 1, 'skipped' => 2], $result);
-            $this->assertSame(['/documents', '/inbox'], array_column(Service_Prx110_Favorites::items($first, $ctx), 'href'));
+            $this->assertSame(['/prx597', '/employee'], array_column(Service_Prx110_Favorites::items($first, $ctx), 'href'));
             $this->assertSame([], Service_Prx110_Favorites::items($second, $ctx));
-            $this->assertSame(['added' => 0, 'skipped' => 0], Service_Prx110_Favorites::import($first, ['/inbox'], $ctx));
+            $this->assertSame(['added' => 0, 'skipped' => 0], Service_Prx110_Favorites::import($first, ['/employee'], $ctx));
             $rejected = FALSE;
-            try { Service_Prx110_Favorites::import($first, array_fill(0, 101, '/inbox'), $ctx); }
+            try { Service_Prx110_Favorites::import($first, array_fill(0, 101, '/employee'), $ctx); }
             catch (InvalidArgumentException $e) { $rejected = TRUE; }
             $this->assertTrue($rejected);
         });

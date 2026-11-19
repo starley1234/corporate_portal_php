@@ -59,6 +59,7 @@ services:
     environment:
       KOHANA_ENV: ${KOHANA_ENV:-development}
       DB_DEFAULT_HOST: postgres
+      DB_DEFAULT_PORT: "5432"
       APP_INTERNAL_HOSTS: ${APP_INTERNAL_HOSTS:-nginx}
     volumes:
       - .:/var/www
@@ -93,10 +94,13 @@ services:
     profiles: ["workers"]
     env_file: .env
     environment:
-      WORKER_PG_DSN: postgres://${DB_DEFAULT_USER:-prx}:${DB_DEFAULT_PASS:-prx}@postgres:5432/${DB_DEFAULT_NAME:-prx}
+      DB_DEFAULT_HOST: postgres
+      DB_DEFAULT_PORT: "5432"
+      WORKER_PG_DSN: "" # В контейнере используется DB_DEFAULT_* с внутренним адресом postgres.
       PRX120_API_URL: http://nginx/prx120/api
       PRX120_API_BASE: http://nginx
       PRX115_API_BASE: http://nginx/prx115/api
+      PRX395_DOCUMENT_EXTRACT_CLIENTS: '{}'
       WORKER_NAME: ${WORKER_NAME:-worker-1}
       WORKER_CHANNELS: ${WORKER_CHANNELS:-}
     volumes:
@@ -106,6 +110,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      nginx:
+        condition: service_started
     init: true
 
   # --- Инструменты (профиль tools) ---------------------------------------------

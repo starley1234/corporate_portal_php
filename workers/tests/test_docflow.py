@@ -1,4 +1,4 @@
-"""Документооборот prx390–prx394: чистые функции без сайта и модели."""
+"""Документооборот prx390–prx393: чистые функции без сайта и модели."""
 from __future__ import annotations
 
 import json
@@ -44,9 +44,3 @@ def test_mock_replies_are_valid_doc_card():
         data = json.loads((DEMO / "mock" / f"{name}.json").read_text(encoding="utf-8"))
         assert required <= set(data), name
         assert data["risk"]["level"] in {"low", "medium", "high"}
-
-
-def test_mock_draft_has_body_and_citations():
-    data = json.loads((DEMO / "mock" / "draft.json").read_text(encoding="utf-8"))
-    assert len(data["body"]) > 40
-    assert isinstance(data["citations"], list)

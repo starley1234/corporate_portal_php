@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import asyncio
 import logging
 import os
@@ -11,9 +12,10 @@ from pathlib import Path
 
 from .base import BaseWorker
 from .config import Config
-from .handlers import HANDLERS
+from .handlers import ARCHIVED_CHANNELS, LEGACY_CHANNELS, active_handlers
+from .site_check import docflow_enabled
 from .queue import make_queue
-from .site import safe_origin
+from .site import module_api_config, safe_origin
 
 # Корень воркеров (…/workers) — рядом лежат .env, README и каталог логов.
 WORKERS_ROOT = Path(__file__).resolve().parents[1]
@@ -166,10 +168,26 @@ def main() -> int:
     log_file = setup_logging()
 
     problems = config.validate()
+    requested = set(config.channels)
+    handlers = active_handlers()
+    unknown_channels = sorted(requested - handlers.keys() - LEGACY_CHANNELS - ARCHIVED_CHANNELS)
+    if unknown_channels:
+        problems.append("WORKER_CHANNELS: неизвестные каналы: " + ", ".join(unknown_channels)
+                        + ". Уберите их или оставьте WORKER_CHANNELS пустым.")
     if problems:
         for p in problems:
             logging.error("Конфигурация: %s", p)
         return 2
+
+    if (not requested or requested & LEGACY_CHANNELS) and asyncio.run(docflow_enabled(config.api_token)):
+        handlers = active_handlers(True)
+    disabled = requested - handlers.keys()
+    if disabled:
+        logging.warning("Пропущены выключенные каналы: %s", ", ".join(sorted(disabled)))
+        config.channels = [channel for channel in config.channels if channel in handlers]
+        if not config.channels:
+            logging.error("Нет разрешённых каналов. Уберите WORKER_CHANNELS или укажите echo,document.extract.")
+            return 2
 
     # Стартовая строка: по ней видно, с чем воркер подняли — и куда прислать
     # лог, а заодно чем приглушён шум (иначе «почему нет запросов httpx» —
@@ -179,13 +197,16 @@ def main() -> int:
                  log_file or "(только stderr)",
                  ", ".join(_quiet_loggers()) or "—",
                  ", ".join(skip) or "—")
-    site_url = os.getenv("PRX120_API_BASE", "") or os.getenv("PRX646_API_BASE", "")
-    logging.info("Очередь: %s · каналы: %s · сайт: %s",
+    site_url, source = module_api_config("PRX395_DOCUMENT_EXTRACT", "/prx395/worker")
+    logging.info("Очередь: %s · каналы: %s · PHP: %s (%s)",
                  config.queue_mode,
                  ",".join(config.channels) or "все",
-                 safe_origin(site_url) if site_url else "(не задан)")
+                 safe_origin(site_url), source)
+    if "doc.normalize" in (config.channels or handlers):
+        legacy_base, legacy_source = module_api_config("PRX390", "/prx390/api")
+        logging.info("PHP для doc.normalize: %s (%s)", safe_origin(legacy_base), legacy_source)
 
-    worker = BaseWorker(config, make_queue(config), HANDLERS)
+    worker = BaseWorker(config, make_queue(config), handlers)
     try:
         asyncio.run(worker.run())
     except KeyboardInterrupt:
@@ -194,4 +215,20 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="PRX Python worker")
+    parser.add_argument("--check-site", action="store_true", help="проверить HTTP-связь с PHP, не забирая задачи")
+    args = parser.parse_args()
+    if args.check_site:
+        from .config import load_environment
+        from .site_check import check_site
+
+        try:
+            load_environment(WORKERS_ROOT)
+        except RuntimeError as exc:
+            print(exc, file=sys.stderr)
+            sys.exit(2)
+        logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+        sys.exit(asyncio.run(check_site(os.getenv("WORKER_API_TOKEN", "").strip(),
+                                         legacy=None)))
     sys.exit(main())

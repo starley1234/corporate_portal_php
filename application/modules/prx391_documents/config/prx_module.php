@@ -13,7 +13,7 @@ return [
     'group' => 'Документооборот',
     'sort' => 391,
     'status' => 'beta',
-    'audience' => 'auth',
+    'audience' => 'admin',
     'acl' => 'prx391.view',
     'keywords' => 'реестр документов карточка входящего корреспондент реквизиты номер дата',
     'api' => ['/prx391/api/health'],
