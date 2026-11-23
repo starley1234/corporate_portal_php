@@ -44,9 +44,9 @@ for name, status in plan_entries:
     elif status == '$docflow_status':
         check(exists and registered_service, f'Нет условного модуля стенда: {name}')
     elif status == 'archived':
+        # Архивная папка удалена: архивный сервис — это запись в плане,
+        # которая не должна существовать в коде и не должна быть подключена.
         check(not exists and not registered_service, f'Архивный сервис подключён: {name}')
-        check((ROOT / 'archive/docflow/application/modules' / name / 'config/prx_module.php').is_file(),
-              f'Не найден архивный манифест: {name}')
     else:
         check(not exists and not registered_service, f'Planned-сервис ошибочно подключён: {name}')
 
