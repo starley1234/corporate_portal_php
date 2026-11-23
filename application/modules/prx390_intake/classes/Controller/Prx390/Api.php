@@ -43,18 +43,12 @@ class Controller_Prx390_Api extends Controller_Prx39x_Api
                 return $this->_json(['ok' => FALSE, 'error' => 'Файл не найден'], 404);
             }
 
-            $path = Service_Prx212_Storage::instance()->getFilePath((int) $file['file_id']);
-            if ( ! $path OR ! is_file($path))
+            // file_id взят из своей записи prx390 — права на объект уже проверены.
+            $content = Storage::bytes((int) $file['file_id']);
+            if ($content === NULL)
             {
                 Log_Plain::event(Log::WARNING, 'prx390_diag stage=file_get result=storage_missing file_id=:id', [':id' => $id]);
                 return $this->_json(['ok' => FALSE, 'error' => 'Физический файл не найден'], 404);
-            }
-
-            $content = @file_get_contents($path);
-            if ($content === FALSE)
-            {
-                Log_Plain::event(Log::ERROR, 'prx390_diag stage=file_get result=read_error file_id=:id', [':id' => $id]);
-                return $this->_json(['ok' => FALSE, 'error' => 'Не удалось прочитать файл'], 500);
             }
         }
         catch (Throwable $e)

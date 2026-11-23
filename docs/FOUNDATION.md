@@ -1,22 +1,23 @@
 # Фундамент платформы
 
 Что уже есть и как этим пользоваться. Коротко: классы `Prx_*` (actor, policy,
-SQL, идемпотентность), фасад `Event::publish()`, один guard и один набор
-партиалов. Всё остальное — поверх них.
+SQL, идемпотентность), фасады `Event::publish()` и `Storage::`, один guard и один
+набор партиалов. Всё остальное — поверх них.
 
 <!-- context-index:begin -->
 <!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index docs/FOUNDATION.md --write. Руками не править. -->
 | Раздел | Строка | Размер |
 |---|---|---|
-|   1. Доступ: actor → policy → сервис | 33 | 1,7 КБ |
-|   2. SQL: именованные параметры и транзакции | 61 | 2,1 КБ |
-|     Идемпотентность | 77 | 1,2 КБ |
-|   3. События | 96 | 1,6 КБ |
-|   4. POST и CSRF | 123 | 1,0 КБ |
-|   5. Манифест — контракт модуля | 138 | 0,5 КБ |
-|   6. Страница: page-kit | 151 | 0,7 КБ |
-|   7. Новый модуль | 166 | 0,4 КБ |
-|   8. Гейты | 176 | 1,0 КБ |
+|   1. Доступ: actor → policy → сервис | 35 | 1,7 КБ |
+|   2. SQL: именованные параметры и транзакции | 63 | 2,1 КБ |
+|     Идемпотентность | 79 | 1,2 КБ |
+|   3. События | 98 | 1,8 КБ |
+|   5. Файлы: фасад `Storage::` | 127 | 1,7 КБ |
+|   4. POST и CSRF | 152 | 1,0 КБ |
+|   6. Манифест — контракт модуля | 167 | 0,5 КБ |
+|   7. Страница: page-kit | 180 | 0,7 КБ |
+|   8. Новый модуль | 195 | 0,4 КБ |
+|   9. Гейты | 205 | 1,0 КБ |
 <!-- context-index:end -->
 | нужен | берём | где |
 |---|---|---|
@@ -25,6 +26,7 @@ SQL, идемпотентность), фасад `Event::publish()`, один gu
 | «можно ли ему эту запись» | `Prx_Policy` + политика модуля | `application/classes/Prx/Policy.php` |
 | SQL и транзакции | `Prx_Db` | `application/classes/Prx/Db.php` |
 | доменное событие | `Event` | `application/classes/Event.php` |
+| файл | `Storage` | `application/classes/Storage.php` |
 | защита POST | `Prx_PostGuard` | `application/classes/Prx/PostGuard.php` |
 | идемпотентный ключ | `Prx_Idempotency` | `application/classes/Prx/Idempotency.php` |
 | каркас страницы | page-kit | `application/views/partials/{page_header,filters,empty_state,flash}.php` |
@@ -114,11 +116,38 @@ Event::listen('prx312.claim.approved', function ($payload, $event_name, $initiat
 - Если `prx208_events` не подключён, событие пропускается с предупреждением,
   а не роняет запрос.
 
-Именование: `Event` — канонический фасад без префикса. `Prx_*` — только классы
-фундамента (`Actor`, `Policy`, `Db`, `PostGuard`, `Idempotency`, `Principal`,
-`Exception`); код модулей — `Service_/Controller_/Policy_/Task_/Model_PrxNNN_*`.
-Публикация мимо фасада запрещена — `.tools/portal_check.py` (в `make check`)
-ловит её в `application/**`.
+Именование: `Event` и `Storage` — канонические фасады без префикса. `Prx_*` —
+только классы фундамента (`Actor`, `Policy`, `Db`, `PostGuard`, `Idempotency`,
+`Principal`, `Exception`); код модулей — `Service_/Controller_/Policy_/Task_/
+Model_PrxNNN_*`; `Service_Prx212_*` и другие сервисы — внутренности своих модулей.
+Публикация мимо `Event` и обращение к `Service_Prx212_*`/`Model_Prx212_*`/
+`ORM::factory('Prx212…')` вне prx212 запрещены — `.tools/portal_check.py`
+(в `make check`) ловит это в `application/**`.
+
+## 5. Файлы: фасад `Storage::`
+
+```php
+// элемент $_FILES или ['tmp_name', 'name', 'size', 'type']; кто действует — явный
+$file_id = Storage::save($_FILES['doc'], 'prx312_claims', $actor->id());
+$file_id = Storage::put($text, 'result.txt', 'prx312_claims');   // строка → файл
+
+$bytes = Storage::bytes($file_id);        // содержимое целиком: локальный диск или S3
+$meta  = Storage::metadata($file_id);     // id, filename, extension, mime_type, size, hash,
+                                          // is_public, module, created_at, url
+$url   = Storage::url($file_id, $actor->id());
+Storage::delete($file_id, $actor->id());
+```
+
+- Сессия не читается: `$user_id` — явный аргумент, `NULL` — гость/система.
+- Фасад не решает права на объект: `file_id` берётся из своей авторизованной
+  записи (документ, письмо), права проверяет вызывающий модуль. Файловые правила
+  (владелец, публичность) применяет только `delete()`.
+- Приватные артефакты внутренних пайплайнов (файл без пользователя, не публичный):
+  `read_owned`, `delete_owned`, `owned_ids_before` с префиксом своего модуля.
+- `prx212_file_storage` не подключён: `save`/`put`/`delete*` бросают
+  `Storage_Exception`, чтение возвращает `NULL`/`FALSE`/`[]`.
+- Наружу не отдаются `storage_path`, `backend_id` и ORM — замена prx212 не
+  меняет вызывающие модули.
 
 ## 4. POST и CSRF
 
@@ -135,7 +164,7 @@ Event::listen('prx312.claim.approved', function ($payload, $event_name, $initiat
 `<input type="hidden" name="csrf" value="<?= HTML::chars(Security::token()) ?>">`.
 Проверка: `python3 .tools/js_csrf_lint.py` + `tests/Js/prx_csrf.test.mjs` (fetch, XHR, Request с body, гость, чужой origin).
 
-## 5. Манифест — контракт модуля
+## 6. Манифест — контракт модуля
 
 `config/prx_module.php` обязателен и проверяется статически:
 
@@ -148,7 +177,7 @@ Event::listen('prx312.claim.approved', function ($payload, $event_name, $initiat
 `status`: draft|beta|stable|deprecated. `audience`: public|auth|admin|agent.
 `python3 .tools/manifest_check.py`.
 
-## 6. Страница: page-kit
+## 7. Страница: page-kit
 
 Собирается из четырёх партиалов, в этом порядке:
 
@@ -163,7 +192,7 @@ echo View::factory('partials/flash', ['flash' => $flash]);
 Разметку фильтров, пустых состояний и flash не копировать в модуль.
 `python3 .tools/design_audit.py --module prxXXX` проверяет вёрстку.
 
-## 7. Новый модуль
+## 8. Новый модуль
 
 ```bash
 make new-module id=312 slug=claims name="Заявки" entity=Claim
@@ -173,7 +202,7 @@ make new-module id=312 slug=claims name="Заявки" entity=Claim
 тест политики и `AGENTS.md`. Модуль не подключается сам: включите его в
 `application/config/modules.php`, затем `make migrate && make check`.
 
-## 8. Гейты
+## 9. Гейты
 
 `make check` — одна команда перед пушем:
 

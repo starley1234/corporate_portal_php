@@ -482,21 +482,12 @@ class Service_Prx390_Intake
 
     protected static function _store_file($path, $name, $user_id)
     {
-        if ( ! class_exists('Service_Prx212_Storage'))
-        {
-            throw new RuntimeException('Модуль хранения файлов prx212 не подключён');
-        }
-
-        $id = Service_Prx212_Storage::instance()->save([
+        $id = Storage::save([
             'tmp_name' => $path,
             'name' => $name,
             'size' => filesize($path),
             'type' => 'application/pdf',
-        ], [
-            'user_id' => $user_id ?: NULL,
-            'module' => 'prx390',
-            'is_public' => 0,
-        ]);
+        ], 'prx390', $user_id ?: NULL);
 
         return (int) $id;
     }

@@ -139,8 +139,10 @@ class Controller_MyModule_Example extends Controller_Prx100_Base {
     -   Это позволяет модулям Audit, Notify и Storage работать автоматически.
 
 3.  **Хранилище (Storage)**:
-    -   Загрузка файлов: `$file_id = Storage::upload($_FILES['doc'], 'prx[ID]_module_name')`.
-    -   Получение ссылки: `Storage::url($file_id)`.
+    -   Загрузка файла: `$file_id = Storage::save($_FILES['doc'], 'prx[ID]_module_name', $actor->id())`.
+    -   Строка как файл: `$file_id = Storage::put($text, 'result.txt', 'prx[ID]_module_name')`.
+    -   Содержимое и ссылка: `Storage::bytes($file_id)`, `Storage::url($file_id, $actor->id())`.
+    -   `Service_Prx212_Storage` снаружи не вызывается — только фасад (`docs/FOUNDATION.md` §5).
 
 4.  **Уведомления (Notify)**:
     -   Отправка уведомлений: `Notify::send($user, 'template_code', ['var' => 'val'])` (почта/TG/push).

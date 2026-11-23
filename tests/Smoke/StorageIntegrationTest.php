@@ -49,6 +49,7 @@ class StorageIntegrationTest extends TestCase
                 $path = $service->getFilePath($file_id);
                 $this->assertStringStartsWith($root.'/'.$module.'/', $path);
                 $this->assertSame('тестовый файл', file_get_contents($path));
+                $this->assertSame('тестовый файл', Storage::bytes($file_id)); // фасад поверх того же backend
                 clearstatcache(TRUE, $path);
                 $this->assertSame(0600, fileperms($path) & 0777);
                 $this->assertFalse($service->getFileForDownload($file_id, NULL));

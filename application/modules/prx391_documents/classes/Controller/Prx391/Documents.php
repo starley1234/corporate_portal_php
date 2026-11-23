@@ -157,8 +157,9 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
             throw HTTP_Exception::factory(403, 'Нет доступа к файлу');
         }
 
-        $path = Service_Prx212_Storage::instance()->getFilePath($file_id);
-        if ( ! $path OR ! is_file($path))
+        // Доступ к документу проверен выше; file_id взят из записи prx390.
+        $content = Storage::bytes($file_id);
+        if ($content === NULL)
         {
             throw HTTP_Exception::factory(404, 'Физический файл не найден');
         }
@@ -168,8 +169,8 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
             ->status(200)
             ->headers('Content-Type', $file['mime'] ?: 'application/pdf')
             ->headers('Content-Disposition', 'attachment; filename="'.basename($file['filename']).'"')
-            ->headers('Content-Length', (string) filesize($path))
-            ->body(file_get_contents($path));
+            ->headers('Content-Length', (string) strlen($content))
+            ->body($content);
 
         return $this->response;
     }

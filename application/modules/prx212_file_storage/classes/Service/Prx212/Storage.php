@@ -385,19 +385,28 @@ class Service_Prx212_Storage {
     }
 
     /**
-     * Удаление файла
+     * Удаление файла. $user_id — кто удаляет (NULL — гость): файловое право
+     * (владелец) проверяет _check_permission, право на объект — вызывающий модуль.
      */
-    public function delete($file_id)
+    public function delete($file_id, ?int $user_id = NULL)
     {
         $file = ORM::factory('Prx212_File', $file_id);
         if (!$file->loaded() || $file->deleted_at !== NULL) return FALSE;
 
-        if (!$this->_check_permission($file, 'delete'))
+        if (!$this->_check_permission($file, 'delete', $user_id))
         {
             throw new Exception('Access denied for file ID '.$file_id);
         }
 
         return $this->_delete_file($file);
+    }
+
+    /** Байты файла любым бэкендом; NULL — файла нет. Права не проверяет: вызывающий проверил свою запись. */
+    public function read_bytes($file_id): ?string
+    {
+        $file = ORM::factory('Prx212_File', $file_id);
+        if ( ! $file->loaded() || $file->deleted_at !== NULL) return NULL;
+        return $this->_read_bytes($file, NULL);
     }
 
     /** Внутренний доступ: вызывающий модуль сам проверяет права на свой объект. */
@@ -406,11 +415,17 @@ class Service_Prx212_Storage {
         $file = $this->_owned_private_file($file_id, $module);
         if ($file === NULL) return NULL;
         if ((int) $file->file_size > $max_bytes) throw new RuntimeException('Артефакт превышает лимит чтения');
+        return $this->_read_bytes($file, $max_bytes);
+    }
+
+    /** Целиком и ровно file_size байт; $max_bytes NULL — без лимита. */
+    private function _read_bytes($file, ?int $max_bytes): string
+    {
         $source = $this->_prepare_file_data($file)['stream'];
         $stream = is_string($source) ? @fopen($source, 'rb') : $source;
         if ( ! is_resource($stream)) throw new RuntimeException('Артефакт prx212 недоступен');
         try {
-            $bytes = stream_get_contents($stream, $max_bytes + 1);
+            $bytes = stream_get_contents($stream, $max_bytes === NULL ? NULL : $max_bytes + 1);
             if ($bytes === FALSE || strlen($bytes) !== (int) $file->file_size) {
                 throw new RuntimeException('Не удалось прочитать артефакт prx212 целиком');
             }
@@ -726,12 +741,12 @@ class Service_Prx212_Storage {
         return (int) $config->get('upload_max_size') ?: 10485760;
     }
 
-    protected function _check_permission($file, $action)
+    /** Файловое право: владелец файла; гость (NULL) — отказ. Кто действует — явный аргумент, не сессия. */
+    protected function _check_permission($file, $action, ?int $user_id)
     {
         if (Kohana::$environment === Kohana::DEVELOPMENT) return TRUE;
-        $user = Auth::instance()->get_user();
-        if (!$user) return FALSE;
-        if ($file->user_id == $user->id) return TRUE;
+        if ($user_id === NULL) return FALSE;
+        if ($file->user_id == $user_id) return TRUE;
         if ($file->is_public && $action == 'read') return TRUE;
         return FALSE;
     }

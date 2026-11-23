@@ -35,7 +35,7 @@ Browser → PHP/HMVC → application/config/modules.php
 | `prx115_semantic` | Индексация, векторный/гибридный поиск, кэш запросов |
 | `prx120_jobs` | Очередь, task UI, мониторинг, heartbeat и бюджеты |
 | `prx208_events` | Шина событий, подписчики и журнал |
-| `prx212_file_storage` | Файлы, приватное хранение, ссылки/разрешения |
+| `prx212_file_storage` | Файлы, приватное хранение, ссылки/разрешения; снаружи — только фасад `Storage::` |
 | `prx218_module_manager` | Инвентаризация и метаданные жизненного цикла |
 | `prx300_employee` | Организации, площадки, подразделения, профиль сотрудника, внешние ID, сопоставление Auth↔сотрудник и delta-импорт HR-данных |
 | `prx395_document_extract` | PDF → текст асинхронно: машинный API, очередь prx120, приватные файлы prx212, ключи prx150 |
@@ -63,6 +63,10 @@ Browser → PHP/HMVC → application/config/modules.php
 5. **Манифест:** `config/prx_module.php`. Агрегаторы читают `Manifest`, а не
    знают списки чужих модулей. Владелец определяет SQL recent/search/cleanup,
    подписи каналов и ссылки. Метаданные не заменяют проверку HTTP/Service ACL.
+
+Файлы — тот же принцип: модули работают с ними только через фасад `Storage::`
+(`application/classes/Storage.php`, `$user_id` явный, права на объект — у вызывающего);
+`prx212_file_storage` владеет схемой и бэкендами, `Service_Prx212_*` — внутренний.
 
 Старый `docflow` (`prx390`–`prx393`) выключен по умолчанию и
 [включается для тестирования](QUICK-CHECK.md) одним блоком в `application/bootstrap.php`.

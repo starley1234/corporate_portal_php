@@ -41,15 +41,19 @@
 2.  **Обновить генерацию пути:**
 
 
-### Как использовать в фасаде `Storage`:
+### Как использовать через фасад `Storage`:
 
 ```php
 // Для модуля LIMS, который можно чистить
-Storage::upload($_FILES['report'], 'lims_temp');
+Storage::save($_FILES['report'], 'lims_temp', $actor->id());
 
 // Для модуля Бухгалтерия, который нельзя трогать
-Storage::upload($_FILES['invoice'], 'accounting_permanent');
+Storage::put($pdf, 'invoice.pdf', 'accounting_permanent');
+
+Storage::bytes($file_id);   // содержимое; Storage::url($file_id, $actor->id()); Storage::delete($file_id, $actor->id());
 ```
+
+Фасад передаёт префикс вторым аргументом — в сервис он попадает в `$metadata['module']`.
 
 ## Итоговый вердикт:
 1.  **Папки по 1000:** Делайте, если хотите идеальный порядок. Если решите делать — используйте `floor($file_id / 1000)`, но сначала `INSERT` в БД, а потом `UPDATE` пути после загрузки.

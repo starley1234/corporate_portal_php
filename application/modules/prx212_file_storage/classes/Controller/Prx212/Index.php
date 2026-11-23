@@ -119,7 +119,7 @@ class Controller_Prx212_Index extends Controller_Prx212_Main
             try {
                 $uploaded_files = Arr::get($_FILES, 'files', []);
                 if (empty($uploaded_files['name'][0])) {
-                    throw new Service_Prx212_Storage_Exception('Не выбраны файлы для загрузки.');
+                    throw new Storage_Exception('Не выбраны файлы для загрузки.');
                 }
 
                 $files_data = [];
@@ -145,7 +145,7 @@ class Controller_Prx212_Index extends Controller_Prx212_Main
                     }
                     $success_message = 'Файлы успешно загружены.';
                 }
-            } catch (Service_Prx212_Storage_Exception $e) {
+            } catch (Storage_Exception $e) {
                 $errors[] = $e->getMessage();
             } catch (Exception $e) {
                 $errors[] = 'Произошла непредвиденная ошибка: ' . $e->getMessage();

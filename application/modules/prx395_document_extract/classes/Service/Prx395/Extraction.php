@@ -18,14 +18,12 @@ class Service_Prx395_Extraction
 
     private Database $db;
     private Service_Prx120_JobQueue $queue;
-    private Service_Prx212_Storage $storage;
 
     public function __construct()
     {
         // JobQueue::push и INSERT регистрации должны использовать одно соединение.
         $this->db = Database::instance(Kohana::$config->load('prx120_jobs.db_group'));
         $this->queue = Service_Prx120_JobQueue::instance();
-        $this->storage = Service_Prx212_Storage::instance();
     }
 
     /** @param int $client ID ключа prx150; админка передаёт отрицательный ID пользователя */
@@ -53,7 +51,7 @@ class Service_Prx395_Extraction
 
         // ФС не откатывается вместе с PostgreSQL. Сохраняем через prx212 вне
         // транзакции; если ключ занят или транзакция не подтверждена — удаляем.
-        $file_id = (int) $this->storage->save($upload, ['module' => self::MODULE, 'is_public' => 0]);
+        $file_id = Storage::save($upload, self::MODULE);
 
         try
         {
@@ -149,7 +147,7 @@ class Service_Prx395_Extraction
             $result = is_string($receipt) && preg_match('/\A[a-f0-9]{32}\z/', $receipt)
                 ? $this->result_row($id, (int) $job['attempts'], $receipt) : NULL;
             if ( ! $result) throw new Prx395_Error('result_unavailable', 503);
-            $text = $this->storage->read_owned((int) $result['file_id'], self::MODULE, self::MAX_TEXT);
+            $text = Storage::read_owned((int) $result['file_id'], self::MODULE, self::MAX_TEXT);
             if ($text === NULL) throw new Prx395_Error('result_unavailable', 503);
             $response['result'] = ['text' => $text] + json_decode($result['metadata'], TRUE, 8, JSON_THROW_ON_ERROR);
         }
@@ -168,7 +166,7 @@ class Service_Prx395_Extraction
     public function read_pdf(int $id, int $attempt): string
     {
         $row = $this->check_lease($id, $attempt);
-        $bytes = $this->storage->read_owned((int) $row['file_id'], self::MODULE, self::MAX_PDF);
+        $bytes = Storage::read_owned((int) $row['file_id'], self::MODULE, self::MAX_PDF);
         if ($bytes === NULL || ! hash_equals($row['file_sha256'], hash('sha256', $bytes)))
             throw new Prx395_Error('file_unavailable', 410);
         return $bytes;
@@ -181,7 +179,7 @@ class Service_Prx395_Extraction
         $current = $this->result_row($id, $attempt);
         if ($current) return $current['receipt']; // повтор POST после потери ответа
         $receipt = bin2hex(random_bytes(16));
-        $file_id = (int) $this->storage->saveRaw($body['text'], 'result.txt', ['module' => self::MODULE], 'text/plain');
+        $file_id = Storage::put($body['text'], 'result.txt', self::MODULE, NULL, FALSE, 'text/plain');
         try {
             $this->check_lease($id, $attempt);
             $result = $this->one('INSERT INTO prx_395_results (job_id, attempt, receipt, file_id, metadata) '
@@ -251,14 +249,14 @@ class Service_Prx395_Extraction
                 Log_Plain::event(Log::ERROR, 'prx395 job_id=:id stage=purge error_type=:type', [':id' => $id, ':type' => get_class($e)]);
             }
         }
-        // Компенсация после SIGKILL между сохранением в storage и записью
+        // Компенсация после SIGKILL между сохранением в Storage и записью
         // ссылки в БД. Запас 48 ч больше любого TTL/таймаута нашего контура.
-        foreach ($this->storage->owned_file_ids_before(self::MODULE, 48) as $file_id)
+        foreach (Storage::owned_ids_before(self::MODULE, 48) as $file_id)
         {
             if ($this->one('SELECT 1 FROM prx_395_extractions WHERE file_id = '.$file_id
                 .' UNION ALL SELECT 1 FROM prx_395_results WHERE file_id = '.$file_id.' LIMIT 1')) continue;
             try {
-                if ( ! $this->storage->delete_owned($file_id, self::MODULE)) throw new RuntimeException('Артефакт не удалён');
+                if ( ! Storage::delete_owned($file_id, self::MODULE)) throw new RuntimeException('Артефакт не удалён');
                 $report['orphans']++;
             } catch (Throwable $e) {
                 $report['errors']++;
@@ -279,7 +277,7 @@ class Service_Prx395_Extraction
             {
                 $files = $this->db->query(Database::SELECT, 'SELECT file_id FROM prx_395_results WHERE job_id = '.$id, FALSE)->as_array();
                 foreach (array_merge([$row['file_id']], array_column($files, 'file_id')) as $file_id) {
-                    if ( ! $this->storage->delete_owned((int) $file_id, self::MODULE)) throw new RuntimeException('Артефакт не удалён');
+                    if ( ! Storage::delete_owned((int) $file_id, self::MODULE)) throw new RuntimeException('Артефакт не удалён');
                 }
                 $this->db->query(Database::DELETE, 'DELETE FROM prx_395_extractions WHERE job_id = '.$id, FALSE);
             }
@@ -294,7 +292,7 @@ class Service_Prx395_Extraction
     private function discard(int $file_id): void
     {
         try {
-            if ($this->storage->delete_owned($file_id, self::MODULE)) return;
+            if (Storage::delete_owned($file_id, self::MODULE)) return;
         } catch (Throwable $e) {
             // Не заменяем исходную ошибку; ID нужен оператору для уборки.
         }

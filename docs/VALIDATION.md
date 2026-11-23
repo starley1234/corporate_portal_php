@@ -6,38 +6,106 @@
 <!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index docs/VALIDATION.md --write. Руками не править. -->
 | Раздел | Строка | Размер |
 |---|---|---|
-|   23.11.2026 — единое `Event::publish`, legacy-диспетчер удалён | 41 | 5,5 КБ |
-|   23.11.2026 — организация ключа, платформенная идемпотентность, prx395 на контуре prx150 | 107 | 4,0 КБ |
-|   23.11.2026 — URL «префикс + слаг», API-доступ и OCR-шлюз | 155 | 3,2 КБ |
-|   23.11.2026 — workers/ по владельцам, страницы событий/логов/памятки | 195 | 2,5 КБ |
-|   23.11.2026 — чистка: перенос закладок, `archive/`, документация | 224 | 1,9 КБ |
-|   23.11.2026 — фундамент платформы и удаление витрины дизайна | 247 | 2,0 КБ |
-|   18.11.2026 — план предприятия и архив портала | 275 | 0,5 КБ |
-|   18.11.2026 — документооборот включён для проверки | 282 | 0,5 КБ |
-|   18.11.2026 — одна настройка документооборота в bootstrap | 289 | 0,8 КБ |
-|   18.11.2026 — настройки воркера на одном хосте и проверка PHP-связи | 298 | 1,2 КБ |
-|   18.11.2026 — подключение старого контура одним комментарием | 312 | 0,8 КБ |
-|   18.11.2026 — проверка через UI и переключатель документооборота | 322 | 1,5 КБ |
-|   18.11.2026 — PDF → текст: живой PHP и Python | 339 | 2,8 КБ |
-|   18.11.2026 — архив docflow и фокус на ИИ-пайплайнах | 364 | 2,1 КБ |
-|   Фактически выполнено 26.10.2026 | 386 | 3,6 КБ |
-|   Дополнение 27.10.2026 — расширение и корректировка `prx140_design_lab` | 410 | 2,9 КБ |
-|   Дополнение 27.10.2026 — рабочие страницы по эталону v6 | 429 | 2,6 КБ |
-|   HTTP и права (основной прогон 26.10.2026) | 450 | 2,7 КБ |
-|   Ограничения | 484 | 3,7 КБ |
-|   Документооборот prx390–prx394 (16.11.2026) | 518 | 1,9 КБ |
-|   Архитектура как код и первичный администратор (16.11.2026) | 543 | 1,5 КБ |
-|   Исправления после production-проверки (16.11.2026) | 561 | 0,8 КБ |
-|   Перестройка структуры (16.11.2026) | 571 | 0,7 КБ |
-|   VLM-демо prx398 (16.11.2026) | 581 | 2,1 КБ |
-|   OCR Provider для doc.normalize (16.11.2026) | 607 | 2,5 КБ |
-|   PRX-префикс и структурные швы (16.11.2026) | 640 | 4,1 КБ |
-|   Навигация, селекты и Design Lab №11 (17.11.2026) | 688 | 4,9 КБ |
-|   Избранное аккаунта (17.11.2026) | 735 | 4,3 КБ |
-|   Перенос storage из docroot (17.11.2026) | 774 | 3,8 КБ |
-|   Диагностика приёма и `doc.normalize` (17.11.2026) | 811 | 3,5 КБ |
-|   Сроки и подписки событий (17.11.2026) | 845 | 7,7 КБ |
+|   23.11.2026 — канонический фасад `Storage::`, prx390/391/395 больше не зовут prx212 | 42 | 6,5 КБ |
+|   23.11.2026 — единое `Event::publish`, legacy-диспетчер удалён | 109 | 5,5 КБ |
+|   23.11.2026 — организация ключа, платформенная идемпотентность, prx395 на контуре prx150 | 175 | 4,0 КБ |
+|   23.11.2026 — URL «префикс + слаг», API-доступ и OCR-шлюз | 223 | 3,2 КБ |
+|   23.11.2026 — workers/ по владельцам, страницы событий/логов/памятки | 263 | 2,5 КБ |
+|   23.11.2026 — чистка: перенос закладок, `archive/`, документация | 292 | 1,9 КБ |
+|   23.11.2026 — фундамент платформы и удаление витрины дизайна | 315 | 2,0 КБ |
+|   18.11.2026 — план предприятия и архив портала | 343 | 0,5 КБ |
+|   18.11.2026 — документооборот включён для проверки | 350 | 0,5 КБ |
+|   18.11.2026 — одна настройка документооборота в bootstrap | 357 | 0,8 КБ |
+|   18.11.2026 — настройки воркера на одном хосте и проверка PHP-связи | 366 | 1,2 КБ |
+|   18.11.2026 — подключение старого контура одним комментарием | 380 | 0,8 КБ |
+|   18.11.2026 — проверка через UI и переключатель документооборота | 390 | 1,5 КБ |
+|   18.11.2026 — PDF → текст: живой PHP и Python | 407 | 2,8 КБ |
+|   18.11.2026 — архив docflow и фокус на ИИ-пайплайнах | 432 | 2,1 КБ |
+|   Фактически выполнено 26.10.2026 | 454 | 3,6 КБ |
+|   Дополнение 27.10.2026 — расширение и корректировка `prx140_design_lab` | 478 | 2,9 КБ |
+|   Дополнение 27.10.2026 — рабочие страницы по эталону v6 | 497 | 2,6 КБ |
+|   HTTP и права (основной прогон 26.10.2026) | 518 | 2,7 КБ |
+|   Ограничения | 552 | 3,7 КБ |
+|   Документооборот prx390–prx394 (16.11.2026) | 586 | 1,9 КБ |
+|   Архитектура как код и первичный администратор (16.11.2026) | 611 | 1,5 КБ |
+|   Исправления после production-проверки (16.11.2026) | 629 | 0,8 КБ |
+|   Перестройка структуры (16.11.2026) | 639 | 0,7 КБ |
+|   VLM-демо prx398 (16.11.2026) | 649 | 2,1 КБ |
+|   OCR Provider для doc.normalize (16.11.2026) | 675 | 2,5 КБ |
+|   PRX-префикс и структурные швы (16.11.2026) | 708 | 4,1 КБ |
+|   Навигация, селекты и Design Lab №11 (17.11.2026) | 756 | 4,9 КБ |
+|   Избранное аккаунта (17.11.2026) | 803 | 4,3 КБ |
+|   Перенос storage из docroot (17.11.2026) | 842 | 3,8 КБ |
+|   Диагностика приёма и `doc.normalize` (17.11.2026) | 879 | 3,5 КБ |
+|   Сроки и подписки событий (17.11.2026) | 913 | 7,7 КБ |
 <!-- context-index:end -->
+## 23.11.2026 — канонический фасад `Storage::`, prx390/391/395 больше не зовут prx212
+
+**Фасад.** `application/classes/Storage.php` переписан начисто: `final class Storage`,
+только статические методы — `save(array $file, string $module, ?int $user_id = NULL,
+bool $is_public = FALSE): int`, `put(string $content, string $filename, string $module,
+?int $user_id = NULL, bool $is_public = FALSE, ?string $mime_type = NULL): int`,
+`bytes(int): ?string`, `metadata(int, ?int $user_id = NULL): ?array` (только `id, filename,
+extension, mime_type, size, hash, is_public, module, created_at, url`), `url(int, ?int $user_id = NULL,
+int $ttl = 3600): ?string`, `delete(int, ?int $user_id = NULL): bool`, `read_owned`, `delete_owned`,
+`owned_ids_before(string, int, int $limit = 100): array` (`int[]` — в docblock: PHP не знает такого
+типа, бриф перечислял его как тип). `upload()`, `path()`, возвраты ORM и `Auth::instance()` удалены.
+Внутри — `Service_Prx212_Storage` через `class_exists`; модуль не подключён: записи (`save`/`put`/
+`delete`/`delete_owned`) бросают `Storage_Exception` (`application/classes/Storage/Exception.php`,
+`extends RuntimeException`), чтение возвращает `NULL`/`FALSE`/`[]`. Любая ошибка хранилища при записи
+оборачивается в `Storage_Exception` (предыдущее исключение сохранено); сбой чтения — WARNING в
+`Kohana::$log` и `NULL`. Фасад не решает права на объект: `file_id` вызывающий берёт из своей
+авторизованной записи, файловые правила (владелец/публичность) применяет только `delete()`
+(docblock, `docs/FOUNDATION.md` §5, корневой `AGENTS.md` п. 2).
+
+**prx212.** `Service_Prx212_Storage::delete($file_id, ?int $user_id = NULL)` и
+`_check_permission($file, $action, ?int $user_id)` без `Auth` (гость — отказ, владелец — да,
+DEVELOPMENT-обход сохранён). Добавлен `read_bytes($file_id): ?string` (локальный диск и S3, без
+проверки прав) и общий `_read_bytes()` для `read_owned`; форматы, MIME, лимиты, пути, S3 и
+symlink-защита не менялись. `Controller_Prx212_Api::action_delete` передаёт ID пользователя.
+Побочное: `Controller_Prx212_Index` бросал/ловил несуществующий `Service_Prx212_Storage_Exception`
+(fatal при ошибке загрузки) — заменён на `Storage_Exception`.
+
+**Вызывающие модули.** prx390 `Api::action_file` и prx391 `Documents::action_download` —
+`Storage::bytes($file_id)` вместо `getFilePath()` + `file_get_contents()` (Content-Length по
+`strlen`), то есть теперь работают и с S3; prx390 `Intake::_store_file` — `Storage::save($file,
+'prx390', $user_id ?: NULL)` без `class_exists`; prx395 `Extraction` — без внедрённого сервиса:
+`Storage::save/put/read_owned/delete_owned/owned_ids_before`. `grep 'Service_Prx212_\|Model_Prx212_\|
+ORM::factory('Prx212'` по `application/` вне prx212 и фасада — пусто. `tests/Smoke/StorageIntegrationTest.php`
+(+ одна проверка `Storage::bytes`) и `tests/Unit/StoragePathsTest.php` остаются тестами внутренностей
+prx212 — сервис напрямую.
+
+**Линтер.** `.tools/storage_lint.py` (вызывается из `portal_check.py`, т.е. в `make check`): в
+`application/**` вне `prx212_file_storage/**` и `classes/Storage.php` запрещены `Service_Prx212_`,
+`Model_Prx212_`, `ORM::factory('Prx212`; в `Storage.php` — `Auth::instance()`. Сообщение: «доступ
+к файлам — только `Storage::` (см. `docs/FOUNDATION.md`)». Тест правила — `tests/test_storage_lint.py`.
+
+**Доки.** `docs/FOUNDATION.md` §5 «Файлы: фасад `Storage::`» (бывшие §5–8 стали §6–9) и правило имён
+(`Event` и `Storage` — фасады, `Service_Prx212_*` — внутренности); корневой `AGENTS.md` п. 2;
+`prx212_file_storage/AGENTS.md` (раздел «Публичный контракт»); `prx100_base/README.md` и
+`prx212…/Service/Prx212/manual.md` — примеры на `Storage::save/put/bytes/url` без `Storage::upload`;
+`docs/ARCHITECTURE.md`; памятка prx390; README prx212.
+
+Проверено в песочнице без PHP и PostgreSQL:
+
+- `make check` — 33 модуля, 242 класса, 26 манифестов, 93 маршрута, 69 документов, 19 python-тестов
+  (10 storage-ops, 5 событий, 4 storage-линтер; 1 skipped), «files via Storage:: only».
+- `bash .tools/php_check_all.sh` — 463 файла, 0 ошибок, 37 миграций, 0 замечаний; дизайн-аудит чист;
+  документация в бюджете. `php_class_ref_lint` — те же 2 предсуществующие ошибки (prx208 `Notify::`,
+  prx394 drafts).
+- `npm test` — 35/35; `make architecture` — 0 ошибок, 0 предупреждений;
+  `PYTHONPATH=workers python3 -m pytest workers/tests -q` — 145 passed, 1 skipped (workers не менялись).
+
+Не проверено (нет PHP): phpunit `PrxFoundationTest` — новые `test_storage_save_bytes_metadata_and_delete_owned`
+(без БД пропускается; с БД — транзакция, временный backend в `sys_get_temp_dir()`, уборка),
+`test_storage_rejects_bad_module_with_storage_exception`,
+`test_storage_without_prx212_throws_on_write_and_reads_return_null` (флаг `module_missing` через
+Reflection — класс `final`); smoke-тесты; HTTP-выдача файлов из `/inbox` (prx390) и
+`/prx391_documents/download` (prx391); `read_bytes` по S3. Нюанс поведения: `bytes()` возвращает NULL
+и когда файла нет, и когда чтение не удалось (раньше prx390 отвечал 500 «Не удалось прочитать файл»,
+теперь 404 «Физический файл не найден» плюс WARNING фасада в журнале); физический файл, чей размер
+не совпал с `file_size`, тоже считается недоступным.
+
 ## 23.11.2026 — единое `Event::publish`, legacy-диспетчер удалён
 
 **Фасад.** `application/classes/Event.php` переписан начисто:

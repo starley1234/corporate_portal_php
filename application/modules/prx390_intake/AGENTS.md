@@ -44,7 +44,7 @@ prx212, канал `doc.normalize`, текст и событие `prx390.text.re
 
 1. `receive_path` проверяет расширение, MIME, размер, считает SHA-256.
 2. Дубликат возвращает `duplicate` и файл уходит в `duplicates/`.
-3. `Service_Prx212_Storage::save()` кладёт файл, затем пишется конверт.
+3. `Storage::save($file, 'prx390', $actor->id())` кладёт файл, затем пишется конверт.
 4. `doc.normalize` (payload `message_id`) → текст → `POST /prx390/api/text/<id>`
    (`file_id`, `text`, `pages`, `engine`, `confidence`).
 5. `store_text` ставит `text_ready` (≥ 40 символов) или `needs_ocr` и

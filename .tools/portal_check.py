@@ -118,6 +118,12 @@ from event_lint import errors as event_lint_errors  # noqa: E402
 
 errors.extend(event_lint_errors(ROOT))
 
+# Файлы: единственный вход — фасад Storage:: (application/classes/Storage.php).
+# Service_Prx212_*/Model_Prx212_*/ORM::factory('Prx212…') вне prx212 и фасада — ошибка.
+from storage_lint import errors as storage_lint_errors  # noqa: E402
+
+errors.extend(storage_lint_errors(ROOT))
+
 if errors:
     print('\n'.join('FAIL: ' + item for item in errors))
     sys.exit(1)
@@ -126,4 +132,4 @@ planned_count = sum(status == 'planned' for _, status in plan_entries)
 print(f'PRX contracts OK: {len(registered)} available modules, {len(classes)} PHP classes, '
       f'{len(active_services)} active + {optional_count} optional + {len(archived_services)} archived + '
       f'{planned_count} planned services, {len(channel_names)} available worker channels, '
-      f'events via Event::publish only')
+      f'events via Event::publish only, files via Storage:: only')

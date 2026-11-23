@@ -198,7 +198,7 @@ class Controller_Prx212_Api extends Controller_Base
                 return;
             }
             
-            $result = $this->storage_service->delete($file_id);
+            $result = $this->storage_service->delete($file_id, $this->_current_user ? (int) $this->_current_user->id : NULL);
             
             if ($result) {
                 $this->_success_response(['id' => $file_id], 'Файл успешно удален.');
