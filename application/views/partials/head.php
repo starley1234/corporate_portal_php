@@ -83,6 +83,7 @@
 
 	<script src="/assets/js/template.js"></script>
 	<script src="/assets/js/app.js"></script>
+	<script src="/assets/js/search-layout.js"></script>
 	<script src="/assets/js/navpalette.js"></script>
 
     <?php if (isset($styles) && is_array($styles)): ?>

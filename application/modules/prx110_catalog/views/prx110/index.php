@@ -79,11 +79,11 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
                 var q = input.value.trim().toLowerCase();
                 var any = false;
                 groups.querySelectorAll('.catalog-group').forEach(function (g) {
-                    var gMatch = (g.getAttribute('data-search') || '').indexOf(q) !== -1;
+                    var gMatch = window.PRXSearchLayout.matches(g.getAttribute('data-search') || '', q);
                     var shown = 0;
                     g.querySelectorAll('.catalog-item').forEach(function (it) {
                         var hay = it.getAttribute('data-search') || '';
-                        var show = !q || gMatch || hay.indexOf(q) !== -1;
+                        var show = !q || gMatch || window.PRXSearchLayout.matches(hay, q);
                         it.classList.toggle('hidden', !show);
                         if (show) shown++;
                     });

@@ -1,7 +1,7 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
 // Порядок задаёт каскадную ФС и порядок миграций. События — до очереди.
-return [
+$modules = [
     'encrypt' => MODPATH.'encrypt',
     'auth' => MODPATH.'auth',
     'cache' => MODPATH.'cache',
@@ -33,3 +33,11 @@ return [
     'prx599_account' => APPPATH.'modules/prx599_account',
     'cookie_consent' => APPPATH.'modules/cookie_consent',
 ];
+
+// LDAP — необязательный драйвер; одновременно выбирается в config/auth.php.
+if (getenv('PRX_LDAP_ENABLED') === '1')
+{
+    $modules['ldap_auth'] = APPPATH.'modules/ldap_auth';
+}
+
+return $modules;

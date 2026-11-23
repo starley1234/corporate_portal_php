@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 
+const searchSource = readFileSync(new URL('../../public_html/assets/js/search-layout.js', import.meta.url), 'utf8');
 const source = readFileSync(new URL('../../public_html/assets/js/navpalette.js', import.meta.url), 'utf8');
 const catalog = {
     items: [
@@ -62,6 +63,7 @@ async function page({ path = '/inbox', initial = [], card = '', server = makeSer
     } });
     const originalLink = window.document.querySelector('[data-nav-group="pinned"] a');
     window.fetch = server.fetch;
+    window.eval(searchSource);
     window.eval(source);
     if (window.document.readyState === 'loading') {
         await new Promise(resolve => window.document.addEventListener('DOMContentLoaded', resolve, { once: true }));
@@ -327,5 +329,17 @@ test('ошибка каталога отображается и повторно
     assert.ok(p.doc.querySelector('.palette-item a[href="/inbox"]'));
     input.dispatchEvent(new p.window.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
     assert.ok(p.doc.querySelector('.palette-item.bg-blue-50'));
+    p.dom.window.close();
+});
+
+
+test('поиск палитры понимает английскую раскладку', async () => {
+    const p = await page();
+    click(p.window, p.doc.getElementById('nav-palette-open'));
+    await tick();
+    const input = p.doc.querySelector('input[aria-label="Поиск по всем сервисам"]');
+    input.value = String.raw`d\[jzobt`;
+    input.dispatchEvent(new p.window.Event('input', { bubbles: true }));
+    assert.ok(p.doc.querySelector('.palette-item a[href="/inbox"]'));
     p.dom.window.close();
 });

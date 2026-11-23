@@ -26,6 +26,8 @@ Symfony Mailer. Для настоящей почты обязательно `com
 `bash bin/setup-sandbox.sh` (сборка PHP и переносимый PG), затем
 `PORT=8080 bash bin/serve`. Подробнее: SANDBOX-SETUP.md.
 
+Необязательный LDAP-вход: [инструкция по подключению](../application/modules/ldap_auth/README.md). По умолчанию используется локальный Auth ORM.
+
 ## Конфиги
 
 `application/env.php` читает .env до bootstrap; окружение процесса важнее файла.

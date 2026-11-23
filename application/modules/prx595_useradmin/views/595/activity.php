@@ -31,9 +31,17 @@ $status_badge = function ($st) {
             'pending' => 'prx-badge-wait',
             'cancelled' => 'prx-badge-wait'];
 
+    $labels = [
+        'done' => __('Done'),
+        'failed' => __('Failed'),
+        'processing' => __('Processing'),
+        'pending' => __('Pending'),
+        'cancelled' => __('Cancelled'),
+    ];
     $c = $map[$st] ?? 'prx-badge-wait';
+    $label = $labels[$st] ?? (string) $st;
 
-    return '<span class="prx-badge uppercase '.$c.'"><span class="prx-dot"></span>'.HTML::chars((string) $st).'</span>';
+    return '<span class="prx-badge uppercase '.$c.'"><span class="prx-dot"></span>'.HTML::chars($label).'</span>';
 };
 ?>
 

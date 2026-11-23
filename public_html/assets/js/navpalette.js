@@ -65,9 +65,9 @@
 
     function score(hay, q) {
         if (!q) return 0;
-        if (hay.indexOf(q) !== -1) return 1000 + (1000 - hay.length);
+        if (window.PRXSearchLayout.variants(q).some(function (variant) { return hay.indexOf(variant) !== -1; })) return 1000 + (1000 - hay.length);
         return q.split(/\s+/).filter(Boolean).reduce(function (total, token) {
-            return total + (hay.indexOf(token) !== -1 ? 500 : 0);
+            return total + (window.PRXSearchLayout.matches(hay, token) ? 500 : 0);
         }, 0);
     }
 

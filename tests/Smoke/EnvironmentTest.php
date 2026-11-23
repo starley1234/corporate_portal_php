@@ -33,6 +33,18 @@ class EnvironmentTest extends TestCase
         $this->assertSame('roles', ORM::factory('Role')->table_name());
     }
 
+    public function test_optional_ldap_driver_matches_module_setting(): void
+    {
+        if (getenv('PRX_LDAP_ENABLED') === '1') {
+            $this->assertArrayHasKey('ldap_auth', Kohana::modules());
+            $this->assertSame('Ldap', Kohana::$config->load('auth')->get('driver'));
+            $this->assertTrue(is_subclass_of('Auth_Ldap', 'Auth_ORM'));
+        } else {
+            $this->assertArrayNotHasKey('ldap_auth', Kohana::modules());
+            $this->assertSame('ORM', Kohana::$config->load('auth')->get('driver'));
+        }
+    }
+
     public function test_critical_config_loads(): void
     {
         foreach (['database', 'llm', 'prx120_jobs'] as $cfg) {

@@ -7,6 +7,9 @@
 
 FROM php:8.4-fpm-bookworm AS base
 
+# Необязательное расширение для ldap_auth; модуль всё равно включается отдельно.
+ARG INSTALL_LDAP=0
+
 # Системные зависимости для расширений
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libpq-dev \
@@ -33,6 +36,14 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
         sockets \
         pcntl \
         opcache
+
+# LDAP остаётся необязательным и не собирается без явного build-arg.
+RUN if [ "$INSTALL_LDAP" = "1" ]; then \
+      apt-get update && apt-get install -y --no-install-recommends libldap2-dev \
+      && docker-php-ext-configure ldap --with-libdir="lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)" \
+      && docker-php-ext-install -j"$(nproc)" ldap \
+      && rm -rf /var/lib/apt/lists/*; \
+    fi
 
 # Composer 2 из официального образа
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer

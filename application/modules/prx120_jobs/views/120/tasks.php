@@ -32,11 +32,6 @@ foreach ((array) $tasks as $t) { if (in_array($t['status'], ['pending', 'process
                     <div class="prx-empty">
                         <div class="prx-empty-icon"><i class="fas fa-inbox" aria-hidden="true"></i></div>
                         <p class="prx-empty-text mt-4">Пока задач нет. Запустите любой ИИ-сервис — задачи появятся здесь.</p>
-                        <div class="mt-5 flex flex-wrap justify-center gap-2">
-                            <a href="/review" class="prx-btn-secondary prx-btn-sm">Ответ на отзыв</a>
-                            <a href="/jobs" class="prx-btn-secondary prx-btn-sm">Поиск вакансий</a>
-                            <a href="/docs" class="prx-btn-secondary prx-btn-sm">Документы организации</a>
-                        </div>
                     </div>
                 <?php else: ?>
                     <ul class="space-y-2">
