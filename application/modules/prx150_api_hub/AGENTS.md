@@ -5,11 +5,11 @@
 | Раздел | Строка | Размер |
 |---|---|---|
 |   Назначение | 14 | 0,5 КБ |
-|   Контракты | 21 | 0,9 КБ |
-|   Состояние | 34 | 0,4 КБ |
-|   Карта | 40 | 0,5 КБ |
-|   Как добавить сервис | 53 | 0,5 КБ |
-|   Проверки | 61 | 0,2 КБ |
+|   Контракты | 21 | 1,6 КБ |
+|   Состояние | 41 | 0,4 КБ |
+|   Карта | 47 | 0,6 КБ |
+|   Как добавить сервис | 61 | 0,5 КБ |
+|   Проверки | 69 | 0,2 КБ |
 <!-- context-index:end -->
 ## Назначение
 
@@ -26,6 +26,13 @@
 - Scope: `prxNNN.<action>`; объявляет модуль-владелец, префикс обязан совпадать
   с его ID. `*` — все scope (только для внутренних задач).
 - Ошибки: `Prx150_Error` → JSON `{"error":{"code":"…","details":{…}}}`.
+- Организация ключа (`organization_id`, NULL) — скаляр без FK: модуль не читает
+  чужие таблицы. При выдаче существование проверяет `Service_Prx300_Directory`;
+  без подключённого prx300 допустим только NULL.
+- Машинный principal: `Controller_Prx150_Machine::principal()` → `Prx150_Principal`
+  (`id`, `name`, `organization_id`, `scopes`). Реализует `Prx_Principal`, поэтому
+  одна объектная политика (`Prx_Policy`) работает и для человека, и для ключа.
+  Ролей и `can()` у машины нет.
 - Машинный контроллер: `Controller_Prx150_Machine::respond()` — ключ, scope,
   лимит, журнал в `finally`, заголовок `X-Request-Id`.
 - Страница: `/prx150_api_hub` (ключи), `/usage`, `/docs`.
@@ -35,7 +42,7 @@
 
 Каркас готов: ключи, scope, лимит, журнал, админка и машинный базовый
 контроллер. Не проверено на PHP-стенде: создание/отзыв ключа, 401/403/429,
-журнал. Миграция `prx_150_001` применяется через `make migrate`.
+журнал, организация ключа. Миграции `prx_150_001` и `prx_150_002` — `make migrate`.
 
 ## Карта
 
@@ -44,11 +51,12 @@
 | маршруты | `init.php` |
 | манифест | `config/prx_module.php` |
 | ключи и лимиты | `classes/Service/Prx150/Keys.php` |
+| машинный principal | `classes/Prx150/Principal.php` |
 | журнал | `classes/Service/Prx150/Usage.php` |
 | реестр scope | `classes/Service/Prx150/Services.php` |
 | машинный базовый контроллер | `classes/Controller/Prx150/Machine.php` |
 | админка | `classes/Controller/Prx150/Admin.php`, `views/150/*` |
-| схема | `migrations_pg/pgMigration_Prx_150_001_ApiHub.php` |
+| схема | `migrations_pg/pgMigration_Prx_150_001_ApiHub.php`, `…_002_KeyOrganization.php` |
 
 ## Как добавить сервис
 

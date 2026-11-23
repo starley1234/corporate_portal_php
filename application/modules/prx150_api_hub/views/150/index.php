@@ -3,9 +3,11 @@
 /**
  * API-доступ: ключи внешних потребителей.
  *
- * Переменные: $keys, $scopes, $created_key, $csrf, $flash, $rate_limit, $ttl_days.
+ * Переменные: $keys, $scopes, $organizations, $created_key, $csrf, $flash,
+ * $rate_limit, $ttl_days.
  */
 $tab = $tab ?? 'keys';
+$org_names = array_column((array) ($organizations ?? []), 'name', 'id');
 $scopes_json = function (string $json): array {
     $list = json_decode($json, TRUE);
 
@@ -63,6 +65,16 @@ $when = function ($value): string {
                             <input class="prx-input mt-1 w-full" type="number" name="rate_limit" min="1" max="600" value="<?php echo (int) $rate_limit; ?>">
                         </label>
                         <label class="block">
+                            <span class="prx-label">Организация (необязательно)</span>
+                            <select class="prx-select mt-1 w-full" name="organization_id">
+                                <option value="">— не привязан —</option>
+                                <?php foreach ((array) ($organizations ?? []) as $org): ?>
+                                <option value="<?php echo (int) $org['id']; ?>"><?php echo HTML::chars($org['name']); ?> · <?php echo HTML::chars($org['code']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <span class="prx-hint mt-1">Ключ будет действовать в рамках организации.<?php echo empty($organizations) ? ' Справочник prx300 не подключён.' : ''; ?></span>
+                        </label>
+                        <label class="block">
                             <span class="prx-label">Действует до (необязательно)</span>
                             <input class="prx-input mt-1 w-full" type="date" name="expires_at"<?php echo $ttl_days > 0 ? ' value="'.date('Y-m-d', time() + $ttl_days * 86400).'"' : ''; ?>>
                         </label>
@@ -106,6 +118,7 @@ $when = function ($value): string {
                             <td>
                                 <span class="block font-semibold text-gray-900 dark:text-white"><?php echo HTML::chars($key['name']); ?></span>
                                 <span class="block text-xs text-gray-500 dark:text-gray-400">создан <?php echo $when($key['created_at']); ?></span>
+                                <?php if ( ! empty($key['organization_id'])): ?><span class="block text-xs text-gray-500 dark:text-gray-400"><?php echo HTML::chars($org_names[(int) $key['organization_id']] ?? 'организация #'.(int) $key['organization_id']); ?></span><?php endif; ?>
                                 <?php if ($key['note'] !== ''): ?><span class="block max-w-[260px] truncate text-xs text-gray-400 dark:text-gray-500" title="<?php echo HTML::chars($key['note']); ?>"><?php echo HTML::chars($key['note']); ?></span><?php endif; ?>
                             </td>
                             <td><code class="font-mono text-xs text-gray-600 dark:text-gray-300"><?php echo HTML::chars($key['key_prefix']); ?>…</code></td>

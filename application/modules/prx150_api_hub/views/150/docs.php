@@ -37,6 +37,8 @@
                     <li><i class="fas fa-shield-halved mr-1.5 w-4 text-gray-400"></i>Права определяет scope ключа, а не роль сотрудника и не сессия.</li>
                     <li><i class="fas fa-gauge-high mr-1.5 w-4 text-gray-400"></i>Лимит — запросов в минуту; превышение даёт <code>429 rate_limited</code>.</li>
                     <li><i class="fas fa-rotate mr-1.5 w-4 text-gray-400"></i>Отозванный ключ сразу даёт <code>403 key_revoked</code>; новый ключ — новая запись.</li>
+                    <li><i class="fas fa-fingerprint mr-1.5 w-4 text-gray-400"></i>Создающие операции принимают <code>Idempotency-Key</code>: тот же ключ и то же тело — тот же ответ, другое тело — <code>409 idempotency_conflict</code>.</li>
+                    <li><i class="fas fa-id-card mr-1.5 w-4 text-gray-400"></i>В ответе — <code>X-Request-Id</code> (номер строки журнала) и <code>Cache-Control: no-store</code>.</li>
                 </ul>
             </section>
 
@@ -91,6 +93,7 @@
   -F "file=@document.pdf"</code></pre>
                 <p class="prx-hint mt-2">Адрес и формат конкретного сервиса — в его документации. Общий контракт ошибок и ключей — здесь.</p>
                 <a class="prx-link mt-2 inline-block text-sm" href="/prx450_document_ocr">Распознавание документов →</a>
+                <a class="prx-link mt-1 block text-sm" href="/prx395_document_extract">PDF → текст, асинхронно →</a>
             </section>
             <section class="prx-card">
                 <h2 class="prx-h3">Как добавить сервис</h2>

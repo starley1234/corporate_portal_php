@@ -38,8 +38,8 @@ Browser → PHP/HMVC → application/config/modules.php
 | `prx212_file_storage` | Файлы, приватное хранение, ссылки/разрешения |
 | `prx218_module_manager` | Инвентаризация и метаданные жизненного цикла |
 | `prx300_employee` | Организации, площадки, подразделения, профиль сотрудника, внешние ID, сопоставление Auth↔сотрудник и delta-импорт HR-данных |
-| `prx395_document_extract` | PDF → текст: машинный API, приватные файлы prx212 и очередь prx120 |
-| `prx450_document_ocr` | Распознавание документов: внешний OCR-шлюз, API `/api/v1/document-ocr/parse`, ключи prx150 |
+| `prx395_document_extract` | PDF → текст асинхронно: машинный API, очередь prx120, приватные файлы prx212, ключи prx150 |
+| `prx450_document_ocr` | Распознавание документов синхронно: внешний OCR-шлюз, API `/api/v1/document-ocr/parse`, ключи prx150 |
 | `prx150_api_hub` | Ключи внешних потребителей, scope, лимиты и журнал использования API |
 | `prx560_knowledge` | Технический RAG-кэш наработок, дедупликация, admin UI |
 | `prx595_useradmin` | Управление пользователями и ролями |
@@ -67,7 +67,7 @@ Browser → PHP/HMVC → application/config/modules.php
 Старый `docflow` (`prx390`–`prx393`) выключен по умолчанию и
 [включается для тестирования](QUICK-CHECK.md) одним блоком в `application/bootstrap.php`.
 Черновики `prx394` остаются в архиве. Новый [документный API](integrations/document-extractions.md)
-и проверка `/document-extract` от них не зависят.
+и проверка `/prx395_document_extract` от них не зависят.
 
 `application/config/modules.php` — источник истины подключения и порядка
 миграций. Менеджер модулей управляет метаданными; не считайте запись в его БД

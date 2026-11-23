@@ -63,14 +63,15 @@ class Controller_Prx150_Admin extends Controller_Prx100_Base
         }
 
         $this->template->content = View::factory('150/index', [
-            'tab'         => 'keys',
-            'keys'        => $keys,
-            'scopes'      => Service_Prx150_Services::scopes(),
-            'created_key' => Session::instance()->get_once('prx150_key_once', NULL),
-            'csrf'        => Security::token(),
-            'flash'       => $flash,
-            'rate_limit'  => (int) Kohana::$config->load('prx150_api_hub')->get('default_rate_limit'),
-            'ttl_days'    => (int) Kohana::$config->load('prx150_api_hub')->get('key_ttl_days'),
+            'tab'           => 'keys',
+            'keys'          => $keys,
+            'scopes'        => Service_Prx150_Services::scopes(),
+            'organizations' => Service_Prx150_Keys::organizations(),
+            'created_key'   => Session::instance()->get_once('prx150_key_once', NULL),
+            'csrf'          => Security::token(),
+            'flash'         => $flash,
+            'rate_limit'    => (int) Kohana::$config->load('prx150_api_hub')->get('default_rate_limit'),
+            'ttl_days'      => (int) Kohana::$config->load('prx150_api_hub')->get('key_ttl_days'),
         ]);
     }
 
@@ -93,7 +94,8 @@ class Controller_Prx150_Admin extends Controller_Prx100_Base
                 (int) $this->request->post('rate_limit'),
                 $expires !== '' ? $expires : NULL,
                 (int) $this->_current_user->id,
-                (string) $this->request->post('note')
+                (string) $this->request->post('note'),
+                (int) $this->request->post('organization_id') ?: NULL
             );
 
             Session::instance()->set('prx150_key_once', [

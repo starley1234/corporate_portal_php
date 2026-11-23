@@ -29,6 +29,17 @@ abstract class Controller_Prx150_Machine extends Controller_Base
     protected $api_client = NULL;
 
     /**
+     * Машинный principal: id ключа, имя, организация, scope.
+     *
+     * Отдаётся сервису вместо массива ролей: у внешнего потребителя нет ни
+     * сессии, ни ACL сотрудника. Доступен только внутри respond().
+     */
+    public function principal(): ?Prx150_Principal
+    {
+        return $this->api_client === NULL ? NULL : Service_Prx150_Keys::principal($this->api_client);
+    }
+
+    /**
      * Выполнить действие с проверкой ключа и журналом использования.
      *
      * Ожидается, что действие само отвечает JSON через _json_response().

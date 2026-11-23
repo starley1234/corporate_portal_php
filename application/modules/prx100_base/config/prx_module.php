@@ -14,4 +14,14 @@ return [
     'kind' => 'platform',
     'title' => 'База PRX (общий модуль)',
     'short' => 'контроллеры, Auth/RBAC, пользователи, профили',
+    'cleanup' => [
+        'prx_idempotency_keys' => [
+            'label' => 'Идемпотентные ключи API',
+            'note' => 'Старше TTL: повтор с таким ключом уже невозможен, результат не выдаётся.',
+            'days' => 7,
+            'count_sql' => 'SELECT count(*) FROM prx_idempotency_keys WHERE expires_at < now() - :old',
+            'delete_sql' => 'DELETE FROM prx_idempotency_keys WHERE id IN (
+                                SELECT id FROM prx_idempotency_keys WHERE expires_at < now() - :old LIMIT :limit)',
+        ],
+    ],
 ];

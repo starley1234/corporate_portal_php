@@ -156,15 +156,18 @@ PHP,
  * RBAC уже проверил Prx_Actor::require(); здесь только объектная часть:
  * организация, подразделение, владелец. Никаких SQL и выборок — только
  * сравнение полей переданной записи.
+ *
+ * Аргумент — Prx_Principal: та же политика проверяет и человека, и машинный
+ * ключ prx150. Роли — только у Prx_Actor, поэтому isAdmin() за instanceof.
  */
 class Policy___CLASS______ENTITY__ extends Prx_Policy {
 
     protected const VIEW_ACL = 'prx__ID__.view';
     protected const EDIT_ACL = 'prx__ID__.manage';
 
-    protected function scope(Prx_Actor $actor, array $row): bool
+    protected function scope(Prx_Principal $actor, array $row): bool
     {
-        if ($actor->isAdmin())
+        if ($actor instanceof Prx_Actor AND $actor->isAdmin())
         {
             return TRUE;
         }

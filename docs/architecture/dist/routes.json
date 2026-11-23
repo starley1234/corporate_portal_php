@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "count": 92,
+  "count": 93,
   "routes": [
     {
       "name": "cookie_consent_close",
@@ -687,13 +687,22 @@
       "file": "application/modules/prx395_document_extract/classes/Controller/Prx395/Worker.php"
     },
     {
-      "name": "prx395_ui",
-      "uri": "document-extract(/<id>)",
+      "name": "prx395_document_extract",
+      "uri": "prx395_document_extract(/<id>)",
       "regex": "['id' => '[1-9][0-9]{0,17}']",
       "controller": "Prx395_Ui",
       "action": "index",
       "module": "prx395_document_extract",
       "file": "application/modules/prx395_document_extract/classes/Controller/Prx395/Ui.php"
+    },
+    {
+      "name": "prx395_document_extract_legacy",
+      "uri": "document-extract(/<id>)",
+      "regex": "['id' => '[1-9][0-9]{0,17}']",
+      "controller": "Prx395_Legacy",
+      "action": "index",
+      "module": "prx395_document_extract",
+      "file": "application/modules/prx395_document_extract/classes/Controller/Prx395/Legacy.php"
     },
     {
       "name": "prx450_document_ocr_api",

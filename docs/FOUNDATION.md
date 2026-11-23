@@ -3,13 +3,29 @@
 Что уже есть и как этим пользоваться. Коротко: пять классов, один guard,
 один набор партиалов. Всё остальное — поверх них.
 
+<!-- context-index:begin -->
+<!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index docs/FOUNDATION.md --write. Руками не править. -->
+| Раздел | Строка | Размер |
+|---|---|---|
+|   1. Доступ: actor → policy → сервис | 32 | 1,7 КБ |
+|   2. SQL: именованные параметры и транзакции | 60 | 2,1 КБ |
+|     Идемпотентность | 76 | 1,2 КБ |
+|   3. События | 95 | 0,4 КБ |
+|   4. POST и CSRF | 105 | 1,0 КБ |
+|   5. Манифест — контракт модуля | 120 | 0,5 КБ |
+|   6. Страница: page-kit | 133 | 0,7 КБ |
+|   7. Новый модуль | 148 | 0,4 КБ |
+|   8. Гейты | 158 | 0,8 КБ |
+<!-- context-index:end -->
 | нужен | берём | где |
 |---|---|---|
 | «кто действует» | `Prx_Actor` | `application/classes/Prx/Actor.php` |
+| «кто действует» (машина) | `Prx150_Principal` | `application/modules/prx150_api_hub/classes/Prx150/Principal.php` |
 | «можно ли ему эту запись» | `Prx_Policy` + политика модуля | `application/classes/Prx/Policy.php` |
 | SQL и транзакции | `Prx_Db` | `application/classes/Prx/Db.php` |
 | доменное событие | `Prx_Event` | `application/classes/Prx/Event.php` |
 | защита POST | `Prx_PostGuard` | `application/classes/Prx/PostGuard.php` |
+| идемпотентный ключ | `Prx_Idempotency` | `application/classes/Prx/Idempotency.php` |
 | каркас страницы | page-kit | `application/views/partials/{page_header,filters,empty_state,flash}.php` |
 | новый модуль | scaffold v2 | `make new-module id=312 slug=claims name="Заявки" entity=Claim` |
 
@@ -36,6 +52,10 @@ $policy->requireView($actor, $row);                // объектная час�
 - Все ключи прав объявлены в `application/config/acl.php`; маска `prxNNN.*`
   допустима для реестра модуля. `python3 .tools/acl_lint.py` проверяет обе
   стороны: объявлен и используется.
+- Политика принимает `Prx_Principal`, а не только `Prx_Actor`: одно правило
+  проверяет и человека, и машинный ключ `prx150`. Роли и `can()` есть только
+  у `Prx_Actor`, поэтому в `scope()` их вызывают под `instanceof` — у машины
+  это всегда FALSE.
 
 ## 2. SQL: именованные параметры и транзакции
 
@@ -52,6 +72,25 @@ Prx_Db::identifier('prx_312_claims');                               // толь�
 Склейка значений в SQL запрещена; имена таблиц и колонок — только через
 `Prx_Db::identifier()`. Чужие таблицы не читаются: только публичный сервис
 модуля-владельца.
+
+### Идемпотентность
+
+`Prx_Idempotency` — платформенный ключ повтора для внешних операций: тот же
+ключ и то же тело → тот же результат; другое тело → `conflict`; истёкший TTL
+(`PRX_IDEMPOTENCY_TTL_HOURS`, по умолчанию 24) → `expired`. Тело не хранится,
+только sha256.
+
+```php
+$idem = Prx_Idempotency::begin('prx395.extract', (string) $client_id, $key, $sha, $db);
+if ($idem['state'] !== Prx_Idempotency::STATE_NEW) { /* replay | conflict | expired */ }
+// ... работа, которая должна быть в одной транзакции с ключом
+Prx_Idempotency::finish($idem['id'], ['job_id' => $job_id], $db);
+```
+
+`begin()` открывает транзакцию и берёт advisory-lock, `finish()` пишет
+результат и подтверждает, `abort()` откатывает. Отдельное соединение —
+обязательно то же, что у остальных записей транзакции. Для простых случаев
+есть `Prx_Idempotency::run(...)`.
 
 ## 3. События
 

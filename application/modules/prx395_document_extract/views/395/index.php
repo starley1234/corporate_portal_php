@@ -27,7 +27,7 @@ $code = $error ?? $job['error']['code'] ?? NULL;
     <?php if (!$id): ?>
         <section class="prx-panel mt-4">
             <div class="prx-panel-head"><h2 class="prx-h3">Проверить за один клик</h2></div>
-            <form method="post" action="/document-extract" class="p-5">
+            <form method="post" action="/prx395_document_extract" class="p-5">
                 <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
                 <button class="prx-btn-process" type="submit" name="sample" value="1"><i class="fas fa-play"></i> Распознать пробный PDF</button>
                 <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Одностраничный PDF с готовым текстовым слоем. Проверяет PHP, очередь и Python, но не качество OCR сканов.</p>
@@ -35,7 +35,7 @@ $code = $error ?? $job['error']['code'] ?? NULL;
         </section>
         <section class="prx-panel mt-4">
             <div class="prx-panel-head"><h2 class="prx-h3">Загрузить свой документ</h2></div>
-            <form method="post" action="/document-extract" enctype="multipart/form-data" class="p-5">
+            <form method="post" action="/prx395_document_extract" enctype="multipart/form-data" class="p-5">
                 <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
                 <label class="block text-sm font-semibold" for="pdf-file">PDF до 10 МБ и 20 страниц</label>
                 <input class="prx-input mt-2" id="pdf-file" type="file" name="file" accept=".pdf,application/pdf" required>
@@ -56,10 +56,10 @@ $code = $error ?? $job['error']['code'] ?? NULL;
                     <pre class="whitespace-pre-wrap break-words" dir="auto"><?php echo HTML::chars($job['result']['text']); ?></pre>
                 <?php endif; ?>
                 <?php if ($can_monitor): ?><a class="prx-link mt-3 inline-block" href="/prx120/task/<?php echo $id; ?>">Открыть задачу в мониторе</a><?php endif; ?>
-                <?php if (in_array($state, ['queued', 'running'], TRUE)): ?><a class="prx-link mt-3 inline-block" href="/document-extract/<?php echo $id; ?>">Обновить статус</a><?php endif; ?>
+                <?php if (in_array($state, ['queued', 'running'], TRUE)): ?><a class="prx-link mt-3 inline-block" href="/prx395_document_extract/<?php echo $id; ?>">Обновить статус</a><?php endif; ?>
             </div>
         </section>
         <?php endif; ?>
-        <a class="prx-btn-secondary mt-4" href="/document-extract">Распознать другой PDF</a>
+        <a class="prx-btn-secondary mt-4" href="/prx395_document_extract">Распознать другой PDF</a>
     <?php endif; ?>
 </div>

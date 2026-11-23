@@ -8,5 +8,9 @@ Route::set('prx395_worker', 'prx395/worker/<id>/<action>', [
     'id' => '[1-9][0-9]{0,17}', 'action' => 'file|result',
 ])->defaults(['controller' => 'Prx395_Worker']);
 
-Route::set('prx395_ui', 'document-extract(/<id>)', ['id' => '[1-9][0-9]{0,17}'])
+Route::set('prx395_document_extract', 'prx395_document_extract(/<id>)', ['id' => '[1-9][0-9]{0,17}'])
     ->defaults(['controller' => 'Prx395_Ui', 'action' => 'index']);
+
+// Старый адрес: 301 на новый, закладки продолжают работать.
+Route::set('prx395_document_extract_legacy', 'document-extract(/<id>)', ['id' => '[1-9][0-9]{0,17}'])
+    ->defaults(['controller' => 'Prx395_Legacy', 'action' => 'index']);

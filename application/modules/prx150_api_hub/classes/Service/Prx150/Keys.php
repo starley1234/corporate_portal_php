@@ -30,6 +30,38 @@ class Service_Prx150_Keys
     }
 
     /**
+     * Машинный principal из строки ключа: id, имя, организация, scope.
+     *
+     * Единственный способ получить контекст внешнего потребителя в сервисе.
+     * Роли и ACL сотрудника сюда не попадают.
+     */
+    public static function principal(array $row): Prx150_Principal
+    {
+        $scopes = json_decode((string) ($row['scopes'] ?? '[]'), TRUE);
+        $organization = (int) ($row['organization_id'] ?? 0);
+
+        return new Prx150_Principal(
+            (int) ($row['id'] ?? 0),
+            (string) ($row['name'] ?? ''),
+            $organization > 0 ? $organization : NULL,
+            is_array($scopes) ? array_map('strval', $scopes) : []
+        );
+    }
+
+    /**
+     * Организации для формы выдачи ключа. Пусто, если prx300 не подключён:
+     * тогда ключ можно создать только без организации.
+     *
+     * @return array<int, array{id:int,code:string,name:string}>
+     */
+    public static function organizations(): array
+    {
+        return class_exists('Service_Prx300_Directory')
+            ? Service_Prx300_Directory::organization_options()
+            : [];
+    }
+
+    /**
      * Ключ из `Authorization: Bearer …`.
      *
      * 401 — ключа нет или он неизвестен; 403 — отозван/истёк. Разница важна
@@ -47,7 +79,8 @@ class Service_Prx150_Keys
         try
         {
             $row = Prx_Db::one(
-                'SELECT id, name, key_prefix, scopes, rate_limit_per_min, status, expires_at, last_used_at '
+                'SELECT id, name, key_prefix, scopes, rate_limit_per_min, status, expires_at, last_used_at, '
+                .'organization_id '
                 .'FROM prx_150_api_clients WHERE key_hash = :hash',
                 [':hash' => self::hash($m[1])]
             );
@@ -133,6 +166,10 @@ class Service_Prx150_Keys
     /**
      * Создать ключ. Возвращает [id, полный ключ].
      *
+     * Организация необязательна: внешний ключ может быть общим для портала.
+     * FK на prx300 нет — проверяем через публичный сервис владельца, если
+     * модуль подключён; иначе допустим только NULL.
+     *
      * @param array<int, string> $scopes
      */
     public static function create(
@@ -141,13 +178,20 @@ class Service_Prx150_Keys
         int $rate_limit,
         ?string $expires_at,
         int $user_id,
-        string $note = ''
+        string $note = '',
+        ?int $organization_id = NULL
     ): array {
         $name = trim($name);
 
         if ($name === '' OR mb_strlen($name) > 120)
         {
             throw new Prx150_Error('invalid_name', 422);
+        }
+
+        if ($organization_id !== NULL AND ( ! class_exists('Service_Prx300_Directory')
+            OR ! Service_Prx300_Directory::organization_exists($organization_id)))
+        {
+            throw new Prx150_Error('invalid_organization', 422);
         }
 
         $known = Service_Prx150_Services::scopes();
@@ -180,8 +224,9 @@ class Service_Prx150_Keys
 
         [$id] = Prx_Db::insert(
             'INSERT INTO prx_150_api_clients '
-            .'(name, key_hash, key_prefix, scopes, rate_limit_per_min, status, expires_at, created_by, note) '
-            ."VALUES (:name, :hash, :prefix, CAST(:scopes AS jsonb), :limit, 'active', :expires, :user, :note) "
+            .'(name, key_hash, key_prefix, scopes, rate_limit_per_min, status, expires_at, '
+            .'created_by, note, organization_id) '
+            ."VALUES (:name, :hash, :prefix, CAST(:scopes AS jsonb), :limit, 'active', :expires, :user, :note, :org) "
             .'RETURNING id',
             [
                 ':name'   => $name,
@@ -192,6 +237,7 @@ class Service_Prx150_Keys
                 ':expires'=> $expires,
                 ':user'   => $user_id,
                 ':note'   => $note,
+                ':org'    => $organization_id,
             ]
         );
 

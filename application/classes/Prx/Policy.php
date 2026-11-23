@@ -10,9 +10,9 @@
  * Контроллер не пишет условия доступа сам — он спрашивает политику:
  *
  *   class Policy_Prx300_Employee extends Prx_Policy {
- *       public function view(Prx_Actor $a, array $row): bool {
- *           return $a->can('prx300.view')
- *               && ($a->isAdmin() || $a->organizationId() === (int) $row['organization_id']);
+ *       public function scope(Prx_Principal $actor, array $row): bool {
+ *           return ($actor instanceof Prx_Actor && $actor->isAdmin())
+ *               || $actor->organizationId() === (int) $row['organization_id'];
  *       }
  *   }
  *
@@ -21,6 +21,11 @@
  * Правила политики — единственное место, где сравниваются организация,
  * подразделение, площадка и владелец. Если сервис проверяет доступ сам,
  * дублировать эту логику нельзя — вызывайте политику.
+ *
+ * Политика принимает Prx_Principal, а не только Prx_Actor: одно и то же
+ * правило проверяет и человека, и машинный ключ prx150. Роли и ACL — только
+ * у человека, поэтому RBAC-часть применяется к экземплярам Prx_Actor;
+ * машинному principal остаётся объектная часть (организация).
  */
 abstract class Prx_Policy
 {
@@ -31,19 +36,19 @@ abstract class Prx_Policy
     protected const EDIT_ACL = NULL;
 
     /** Может ли actor прочитать запись. */
-    public function view(Prx_Actor $actor, array $row): bool
+    public function view(Prx_Principal $actor, array $row): bool
     {
         return $this->allowed($actor, static::VIEW_ACL, $row);
     }
 
     /** Может ли actor изменить запись. */
-    public function edit(Prx_Actor $actor, array $row): bool
+    public function edit(Prx_Principal $actor, array $row): bool
     {
         return $this->allowed($actor, static::EDIT_ACL, $row);
     }
 
     /** Может ли actor удалить запись (по умолчанию — как изменение). */
-    public function delete(Prx_Actor $actor, array $row): bool
+    public function delete(Prx_Principal $actor, array $row): bool
     {
         return $this->edit($actor, $row);
     }
@@ -52,51 +57,54 @@ abstract class Prx_Policy
      * 403, если нет права на модуль; 404, если запись чужая (существование
      * не раскрываем). `$hide = FALSE` — всегда 403.
      */
-    public function requireView(Prx_Actor $actor, array $row, bool $hide = TRUE): void
+    public function requireView(Prx_Principal $actor, array $row, bool $hide = TRUE): void
     {
         $this->deny($this->view($actor, $row), $hide, $actor, static::VIEW_ACL);
     }
 
     /** @see requireView() */
-    public function requireEdit(Prx_Actor $actor, array $row, bool $hide = TRUE): void
+    public function requireEdit(Prx_Principal $actor, array $row, bool $hide = TRUE): void
     {
         $this->deny($this->edit($actor, $row), $hide, $actor, static::EDIT_ACL);
     }
 
     /** @see requireView() */
-    public function requireDelete(Prx_Actor $actor, array $row, bool $hide = TRUE): void
+    public function requireDelete(Prx_Principal $actor, array $row, bool $hide = TRUE): void
     {
         $this->deny($this->delete($actor, $row), $hide, $actor, static::EDIT_ACL);
     }
 
     /** Общее правило: ACL + объектный предикат (переопределяется в модуле). */
-    protected function allowed(Prx_Actor $actor, ?string $acl, array $row): bool
+    protected function allowed(Prx_Principal $actor, ?string $acl, array $row): bool
     {
-        if ($actor->isGuest()) {
-            return FALSE;
-        }
+        if ($actor instanceof Prx_Actor)
+        {
+            if ($actor->isGuest()) {
+                return FALSE;
+            }
 
-        if ($acl !== NULL AND ! $actor->can($acl)) {
-            return FALSE;
+            if ($acl !== NULL AND ! $actor->can($acl)) {
+                return FALSE;
+            }
         }
 
         return $this->scope($actor, $row);
     }
 
     /** Объектная часть: по умолчанию админу можно всё, остальным — нет. */
-    protected function scope(Prx_Actor $actor, array $row): bool
+    protected function scope(Prx_Principal $actor, array $row): bool
     {
-        return $actor->isAdmin();
+        return $actor instanceof Prx_Actor && $actor->isAdmin();
     }
 
-    private function deny(bool $allowed, bool $hide, Prx_Actor $actor, ?string $acl): void
+    private function deny(bool $allowed, bool $hide, Prx_Principal $actor, ?string $acl): void
     {
         if ($allowed) {
             return;
         }
 
         // Нет права на весь модуль — честный 403, а не «не найдено».
-        if ($acl !== NULL AND ! $actor->can($acl)) {
+        if ($acl !== NULL AND $actor instanceof Prx_Actor AND ! $actor->can($acl)) {
             throw HTTP_Exception::factory(403, 'Доступ запрещён');
         }
 

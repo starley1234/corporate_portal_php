@@ -26,7 +26,7 @@ class PortalNavigationTest extends TestCase
         $items = Service_Prx110_Catalog::search_json($admin)['items'];
         $hrefs = array_column($items, 'href');
         foreach ([
-            '/architecture', '/prx560', '/employee', '/prx597', '/account/security', '/document-extract',
+            '/architecture', '/prx560', '/employee', '/prx597', '/account/security', '/prx395_document_extract',
         ] as $href) {
             $this->assertContains($href, $hrefs, $href);
         }
@@ -44,7 +44,7 @@ class PortalNavigationTest extends TestCase
         $login = ['guest' => FALSE, 'logged' => TRUE, 'roles' => ['login'], 'admin' => FALSE, 'agent' => FALSE];
         $login_hrefs = array_column(Service_Prx110_Catalog::search_json($login)['items'], 'href');
         $this->assertContains('/employee', $login_hrefs);
-        foreach (['/prx560', '/document-extract', '/inbox', '/prx391_documents', '/analysis', '/sla'] as $href) {
+        foreach (['/prx560', '/prx395_document_extract', '/inbox', '/prx391_documents', '/analysis', '/sla'] as $href) {
             $this->assertNotContains($href, $login_hrefs);
         }
 

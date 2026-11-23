@@ -138,8 +138,8 @@ outbox; проверяйте состояние отдельно и не пер�
 
 ### API PDF → текст (`prx395`)
 
-`PRX395_DOCUMENT_EXTRACT_CLIENTS` — JSON с отдельным Bearer-ключом каждой
-интеграции; `{}` закрывает доступ. Параметр задаётся на PHP, не на Python.
+Машинный доступ — ключ `prx150` со scope `prx395.extract`; ключи, лимиты и
+отзыв — в `/prx150_api_hub`. Отдельной карты токенов в `.env` нет.
 Воркеру в любом режиме очереди нужны `APP_URL` (или `PRX120_API_BASE`), `WORKER_API_TOKEN` и
 канал `document.extract`. `OCR_PROVIDER=tesseract|remote` выбирает движок;
 для `remote` задайте `OCR_SERVICE_URL` до `/parse`. См. [запуск и проверку](integrations/document-extractions.md).

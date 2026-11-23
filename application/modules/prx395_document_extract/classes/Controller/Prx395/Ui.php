@@ -18,8 +18,9 @@ class Controller_Prx395_Ui extends Controller_Base
         {
             throw (HTTP_Exception::factory(405))->allowed($id ? 'GET' : 'GET, POST');
         }
-        // Двоеточие невозможно в ID машинной интеграции; результаты не разделяются с API.
-        $client = 'ui:'.(int) $this->_current_user->id;
+        // Владелец заданий админки — отрицательный ID пользователя: положительные
+        // заняты ключами prx150, поэтому чужое задание не видно даже по ID.
+        $client = -(int) $this->_current_user->id;
         $job = NULL;
         $error = NULL;
         try {
@@ -34,7 +35,7 @@ class Controller_Prx395_Ui extends Controller_Base
                 $job_id = $this->request->post('sample') === '1'
                     ? $service->submit_sample($client, $key)
                     : $service->submit($client, $key, $_FILES['file'] ?? NULL);
-                HTTP::redirect('/document-extract/'.$job_id, 303);
+                HTTP::redirect('/prx395_document_extract/'.$job_id, 303);
             }
             if ($id)
             {

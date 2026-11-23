@@ -18,7 +18,7 @@
     <section id="service-checks" class="prx-panel mt-6 scroll-mt-24">
         <div class="prx-panel-head"><h2 class="prx-h3">Проверить ИИ-сервисы</h2></div>
         <div class="flex flex-wrap gap-2.5 p-5">
-            <a class="prx-btn-process" href="/document-extract"><i class="fas fa-file-pdf"></i>Распознавание PDF</a>
+            <a class="prx-btn-process" href="/prx395_document_extract"><i class="fas fa-file-pdf"></i>Распознавание PDF</a>
             <a class="prx-btn-secondary" href="/prx120/monitor"><i class="fas fa-list-check"></i>Монитор воркеров</a>
         </div>
     </section>

@@ -193,6 +193,24 @@ class Service_Prx300_Directory extends Service_Prx300_Store
         ];
     }
 
+    /**
+     * Организации для внешних модулей: ключи API, интеграции.
+     *
+     * @return array<int, array{id:int,code:string,name:string}>
+     */
+    public static function organization_options()
+    {
+        return array_map(static function ($row) {
+            return ['id' => (int) $row['id'], 'code' => (string) $row['code'], 'name' => (string) $row['name']];
+        }, self::_all("SELECT id, code, name FROM prx_300_organizations WHERE status = 'active' ORDER BY name"));
+    }
+
+    /** Существует ли активная организация — для ссылок без FK из других модулей. */
+    public static function organization_exists($organization_id)
+    {
+        return (bool) self::_row("SELECT 1 FROM prx_300_organizations WHERE id = ".(int) $organization_id." AND status = 'active'");
+    }
+
     /** Рабочая карточка по внутреннему ID для серверных модулей с actor-контекстом. */
     public static function employee_card(array $actor, $employee_id)
     {
