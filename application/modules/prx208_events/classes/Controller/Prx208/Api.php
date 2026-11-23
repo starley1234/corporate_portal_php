@@ -13,13 +13,7 @@ class Controller_Prx208_Api extends Controller_Base {
     public $auto_render = FALSE;
 
     /**
-     * @var Service_Prx208_EventBus Экземпляр сервиса шины событий.
-     */
-    protected $_event_bus;
-
-    /**
      * Инициализация контроллера.
-     * Получаем экземпляр EventBus.
      */
     public function before()
     {
@@ -27,9 +21,12 @@ class Controller_Prx208_Api extends Controller_Base {
 
         // Устанавливаем тип контента для всех ответов API
         $this->response->headers('Content-Type', 'application/json; charset=' . Kohana::$charset);
+    }
 
-        // Получаем экземпляр сервиса EventBus
-        $this->_event_bus = Service_Prx208_EventBus::instance();
+    /** Инициатор события: id авторизованного пользователя или NULL (система). */
+    protected function _initiator_id(): ?int
+    {
+        return $this->_current_user ? (int) $this->_current_user->id : NULL;
     }
 
     /**
@@ -93,10 +90,11 @@ class Controller_Prx208_Api extends Controller_Base {
 
             try
             {
-                // publish() возвращает bool о наличии слушателей, а не модель
-                // события. ID из журнала шина здесь не возвращает.
-                $initiator_id = $this->_current_user ? (int) $this->_current_user->id : NULL;
-                $this->_event_bus->publish($event_name, $payload, $initiator_id);
+                // Тот же контракт, что у кода модулей: имя prxNNN.entity.action и
+                // скалярный payload проверяет Event::publish(); ID записи журнала
+                // шина не возвращает.
+                $initiator_id = $this->_initiator_id();
+                Event::publish($event_name, $payload, $initiator_id);
 
                 $this->response->status(200);
                 $this->response->body(json_encode(array(
@@ -105,7 +103,12 @@ class Controller_Prx208_Api extends Controller_Base {
                     'event_name' => $event_name,
                     'event_id'  => NULL
                 )));
-                Event::fire('prx208_events.published', array('event_name' => $event_name));
+                Event::publish('prx208.event.published', array('event_name' => $event_name), $initiator_id);
+            }
+            catch (InvalidArgumentException $e)
+            {
+                $this->response->status(400);
+                $this->response->body(json_encode(array('status' => 'error', 'message' => $e->getMessage())));
             }
             catch (Throwable $e)
             {
@@ -353,6 +356,8 @@ class Controller_Prx208_Api extends Controller_Base {
                 return;
             }
 
+            $initiator_id = $this->_initiator_id();
+
             try
             {
                 $subscriber = ORM::factory('Prx208_Subscriber');
@@ -380,7 +385,7 @@ class Controller_Prx208_Api extends Controller_Base {
                     'message'       => 'Подписка успешно создана.',
                     'subscriber_id' => $subscriber->id
                 )));
-                Event::fire('prx208_events.subscribed', array('subscriber_id' => (int) $subscriber->id));
+                Event::publish('prx208.subscriber.created', array('subscriber_id' => (int) $subscriber->id), $initiator_id);
             }
             catch (ORM_Validation_Exception $e)
             {
@@ -462,6 +467,8 @@ class Controller_Prx208_Api extends Controller_Base {
                 return;
             }
 
+            $initiator_id = $this->_initiator_id();
+
             try
             {
                 $subscriber = ORM::factory('Prx208_Subscriber', $subscriber_id);
@@ -481,13 +488,13 @@ class Controller_Prx208_Api extends Controller_Base {
                     $subscriber->is_active = FALSE;
                     $subscriber->save();
                     $message = 'Подписка успешно деактивирована.';
-                    Event::fire('prx208_events.deactivated', array('subscriber_id' => $subscriber_id));
+                    Event::publish('prx208.subscriber.deactivated', array('subscriber_id' => $subscriber_id), $initiator_id);
                 }
                 else
                 {
                     $subscriber->delete();
                     $message = 'Подписка успешно удалена.';
-                    Event::fire('prx208_events.unsubscribed', array('subscriber_id' => $subscriber_id));
+                    Event::publish('prx208.subscriber.deleted', array('subscriber_id' => $subscriber_id), $initiator_id);
                 }
 
                 $this->response->status(200);

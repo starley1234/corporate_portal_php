@@ -22,7 +22,7 @@ class Controller_Prx101_Architecture extends Controller_Base
         {
             $this->set_title('Архитектура портала');
             $this->set_description('Страница ещё не собрана из docs/architecture/model');
-            $this->template->content = View::factory('101/missing');
+            $this->template->content = View::factory('prx101/missing');
 
             return;
         }
@@ -32,6 +32,29 @@ class Controller_Prx101_Architecture extends Controller_Base
             ->headers('Content-Type', 'text/html; charset=utf-8')
             ->headers('Cache-Control', 'private, max-age=300')
             ->body($html);
+    }
+
+    /**
+     * /architecture/guide — памятка программиста: философия, архитектура, имена.
+     * Одна страница v6 внутри портала; подробности — по ссылкам на документы.
+     */
+    public function action_guide()
+    {
+        if ( ! $this->can('prx101.view'))
+        {
+            throw HTTP_Exception::factory(403, 'Недостаточно прав: prx101.view');
+        }
+
+        $this->set_title('Как устроен портал — памятка программиста');
+        $this->set_module_nav([
+            ['title' => 'Памятка', 'href' => '/architecture/guide', 'icon' => 'fas fa-compass'],
+            ['title' => 'Схемы и решения', 'href' => '/architecture', 'icon' => 'fas fa-sitemap'],
+            ['title' => 'Администрирование', 'href' => '/admin', 'icon' => 'fas fa-gear'],
+        ]);
+
+        $this->template->content = View::factory('prx101/guide', [
+            'built_at' => Service_Prx101_Architecture::built_at(),
+        ]);
     }
 
     /**

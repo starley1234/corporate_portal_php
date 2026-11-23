@@ -1,69 +1,63 @@
-<?php defined('SYSPATH') or die('No direct script access.'); ?>
+<?php defined('SYSPATH') or die('No direct script access.');
 
+/**
+ * Карточка события: что, кто, когда, payload и кто подписан на это имя.
+ *
+ * Переменные: $event (Service_Prx208_Journal::detail).
+ */
+?>
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
-    <div class="prx-card mb-6">
-        <div class="flex items-center justify-between mb-4 border-b border-gray-200 dark:border-gray-700 pb-4">
-            <h1 class="prx-h1">
-                <?php echo HTML::chars($event->event_name); ?>
-            </h1>
-            <div class="flex space-x-2">
-                <a href="<?php echo Route::url('prx208_events', array('action' => 'edit_event', 'id' => $event->id)); ?>"
-                   class="prx-btn-secondary">
-                    <i class="fas fa-edit mr-2"></i> <?php echo __('Edit'); ?>
-                </a>
-                <a href="<?php echo Route::url('prx208_events', array('action' => 'delete_event', 'id' => $event->id)); ?>"
-                   class="prx-btn-danger"
-                   data-prx-confirm="<?php echo HTML::chars(__('Are you sure you want to delete this event?')); ?>" data-prx-title="Удалить событие?">
-                    <i class="fas fa-trash-alt mr-2"></i> <?php echo __('Delete'); ?>
-                </a>
-            </div>
-        </div>
+    <?php echo View::factory('partials/page_header', [
+        'crumbs'  => [['Администрирование', '/admin'], ['События', '/prx208_events'], [$event['event_name']]],
+        'title'   => 'Событие',
+        'pill'    => ['prx208 · шина', 'fa-bolt'],
+        'lead'    => 'Строка журнала prx_208_events. Редактирования нет: журнал пишет код, старое убирает чистка.',
+        'actions' => [['label' => 'К журналу', 'href' => '/prx208_events', 'icon' => 'fa-arrow-left', 'role' => 'secondary']],
+    ]); ?>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <p class="text-gray-500 dark:text-gray-400 text-sm mb-1"><?php echo __('Event ID'); ?>:</p>
-                <p class="text-gray-900 dark:text-gray-100 text-lg font-semibold"><?php echo HTML::chars($event->id); ?></p>
-            </div>
-            <div>
-                <p class="text-gray-500 dark:text-gray-400 text-sm mb-1"><?php echo __('Event Name'); ?>:</p>
-                <p class="text-gray-900 dark:text-gray-100 text-lg font-semibold"><?php echo HTML::chars($event->event_name); ?></p>
-            </div>
-            <div>
-                <p class="text-gray-500 dark:text-gray-400 text-sm mb-1"><?php echo __('Published At'); ?>:</p>
-                <p class="text-gray-900 dark:text-gray-100 text-lg font-semibold"><?php echo HTML::chars(date('Y-m-d H:i:s', strtotime($event->created_at))); ?></p>
-            </div>
-        </div>
+    <div class="mt-6 gap-6 space-y-6 md:grid md:grid-cols-3 md:items-start md:space-y-0">
+        <section class="prx-card md:col-span-2">
+            <h2 class="prx-h3"><span class="prx-badge prx-badge-info"><span class="prx-dot"></span><?php echo HTML::chars($event['prefix']); ?></span> <code class="font-mono text-base"><?php echo HTML::chars($event['action']); ?></code></h2>
+            <dl class="mt-4 grid grid-cols-2 gap-4 text-sm">
+                <div><dt class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Когда</dt><dd class="mt-1 font-mono text-gray-800 dark:text-gray-100"><?php echo HTML::chars($event['when']); ?></dd></div>
+                <div><dt class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Инициатор</dt><dd class="mt-1 font-mono text-gray-800 dark:text-gray-100"><?php echo $event['initiator_id'] === NULL ? 'система' : 'user #'.(int) $event['initiator_id']; ?></dd></div>
+                <div><dt class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Модуль</dt><dd class="mt-1 text-gray-800 dark:text-gray-100"><?php echo HTML::chars($event['module_title'] !== '' ? $event['module_title'] : 'не найден в манифестах'); ?></dd></div>
+                <div><dt class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">ID записи</dt><dd class="mt-1 font-mono text-gray-800 dark:text-gray-100">#<?php echo (int) $event['id']; ?></dd></div>
+            </dl>
+            <h3 class="prx-h3 mt-6">Payload</h3>
+            <pre class="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-gray-900 p-4 text-xs leading-5 text-gray-100"><?php echo HTML::chars($event['payload_text']); ?></pre>
+        </section>
 
-        <div class="mt-6">
-            <h3 class="prx-h3 mb-3"><?php echo __('Event Payload'); ?>:</h3>
-            <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-md overflow-x-auto">
-                <pre class="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap"><?php
-                    // Попытка декодировать JSON для красивого вывода
-                    $payload_decoded = json_decode($event->payload, true);
-                    if (json_last_error() === JSON_ERROR_NONE) {
-                        echo HTML::chars(json_encode($payload_decoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-                    } else {
-                        echo HTML::chars($event->payload);
-                    }
-                ?></pre>
-            </div>
-        </div>
-
-        <div class="mt-8 text-center">
-            <a href="<?php echo Route::url('prx208_events', array('action' => 'list_events')); ?>"
-               class="prx-btn-secondary">
-                <i class="fas fa-arrow-left mr-3"></i> <?php echo __('Back to Event List'); ?>
-            </a>
-        </div>
+        <aside class="space-y-4">
+            <section class="prx-card" aria-labelledby="prx208-detail-subs">
+                <h2 id="prx208-detail-subs" class="prx-h3">Подписки на это имя <span class="prx-count ml-1"><?php echo count($event['subscribers']); ?></span></h2>
+                <?php if (empty($event['subscribers'])): ?>
+                    <p class="prx-hint mt-2">Явных подписок из БД нет. Слушатели в коде (Event::listen в init.php модулей) здесь не видны — смотрите init.php издателя.</p>
+                <?php else: ?>
+                    <ul class="mt-3 space-y-2">
+                        <?php foreach ($event['subscribers'] as $s): ?>
+                        <li class="rounded-lg border border-gray-200 p-3 text-sm dark:border-gray-700">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <?php if ($s['is_active']): ?><span class="prx-badge prx-badge-ok"><span class="prx-dot"></span>активна</span><?php else: ?><span class="prx-badge prx-badge-wait"><span class="prx-dot"></span>выключена</span><?php endif; ?>
+                                <?php if ($s['is_notification']): ?><span class="prx-badge prx-badge-info"><span class="prx-dot"></span>уведомление</span><?php endif; ?>
+                                <span class="text-gray-600 dark:text-gray-300"><?php echo HTML::chars((string) $s['module_id'] !== '' ? (string) $s['module_id'] : 'модуль не указан'); ?></span>
+                            </div>
+                            <?php if ((string) $s['callback_method'] !== ''): ?><code class="mt-1 block break-all font-mono text-xs text-gray-700 dark:text-gray-200"><?php echo HTML::chars((string) $s['callback_method']); ?></code><?php endif; ?>
+                            <?php if ((string) $s['description'] !== ''): ?><p class="prx-hint mt-1"><?php echo HTML::chars((string) $s['description']); ?></p><?php endif; ?>
+                        </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+                <a href="/prx208_events/list_subscribers?search=<?php echo rawurlencode($event['event_name']); ?>" class="prx-link mt-3 inline-block text-sm">Все подписки на это имя →</a>
+            </section>
+            <section class="prx-card">
+                <h2 class="prx-h3">Дальше событие идёт</h2>
+                <ul class="mt-2 space-y-1.5 text-sm text-gray-600 dark:text-gray-300">
+                    <li><i class="fas fa-code mr-1.5 w-4 text-gray-400" aria-hidden="true"></i>слушатели в коде — сразу, в том же запросе;</li>
+                    <li><i class="fas fa-bell mr-1.5 w-4 text-gray-400" aria-hidden="true"></i><a class="prx-link" href="/prx597/admin">уведомления prx597</a> — если модуль зовёт Notify::emit() сам или включён мост;</li>
+                    <li><i class="fas fa-broom mr-1.5 w-4 text-gray-400" aria-hidden="true"></i>через 90 дней строку убирает <a class="prx-link" href="/prx100/cleanup">чистка</a>.</li>
+                </ul>
+            </section>
+        </aside>
     </div>
 </div>
-
-<?php
-// Вывод сообщений об успехе/ошибке, если они есть в сессии
-if (Session::instance()->get('success_message')) {
-    echo '<script>document.addEventListener("DOMContentLoaded", function() { PRX.toast("' . addslashes(Session::instance()->get_once('success_message')) . '", 0, "ok"); });</script>';
-}
-if (Session::instance()->get('error_message')) {
-    echo '<script>document.addEventListener("DOMContentLoaded", function() { PRX.toast("' . addslashes(Session::instance()->get_once('error_message')) . '", 0, "err"); });</script>';
-}
-?>

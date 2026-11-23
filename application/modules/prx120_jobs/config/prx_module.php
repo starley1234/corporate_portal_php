@@ -9,6 +9,9 @@
  */
 
 return [
+    'id' => 120,
+    'slug' => 'prx120_jobs',
+    'kind' => 'platform',
     'worker' => ['channels' => [
         'echo' => ['label' => 'Проверка воркера', 'url' => '/tasks'],
         'embeddings.index' => ['label' => 'Эмбеддинги', 'url' => '/tasks'],

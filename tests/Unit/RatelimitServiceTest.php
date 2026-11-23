@@ -2,7 +2,7 @@
 
 use PHPUnit\Framework\TestCase;
 /**
- * Юнит-тесты Service_Prx100_Ratelimit (prx100_platform).
+ * Юнит-тесты Service_Prx103_Ratelimit (prx103_platform).
  *
  * Чистые функции allowed()/limit_text() и входная валидация имен таблиц/колонок
  * (бросает исключение ДО запроса к БД — база для этих ассертов не нужна).
@@ -13,22 +13,22 @@ class RatelimitServiceTest extends TestCase {
 
     public function test_allowed_under_limits()
     {
-        $this->assertTrue(Service_Prx100_Ratelimit::allowed(['minute' => 0, 'hour' => 0], 5, 60));
-        $this->assertTrue(Service_Prx100_Ratelimit::allowed(['minute' => 4, 'hour' => 59], 5, 60));
+        $this->assertTrue(Service_Prx103_Ratelimit::allowed(['minute' => 0, 'hour' => 0], 5, 60));
+        $this->assertTrue(Service_Prx103_Ratelimit::allowed(['minute' => 4, 'hour' => 59], 5, 60));
     }
 
     public function test_allowed_at_or_over_limits()
     {
         // ровно порог — это УЖЕ нельзя (выполнится 6-я операция)
-        $this->assertFalse(Service_Prx100_Ratelimit::allowed(['minute' => 5, 'hour' => 0], 5, 60));
-        $this->assertFalse(Service_Prx100_Ratelimit::allowed(['minute' => 0, 'hour' => 60], 5, 60));
-        $this->assertFalse(Service_Prx100_Ratelimit::allowed(['minute' => 99, 'hour' => 600], 5, 60));
+        $this->assertFalse(Service_Prx103_Ratelimit::allowed(['minute' => 5, 'hour' => 0], 5, 60));
+        $this->assertFalse(Service_Prx103_Ratelimit::allowed(['minute' => 0, 'hour' => 60], 5, 60));
+        $this->assertFalse(Service_Prx103_Ratelimit::allowed(['minute' => 99, 'hour' => 600], 5, 60));
     }
 
     public function test_allowed_with_missing_keys()
     {
         // пустой счётчик окна не должен ронять решение
-        $this->assertTrue(Service_Prx100_Ratelimit::allowed([], 5, 60));
+        $this->assertTrue(Service_Prx103_Ratelimit::allowed([], 5, 60));
     }
 
     // ---------- текст лимита ----------
@@ -36,9 +36,9 @@ class RatelimitServiceTest extends TestCase {
     public function test_limit_text()
     {
         $this->assertSame('5 проверок в минуту, 60 в час',
-            Service_Prx100_Ratelimit::limit_text(5, 60, 'проверок'));
+            Service_Prx103_Ratelimit::limit_text(5, 60, 'проверок'));
         $this->assertSame('3 операций в минуту, 120 в час',
-            Service_Prx100_Ratelimit::limit_text(3, 120, 'операций'));
+            Service_Prx103_Ratelimit::limit_text(3, 120, 'операций'));
     }
 
     // ---------- валидация входных имён (до обращения к БД) ----------
@@ -50,7 +50,7 @@ class RatelimitServiceTest extends TestCase {
 
         try
         {
-            Service_Prx100_Ratelimit::window_counts('prx_633_checks; DROP TABLE users', '1.2.3.4');
+            Service_Prx103_Ratelimit::window_counts('prx_633_checks; DROP TABLE users', '1.2.3.4');
         }
         catch (InvalidArgumentException $e)
         {
@@ -63,7 +63,7 @@ class RatelimitServiceTest extends TestCase {
 
         try
         {
-            Service_Prx100_Ratelimit::window_counts('prx_633_checks', '1.2.3.4', 'ip" = \'x');
+            Service_Prx103_Ratelimit::window_counts('prx_633_checks', '1.2.3.4', 'ip" = \'x');
         }
         catch (InvalidArgumentException $e)
         {
@@ -76,7 +76,7 @@ class RatelimitServiceTest extends TestCase {
 
         try
         {
-            Service_Prx100_Ratelimit::window_counts('prx_633_checks', '1.2.3.4', 'client_ip', ['a;b']);
+            Service_Prx103_Ratelimit::window_counts('prx_633_checks', '1.2.3.4', 'client_ip', ['a;b']);
         }
         catch (InvalidArgumentException $e)
         {
@@ -92,7 +92,7 @@ class RatelimitServiceTest extends TestCase {
         $db->query(NULL, "CREATE TEMP TABLE prx_100_test_rates (client_ip text, kind text, created_at timestamptz)");
         try
         {
-            $counts = Service_Prx100_Ratelimit::window_counts('prx_100_test_rates', '203.0.113.7', 'client_ip', ['dns']);
+            $counts = Service_Prx103_Ratelimit::window_counts('prx_100_test_rates', '203.0.113.7', 'client_ip', ['dns']);
             $this->assertSame(0, $counts['minute']);
             $this->assertSame(0, $counts['hour']);
         }

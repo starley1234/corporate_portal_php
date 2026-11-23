@@ -68,8 +68,8 @@ def main(args):
             assert 'Принять пробное письмо' in inbox.text
             accepted = client.post('/inbox/upload', data={'csrf': csrf(inbox, '/inbox/upload'), 'sample': '1'})
             assert accepted.status_code == 303, accepted.status_code
-            ready = wait(client, '/inbox', lambda text: 'Пробное письмо' in text and re.search(r'href="/documents/\d+"', text))
-            record = re.search(r'href="(/documents/\d+)"', ready.text)[1]
+            ready = wait(client, '/inbox', lambda text: 'Пробное письмо' in text and re.search(r'href="/prx391_documents/\d+"', text))
+            record = re.search(r'href="(/prx391_documents/\d+)"', ready.text)[1]
             assert client.get(record).status_code == 200
             assert client.get('/analysis').status_code == 200
             assert client.get('/sla').status_code == 200

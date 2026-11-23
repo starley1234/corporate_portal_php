@@ -4,7 +4,7 @@
  * Аккаунт и безопасность (prx599): /account/security — TOTP, активные сессии,
  * журнал входов, «выйти везде». Только для вошедших.
  */
-class Controller_Prx599_Security extends Controller_Prx100_Base {
+class Controller_Prx599_Security extends Controller_Prx102_Base {
 
     protected function _uid()
     {
@@ -73,7 +73,7 @@ class Controller_Prx599_Security extends Controller_Prx100_Base {
 
         $this->set_title('Аккаунт и безопасность — 2FA, сессии, журнал входов');
 
-        $this->template->content = View::factory('599/security', [
+        $this->template->content = View::factory('prx599/security', [
             'totp_enabled'   => Service_Prx599_Account::totp_enabled($uid),
             'totp_setup'     => $totp !== NULL AND $totp['enabled_at'] === NULL,
             'setup_secret'   => $pending_secret,

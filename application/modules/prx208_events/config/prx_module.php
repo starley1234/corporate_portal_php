@@ -9,11 +9,14 @@
  */
 
 return [
+    'id' => 208,
+    'slug' => 'prx208_events',
+    'kind' => 'platform',
     // Назначение модуля: отсюда его берёт реестр в docs/ARCHITECTURE.md §2
     // (bin/console module:list --markdown). Без `href` в меню и на /services
     // модуль не показывается.
     'title' => 'Шина событий (общий модуль)',
-    'short' => 'журнал аудита и мост к уведомлениям (`Event::fire`)',
+    'short' => 'журнал и слушатели доменных событий (`Event::publish`)',
 
     // --- Пятый контракт: чистки данных (/prx100/cleanup) ----------------------------
     'cleanup' => [

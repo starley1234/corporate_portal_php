@@ -12,6 +12,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<?php /* CSRF-токен для AJAX: app.js добавляет заголовок X-CSRF-Token ко всем
+   небезопасным запросам (серверная проверка — Prx_PostGuard). Только для
+   вошедших: у гостя нет сессии, а POST гостя (вход/регистрация) несёт csrf в форме. */ ?>
+<?php if (isset($current_user) AND $current_user): ?>
+    <meta name="csrf-token" content="<?php echo HTML::chars(Security::token()); ?>">
+<?php endif; ?>
 <?php
     // SEO-шапка (21.09): канонический адрес, OG-теги, robots для служебных путей
     $__req = Request::current();
@@ -77,6 +83,7 @@
 
 	<script src="/assets/js/template.js"></script>
 	<script src="/assets/js/app.js"></script>
+	<script src="/assets/js/search-layout.js"></script>
 	<script src="/assets/js/navpalette.js"></script>
 
     <?php if (isset($styles) && is_array($styles)): ?>
@@ -84,7 +91,7 @@
             <?php if (isset($style['file'])): ?>
                 <link rel="stylesheet" href="<?php echo HTML::chars($style['file']); ?>" <?php echo (isset($style['media']) ? 'media="'.HTML::chars($style['media']).'"' : ''); ?>>
             <?php elseif (isset($style['code'])): ?>
-                <?php /* design-audit: allow style — API add_inline_style() у Controller_Prx100_Base (сейчас никем не вызывается) */ ?>
+                <?php /* design-audit: allow style — API add_inline_style() у Controller_Prx102_Base (сейчас никем не вызывается) */ ?>
                 <style><?php echo $style['code']; ?></style>
             <?php endif; ?>
         <?php endforeach; ?>

@@ -19,7 +19,7 @@ ILIKE-запросов. Теперь `/search` отвечает `410 Gone` бе�
 * `Controller_Prx100_Api` — `GET /search/api?q=…&types=…&per_source=…` → JSON
   `{q, results, total, sources, took_ms}`; ошибки — ЦЕЛИКОМ `{error}` с файл:строка.
 * `Controller_Prx100_Search` — `/search` = `410 Gone` (страница удалена; класс
-  намеренно НЕ наследует `Controller_Prx100_Base`: ни сессии, ни меню, ни БД).
+  намеренно НЕ наследует `Controller_Prx102_Base`: ни сессии, ни меню, ни БД).
 * UI шапки (дропдаун, ↑↓/Enter/Esc, Ctrl+K) — инлайн в
   `application/views/template_tailwindcss.php`.
 

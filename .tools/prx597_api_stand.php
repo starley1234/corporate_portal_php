@@ -71,7 +71,7 @@ class Request
 	}
 	public function query($key) { return array_key_exists($key, $this->get) ? $this->get[$key] : NULL; }
 	public function post($key = NULL) { return $key === NULL ? $this->post_data : (array_key_exists($key, $this->post_data) ? $this->post_data[$key] : NULL); }
-	public function headers($key) { return array_key_exists($key, $this->headers_map) ? $this->headers_map[$key] : NULL; }
+	public function headers($key, $set = NULL) { foreach ($this->headers_map as $name => $value) { if (strcasecmp($name, $key) === 0) { if ($set !== NULL) { $this->headers_map[$name] = $set; return $this; } return $value; } } if ($set !== NULL) { $this->headers_map[$key] = $set; return $this; } return NULL; }
 }
 
 #[\AllowDynamicProperties]
@@ -182,7 +182,7 @@ class Service_Prx597_Registry extends Service_Prx597_Base
 	public static function subs($user_id) { return self::$subs; }
 	public static function save_sub($user_id, $alias, $channel, $enabled) { self::$subs[$alias][$channel] = (bool) $enabled; }
 	public static function roles_of($user_id) { return ['login']; }
-	public static function user_allowed(array $event, array $roles) { return empty($event['denied']); }
+	public static function user_allowed(array $event, array $roles, $user_id = 1) { return empty($event['denied']); }
 	public static function channel_label($channel) { return isset(self::$channels[$channel]) ? self::$channels[$channel]['label'] : $channel; }
 	public static function channel_icon($channel) { return isset(self::$channels[$channel]) ? self::$channels[$channel]['icon'] : 'fas fa-bell'; }
 	public static function binding_channels() { return ['telegram', 'max']; }
@@ -232,6 +232,7 @@ class Log
 }
 
 // Настоящий контроллер API уведомлений.
+require dirname(__DIR__).'/application/classes/Prx/Gate.php';
 require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Controller/Prx597/Api.php';
 
 // ---------------------------------------------------------------- проверки
@@ -293,6 +294,24 @@ check('аноним /read: JSON без падения', json_decode($r->body, TR
 $r = run(new Request(Request::POST, 'outbox', [], [], ['X-Worker-Token' => 'wrong']));
 check('чужой токень /outbox: код 403', $r->code, 403);
 check('чужой токень /outbox: JSON', json_decode($r->body, TRUE)['error'], 'Токен воркера не совпал');
+
+// Исторический приоритет PHP ?: в outbox: пробел не падает на query, "0" — падает.
+$old_token = getenv('WORKER_API_TOKEN');
+putenv('WORKER_API_TOKEN=secret');
+foreach ([
+    ['blank', ' ', 403],
+    ['zero', '0', 200],
+    ['wrong', 'wrong', 403],
+    ['correct', ' secret ', 200],
+] as [$label, $value, $expected])
+{
+    $req = new Request(Request::POST, 'outbox', ['token' => 'secret'], [], ['X-Worker-Token' => $value]);
+    $controller = new Controller_Prx597_Api($req, new Response);
+    $controller->before();
+    check('outbox '.$label, $controller->response->code, $expected);
+    check('outbox заголовок сохранён '.$label, $req->headers('X-Worker-Token'), $value);
+}
+$old_token === FALSE ? putenv('WORKER_API_TOKEN') : putenv('WORKER_API_TOKEN='.$old_token);
 
 // --- живой пользователь ------------------------------------------------------
 $user = new stdClass;

@@ -25,6 +25,7 @@
         <?php endif; ?>
 
         <form class="mt-8 space-y-6" action="" method="POST">
+        <input type="hidden" name="csrf" value="<?php echo HTML::chars(Security::token()); ?>">
             <div class="space-y-4">
                 <div>
                     <label for="password" class="prx-label mb-1.5">Новый пароль</label>

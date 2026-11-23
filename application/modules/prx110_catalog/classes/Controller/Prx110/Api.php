@@ -9,10 +9,9 @@
  * auth/admin/agent-сервисы попадают в выдачу, если у пользователя есть право.
  *
  * GET /prx110/api/favorites и POST /prx110/api/favorites — Избранное
- * текущего аккаунта; POST /prx110/api/favorites_import — явный перенос из
- * браузера. Изменения требуют CSRF и сверки текущего аккаунта.
+ * текущего аккаунта. Изменения требуют CSRF и сверки текущего аккаунта.
  */
-class Controller_Prx110_Api extends Controller_Prx100_Base {
+class Controller_Prx110_Api extends Controller_Prx102_Base {
 
     public function before()
     {
@@ -87,40 +86,6 @@ class Controller_Prx110_Api extends Controller_Prx100_Base {
                 }
             }
             $this->_favorites_reply(['user_id' => $uid, 'items' => Service_Prx110_Favorites::items($uid)]);
-        }
-        catch (Throwable $e)
-        {
-            $this->_favorites_failed($e);
-        }
-    }
-
-    /** POST — только по выбору пользователя; существующие закладки сохраняются. */
-    public function action_favorites_import()
-    {
-        if ($this->request->method() !== Request::POST)
-        {
-            $this->response->headers('Allow', 'POST');
-            $this->_favorites_reply(['error' => 'Метод не поддерживается'], 405);
-            return;
-        }
-        if ( ! $this->_favorites_write_allowed()) return;
-
-        $raw = $this->request->post('hrefs');
-        $hrefs = (is_string($raw) AND strlen($raw) <= 65536) ? json_decode($raw, TRUE) : NULL;
-        if ( ! is_array($hrefs) OR ! array_is_list($hrefs) OR count($hrefs) > Service_Prx110_Favorites::IMPORT_LIMIT)
-        {
-            $this->_favorites_reply(['error' => 'Некорректный список Избранного'], 422);
-            return;
-        }
-
-        try
-        {
-            $uid = (int) $this->_current_user->id;
-            $result = Service_Prx110_Favorites::import($uid, $hrefs);
-            $this->_favorites_reply([
-                'user_id' => $uid, 'items' => Service_Prx110_Favorites::items($uid),
-                'added' => $result['added'], 'skipped' => $result['skipped'],
-            ]);
         }
         catch (Throwable $e)
         {

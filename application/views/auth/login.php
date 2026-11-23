@@ -52,6 +52,7 @@
             </div>
 
             <div class="flex items-center justify-between">
+                <?php if (getenv('PRX_LDAP_ENABLED') !== '1'): ?>
                 <div class="flex items-center">
                     <input id="remember" name="remember" type="checkbox"
                         class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
@@ -65,6 +66,9 @@
                         Забыли пароль?
                     </a>
                 </div>
+                <?php else: ?>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Пароль учётной записи организации; для восстановления обратитесь к администратору.</p>
+                <?php endif; ?>
             </div>
 
             <div>

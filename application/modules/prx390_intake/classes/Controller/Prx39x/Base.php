@@ -44,7 +44,7 @@ abstract class Controller_Prx39x_Base extends Controller_Base
     {
         $items = [
             ['title' => 'Входящие', 'href' => '/inbox', 'icon' => 'fas fa-inbox', 'acl' => 'prx390.view'],
-            ['title' => 'Реестр', 'href' => '/documents', 'icon' => 'fas fa-folder-open', 'acl' => 'prx391.view'],
+            ['title' => 'Реестр', 'href' => '/prx391_documents', 'icon' => 'fas fa-folder-open', 'acl' => 'prx391.view'],
             ['title' => 'ИИ-разбор', 'href' => '/analysis', 'icon' => 'fas fa-wand-magic-sparkles', 'acl' => 'prx392.view'],
             ['title' => 'Сроки', 'href' => '/sla', 'icon' => 'fas fa-clock', 'acl' => 'prx393.view'],
         ];
@@ -52,7 +52,7 @@ abstract class Controller_Prx39x_Base extends Controller_Base
         foreach ($items as &$item)
         {
             $item['active'] = $item['href'] === $active;
-            $item['active_paths'] = $item['href'] === '/documents' ? ['/documents'] : [];
+            $item['active_paths'] = $item['href'] === '/prx391_documents' ? ['/prx391_documents'] : [];
         }
         unset($item);
 
@@ -99,7 +99,7 @@ abstract class Controller_Prx39x_Base extends Controller_Base
         return is_array($flash) ? $flash : [];
     }
 
-    protected function _back($fallback = '/documents')
+    protected function _back($fallback = '/prx391_documents')
     {
         $ref = (string) $this->request->referrer();
         if ($ref !== '' AND strpos($ref, '://') !== FALSE)

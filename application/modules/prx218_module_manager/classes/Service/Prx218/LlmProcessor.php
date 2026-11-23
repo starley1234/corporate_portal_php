@@ -193,10 +193,11 @@ class Service_Prx218_LlmProcessor {
 
                 // 6. Логирование и события
                 Audit::log('module_manager', 'llm_analysis_success', $module_id);
-                Event::fire('prx218.module.llm_completed', array(
-                    'module_id' => $module_id,
-                    'summary'   => $ai_summary
-                ));
+                Event::publish('prx218.module.llm_completed', [
+                    'module_id'   => (int) $module_id,
+                    'analysis_id' => (int) $analysis->id,
+                    'summary'     => (string) $ai_summary,
+                ], (int) $user_id ?: NULL);
             }
             else
             {

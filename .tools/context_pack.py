@@ -414,7 +414,7 @@ def events(name):
     """Публикует / слушает (по тексту модуля)."""
     base = os.path.join(MODULES_DIR, name)
     published, listened = [], []
-    rx_pub = (re.compile(r"publish\(\s*'([^']+)'"), re.compile(r"Event::fire\(\s*'([^']+)'"))
+    rx_pub = (re.compile(r"publish\(\s*'([^']+)'"),)
 
     for dirpath, dirnames, filenames in os.walk(base):
         for fn in filenames:
@@ -608,8 +608,8 @@ _IDENTITY_CACHE = {}
 def identity(name):
     """Свои имена модуля: классы и таблицы. Ими он отличается от соседа с тем же номером.
 
-    Номер не уникален (`prx100_platform` и `prx100_search` делят сотню), поэтому
-    «файл упоминает наш номер» — ещё не «файл проверяет наш модуль».
+    Одно упоминание номера ещё не означает проверку именно этого модуля;
+    дополнительно учитываются имя пакета, собственные классы и таблицы.
     """
     if name in _IDENTITY_CACHE:
         return _IDENTITY_CACHE[name]

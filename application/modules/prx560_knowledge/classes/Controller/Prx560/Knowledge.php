@@ -5,7 +5,7 @@
  * (текстовый + семантический), очистка и удаление записей.
  * Доступ — только роль admin. Действия — строго POST + CSRF.
  */
-class Controller_Prx560_Knowledge extends Controller_Prx100_Base {
+class Controller_Prx560_Knowledge extends Controller_Prx102_Base {
 
     public function before()
     {

@@ -102,7 +102,7 @@ function prx597_admin_render($tab, $placeholders = NULL, array $extra = [])
     $source_alert = NULL;
     extract($extra, EXTR_OVERWRITE);
     ob_start();
-    try { include dirname(__DIR__).'/application/modules/prx597_notifications/views/597/admin.php'; return ob_get_contents(); }
+    try { include dirname(__DIR__).'/application/modules/prx597_notifications/views/prx597/admin.php'; return ob_get_contents(); }
     finally { ob_end_clean(); }
 }
 set_error_handler(function ($code, $message) { throw new RuntimeException($message); }, E_WARNING | E_NOTICE);
@@ -279,11 +279,11 @@ Auth::$user = NULL;
 $c = new Prx597_Admin_Controller($payload);
 try { $c->post(); check('аноним: закрыто', FALSE, TRUE); }
 catch (RuntimeException $e) { check('аноним: закрыто', $e->getCode(), 403); }
-Auth::$user = (object) ['id' => 7]; Controller_Prx100_Base::$allowed = FALSE;
+Auth::$user = (object) ['id' => 7]; Controller_Prx102_Base::$allowed = FALSE;
 try { $c->post(); check('обычный пользователь: закрыто', FALSE, TRUE); }
 catch (RuntimeException $e) { check('обычный пользователь: закрыто', $e->getCode(), 403); }
 check('без права сообщение не записывается', count($db->inserts), 0);
-Controller_Prx100_Base::$allowed = TRUE; Auth::$user = (object) ['id' => 5];
+Controller_Prx102_Base::$allowed = TRUE; Auth::$user = (object) ['id' => 5];
 $c = new Prx597_Admin_Controller(array_merge($payload, ['csrf' => 'bad'])); $c->post();
 check('плохой CSRF: сообщение не записывается', count($db->inserts), 0);
 check('плохой CSRF: понятная ошибка', strpos(urldecode($c->location), 'Сессия устарела') !== FALSE, TRUE);

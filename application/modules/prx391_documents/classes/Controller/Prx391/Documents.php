@@ -7,7 +7,7 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
         $this->_require('prx391.view');
         $this->set_title('Реестр входящих документов');
         $this->set_description('Карточки, реквизиты, корреспонденты и сроки');
-        $this->_nav('/documents');
+        $this->_nav('/prx391_documents');
 
         $filters = [
             'q' => trim((string) $this->request->query('q')),
@@ -18,7 +18,7 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
 
         $list = Service_Prx391_Documents::list_documents($filters, $this->_actor());
 
-        $this->template->content = View::factory('391/index', [
+        $this->template->content = View::factory('prx391/index', [
             'flash' => $this->_flash(),
             'csrf' => $this->_csrf(),
             'can_edit' => $this->can('prx391.edit'),
@@ -47,7 +47,7 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
 
         $this->set_title('Документ '.$document['reg_no']);
         $this->set_description($document['subject']);
-        $this->_nav('/documents');
+        $this->_nav('/prx391_documents');
 
         $analysis = NULL;
         $runs = [];
@@ -67,7 +67,7 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
             $drafts = Service_Prx394_Drafts::drafts_for_document($id);
         }
 
-        $this->template->content = View::factory('391/show', [
+        $this->template->content = View::factory('prx391/show', [
             'flash' => $this->_flash(),
             'csrf' => $this->_csrf(),
             'doc' => $document,
@@ -113,7 +113,7 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
             $res = Service_Prx391_Documents::save_card($id, $input, $this->_actor());
 
             return $res['changed'] ? 'Сохранено полей: '.$res['changed'] : 'Изменений нет';
-        }, '/documents/'.$id);
+        }, '/prx391_documents/'.$id);
     }
 
     public function action_close()
@@ -125,7 +125,7 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
             Service_Prx391_Documents::close($id, $this->_actor());
 
             return 'Документ закрыт';
-        }, '/documents/'.$id);
+        }, '/prx391_documents/'.$id);
     }
 
     public function action_reopen()
@@ -137,7 +137,7 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
             Service_Prx391_Documents::reopen($id, $this->_actor());
 
             return 'Документ возвращён в работу';
-        }, '/documents/'.$id);
+        }, '/prx391_documents/'.$id);
     }
 
     public function action_download()
@@ -157,8 +157,9 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
             throw HTTP_Exception::factory(403, 'Нет доступа к файлу');
         }
 
-        $path = Service_Prx212_Storage::instance()->getFilePath($file_id);
-        if ( ! $path OR ! is_file($path))
+        // Доступ к документу проверен выше; file_id взят из записи prx390.
+        $content = Storage::bytes($file_id);
+        if ($content === NULL)
         {
             throw HTTP_Exception::factory(404, 'Физический файл не найден');
         }
@@ -168,8 +169,8 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
             ->status(200)
             ->headers('Content-Type', $file['mime'] ?: 'application/pdf')
             ->headers('Content-Disposition', 'attachment; filename="'.basename($file['filename']).'"')
-            ->headers('Content-Length', (string) filesize($path))
-            ->body(file_get_contents($path));
+            ->headers('Content-Length', (string) strlen($content))
+            ->body($content);
 
         return $this->response;
     }

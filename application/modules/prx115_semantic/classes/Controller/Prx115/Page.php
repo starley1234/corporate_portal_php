@@ -17,7 +17,7 @@
  * Действия — через /prx115/api/* (ajax, без перезагрузки страницы). Доступ:
  * право `prx115.admin` (роль admin).
  */
-class Controller_Prx115_Page extends Controller_Prx100_Base {
+class Controller_Prx115_Page extends Controller_Prx102_Base {
 
     public function before()
     {
@@ -51,7 +51,7 @@ class Controller_Prx115_Page extends Controller_Prx100_Base {
             $panel = ['error' => $e->getMessage(), 'collections' => [], 'queue' => [], 'health' => [], 'totals' => []];
         }
 
-        $this->template->content = View::factory('115/index', [
+        $this->template->content = View::factory('prx115/index', [
             'panel' => $panel,
             'csrf'  => Security::token(),
         ]);

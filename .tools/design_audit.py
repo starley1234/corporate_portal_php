@@ -49,11 +49,13 @@ SHARED_VIEWS = ROOT / 'application/views'
 DONE = {
     'cookie_consent',
     'llm',
-    'prx100_platform',
+    'prx103_platform',
     'prx110_catalog',
     'prx111_migrations',
     'prx115_semantic',
     'prx120_jobs',
+    'prx150_api_hub',
+    'prx450_document_ocr',
     'prx208_events',
     'prx212_file_storage',
     'prx218_module_manager',
@@ -129,16 +131,17 @@ RULES = {
 # Модули, где ночная тема выверена: для них --check требует ноль замечаний
 # «dark». Отдельный храповик (25.10.2026, «ночью не видно» в /mcphub).
 # 27.10.2026 к нулю приведены все production-модули и общие группы.
-# prx140_design_lab сюда не входит: это автономная витрина альтернативных
-# тем со своими CSS, а не страницы рабочего портала. Список только растёт.
+# Список только растёт.
 DARK_DONE = {
     'cookie_consent',
     'llm',
-    'prx100_platform',
+    'prx103_platform',
     'prx110_catalog',
     'prx111_migrations',
     'prx115_semantic',
     'prx120_jobs',
+    'prx150_api_hub',
+    'prx450_document_ocr',
     'prx208_events',
     'prx212_file_storage',
     'prx218_module_manager',

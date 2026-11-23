@@ -15,6 +15,9 @@
  */
 
 return [
+    'audience' => 'auth',
+    'acl' => 'prx100.search',
+    'status' => 'stable',
     'id'        => 100,
     'slug'      => 'prx100_search',
     'title'     => 'Глобальный поиск',

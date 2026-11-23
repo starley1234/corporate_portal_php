@@ -1,12 +1,5 @@
-# Платформенная очередь, LLM, embeddings и общий webread.
+# Платформенная очередь, LLM, embeddings, OCR (tesseract — системный пакет).
 asyncpg>=0.29
 httpx>=0.27
-trafilatura>=1.12
-lxml_html_clean>=0.1
-markdownify>=0.13
-beautifulsoup4>=4.12
 # PDF: чтение текстового слоя и проверка страниц для document.extract
 pypdf>=5.0
-# Опциональные адаптеры webread (не нужны для внутренних документов):
-# curl_cffi>=0.7
-# ddgs>=9.0

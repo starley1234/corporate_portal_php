@@ -33,6 +33,7 @@
             <?php endif; ?>
 
             <form class="mt-8 space-y-6" action="/auth/forgot_password" method="POST">
+        <input type="hidden" name="csrf" value="<?php echo HTML::chars(Security::token()); ?>">
                 <div>
                     <label for="email" class="prx-label mb-1.5">Email адрес</label>
                     <div class="relative">

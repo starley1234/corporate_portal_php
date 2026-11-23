@@ -26,7 +26,7 @@ class PortalNavigationTest extends TestCase
         $items = Service_Prx110_Catalog::search_json($admin)['items'];
         $hrefs = array_column($items, 'href');
         foreach ([
-            '/architecture', '/design-lab', '/prx560', '/employee', '/prx597', '/account/security', '/document-extract',
+            '/architecture', '/prx560', '/employee', '/prx597', '/account/security', '/prx395_document_extract',
         ] as $href) {
             $this->assertContains($href, $hrefs, $href);
         }
@@ -34,7 +34,7 @@ class PortalNavigationTest extends TestCase
             $this->assertNotContains($href, $hrefs, $href);
         }
         $modules = Kohana::modules();
-        foreach (['/inbox' => 'prx390_intake', '/documents' => 'prx391_documents', '/analysis' => 'prx392_analysis', '/sla' => 'prx393_workflow'] as $href => $module) {
+        foreach (['/inbox' => 'prx390_intake', '/prx391_documents' => 'prx391_documents', '/analysis' => 'prx392_analysis', '/sla' => 'prx393_workflow'] as $href => $module) {
             $this->assertSame(isset($modules[$module]), in_array($href, $hrefs, TRUE), $href);
         }
         foreach ($items as $item) {
@@ -44,7 +44,7 @@ class PortalNavigationTest extends TestCase
         $login = ['guest' => FALSE, 'logged' => TRUE, 'roles' => ['login'], 'admin' => FALSE, 'agent' => FALSE];
         $login_hrefs = array_column(Service_Prx110_Catalog::search_json($login)['items'], 'href');
         $this->assertContains('/employee', $login_hrefs);
-        foreach (['/prx560', '/document-extract', '/inbox', '/documents', '/analysis', '/sla'] as $href) {
+        foreach (['/prx560', '/prx395_document_extract', '/inbox', '/prx391_documents', '/analysis', '/sla'] as $href) {
             $this->assertNotContains($href, $login_hrefs);
         }
 
@@ -52,7 +52,7 @@ class PortalNavigationTest extends TestCase
         $guest_hrefs = array_column(Service_Prx110_Catalog::search_json($guest)['items'], 'href');
         $this->assertNotContains('/employee', $guest_hrefs);
         $this->assertNotContains('/prx560', $guest_hrefs);
-        $this->assertContains('/design-lab', $guest_hrefs);
+        $this->assertSame([], $guest_hrefs);
     }
 
     public function test_catalog_passes_only_local_navigation_aliases(): void

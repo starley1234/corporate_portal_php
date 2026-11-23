@@ -450,7 +450,9 @@ check('предохранитель: колокольчик не глушим р
 check('предохранитель: личные лимиты на месте', Service_Prx597_Limits::limit('per_user_hour', 'email', 6), 6);
 
 // --- 8. Панель показывает предохранитель и «за час» ---------------------------
-$admin_tpl = file_get_contents(dirname(__DIR__).'/application/modules/prx597_notifications/views/597/admin.php');
+$admin_tpl = file_get_contents(dirname(__DIR__).'/application/modules/prx597_notifications/views/prx597/admin.php')
+    .file_get_contents(dirname(__DIR__).'/application/modules/prx597_notifications/views/prx597/partials/queue.php')
+    .file_get_contents(dirname(__DIR__).'/application/modules/prx597_notifications/views/prx597/partials/summary.php');
 $admin_ctrl = file_get_contents(dirname(__DIR__).'/application/modules/prx597_notifications/classes/Controller/Prx597/Admin.php');
 check('панель: администратору передают отметку предохранителя', strpos($admin_ctrl, 'Service_Prx597_Limits::source_alert(') !== FALSE, TRUE);
 check('панель: администратору передают лимит источника', strpos($admin_ctrl, "limit('source_hour'") !== FALSE, TRUE);
@@ -467,7 +469,7 @@ check('админка: у кнопки область «waiting»', strpos($admi
 check('админка: у кнопки область «failed»', strpos($admin_tpl, 'name="scope" value="failed"') !== FALSE, TRUE);
 check('админка: уборка ленты по коду события', strpos($admin_tpl, 'name="act" value="purge_feed"') !== FALSE, TRUE);
 check('админка: уборка в два клика (data-prx-arm)', substr_count($admin_tpl, 'data-prx-arm="') >= 4, TRUE);
-$arm_js = (string) file_get_contents(dirname(__DIR__).'/application/modules/prx597_notifications/views/597/script.php');
+$arm_js = (string) file_get_contents(dirname(__DIR__).'/application/modules/prx597_notifications/views/prx597/script.php');
 // Взвод — общий data-prx-arm из app.js; видимость днём (не белое на белом)
 // держит общее правило [data-prx-arm].is-armed в сборке, своего кода нет.
 check('админка: своего взвода в скрипте нет — общий data-prx-arm',

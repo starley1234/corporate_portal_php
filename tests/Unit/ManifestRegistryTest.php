@@ -71,33 +71,48 @@ class ManifestRegistryTest extends TestCase {
 
     public function test_acl_is_deny_by_default(): void
     {
-        $this->assertFalse(ACL::check([], 'portal.access'));
-        $this->assertTrue(ACL::check(['login'], 'portal.access'));
-        $this->assertFalse(ACL::check(['login'], 'prx595.users.admin'));
-        $this->assertTrue(ACL::check(['login'], 'prx300.view'));
-        $this->assertTrue(ACL::check(['login'], 'prx300.directory'));
-        $this->assertFalse(ACL::check(['login'], 'prx300.admin.view'));
-        $this->assertFalse(ACL::check(['login'], 'prx300.manage'));
-        $this->assertTrue(ACL::check(['hr_viewer'], 'prx300.admin.view'));
-        $this->assertFalse(ACL::check(['hr_viewer'], 'prx300.import'));
-        $this->assertTrue(ACL::check(['hr_admin'], 'prx300.identity'));
-        $this->assertTrue(ACL::check(['admin'], 'prx300.view'));
+        $this->assertFalse(Prx_Acl::check([], 'portal.access'));
+        $this->assertTrue(Prx_Acl::check(['login'], 'portal.access'));
+        $this->assertFalse(Prx_Acl::check(['login'], 'prx595.users.admin'));
+        $this->assertTrue(Prx_Acl::check(['login'], 'prx300.view'));
+        $this->assertTrue(Prx_Acl::check(['login'], 'prx300.directory'));
+        $this->assertFalse(Prx_Acl::check(['login'], 'prx300.admin.view'));
+        $this->assertFalse(Prx_Acl::check(['login'], 'prx300.manage'));
+        $this->assertTrue(Prx_Acl::check(['hr_viewer'], 'prx300.admin.view'));
+        $this->assertFalse(Prx_Acl::check(['hr_viewer'], 'prx300.import'));
+        $this->assertTrue(Prx_Acl::check(['hr_admin'], 'prx300.identity'));
+        $this->assertTrue(Prx_Acl::check(['admin'], 'prx300.view'));
     }
 
     public function test_worker_gate_requires_nonempty_matching_secret(): void
     {
         $before = getenv('WORKER_API_TOKEN');
         $header = $_SERVER['HTTP_X_WORKER_TOKEN'] ?? NULL;
+        $request = Request::factory('test');
         try
         {
             putenv('WORKER_API_TOKEN=');
-            $_SERVER['HTTP_X_WORKER_TOKEN'] = '';
-            $this->assertFalse(Gate::worker_request());
+            $request->headers('X-Worker-Token', '');
+            $this->assertFalse(Prx_Gate::worker_request($request));
             putenv('WORKER_API_TOKEN=portal-test-token');
-            $_SERVER['HTTP_X_WORKER_TOKEN'] = 'wrong';
-            $this->assertFalse(Gate::worker_request());
-            $_SERVER['HTTP_X_WORKER_TOKEN'] = 'portal-test-token';
-            $this->assertTrue(Gate::worker_request());
+            $request->headers('X-Worker-Token', 'wrong');
+            $this->assertFalse(Prx_Gate::worker_request($request));
+            $request->headers('X-Worker-Token', 'portal-test-token');
+            $this->assertTrue(Prx_Gate::worker_request($request));
+            $request->headers('X-Worker-Token', '');
+            $request->query('token', 'portal-test-token');
+            $this->assertFalse(Prx_Gate::worker_request($request));
+            $this->assertTrue(Prx_Gate::worker_request($request, NULL, TRUE));
+            $request->headers('X-Worker-Token', 'wrong');
+            $this->assertFalse(Prx_Gate::worker_request($request, NULL, TRUE));
+            $request->headers('X-Worker-Token', ' portal-test-token ');
+            $this->assertTrue(Prx_Gate::worker_request($request, NULL, TRUE));
+            $this->assertFalse(Prx_Gate::worker_request($request));
+            $request->headers('X-Worker-Token', 'site-secret');
+            $this->assertTrue(Prx_Gate::worker_request($request, 'site-secret'));
+            $this->assertFalse(Prx_Gate::worker_request($request, 'other'));
+            $request->headers('X-Worker-Token', ' ');
+            $this->assertTrue(Prx_Gate::worker_request($request, NULL, TRUE));
         }
         finally
         {

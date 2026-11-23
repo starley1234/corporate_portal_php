@@ -16,6 +16,12 @@
 *   **Умная фильтрация уведомлений:** Автоматическое исключение инициатора события из списка получателей уведомлений (чтобы не получать уведомления о собственных действиях).
 *   **REST API:** Интерфейс для публикации и мониторинга событий внешними системами.
 
+## Интерфейс
+
+`/prx208_events` — журнал и сводка для администратора (читается; публикует код),
+`/prx208_events/list_subscribers` — подписки. Старые create/edit/delete событий
+удалены 23.11.2026: журнал — доказательство, а не форма.
+
 ## Настройка
 
 Конфигурация находится в `application/config/prx208_events.php`. Журнал
@@ -33,7 +39,8 @@
 
 ### 1. Публикация события
 
-Используйте `Service_Prx208_EventBus` для отправки данных в шину:
+Публикация — только через фасад `Event` (имя `prxNNN.<сущность>.<действие>`, payload из
+ID и скаляров, инициатор — явным третьим аргументом):
 
 ```php
 $payload = [
@@ -42,8 +49,7 @@ $payload = [
     'target_user_ids' => [45, 46, 47], // Массив получателей для уведомлений
 ];
 
-// Публикация (третий параметр - ID текущего пользователя/инициатора)
-Service_Prx208_EventBus::instance()->publish('prx502.task_done', $payload, $current_user_id);
+Event::publish('prx502.task.done', $payload, $current_user_id);
 ```
 
 ### 2. Подписка на событие
@@ -52,7 +58,7 @@ Service_Prx208_EventBus::instance()->publish('prx502.task_done', $payload, $curr
 Обычно делается в `init.php` вашего модуля:
 
 ```php
-Service_Prx208_EventBus::instance()->listen('prx502.task_done', function($payload, $event_name, $initiator_id) {
+Event::listen('prx502.task.done', function($payload, $event_name, $initiator_id) {
     // Ваша логика
 });
 ```
@@ -60,7 +66,7 @@ Service_Prx208_EventBus::instance()->listen('prx502.task_done', function($payloa
 #### Способ Б: Через БД (динамическая регистрация)
 После аудита и разрешения загрузки DB-подписок оператором в интерфейсе модуля
 (`/prx208_events/list_subscribers`) можно создать запись:
-*   **Event Name:** `prx502.task_done`
+*   **Event Name:** `prx502.task.done` (по `Event::NAME_PATTERN`)
 *   **Callback Method:** `Model_ClassName::method_name`
 *   **Is Active:** Да
 

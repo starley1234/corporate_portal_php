@@ -124,13 +124,6 @@ foreach ($items as $item)
                         ? 'Не удалось загрузить Избранное. Обновите страницу.' : 'Добавляйте сервисы звёздочкой в каталоге'); ?></li>
                 <?php endif; ?>
             </ul>
-            <div id="nav-legacy-import" class="sidebar-label hidden px-3 pt-2 text-xs text-gray-500 dark:text-gray-400">
-                <p>В этом браузере есть прежнее Избранное. Перенести доступные сервисы в текущий аккаунт?</p>
-                <div class="mt-2 flex flex-wrap gap-2">
-                    <button type="button" data-nav-import class="rounded-md border border-gray-300 px-2 py-1 font-semibold hover:bg-gray-100 dark:border-gray-600 dark:hover:bg-gray-800">Перенести</button>
-                    <button type="button" data-nav-import-dismiss class="rounded-md px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-800">Не сейчас</button>
-                </div>
-            </div>
             <div id="nav-favorite-status" class="sidebar-label hidden px-3 pt-2 text-xs text-rose-600 dark:text-rose-400" role="status" aria-live="polite"></div>
         </div>
         <?php foreach ($groups as $group => $group_items): ?>

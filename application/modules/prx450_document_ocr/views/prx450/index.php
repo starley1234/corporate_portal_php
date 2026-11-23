@@ -1,0 +1,158 @@
+<?php defined('SYSPATH') or die('No direct script access.');
+
+/**
+ * Проверка распознавания документов: параметры шлюза → пробный запрос → ответ.
+ *
+ * Переменные: $config, $result, $error, $csrf.
+ */
+$fmt = function (int $bytes): string {
+    return $bytes >= 1048576 ? number_format($bytes / 1048576, 0, ',', ' ').' МБ' : number_format($bytes / 1024, 0, ',', ' ').' КБ';
+};
+$old = $_POST ?? [];
+?>
+<div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Администрирование', '/admin'], ['Распознавание документов']],
+        'title'  => 'Распознавание документов',
+        'pill'   => ['prx450 · внешний OCR-шлюз', 'fa-file-lines'],
+        'lead'   => 'PDF и сканы → Markdown. Модуль работает через API: потребитель получает ключ prx150, адрес и контракт «multipart file → JSON». Здесь — проверка настройки и пробный запрос.',
+        'actions'=> [
+            ['label' => 'API-доступ', 'href' => '/prx150_api_hub', 'icon' => 'fa-key', 'role' => 'secondary'],
+            ['label' => 'Документация', 'href' => '/prx150_api_hub/docs', 'icon' => 'fa-book', 'role' => 'secondary'],
+        ],
+    ]); ?>
+
+    <div class="mt-5 gap-6 space-y-6 lg:grid lg:grid-cols-3 lg:items-start lg:space-y-0">
+        <div class="space-y-6 lg:col-span-2">
+            <?php if ($error): ?>
+                <section class="prx-card border-rose-300 dark:border-rose-800" role="alert">
+                    <h2 class="prx-h3 text-rose-700 dark:text-rose-300"><i class="fas fa-triangle-exclamation mr-1.5"></i>Запрос не прошёл</h2>
+                    <p class="mt-2 text-sm text-gray-700 dark:text-gray-200">Код: <code><?php echo HTML::chars($error['code']); ?></code> · HTTP <?php echo (int) $error['status']; ?></p>
+                    <?php if ( ! empty($error['details'])): ?>
+                        <pre class="mt-2 overflow-auto rounded-lg bg-gray-900 p-3 text-xs text-gray-100"><?php echo HTML::chars(json_encode($error['details'], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)); ?></pre>
+                    <?php endif; ?>
+                    <p class="prx-hint mt-2">Проверьте адрес и ключ шлюза в <code>.env</code> (<code>PRX450_OCR_BASE_URL</code>, <code>PRX450_OCR_API_KEY</code>) и логи платформы.</p>
+                </section>
+            <?php endif; ?>
+
+            <?php if ($result): ?>
+                <section class="prx-card" aria-label="Результат распознавания">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <h2 class="prx-h3"><i class="fas fa-circle-check mr-1.5 text-emerald-500"></i>Результат</h2>
+                        <div class="flex flex-wrap gap-1.5">
+                            <?php if ($result['cached']): ?><span class="prx-badge prx-badge-ok"><span class="prx-dot"></span>из кэша<?php echo $result['cache_source'] ? ' · '.HTML::chars($result['cache_source']) : ''; ?></span><?php endif; ?>
+                            <?php if ($result['engine_used']): ?><span class="prx-badge prx-badge-info"><?php echo HTML::chars($result['engine_used']); ?></span><?php endif; ?>
+                            <?php if ($result['llm_fixed']): ?><span class="prx-badge prx-badge-run">LLM-коррекция</span><?php endif; ?>
+                        </div>
+                    </div>
+                    <p class="prx-hint mt-2">Файл: <?php echo HTML::chars($result['file']); ?> · <?php echo $fmt(strlen($result['content'])); ?> текста</p>
+                    <pre class="mt-3 max-h-[32rem] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-gray-900 p-4 text-xs leading-5 text-gray-100" dir="auto"><?php echo HTML::chars($result['content']); ?></pre>
+                    <?php if ( ! empty($result['raw_result'])): ?>
+                        <details class="mt-3">
+                            <summary class="cursor-pointer text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">Сырой JSON шлюза</summary>
+                            <pre class="mt-2 max-h-72 overflow-auto rounded-lg bg-gray-900 p-3 text-xs leading-4 text-gray-100"><?php echo HTML::chars(json_encode($result['raw_result'], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)); ?></pre>
+                        </details>
+                    <?php endif; ?>
+                </section>
+            <?php endif; ?>
+
+            <section class="prx-card" aria-labelledby="prx450-form">
+                <h2 id="prx450-form" class="prx-h3"><i class="fas fa-upload mr-1.5 text-gray-400"></i>Пробный запрос</h2>
+                <form method="post" action="/prx450_document_ocr" enctype="multipart/form-data" class="mt-4">
+                    <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
+                    <label class="block">
+                        <span class="prx-label">Документ</span>
+                        <input class="prx-input mt-1 w-full" type="file" name="file" accept=".pdf,.png,.jpg,.jpeg,.tif,.tiff,.webp,.bmp" required>
+                        <span class="prx-hint mt-1">До <?php echo $fmt((int) $config['max_bytes']); ?> · PDF, PNG, JPEG, TIFF, WEBP, BMP. Файл уходит во внешний шлюз, на сайте не хранится.</span>
+                    </label>
+
+                    <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <label class="block">
+                            <span class="prx-label">Движок</span>
+                            <select class="prx-select mt-1 w-full" name="engine">
+                                <?php foreach (['auto', 'docling-cpu', 'mineru', 'paddleocr-vl'] as $engine): ?>
+                                    <option value="<?php echo $engine; ?>"<?php echo ($old['engine'] ?? $config['defaults']['engine']) === $engine ? ' selected' : ''; ?>><?php echo $engine; ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <label class="block">
+                            <span class="prx-label">Формат</span>
+                            <select class="prx-select mt-1 w-full" name="output_format">
+                                <?php foreach (['md' => 'md — текст', 'full' => 'full — с сырым JSON'] as $value => $label): ?>
+                                    <option value="<?php echo $value; ?>"<?php echo ($old['output_format'] ?? $config['defaults']['output_format']) === $value ? ' selected' : ''; ?>><?php echo $label; ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <label class="block">
+                            <span class="prx-label">Макс. сторона картинки</span>
+                            <input class="prx-input mt-1 w-full" type="number" name="max_image_side" min="512" max="8192" step="64" value="<?php echo (int) ($old['max_image_side'] ?? $config['defaults']['max_image_side']); ?>">
+                        </label>
+                    </div>
+
+                    <div class="mt-4 flex flex-wrap gap-x-5 gap-y-2">
+                        <?php
+                        $flags = [
+                            'preprocess'     => 'Предобработка PDF',
+                            'ocr'            => 'OCR сканов',
+                            'extract_tables' => 'Таблицы',
+                            'extract_images' => 'Извлечь картинки',
+                            'vlm_pictures'   => 'Описать картинки (VLM)',
+                            'llm_fix'        => 'LLM-коррекция',
+                        ];
+                        foreach ($flags as $name => $label): ?>
+                            <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                                <input type="checkbox" name="<?php echo $name; ?>" value="1"<?php echo ! empty($old[$name]) ? ' checked' : (! empty($config['defaults'][$name]) ? ' checked' : ''); ?> class="h-4 w-4 accent-blue-600">
+                                <?php echo $label; ?>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <label class="mt-4 block">
+                        <span class="prx-label">LLM-модель</span>
+                        <input class="prx-input mt-1 w-full" name="llm_model" maxlength="64" value="<?php echo HTML::chars((string) ($old['llm_model'] ?? $config['defaults']['llm_model'])); ?>">
+                    </label>
+                    <label class="mt-4 block">
+                        <span class="prx-label">Нативные параметры шлюза (JSON, необязательно)</span>
+                        <input class="prx-input mt-1 w-full" name="extra_config" maxlength="4000" placeholder='{"lang":"ru","table_mode":"accurate"}' value="<?php echo HTML::chars((string) ($old['extra_config'] ?? '')); ?>">
+                    </label>
+
+                    <button class="prx-btn-process mt-4" type="submit"><i class="fas fa-wand-magic-sparkles"></i>Распознать</button>
+                </form>
+            </section>
+        </div>
+
+        <aside class="space-y-4">
+            <section class="prx-card" aria-labelledby="prx450-upstream">
+                <h2 id="prx450-upstream" class="prx-h3">Шлюз</h2>
+                <dl class="mt-3 space-y-2 text-sm">
+                    <div class="flex items-center justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">Адрес</dt><dd class="break-all text-right font-mono text-xs text-gray-800 dark:text-gray-100"><?php echo HTML::chars($config['base_url']); ?><?php echo HTML::chars($config['parse_path']); ?></dd></div>
+                    <div class="flex items-center justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">Таймаут</dt><dd class="tabular-nums"><?php echo (int) $config['timeout']; ?> с</dd></div>
+                    <div class="flex items-center justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">Ключ шлюза</dt><dd><?php echo $config['has_key'] ? '<span class="prx-badge prx-badge-ok"><span class="prx-dot"></span>задан</span>' : '<span class="prx-badge prx-badge-wait"><span class="prx-dot"></span>не задан</span>'; ?></dd></div>
+                    <div class="flex items-center justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">Движок по умолчанию</dt><dd><code class="text-xs"><?php echo HTML::chars($config['defaults']['engine']); ?></code></dd></div>
+                </dl>
+                <p class="prx-hint mt-3">Меняется в <code>.env</code>: <code>PRX450_OCR_BASE_URL</code>, <code>PRX450_OCR_API_KEY</code>, <code>PRX450_OCR_TIMEOUT</code>. Для локального Tesseract — <a class="prx-link" href="/prx150_api_hub/docs">инструкция</a>.</p>
+            </section>
+
+            <section class="prx-card">
+                <h2 class="prx-h3">API для потребителя</h2>
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Ключ выдаётся в <a class="prx-link" href="/prx150_api_hub">API-доступе</a> со scope <code>prx450.parse</code>.</p>
+                <pre class="mt-3 overflow-auto rounded-lg bg-gray-900 p-3 text-xs leading-5 text-gray-100"><code>POST /api/v1/document-ocr/parse
+Authorization: Bearer prx_…
+Content-Type: multipart/form-data
+
+file=@document.pdf</code></pre>
+                <p class="prx-hint mt-2">Ответ: <code>{"file","content","cached","engine_used","llm_fixed","raw_result"}</code>.</p>
+            </section>
+
+            <section class="prx-card">
+                <h2 class="prx-h3">Что проверить</h2>
+                <ul class="mt-2 space-y-1.5 text-sm text-gray-600 dark:text-gray-300">
+                    <li><i class="fas fa-check mr-1.5 w-4 text-emerald-500"></i>Адрес шлюза доступен с сервера PHP.</li>
+                    <li><i class="fas fa-key mr-1.5 w-4 text-gray-400"></i>Ключ шлюза задан, если он требуется.</li>
+                    <li><i class="fas fa-file-pdf mr-1.5 w-4 text-gray-400"></i>PDF не зашифрован и не больше лимита.</li>
+                    <li><i class="fas fa-chart-line mr-1.5 w-4 text-gray-400"></i>Запросы видны в <a class="prx-link" href="/prx150_api_hub/usage">журнале API</a>.</li>
+                </ul>
+            </section>
+        </aside>
+    </div>
+</div>

@@ -246,7 +246,7 @@ class Service_Prx391_Registry
             return TRUE;
         }
 
-        return ACL::check($actor['roles'] ?? [], 'prx391.admin');
+        return Prx_Actor::fromArray($actor)->can('prx391.admin');
     }
 
     protected static function _db()

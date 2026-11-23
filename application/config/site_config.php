@@ -11,7 +11,7 @@ return [
     'domain' => parse_url($url, PHP_URL_HOST),
     'site_name' => 'PRX',
     'site_logo' => '<i class="fas fa-layer-group mr-2"></i>',
-    // Бренд-акцент общего шаблона: orange, blue или yellow (см. /design-lab).
+    // Бренд-акцент общего шаблона: orange, blue или yellow (дизайн-система v6).
     // Не меняет семантические цвета действий и статусов.
     'company_accent' => 'orange',
 ];

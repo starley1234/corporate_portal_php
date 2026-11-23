@@ -142,14 +142,14 @@ class Service_Prx393_Workflow
             'priority' => $priority,
         ]);
 
-        Event::fire('prx393.document.assigned', [
+        Event::publish('prx393.document.assigned', [
             'document_id' => $document_id,
             'reg_no' => $document['reg_no'],
             'department' => $department,
             'role' => $role,
             'due_at' => $due,
             'rule' => $matched['code'] ?? NULL,
-        ]);
+        ], (int) ($actor['user_id'] ?? 0) ?: NULL);
 
         return self::deadline_for($document_id);
     }
@@ -437,7 +437,8 @@ class Service_Prx393_Workflow
                 continue; // гонка: уровень уже записан другим запросом
             }
 
-            Event::fire($event, [
+            // Плановый обход сроков — инициатор система.
+            Event::publish($event, [
                 'document_id' => (int) $row['document_id'],
                 'reg_no' => $row['reg_no'],
                 'subject' => $row['subject'],
@@ -445,7 +446,7 @@ class Service_Prx393_Workflow
                 'hours_left' => round($hours_left, 1),
                 'level' => $level,
                 'title' => 'Срок: '.$row['reg_no'],
-                'href' => '/documents/'.(int) $row['document_id'],
+                'href' => '/prx391_documents/'.(int) $row['document_id'],
                 'target_user_ids' => $targets,
             ]);
             $sent++;

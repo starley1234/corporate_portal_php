@@ -119,7 +119,7 @@ class Controller_Prx212_Index extends Controller_Prx212_Main
             try {
                 $uploaded_files = Arr::get($_FILES, 'files', []);
                 if (empty($uploaded_files['name'][0])) {
-                    throw new Service_Prx212_Storage_Exception('Не выбраны файлы для загрузки.');
+                    throw new Storage_Exception('Не выбраны файлы для загрузки.');
                 }
 
                 $files_data = [];
@@ -138,13 +138,14 @@ class Controller_Prx212_Index extends Controller_Prx212_Main
                 }
 
                 if (!empty($files_data)) {
-                    $uploaded_items = $this->storage_service->upload_files($files_data, $this->_current_user ? $this->_current_user->id : null);
-                    foreach ($uploaded_items as $item) {
-                        Event::fire('prx212_storage.file_uploaded', $item);
+                    $user_id = $this->_current_user ? (int) $this->_current_user->id : NULL;
+                    // save() сам публикует prx212.file.uploaded по каждому файлу.
+                    foreach ($files_data as $item) {
+                        $this->storage_service->save($item, ['user_id' => $user_id, 'module' => 'default']);
                     }
                     $success_message = 'Файлы успешно загружены.';
                 }
-            } catch (Service_Prx212_Storage_Exception $e) {
+            } catch (Storage_Exception $e) {
                 $errors[] = $e->getMessage();
             } catch (Exception $e) {
                 $errors[] = 'Произошла непредвиденная ошибка: ' . $e->getMessage();

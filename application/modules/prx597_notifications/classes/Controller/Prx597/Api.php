@@ -38,10 +38,26 @@ class Controller_Prx597_Api extends Controller {
         // Служебный outbox вызывается python-воркером из prx603 без пользовательской сессии.
         if ($this->request->action() === 'outbox')
         {
-            $expected = trim((string) getenv('WORKER_API_TOKEN'));
-            $given = trim((string) ($this->request->headers('X-Worker-Token') ?: $this->request->query('token')));
+            // Сохраняем прежний PHP ?: приоритет заголовка: пробел не даёт
+            // fallback на query, а строка "0" считается отсутствующей.
+            $header = $this->request->headers('x-worker-token');
+            $authorized = FALSE;
+            if ($header AND trim((string) $header) === '')
+            {
+                $authorized = FALSE;
+            }
+            elseif ($header === '0')
+            {
+                $this->request->headers('x-worker-token', '');
+                try { $authorized = Prx_Gate::worker_request($this->request, NULL, TRUE); }
+                finally { $this->request->headers('x-worker-token', '0'); }
+            }
+            else
+            {
+                $authorized = Prx_Gate::worker_request($this->request, NULL, TRUE);
+            }
 
-            if ($expected === '' OR $given === '' OR ! hash_equals($expected, $given))
+            if ( ! $authorized)
             {
                 $this->response->status(403);
                 $this->response->body(json_encode(['error' => 'Токен воркера не совпал'], JSON_UNESCAPED_UNICODE));
@@ -256,7 +272,7 @@ class Controller_Prx597_Api extends Controller {
 
         if ( ! isset(Service_Prx597_Base::user_channels()[$channel])
             OR ! in_array($channel, $event['channels'], TRUE)
-            OR ! Service_Prx597_Registry::user_allowed($event, Service_Prx597_Registry::roles_of($uid)))
+            OR ! Service_Prx597_Registry::user_allowed($event, Service_Prx597_Registry::roles_of($uid), $uid))
         {
             $this->response->status(403);
             $this->response->body(json_encode(['error' => 'Событие или канал недоступны'], JSON_UNESCAPED_UNICODE));
@@ -349,7 +365,7 @@ class Controller_Prx597_Api extends Controller {
 
         foreach (Service_Prx597_Registry::events(TRUE) as $alias => $event)
         {
-            if ( ! Service_Prx597_Registry::user_allowed($event, $roles))
+            if ( ! Service_Prx597_Registry::user_allowed($event, $roles, $uid))
             {
                 continue;   // не его план — не показываем и не предлагаем
             }

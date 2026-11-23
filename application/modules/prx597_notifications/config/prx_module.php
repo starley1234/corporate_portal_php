@@ -8,6 +8,9 @@
  * публикует (секция notify.events — её читает реестр типов событий).
  */
 return [
+    'audience' => 'auth',
+    'acl' => 'prx597.view',
+    'status' => 'stable',
 	'id'       => 597,
 	'slug'     => 'prx597_notifications',
 	'title'    => 'Уведомления',

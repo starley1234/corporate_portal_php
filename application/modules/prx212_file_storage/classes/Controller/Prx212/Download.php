@@ -55,7 +55,10 @@ class Controller_Prx212_Download extends Controller_Prx212_Main {
             );
 
             // Вызов события после успешного скачивания
-            Event::fire('prx212_storage.file_downloaded', (object)['file_id' => $file_id, 'user_id' => $user_id]);
+            Event::publish('prx212.file.downloaded', [
+                'file_id' => (int) $file_id,
+                'user_id' => $user_id ? (int) $user_id : NULL,
+            ], $user_id ? (int) $user_id : NULL);
 
         } catch (HTTP_Exception $e) {
             $this->response->status($e->getCode());
@@ -94,8 +97,11 @@ class Controller_Prx212_Download extends Controller_Prx212_Main {
                 $file_data['mime_type']
             );
 
-            // Вызов события после успешного скачивания по токену
-            Event::fire('prx212_storage.shared_file_downloaded', (object)['file_id' => $file_data['id'], 'token' => $token]);
+            // Вызов события после успешного скачивания по токену. Сам токен в
+            // журнал не попадает: это временный ключ доступа.
+            Event::publish('prx212.file.shared_downloaded', [
+                'file_id' => (int) $file_data['id'],
+            ]);
 
         } catch (HTTP_Exception $e) {
             $this->response->status($e->getCode());

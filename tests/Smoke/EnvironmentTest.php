@@ -20,8 +20,28 @@ class EnvironmentTest extends TestCase
     public function test_prx_modules_registered(): void
     {
         $modules = array_keys(Kohana::modules());
-        foreach (['prx100_base', 'prx111_migrations', 'prx100_platform', 'prx120_jobs', 'prx115_semantic', 'prx208_events'] as $m) {
+        foreach (['prx102_core', 'prx111_migrations', 'prx103_platform', 'prx120_jobs', 'prx115_semantic', 'prx208_events'] as $m) {
             $this->assertContains($m, $modules, "Модуль $m не подключён в bootstrap.php");
+        }
+    }
+
+    public function test_core_auth_models_keep_shared_table_names(): void
+    {
+        $this->assertSame('users', ORM::factory('Prx102_User')->table_name());
+        $this->assertSame('roles', ORM::factory('Prx102_Role')->table_name());
+        $this->assertSame('users', ORM::factory('User')->table_name());
+        $this->assertSame('roles', ORM::factory('Role')->table_name());
+    }
+
+    public function test_optional_ldap_driver_matches_module_setting(): void
+    {
+        if (getenv('PRX_LDAP_ENABLED') === '1') {
+            $this->assertArrayHasKey('ldap_auth', Kohana::modules());
+            $this->assertSame('Ldap', Kohana::$config->load('auth')->get('driver'));
+            $this->assertTrue(is_subclass_of('Auth_Ldap', 'Auth_ORM'));
+        } else {
+            $this->assertArrayNotHasKey('ldap_auth', Kohana::modules());
+            $this->assertSame('ORM', Kohana::$config->load('auth')->get('driver'));
         }
     }
 

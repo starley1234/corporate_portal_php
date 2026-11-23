@@ -1,4 +1,413 @@
-# Проверка основы PRX, шага 1 (`prx300_employee`), витрины дизайна (`prx140_design_lab`) и выравнивания рабочих страниц по v6 — 26.10.2026; дополнения — 27.10.2026
+# Журнал проверок PRX
+
+Свежие записи — сверху. Что не проверено на стенде, отмечено явно.
+
+<!-- context-index:begin -->
+<!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index docs/VALIDATION.md --write. Руками не править. -->
+| Раздел | Строка | Размер |
+|---|---|---|
+|   23.11.2026 — представления и остатки канонизации | 45 | 1,7 КБ |
+|   23.11.2026 — статусы, поиск в другой раскладке, LDAP | 63 | 2,2 КБ |
+|   23.11.2026 — каноническая структура и имена | 84 | 2,6 КБ |
+|   23.11.2026 — канонический фасад `Storage::`, prx390/391/395 больше не зовут prx212 | 111 | 6,5 КБ |
+|   23.11.2026 — единое `Event::publish`, legacy-диспетчер удалён | 178 | 5,5 КБ |
+|   23.11.2026 — организация ключа, платформенная идемпотентность, prx395 на контуре prx150 | 244 | 4,0 КБ |
+|   23.11.2026 — URL «префикс + слаг», API-доступ и OCR-шлюз | 292 | 3,2 КБ |
+|   23.11.2026 — workers/ по владельцам, страницы событий/логов/памятки | 332 | 2,6 КБ |
+|   23.11.2026 — чистка: перенос закладок, `archive/`, документация | 361 | 1,9 КБ |
+|   23.11.2026 — фундамент платформы и удаление витрины дизайна | 384 | 2,0 КБ |
+|   18.11.2026 — план предприятия и архив портала | 412 | 0,5 КБ |
+|   18.11.2026 — документооборот включён для проверки | 419 | 0,5 КБ |
+|   18.11.2026 — одна настройка документооборота в bootstrap | 426 | 0,8 КБ |
+|   18.11.2026 — настройки воркера на одном хосте и проверка PHP-связи | 435 | 1,2 КБ |
+|   18.11.2026 — подключение старого контура одним комментарием | 449 | 0,8 КБ |
+|   18.11.2026 — проверка через UI и переключатель документооборота | 459 | 1,5 КБ |
+|   18.11.2026 — PDF → текст: живой PHP и Python | 476 | 2,8 КБ |
+|   18.11.2026 — архив docflow и фокус на ИИ-пайплайнах | 501 | 2,1 КБ |
+|   Фактически выполнено 26.10.2026 | 523 | 3,6 КБ |
+|   Дополнение 27.10.2026 — расширение и корректировка `prx140_design_lab` | 547 | 2,9 КБ |
+|   Дополнение 27.10.2026 — рабочие страницы по эталону v6 | 566 | 2,6 КБ |
+|   HTTP и права (основной прогон 26.10.2026) | 587 | 2,7 КБ |
+|   Ограничения | 621 | 3,7 КБ |
+|   Документооборот prx390–prx394 (16.11.2026) | 655 | 1,9 КБ |
+|   Архитектура как код и первичный администратор (16.11.2026) | 680 | 1,5 КБ |
+|   Исправления после production-проверки (16.11.2026) | 698 | 0,8 КБ |
+|   Перестройка структуры (16.11.2026) | 708 | 0,7 КБ |
+|   VLM-демо prx398 (16.11.2026) | 718 | 2,1 КБ |
+|   OCR Provider для doc.normalize (16.11.2026) | 744 | 2,5 КБ |
+|   PRX-префикс и структурные швы (16.11.2026) | 777 | 4,1 КБ |
+|   Навигация, селекты и Design Lab №11 (17.11.2026) | 825 | 4,9 КБ |
+|   Избранное аккаунта (17.11.2026) | 872 | 4,3 КБ |
+|   Перенос storage из docroot (17.11.2026) | 911 | 3,8 КБ |
+|   Диагностика приёма и `doc.normalize` (17.11.2026) | 948 | 3,5 КБ |
+|   Сроки и подписки событий (17.11.2026) | 982 | 7,7 КБ |
+<!-- context-index:end -->
+## 23.11.2026 — представления и остатки канонизации
+
+- Представления prx-модулей и scaffold используют `views/prxNNN/`; общий
+  `partials/` и каталоги библиотек сохранены. Линтер проверяет расположение
+  и литеральные ссылки внутри prx-модулей.
+- Удалены только MySQL-миграции `llm`; действующие PostgreSQL-миграция и модель
+  по-прежнему используют `llm_requests`. Поэтому `git grep -n llm_requests`
+  не пуст: удалить эти ссылки без изменения схемы и функциональности нельзя.
+- `make check`: 29 тестов, один пропуск; ошибок нет (два предупреждения ACL).
+  `make env-check`: ошибок 0, предупреждений 25. Отдельные manifest и portal
+  проверки прошли. PHP parser: application 465, tests 23, .tools 12, ошибок 0.
+- `npm test`: 38 успешно; `npm run architecture` успешно;
+  `npm run test:architecture`: 125 успешно. Workers pytest: 145 успешно,
+  один пропуск. PHP/WASM стенды: Gate — 9, API prx597 — 67 успешно.
+- `bash bin/test` не выполнен: отсутствует нативный PHP CLI; новая PostgreSQL
+  для интеграционного прогона также недоступна. Статический парсер и WASM
+  стенды не заменяют запуск PHPUnit и миграций на реальной базе.
+
+## 23.11.2026 — статусы, поиск в другой раскладке, LDAP
+
+- `/prx595/admin/activity`: статусы очереди локализованы через Kohana i18n;
+  неизвестный статус остаётся экранированным. `/tasks`: убраны три ссылки на
+  несуществующие сервисы, пустое состояние сохранено.
+- Палитра и каталог используют общий поиск по русской/английской раскладке,
+  включая регистр, смешанные слова и небольшие опечатки в перекладке; проверен
+  пример `d\[jzobt` → «Входящие» в обоих интерфейсах.
+- `ldap_auth` по умолчанию выключен; при `PRX_LDAP_ENABLED=1` работает LDAP
+  bind по TLS для существующих локальных пользователей с ролью login. Локальные
+  роли, подтверждение email и TOTP сохранены; локального fallback и создания
+  аккаунтов нет. Установка, настройки, ограничения и откат — в README модуля.
+- Проверки: `make check` (25 тестов, 1 пропуск), `php_check_all` (467 файлов),
+  `npm test` (38), архитектура (125), workers (145, 1 пропуск) — успешно.
+  PHP/WASM: LDAP mock — 20, интерфейс и настройка — 19 проверок; реальные
+  шаблоны и bootstrap с LDAP как включённым, так и выключенным — успешно.
+- Ограничения: реальный LDAP/AD, сертификаты и сборка Docker не проверены в
+  этой среде; перед внедрением нужен стенд с PHP LDAP, FPM и PostgreSQL.
+  `bin/test` недоступен без PHP CLI; полный WASM mini-runner по-прежнему имеет
+  35 ошибок инфраструктуры/прежних тестов и 2 пропуска (см. запись ниже).
+
+## 23.11.2026 — каноническая структура и имена
+
+- `prx102_core` и `prx103_platform` имеют собственные префиксы классов;
+  миграции Auth переименованы в `Prx_102_001…005`, общие таблицы не менялись.
+  Модели явно сохраняют `users` и `roles`, включая экземпляры с префиксом.
+- RBAC вынесен в `Prx_Acl` через actor; worker-токен — в `Prx_Gate`.
+  Сохранены отдельные правила пустого токена, приоритета заголовка и query,
+  site-токена и строгого сравнения. Для пяти конкретных HTTP-точек и 401
+  линтер допускает прямой вызов `Prx_Gate`: это необходимые точки входа,
+  остальные модули не могут звать его напрямую.
+- Строгий манифест, библиотека `PostgreSQL_PDO`, проверка фасадов и миграций;
+  PostgreSQL-миграции `llm` находятся в `migrations_pg/`.
+- Условные обработчики docflow перемещены в пакеты владельцев, проверка PHP
+  по health сохранена. Макеты перенесены в `docs/design/`, движок — в
+  `.tools/architecture/`, systemd-инструкция — `docs/DEPLOY-SYSTEMD.md`.
+- Проверки: `make check` (25 тестов, 1 пропуск), `php_check_all` (464 PHP-файла),
+  `npm test` (35), `npm run architecture` и `npm run test:architecture` (125),
+  workers pytest (145, 1 пропуск) — успешно. PHP/WASM: worker gate — 11,
+  API уведомлений — 59, движок уведомлений — 498 проверок успешно. В WASM
+  отдельно прошли smoke Auth-таблиц и unit worker-gate.
+- Ограничения: `bash bin/test` не запускается без PHP CLI; PostgreSQL и полный
+  HTTP-прогон не проверены. Пробный mini-runner под WASM: 69 успешно, 35 ошибок,
+  2 пропуска; из ошибок 33 связаны с отсутствием `pg_pconnect`, одна — с сессией в WASM,
+  ещё одна — прежнее несоответствие `HTTP_Exception_403::getCode()` (404)
+  и HTTP-статуса ответа (403). Отдельный `php_class_ref_lint` по-прежнему
+  сообщает 2 прежние ошибки (`Notify` в тексте и архивный `Prx394_Drafts`).
+
+## 23.11.2026 — канонический фасад `Storage::`, prx390/391/395 больше не зовут prx212
+
+**Фасад.** `application/classes/Storage.php` переписан начисто: `final class Storage`,
+только статические методы — `save(array $file, string $module, ?int $user_id = NULL,
+bool $is_public = FALSE): int`, `put(string $content, string $filename, string $module,
+?int $user_id = NULL, bool $is_public = FALSE, ?string $mime_type = NULL): int`,
+`bytes(int): ?string`, `metadata(int, ?int $user_id = NULL): ?array` (только `id, filename,
+extension, mime_type, size, hash, is_public, module, created_at, url`), `url(int, ?int $user_id = NULL,
+int $ttl = 3600): ?string`, `delete(int, ?int $user_id = NULL): bool`, `read_owned`, `delete_owned`,
+`owned_ids_before(string, int, int $limit = 100): array` (`int[]` — в docblock: PHP не знает такого
+типа, бриф перечислял его как тип). `upload()`, `path()`, возвраты ORM и `Auth::instance()` удалены.
+Внутри — `Service_Prx212_Storage` через `class_exists`; модуль не подключён: записи (`save`/`put`/
+`delete`/`delete_owned`) бросают `Storage_Exception` (`application/classes/Storage/Exception.php`,
+`extends RuntimeException`), чтение возвращает `NULL`/`FALSE`/`[]`. Любая ошибка хранилища при записи
+оборачивается в `Storage_Exception` (предыдущее исключение сохранено); сбой чтения — WARNING в
+`Kohana::$log` и `NULL`. Фасад не решает права на объект: `file_id` вызывающий берёт из своей
+авторизованной записи, файловые правила (владелец/публичность) применяет только `delete()`
+(docblock, `docs/FOUNDATION.md` §5, корневой `AGENTS.md` п. 2).
+
+**prx212.** `Service_Prx212_Storage::delete($file_id, ?int $user_id = NULL)` и
+`_check_permission($file, $action, ?int $user_id)` без `Auth` (гость — отказ, владелец — да,
+DEVELOPMENT-обход сохранён). Добавлен `read_bytes($file_id): ?string` (локальный диск и S3, без
+проверки прав) и общий `_read_bytes()` для `read_owned`; форматы, MIME, лимиты, пути, S3 и
+symlink-защита не менялись. `Controller_Prx212_Api::action_delete` передаёт ID пользователя.
+Побочное: `Controller_Prx212_Index` бросал/ловил несуществующий `Service_Prx212_Storage_Exception`
+(fatal при ошибке загрузки) — заменён на `Storage_Exception`.
+
+**Вызывающие модули.** prx390 `Api::action_file` и prx391 `Documents::action_download` —
+`Storage::bytes($file_id)` вместо `getFilePath()` + `file_get_contents()` (Content-Length по
+`strlen`), то есть теперь работают и с S3; prx390 `Intake::_store_file` — `Storage::save($file,
+'prx390', $user_id ?: NULL)` без `class_exists`; prx395 `Extraction` — без внедрённого сервиса:
+`Storage::save/put/read_owned/delete_owned/owned_ids_before`. `grep 'Service_Prx212_\|Model_Prx212_\|
+ORM::factory('Prx212'` по `application/` вне prx212 и фасада — пусто. `tests/Smoke/StorageIntegrationTest.php`
+(+ одна проверка `Storage::bytes`) и `tests/Unit/StoragePathsTest.php` остаются тестами внутренностей
+prx212 — сервис напрямую.
+
+**Линтер.** `.tools/storage_lint.py` (вызывается из `portal_check.py`, т.е. в `make check`): в
+`application/**` вне `prx212_file_storage/**` и `classes/Storage.php` запрещены `Service_Prx212_`,
+`Model_Prx212_`, `ORM::factory('Prx212`; в `Storage.php` — `Auth::instance()`. Сообщение: «доступ
+к файлам — только `Storage::` (см. `docs/FOUNDATION.md`)». Тест правила — `tests/test_storage_lint.py`.
+
+**Доки.** `docs/FOUNDATION.md` §5 «Файлы: фасад `Storage::`» (бывшие §5–8 стали §6–9) и правило имён
+(`Event` и `Storage` — фасады, `Service_Prx212_*` — внутренности); корневой `AGENTS.md` п. 2;
+`prx212_file_storage/AGENTS.md` (раздел «Публичный контракт»); `prx102_core/README.md` и
+`prx212…/Service/Prx212/manual.md` — примеры на `Storage::save/put/bytes/url` без `Storage::upload`;
+`docs/ARCHITECTURE.md`; памятка prx390; README prx212.
+
+Проверено в песочнице без PHP и PostgreSQL:
+
+- `make check` — 33 модуля, 242 класса, 26 манифестов, 93 маршрута, 69 документов, 19 python-тестов
+  (10 storage-ops, 5 событий, 4 storage-линтер; 1 skipped), «files via Storage:: only».
+- `bash .tools/php_check_all.sh` — 463 файла, 0 ошибок, 37 миграций, 0 замечаний; дизайн-аудит чист;
+  документация в бюджете. `php_class_ref_lint` — те же 2 предсуществующие ошибки (prx208 `Notify::`,
+  prx394 drafts).
+- `npm test` — 35/35; `make architecture` — 0 ошибок, 0 предупреждений;
+  `PYTHONPATH=workers python3 -m pytest workers/tests -q` — 145 passed, 1 skipped (workers не менялись).
+
+Не проверено (нет PHP): phpunit `PrxFoundationTest` — новые `test_storage_save_bytes_metadata_and_delete_owned`
+(без БД пропускается; с БД — транзакция, временный backend в `sys_get_temp_dir()`, уборка),
+`test_storage_rejects_bad_module_with_storage_exception`,
+`test_storage_without_prx212_throws_on_write_and_reads_return_null` (флаг `module_missing` через
+Reflection — класс `final`); smoke-тесты; HTTP-выдача файлов из `/inbox` (prx390) и
+`/prx391_documents/download` (prx391); `read_bytes` по S3. Нюанс поведения: `bytes()` возвращает NULL
+и когда файла нет, и когда чтение не удалось (раньше prx390 отвечал 500 «Не удалось прочитать файл»,
+теперь 404 «Физический файл не найден» плюс WARNING фасада в журнале); физический файл, чей размер
+не совпал с `file_size`, тоже считается недоступным.
+
+## 23.11.2026 — единое `Event::publish`, legacy-диспетчер удалён
+
+**Фасад.** `application/classes/Event.php` переписан начисто:
+`Event::publish(string $name, array $payload = [], ?int $initiator_id = NULL): void`.
+Имя — `/^prx\d+[a-z0-9_]*\.[a-z0-9_.]+$/D`, payload рекурсивно только скаляры,
+массивы и NULL (объект, ресурс, замыкание → `InvalidArgumentException` до журнала),
+инициатор явный (`0` → NULL), сессия не читается; без `prx208_events` —
+предупреждение в `Kohana::$log` и выход. `listen()`/`has()` оставлены тонкими
+прокси шины (слушатели в `init.php` prx218/prx390/prx393 и smoke-тесты), `forget()`
+удалён — вызовов нет. `fire()`/`queue()` и `application/classes/Prx/Event.php`
+удалены; обход `E_DEPRECATED` при загрузке шины сохранён в `bus()`. Отклонение от
+брифа: слушателей не 0, а 5 — поэтому `listen()` остался.
+
+**Издатели.** Все 48 `Event::fire` и 6 прямых `Service_Prx208_EventBus::…->publish()`
+(prx120 ×2, prx300 `_event()`, prx208 Api/Widget, `Model_Prx208_Event::trigger()`)
+переведены на `Event::publish`; ORM-объекты заменены на ID и скаляры:
+- prx218 (23): публикуют сервисы с явным инициатором (`?int $actor_id` добавлен
+  в `ModuleManager`, `_actor_id()` в контроллерах); дубль `status_changed` в
+  `Index::action_update_status` убран; слушатель `status_changed` читает
+  `module_id/old_status/new_status` (раньше получал объект и падал), слушатель
+  кэша переведён на `prx218.scanner.module_discovered` (`prx218.module.registered`
+  никто не публиковал).
+- prx212 (5): `prx212_storage.*` → `prx212.file.{uploaded,deleted,downloaded,
+  shared_downloaded}`; в payload больше нет `storage_path`, email пользователя и
+  токена share-ссылки. Форма загрузки звала несуществующий `upload_files()` (всегда
+  500) — теперь сохраняет через `save()` по каждому файлу, событие публикует он.
+- prx208 (7): `prx208_events.*` → `prx208.event.published`,
+  `prx208.subscriber.{created,saved,deactivated,deleted}`; ручная публикация из
+  API/виджета идёт через фасад (невалидное имя → 400). Мёртвый
+  `Model_Prx208_EventPublisher` (публиковал мимо журнала) удалён; `Subscriber`
+  проверяет имя по `Event::NAME_PATTERN`.
+- prx390–prx393, prx450, prx300, prx120: имена и payload не менялись, добавлен
+  явный инициатор (actor/`created_by`; cron и воркер — NULL).
+
+**Линтер.** `.tools/event_lint.py` (вызывается из `portal_check.py`, т.е. в
+`make check`): в `application/**` запрещены `Event::fire(`, `Event::queue(`,
+`Prx_Event` и публикация `Service_Prx208_EventBus::instance()->publish()` /
+`*event_bus*->publish(` вне фасада; сообщение показывает
+`Event::publish('prxNNN.entity.action', [...], $initiator_id)`. Тест правила —
+`tests/test_event_lint.py`; `make check` теперь запускает `tests/test_*.py`.
+
+**Доки.** `docs/FOUNDATION.md` §3 (+ правило имён: `Event` — фасад без префикса,
+`Prx_*` — только фундамент, `Service_/Controller_/Policy_/Task_/Model_PrxNNN_*` —
+код модулей; «пять классов» убрано), `ARCHITECTURE.md`, `ARCHITECTURE-REVIEW.md`
+§1.5/§4/§5, `MODULE_GUIDE.md`, `README.md`, корневой `AGENTS.md`, памятки prx120
+и prx208, scaffold, `/architecture/guide`, README prx102_core/prx212/prx208,
+i18n и представления prx208, `.tools/context_pack.py` (события модуля из
+`publish('…')`).
+
+Проверено в песочнице без PHP и PostgreSQL:
+
+- `make check` — 33 модуля, 241 класс, 26 манифестов, 38/74 ключей ACL,
+  93 маршрута, 69 документов, 0 замечаний CSRF, 15 python-тестов (10 storage +
+  5 событий), «events via Event::publish only».
+- `bash .tools/php_check_all.sh` — 462 файла, 0 ошибок, 37 миграций, 0 замечаний;
+  дизайн-аудит чист; JS-селекторы на месте.
+- `npm test` — 35/35; `make architecture` — 0 ошибок, 0 предупреждений;
+  `PYTHONPATH=workers python3 -m pytest workers/tests -q` — 145 passed, 1 skipped
+  (workers не менялись).
+
+Не проверено (нет PHP): phpunit `tests/Unit/PrxFoundationTest.php` — новые
+`test_event_publish_*` (доставка слушателю, отказ по имени/payload, шина не
+подключена) — и smoke-тесты; HTTP-публикация из `/prx208_events`. Журнал
+`prx_208_events` хранит старые имена (`prx212_storage.*`, `prx208_events.*`) — это
+история, не подписки. DB-подписки по умолчанию выключены; перед включением
+`PRX208_DB_SUBSCRIBERS_ENABLED=1` сверить их имена с новыми.
+## 23.11.2026 — организация ключа, платформенная идемпотентность, prx395 на контуре prx150
+
+**Ключ и организация.** `prx_150_002` добавляет `organization_id BIGINT NULL` и
+индекс. FK на `prx300` нет (инвариант 2): скаляр, существование проверяет
+публичный `Service_Prx300_Directory::organization_exists()`; без подключённого
+prx300 допустим только NULL. Новый `Prx150_Principal` (`id`, `name`,
+`organization_id`, `scopes`) реализует интерфейс `Prx_Principal`, его реализует
+и `Prx_Actor`. `Prx_Policy` теперь принимает `Prx_Principal`: одна объектная
+политика проверяет и человека, и машинный ключ; RBAC-часть — только для
+`Prx_Actor`, у машины ролей и `can()` нет. `Controller_Prx150_Machine::principal()`
+отдаёт principal сервису; `respond()` не менялся.
+
+**Идемпотентность.** `Prx_Idempotency` — платформенный ключ повтора:
+`begin()` (advisory-lock + транзакция) → `new|replay|conflict|expired` →
+`finish()` (результат + commit) / `abort()`. Плюс `run()` для простых случаев.
+Таблица `prx_idempotency_keys` (`prx_110_005`), TTL `PRX_IDEMPOTENCY_TTL_HOURS`
+(24), ключ `[A-Za-z0-9._:-]{1,128}`, тело не хранится — только sha256. Чистка —
+`cleanup` манифеста `prx102_core` (7 дней после истечения).
+
+**prx395 на контуре prx150.** `Controller_Prx395_Api` наследует
+`Controller_Prx150_Machine`, scope `prx395.extract`; `Prx395_Error extends
+Prx150_Error`. `Service_Prx395_Clients` и `PRX395_DOCUMENT_EXTRACT_CLIENTS`
+удалены вместе с контроллером `Prx395_Json`. Миграция `prx_395_002`: владелец
+задания — `api_client_id BIGINT NOT NULL` (положительные ID — ключи prx150,
+отрицательные — задания админки), уникальность `(api_client_id, request_key)`.
+Собственная логика идемпотентности из `Extraction::register` убрана —
+`prx120::push` и ссылка на задание лежат в одной транзакции с ключом
+`Prx_Idempotency`. Страница — `/prx395_document_extract` (+301 с
+`/document-extract`). Worker-контур (`/prx395/worker/*`, `X-Worker-Token`) не
+тронут. `prx450` (sync) и `prx395` (async) разведены в обоих `AGENTS.md` и
+`docs/integrations/`; `ARCHITECTURE-REVIEW.md §1.3` приведён к фактическому
+контракту (Bearer-ключ + scope, плоский успех, `X-Request-Id`, `no-store`).
+
+Проверено в песочнице без PHP и PostgreSQL:
+
+- `make check` — 33 модуля, 243 класса, 26 манифестов, 38/74 ключей ACL,
+  93 маршрута, 69 документов, 0 замечаний CSRF, 10 storage-тестов.
+- `bash .tools/php_check_all.sh` — 464 файла, 0 ошибок, 37 миграций, 0 замечаний;
+  дизайн-аудит чист; JS-селекторы на месте.
+- `npm test` — 35/35; `make architecture` — 0 ошибок, 0 предупреждений.
+- `route_registry` видит 93 маршрута: новый `prx395_document_extract`, legacy
+  `document-extract` и машинный `api/v1/document-extractions`.
+
+Не проверено (нет PHP/PostgreSQL): миграции `prx_150_002`, `prx_110_005`,
+`prx_395_002`; `Prx_Idempotency` на живой базе (тест `PrxIdempotencyTest`
+пропускается без PostgreSQL); 401/403/429 и конфликт ключа на реальном API;
+админка выбора организации. HTTP smoke ждёт стенд.
+
+## 23.11.2026 — URL «префикс + слаг», API-доступ и OCR-шлюз
+
+**URL.** Новое правило: страница модуля — `/prxNNN_slug`, а не короткий `/slug`;
+подстраницы — `/prxNNN_slug/<action>`, внутренний API — `/prxNNN_slug/api/<action>`.
+Внешний машинный контракт остаётся `/api/v1/<domain>/…`. Scaffold v2 и
+`docs/MODULE_GUIDE.md` обновлены; `route_registry.py` требует префикс у модулей
+с `created_at` от 23.11.2026. Пример: `/documents` → `/prx391_documents`, старый
+адрес отдаёт 301 (все ссылки модулей 390–393, тесты и docs обновлены).
+
+**prx150_api_hub.** Ключи внешних потребителей: SHA-256 ключа, префикс,
+scope (`api_scopes` в манифесте модуля-владельца), лимит/мин, срок, отзыв.
+`Controller_Prx150_Machine::respond()` проверяет ключ, scope и лимит, пишет
+использование в `finally` и ставит `X-Request-Id`. Админка: `/prx150_api_hub`
+(ключи), `/usage` (журнал с фильтрами), `/docs` (контракт для потребителя).
+Миграция `prx_150_001`, чистка usage — 90 дней.
+
+**prx450_document_ocr.** PDF/сканы → Markdown через внешний шлюз с контрактом
+`POST /parse` (multipart `file`, query engine/output_format/llm_fix/…; ответ
+`{file, content, cached, engine_used, llm_fixed, raw_result}`). API —
+`/api/v1/document-ocr/parse`, scope `prx450.parse`. Настройки шлюза —
+`PRX450_OCR_*`; потребитель может переопределить только `client_overrides`.
+Страница проверки — `/prx450_document_ocr`. Событие `prx450.document.parsed`.
+Локальная обёртка над Tesseract с тем же `/parse` — `services/tesseract-ocr/`
+(FastAPI, 127.0.0.1:8090), инструкция — `docs/integrations/document-ocr.md`.
+
+Проверено в песочнице без PHP и PostgreSQL:
+
+- `make check` — 33 модуля, 238 классов, 26 манифестов, 38/74 ключей ACL,
+  92 маршрута, 69 документов, 0 замечаний CSRF, 10 storage-тестов.
+- `bash .tools/php_check_all.sh` — 458 файлов, 0 ошибок; 735 Tailwind-классов
+  в сборке; дизайн-аудит чист (17 модулей); JS-селекторы на месте.
+- `npm test` — 35/35; `make architecture` — 0 ошибок, 0 предупреждений.
+- `manifest_check` проверяет `api_scopes` (префикс = ID модуля, title, rate_limit).
+- `route_registry` проверяет URL-правило для новых модулей; legacy-алиас
+  `/documents` помечен `legacy` и не считается нарушением.
+
+Не проверено (нет PHP/PostgreSQL): миграция `prx_150_001`, создание/отзыв ключа,
+401/403/429 на живом API, реальный OCR-шлюз и Tesseract-обёртка. HTTP smoke
+обновлён (`/prx391_documents`, 301 `/documents`); ждёт стенд.
+
+## 23.11.2026 — workers/ по владельцам, страницы событий/логов/памятки
+
+`workers/`: обработчики разложены по пакетам-владельцам (`handlers/prx120_jobs`,
+`llm`, `prx115_semantic`, `prx395_document_extract`), проба пера — в пакетах владельцев `handlers/prx390_intake/` и `handlers/prx392_analysis/`;
+runtime (`__main__`, `site_check`) больше не знает о документообороте: хук включения
+и `SITE` каналов объявляют сами обработчики. Удалён мёртвый `webread.py` (901 строка,
+ни одного импортира) с тестами и зависимостями. Тесты зеркалят структуру.
+`portal_check.py` сверяет канал ↔ пакет ↔ модуль-владелец по реестру.
+
+Страницы v6: `/prx208_events` (сводка, «как идёт событие», журнал с фильтрами,
+карточка; create/edit/delete журнала удалены), `/prx100/logs` (журнал сайта и
+php-лог Kohana по дням/уровням, «где что пишется»), полоса «как идёт уведомление»
+в `/prx597/admin`, `/architecture/guide` (памятка программиста). Ссылки — в
+«Администрировании», «Хвосте ошибок» и на собранной схеме `/architecture`.
+
+Проверено в песочнице без PHP и PostgreSQL:
+
+- `pytest workers/tests` — 145 passed, 1 skipped (было 151: −7 тестов webread, +1
+  на неизвестный `doc.draft`); после каждого шага переезда — зелёные.
+- `make check` — чисто: 31 модуль, 226 классов, 24 манифеста, 36/72 ключей ACL,
+  88 маршрутов, 65 документов, 0 замечаний CSRF, 10 storage-тестов.
+- `bash .tools/php_check_all.sh` — 436 файлов, 0 ошибок; 727 Tailwind-классов в
+  сборке (`npm run build:css` пересобран); дизайн-аудит чист; JS-селекторы на месте.
+- `npm test` — 35/35.
+
+Не проверено (нет PHP): страницы не открывались в браузере — только `design_audit`
+по модулям prx103_platform, prx208_events, prx101_architecture, prx597 (0/0);
+HTTP smoke обновлён (`/prx100/logs`, `/architecture/guide`, `/prx208_events`) и ждёт стенд.
+
+## 23.11.2026 — чистка: перенос закладок, `archive/`, документация
+
+Удалено: предложение переноса старых браузерных закладок в Избранное
+(вьюха, `navpalette.js`, `Prx110/Api.php` + `Favorites.php` `import`, тесты JS/PHP/HTTP-smoke);
+папка `archive/` целиком (21 файл, `prx394_replies` и воркер `doc.draft`); документы
+`PLAN-LLM-DOCFLOW.md`, `GIT_HELP.md`, `DESIGN-CATALOG-NAVIGATION.md` (дублировал
+`FRONTEND.md`, правила перенесены). `docs/ARCHITECTURE-REVIEW.md` переписан: контракт
+модуля, стиль, решения с владельцами, что сделано и что осталось. `.tools/portal_check.py`
+не требует больше файлы архивных манифестов.
+
+Проверено в песочнице без PHP и PostgreSQL:
+
+- `make check` — чисто: 31 модуль, 226 классов, 24 манифеста (0 ошибок), 36/78 ключей ACL
+  (0 ошибок), 87 маршрутов (0 ошибок), 65 документов (0 мёртвых ссылок), 0 замечаний CSRF,
+  10 storage-тестов.
+- `npm test` — 35/35 (2 теста переноса закладок удалены вместе с кодом).
+- `bash .tools/php_check_all.sh` — 0 синтаксических ошибок (tree-sitter), дизайн-аудит чист,
+  JS-селекторы на месте, Tailwind-классы в сборке, бюджеты документации в норме.
+- `pytest workers/tests` (pytest, httpx, pypdf, bs4 поставлены в песочницу) — 151 passed, 1 skipped;
+  код воркеров в этой чистке не менялся.
+
+Не проверено (нет PHP в окружении): phpunit, HTTP smoke, `make new-module` вживую.
+
+## 23.11.2026 — фундамент платформы и удаление витрины дизайна
+
+Удалено: модуль `prx140_design_lab`, `/design-lab`, его тесты и упоминания.
+Добавлено: `Prx_Actor`, `Prx_Policy`, `Prx_Db`, `Prx_Event`, `Prx_PostGuard`,
+page-kit (`partials/filters`, `empty_state`, `flash`), scaffold v2, шесть
+статических гейтов в `make check`.
+
+Проверено в песочнице без PHP и PostgreSQL:
+
+- `make check` — чисто: 31 модуль, 226 классов, 24 манифеста (0 ошибок),
+  36 объявленных и 78 используемых ключей ACL (0 ошибок), 87 маршрутов
+  (0 ошибок), 68 документов (0 мёртвых ссылок), 0 замечаний CSRF, 10 storage-тестов.
+- `bash .tools/php_check_all.sh` — 436 PHP-файлов, 0 синтаксических ошибок
+  (tree-sitter), 33 миграции без замечаний, дизайн-аудит чист, JS-селекторы на месте.
+- `npm test` — 37/37 (5 новых — CSRF-хук: fetch, Request с body, XHR, гость, чужой origin); `npm run build:css` пересобран и закоммичен
+  (`app.css` + `.prx-empty-title`).
+- `.tools/route_registry.py` нашёл реальный дефект: маршрут `prx391/api`
+  ссылался на несуществующий `Prx391_Api`; исправлен на общий `Prx39x_Api`.
+
+Не проверено (нет PHP в окружении): phpunit с новым `tests/Unit/PrxFoundationTest.php`,
+`make new-module` вживую, HTTP smoke. Первый запуск на стенде — обязательный.
+
+---
+
+
+> 23.11.2026: альтернативная витрина `prx140_design_lab` удалена из проекта.
+> Записи ниже о ней — история проверок, а не текущее состояние.
 
 ## 18.11.2026 — план предприятия и архив портала
 
@@ -10,7 +419,7 @@
 ## 18.11.2026 — документооборот включён для проверки
 
 - Новый синтетический PDF из «Входящих» прошёл `doc.normalize` и создал
-  карточку `/documents/2`. Боевой ИИ-разбор не проверялся.
+  карточку `/prx391_documents/2`. Боевой ИИ-разбор не проверялся.
 - Отдельное распознавание PDF прошло для образца и загрузки (`#86`, `#87`).
   Чистая БД: 33 миграции, 85 PHP-тестов и 152 HTTP-проверки.
 
@@ -54,7 +463,7 @@
   для встроенного PDF (`#56`) и для загрузки через форму (`#57`). POST без
   CSRF отклонён. Машинный контракт отдельно прошёл регрессионный E2E (`#58–60`).
 - «Входящие → Принять пробное письмо» поставило `doc.normalize` (`#48`),
-  создало карточку `/documents/1` (`ВХ-2026-00001`), назначение и срок.
+  создало карточку `/prx391_documents/1` (`ВХ-2026-00001`), назначение и срок.
   `/analysis` доступна; обработчик проверен с mock-LLM, не с боевой моделью.
   Оба демо используют текстовый слой, нативный OCR скана не проверялся.
 - `check-fresh.sh` проверил оба положения `PRX_DOCFLOW_ENABLED`: 29/33
@@ -101,7 +510,7 @@
 - Tree-sitter PHP: `application`, `tests` и архивные исходники — без ошибок
   разбора. Это не `php -l`. PHPUnit и полный HTTP smoke с PHP/PostgreSQL
   не запускались; проверки 404 и каталога добавлены в smoke для staging.
-- `incoming_developments/` изучен статически. Реальный OCR/LLM, Tesseract и
+- прототипы `docs/design/` изучены статически. Реальный OCR/LLM, Tesseract и
   новый документный API не проверялись; реализация API в эту работу не входит.
 
 Проверена новая установка, а не обновление исходной БД.
@@ -266,7 +675,7 @@ CSV и применение пакета из UI проверены ещё **7 �
 Не проверено и остаётся ограничением: живой PostgreSQL (в песочнице нет
 `pdo_pgsql`), HTTP-страницы под реальной сессией, настоящая LLM/GPU, OCR
 (`pdftoppm`/`tesseract` отсутствуют), IMAP и реальная отправка письма.
-Демо-прогон и оффлайн-мок описаны в [демо prx390 (архив)](../archive/docflow/application/modules/prx390_intake/demo/README.md).
+Демо-прогон и оффлайн-мок относились к архивному контуру `prx390`–`prx393`; архив удалён 23.11.2026.
 
 ## Архитектура как код и первичный администратор (16.11.2026)
 
@@ -279,7 +688,7 @@ CSV и применение пакета из UI проверены ещё **7 �
 - `npm test` — 14/14; `PYTHONPATH=workers pytest -q` — 83 passed, 1 skipped.
 - WASM-стенд сервиса архитектуры: HTML и JSON читаются, ссылка «Вернуться в
   портал» вставляется перед `</body>`.
-- WASM-стенд миграции prx110_004: HMAC совпадает с `Auth::hash`, SQL содержит
+- WASM-стенд миграции prx102_004: HMAC совпадает с `Auth::hash`, SQL содержит
   условие пустой базы, профиль и роли; при `PRX_DEFAULT_ADMIN=0` запросов нет.
 
 Не проверено: живой PostgreSQL (нет `pdo_pgsql`), поэтому фактическая вставка
@@ -288,7 +697,7 @@ admin/admin и вход под сессией — на стенде с БД. П�
 
 ## Исправления после production-проверки (16.11.2026)
 
-- `/documents`: KPI «Новые» читает `new_count` из `Service_Prx391_Documents::stats()`;
+- `/prx391_documents`: KPI «Новые» читает `new_count` из `Service_Prx391_Documents::stats()`;
   раньше view обращался к несуществующему ключу `new` и отдавал Warning.
 - На тот момент prx390 временно использовал `public_html/storage/docflow/*`.
   Это исторический результат от 16.11: последующий перенос обратно в корневой
@@ -299,7 +708,7 @@ admin/admin и вход под сессией — на стенде с БД. П�
 ## Перестройка структуры (16.11.2026)
 
 - `architecture/` переехал в `docs/architecture/`: YAML — `model/`, собранные
-  файлы — `dist/`, движок отрисовки — `engine/`. `INPUT_DATA` удалён после
+  файлы — `dist/`, движок отрисовки — `.tools/architecture/`. `INPUT_DATA` удалён после
   переноса нужных файлов; `prx101_architecture` читает `docs/architecture/dist`.
 - `examples/docflow` переехал в `application/modules/prx390_intake/demo/`;
   `make docflow-demo` и ссылки в документации обновлены.
@@ -438,7 +847,7 @@ admin/admin и вход под сессией — на стенде с БД. П�
   на временного пользователя только с `login` закрытый `/prx560` не показан
   из старого Избранного/палитры, `/prx560` и `/prx595/admin` отвечают 403;
   пользователь и тестовые данные удалены.
-- На `/inbox`, `/documents`, `/vlm-demo` проверены обе темы, реальные select и
+- На `/inbox`, `/prx391_documents`, `/vlm-demo` проверены обе темы, реальные select и
   значения фильтров, размеры 320/390/540/768/1280 без горизонтального overflow
   страницы; таблицы прокручиваются в своих контейнерах. В синтетическом HTML
   с собранным CSS проверены 3 акцента × 2 темы, включая компактный select и
@@ -568,7 +977,7 @@ admin/admin и вход под сессией — на стенде с БД. П�
   journald в production, реальные настройки сети, Tesseract и внешний OCR не
   проверялись; сетевую причину исходного инцидента ещё предстоит установить по
   журналам. IMAP-канал не реализован. Инструкция сбора —
-  [systemd-сервис, шаг 7](systemd-сервис.md#шаг-7-прогон-одного-pdf-и-сбор-диагностики).
+  [systemd-сервис, шаг 7](DEPLOY-SYSTEMD.md#шаг-7-прогон-одного-pdf-и-сбор-диагностики).
 
 ## Сроки и подписки событий (17.11.2026)
 
@@ -588,7 +997,7 @@ admin/admin и вход под сессией — на стенде с БД. П�
   закрытие и повторное открытие; после этого срок остался единственным.
 - Проверены права: сессия только с ролью `login` получает 404 на персональную
   и коммерческую карточку и не видит их реквизиты на `/sla` или в ленте
-  `/documents`; администратор видит тестовые карточки. Тесты адресатов
+  `/prx391_documents`; администратор видит тестовые карточки. Тесты адресатов
   эскалации проверяют роль и доступ к каждой карточке. На `/sla` фильтрация
   производится среди 60 ближайших сроков и 20 последних эскалаций; общие
   показатели скрываются при неполном доступе.

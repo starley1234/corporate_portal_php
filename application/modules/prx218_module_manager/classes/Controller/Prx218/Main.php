@@ -47,6 +47,12 @@ abstract class Controller_Prx218_Main extends Controller_Base {
         }
     }
 
+    /** Инициатор события: id авторизованного пользователя или NULL (система). */
+    protected function _actor_id(): ?int
+    {
+        return $this->_current_user ? (int) $this->_current_user->id : NULL;
+    }
+
     /**
      * Инициализация структуры меню с учетом ACL
      */

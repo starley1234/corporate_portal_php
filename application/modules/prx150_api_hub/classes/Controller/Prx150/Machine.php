@@ -1,0 +1,113 @@
+<?php defined('SYSPATH') or die('No direct script access.');
+
+/**
+ * Базовый контроллер машинного API.
+ *
+ * Сервис-модуль наследует его, объявляет SCOPE и оборачивает действие в respond():
+ *
+ *   class Controller_Prx450_Api extends Controller_Prx150_Machine {
+ *       protected const SCOPE = 'prx450.parse';
+ *
+ *       public function action_parse(): void {
+ *           $this->respond(function () { ... });
+ *       }
+ *   }
+ *
+ * respond() проверяет ключ, scope и лимит, ловит Prx150_Error, пишет
+ * использование в finally и ставит X-Request-Id. Сессия и CSRF не нужны:
+ * Prx_PostGuard пропускает запрос с заголовком Authorization.
+ */
+abstract class Controller_Prx150_Machine extends Controller_Base
+{
+    public $auto_render = FALSE;
+    protected $auth_required = FALSE;
+
+    /** Scope, который требует этот контроллер; переопределяется в модуле. */
+    protected const SCOPE = '';
+
+    /** @var array|null строка ключа после проверки */
+    protected $api_client = NULL;
+
+    /**
+     * Машинный principal: id ключа, имя, организация, scope.
+     *
+     * Отдаётся сервису вместо массива ролей: у внешнего потребителя нет ни
+     * сессии, ни ACL сотрудника. Доступен только внутри respond().
+     */
+    public function principal(): ?Prx150_Principal
+    {
+        return $this->api_client === NULL ? NULL : Service_Prx150_Keys::principal($this->api_client);
+    }
+
+    /**
+     * Выполнить действие с проверкой ключа и журналом использования.
+     *
+     * Ожидается, что действие само отвечает JSON через _json_response().
+     * Исключение Prx150_Error превращается в его HTTP-статус и код; всё
+     * остальное — 503 service_unavailable без внутренних деталей.
+     */
+    protected function respond(callable $action): void
+    {
+        $this->response->headers('Cache-Control', 'no-store');
+        $start = microtime(TRUE);
+        $status = 500;
+        $client = NULL;
+
+        try
+        {
+            $client = Service_Prx150_Keys::authenticate($this->request);
+            Service_Prx150_Keys::require_scope($client, static::SCOPE);
+            Service_Prx150_Keys::rate_limit($client, static::SCOPE);
+            $this->api_client = $client;
+
+            $action();
+            $status = (int) $this->response->status();
+        }
+        catch (Prx150_Error $e)
+        {
+            $status = $e->getCode();
+
+            if ($e->getMessage() === 'unauthorized')
+            {
+                $this->response->headers('WWW-Authenticate', 'Bearer realm="PRX API"');
+            }
+
+            $this->_json_response($e->payload(), $status);
+        }
+        catch (Throwable $e)
+        {
+            $status = 503;
+            Kohana::$log->add(Log::ERROR, 'prx150: :method :uri error_type=:type', [
+                ':method' => $this->request->method(),
+                ':uri'    => $this->request->uri(),
+                ':type'   => get_class($e),
+            ]);
+            $this->_json_response(['error' => ['code' => 'service_unavailable']], 503);
+        }
+        finally
+        {
+            if ($client !== NULL)
+            {
+                $usage_id = Service_Prx150_Usage::log(
+                    $client,
+                    static::SCOPE,
+                    $this->request,
+                    $status,
+                    microtime(TRUE) - $start,
+                    strlen($this->response->body())
+                );
+
+                if ($usage_id > 0)
+                {
+                    $this->response->headers('X-Request-Id', (string) $usage_id);
+                }
+            }
+        }
+    }
+
+    /** JSON-ответ с тем же контрактом, что и у ошибок. */
+    protected function _json_response($data, $code = 200)
+    {
+        parent::_json_response($data, $code);
+    }
+}

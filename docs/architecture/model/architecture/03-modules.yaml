@@ -8,8 +8,8 @@ overview:
     - scheme:
         size: [1160, 520]
         nodes:
-          - { id: core, at: [160, 250, 200], label: prx100_base, sub: "Auth, RBAC, база", kind: core, info: "{portal}" }
-          - { id: platform, at: [420, 110, 200], label: prx100_platform, sub: админ и диагностика, kind: core }
+          - { id: core, at: [160, 250, 200], label: prx102_core, sub: "Auth, RBAC, база", kind: core, info: "{portal}" }
+          - { id: platform, at: [420, 110, 200], label: prx103_platform, sub: админ и диагностика, kind: core }
           - { id: catalog, at: [420, 230, 200], label: prx110_catalog, sub: меню и видимость, kind: core, info: "{catalog}" }
           - { id: migrations, at: [420, 350, 200], label: prx111_migrations, sub: схема БД, kind: data, info: "{migrations}" }
           - { id: events, at: [700, 90, 200], label: prx208 EventBus, sub: события, kind: module, info: "{events}" }
@@ -19,6 +19,8 @@ overview:
           - { id: employee, at: [990, 110, 210], label: prx300_employee, sub: сотрудник и оргструктура, kind: module, info: "{employee}" }
           - { id: extraction, at: [990, 230, 210], label: prx395 PDF → текст, sub: API и OCR, kind: ai }
           - { id: ai, at: [990, 350, 210], label: llm и prx115, sub: ИИ и поиск, kind: ai, info: "{llm}" }
+          - { id: api, at: [420, 470, 200], label: prx150 API-доступ, sub: ключи и журнал, kind: core }
+          - { id: ocr, at: [990, 470, 210], label: prx450 OCR, sub: документы → Markdown, kind: ai }
         edges:
           - core -> platform: { rel: uses }
           - core -> catalog: { rel: uses }
@@ -27,6 +29,9 @@ overview:
           - core -> storage: { rel: uses }
           - core -> queue: { rel: uses }
           - core -> notifications: { rel: uses }
+          - core -> api: { rel: uses }
+          - ocr -> api: { rel: uses, label: ключи }
+          - catalog --> ocr: { label: манифест }
           - catalog --> employee: { label: манифест }
           - extraction -> queue: { rel: uses }
           - extraction -> storage: { rel: uses }
@@ -37,11 +42,11 @@ overview:
         - title: Ядро
           text: Auth, RBAC, каталог, миграции и общий контроллер.
           color: "#f59e0b"
-          chips: [prx100_base, prx100_platform, prx110_catalog, prx111_migrations]
+          chips: [prx102_core, prx103_platform, prx110_catalog, prx111_migrations]
         - title: Данные и связи
           text: Файлы, события, очередь и уведомления — общие контракты, а не копии в каждом модуле.
           color: "#10b981"
-          chips: [prx212, prx208, prx120, prx597]
+          chips: [prx212, prx208, prx120, prx597, prx150]
         - title: Люди
           text: Профиль, оргструктура, роли и безопасность аккаунта.
           color: "#3b82f6"
@@ -63,13 +68,13 @@ detail:
         head: [Слой, Модули, Ответственность]
         rows:
           - - Ядро
-            - prx100_base, prx100_platform, prx100_search
+            - prx102_core, prx103_platform, prx100_search
             - Auth, RBAC, общий контроллер, диагностика, глобальный поиск
           - - Каталог и схема
             - prx110_catalog, prx111_migrations, prx218_module_manager
             - Меню и видимость, миграции, жизненный цикл модулей
           - - Инфраструктура
-            - prx208_events, prx120_jobs, prx212_file_storage, prx115_semantic
+            - prx208_events, prx120_jobs, prx212_file_storage, prx115_semantic, prx150_api_hub
             - События, очередь, приватные файлы, векторный поиск
           - - Люди
             - prx300_employee, prx595_useradmin, prx599_account
@@ -77,13 +82,13 @@ detail:
           - - ИИ-пайплайн
             - prx395_document_extract
             - API PDF → текст для интеграций, асинхронно через prx120
+          - - ИИ-пайплайн (внешний OCR)
+            - prx450_document_ocr
+            - PDF и сканы → Markdown через внешний шлюз; API и ключи prx150
           - - ИИ
             - llm, prx560_knowledge
             - Провайдеры моделей, техническая база знаний
         center: []
-    - note: >-
-        `prx140_design_lab` — публичная витрина дизайна, а не рабочий сервис:
-        она не входит в карту 55 сервисов и не использует общий CSS.
     - note: >-
         Документооборот `prx390`–`prx393` подключён для проверки общим блоком в `application/bootstrap.php`.
         Ответы `prx394` остаются в архиве.

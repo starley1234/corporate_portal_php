@@ -77,7 +77,7 @@ migrations_pg/pgMigration_Prx_599_001_Account_Security_Tables.php
 - `window.confirm` запрещён: «Выйти везде»/«Выключить 2FA» — двойное нажатие
   (`data-prx-arm` из app.js, своего JS нет).
 - 2FA-логика — в Controller_Auth (application/classes/, разрешённый файл),
-  НЕ в frozen modules/prx100_base.
+  НЕ в frozen modules/prx102_core.
 - Любая новая серверная точка, где есть $this->_current_user, должна
   проверять session_valid() перед действием, если действие критично.
 - Kick-механизм идемпотентен; после login() вызывать after_login()
@@ -89,13 +89,13 @@ migrations_pg/pgMigration_Prx_599_001_Account_Security_Tables.php
 
 ## Обновление 21.09 (серия фиксов 486c106…55a9111)
 
-* Создан отсутствовавший `views/599/2fa.php` — второй шаг входа рендерился
+* Создан отсутствовавший `views/prx599/2fa.php` — второй шаг входа рендерился
   контроллером Auth, а файла не было (500 у всех с включённой 2FA).
 * `session_valid()` теперь ТОЛЕРАНТНАЯ: без kick-метки сессия без строки в
   prx_599_sessions — легаси/внешний вход, принимается (touch_session заведёт строку);
   при kick — убиты все сессии «до метки» и сессии без строки. Никто не залочится
   после деплоя.
-* Enforcement kick — ГЛОБАЛЬНО в `Prx100_Base::before()` (invalid → logout(TRUE)
+* Enforcement kick — ГЛОБАЛЬНО в `Prx102_Base::before()` (invalid → logout(TRUE)
   + redirect `/auth/login?kick=1`; живая → touch_session). prx597-поллинг тоже гасит
   убитую сессию (logout → 401 → JS колокольчика уводит на logout).
 * Яндекс-вход (если когда включат yandexauth) регистрируется хуком after_login('yandex').

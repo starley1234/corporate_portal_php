@@ -1,53 +1,51 @@
-"""Проверка HTTP-связи с PHP без файлов, задач и вывода секретов."""
+"""Проверка HTTP-связи с PHP без файлов, задач и вывода секретов.
+
+Какие каналы ходят в PHP и куда — решают сами обработчики: в модуле обработчика
+лежит SITE = (префикс env, путь API, модуль, чей токен: "worker" | "site").
+runtime ни про один домен здесь не знает.
+"""
 from __future__ import annotations
 
 import logging
+import sys
 
 import httpx
 
 from . import site
+from .handlers import active_handlers, CONDITIONAL_CHANNELS, HEALTH_FLAG
 
-TARGETS = {
-    "document.extract": ("PRX395_DOCUMENT_EXTRACT", "/prx395/worker", "prx395"),
-    "doc.normalize": ("PRX390", "/prx390/api", "prx390"),
-}
 log = logging.getLogger("prx.site")
 
 
-async def docflow_enabled(token: str, *, transport=None) -> bool:
-    """PHP — источник состояния; сбой связи не блокирует платформенные каналы."""
-    base, source = site.module_api_config(*TARGETS["document.extract"][:2])
-    if not token or not site.valid_http_base(base):
-        log.warning("Документооборот не проверен: задайте APP_URL и WORKER_API_TOKEN")
-        return False
-    try:
-        async with httpx.AsyncClient(timeout=4, follow_redirects=False, transport=transport) as client:
-            response = await client.get(base + "/health", headers={"X-Worker-Token": token})
-        if response.status_code == 200:
-            data = response.json()
-            if (isinstance(data, dict) and data.get("ok") is True and data.get("module") == "prx395"
-                    and isinstance(data.get("docflow_enabled"), bool)):
-                return data["docflow_enabled"]
-            raise ValueError
-        reason = f"HTTP {response.status_code}"
-    except (httpx.HTTPError, httpx.InvalidURL) as exc:
-        reason = site.network_error(exc)
-    except ValueError:
-        reason = "PHP не сообщил состояние; проверьте версию сайта"
-    log.warning("Документооборот не проверен: %s (%s) — %s. Запустите --check-site",
-                site.safe_origin(base), source, reason)
-    return False
+def targets(handlers) -> dict[str, tuple[str, str, str, str]]:
+    """Канал → SITE для тех обработчиков из `handlers`, кому нужен PHP."""
+    out = {}
+    for channel, handler in handlers.items():
+        spec = getattr(sys.modules[handler.__module__], "SITE", None)
+        if spec:
+            out[channel] = tuple(spec)
+    return out
 
 
 async def check_site(token: str, *, legacy: bool | None, transport=None) -> int:
+    """Проверить каждый канал с SITE: адрес, токен, ответ /health.
+
+    `legacy`: None — спросить у PHP, включена ли проба пера (handlers.enabled через
+    health document.extract); True/False — явный режим. Ничего не пишет в лог,
+    кроме безопасного происхождения адреса.
+    """
     success = True
     async with httpx.AsyncClient(timeout=8, follow_redirects=False, transport=transport) as client:
-        for channel, (prefix, path, module) in TARGETS.items():
-            if channel == "doc.normalize" and not legacy:
+        queue = list(targets(active_handlers(legacy is True)).items())
+        index = 0
+        while index < len(queue):
+            channel, (prefix, path, module, token_kind) = queue[index]
+            index += 1
+            if channel in CONDITIONAL_CHANNELS and not legacy:
                 continue
             base, source = site.module_api_config(prefix, path)
             name = f"{channel}: {site.safe_origin(base)} ({source})"
-            key = token if channel == "document.extract" else site.site_token(prefix)[0]
+            key = token if token_kind == "worker" else site.site_token(prefix)[0]
             if not site.valid_http_base(base):
                 log.error("%s — укажите APP_URL или PRX120_API_BASE (корень сайта)", name)
             elif not key:
@@ -65,11 +63,13 @@ async def check_site(token: str, *, legacy: bool | None, transport=None) -> int:
                             body = None
                         if isinstance(body, dict) and body.get("ok") is True and body.get("module") == module:
                             log.info("%s — OK, PHP принял токен", name)
-                            if channel == "document.extract" and legacy is None:
-                                state = body.get("docflow_enabled")
-                                legacy = state is True
-                                label = "включён" if legacy else "выключен" if state is False else "PHP не сообщил состояние"
-                                log.info("Документооборот: %s", label)
+                            if legacy is None and isinstance(body.get(HEALTH_FLAG), bool):
+                                legacy = body[HEALTH_FLAG]
+                                log.info("Пробные каналы (trial): %s", "включены" if legacy else "выключены")
+                                if legacy:
+                                    queue.extend(targets(active_handlers(True)).items())
+                            elif legacy is None:
+                                log.info("Пробные каналы (trial): PHP не сообщил состояние")
                             continue
                         log.error("%s — HTTP 200, но ответ не от ожидаемого API; проверьте адрес и прокси", name)
                     else:

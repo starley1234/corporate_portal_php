@@ -2,6 +2,18 @@
 
 > Тестовый контур: раскомментируйте общий блок в `application/bootstrap.php`; UI только для администратора. См. `docs/QUICK-CHECK.md`.
 
+<!-- context-index:begin -->
+<!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index application/modules/prx390_intake/AGENTS.md --write. Руками не править. -->
+| Раздел | Строка | Размер |
+|---|---|---|
+|   Состояние | 17 | 0,4 КБ |
+|   Границы | 23 | 0,3 КБ |
+|   Маршруты | 29 | 0,5 КБ |
+|   Права | 38 | 0,2 КБ |
+|   Конвейер | 43 | 1,2 КБ |
+|   Настройки и данные | 60 | 1,0 КБ |
+|   Проверки | 72 | 0,2 КБ |
+<!-- context-index:end -->
 ## Состояние
 
 MVP: папка на сервере + ручная загрузка PDF, дедупликация по SHA-256, файл в
@@ -32,7 +44,7 @@ prx212, канал `doc.normalize`, текст и событие `prx390.text.re
 
 1. `receive_path` проверяет расширение, MIME, размер, считает SHA-256.
 2. Дубликат возвращает `duplicate` и файл уходит в `duplicates/`.
-3. `Service_Prx212_Storage::save()` кладёт файл, затем пишется конверт.
+3. `Storage::save($file, 'prx390', $actor->id())` кладёт файл, затем пишется конверт.
 4. `doc.normalize` (payload `message_id`) → текст → `POST /prx390/api/text/<id>`
    (`file_id`, `text`, `pages`, `engine`, `confidence`).
 5. `store_text` ставит `text_ready` (≥ 40 символов) или `needs_ocr` и
@@ -43,7 +55,7 @@ prx212, канал `doc.normalize`, текст и событие `prx390.text.re
 API и регистрации использует `prx390_diag`; Python-этапы `doc.normalize`
 сопоставляются по `job_id`, `message_id`, `file_id`. В эти записи не включать
 имена файлов, текст, тело HTTP-ответа, адреса с секретами и значения токенов.
-Порядок сбора — `docs/systemd-сервис.md`, шаг 7.
+Порядок сбора — `docs/DEPLOY-SYSTEMD.md`, шаг 7.
 
 ## Настройки и данные
 
@@ -60,4 +72,4 @@ API и регистрации использует `prx390_diag`; Python-эта�
 ## Проверки
 
 `python3 .tools/portal_check.py`, `bash .tools/php_check_all.sh`,
-`python3 -m pytest workers/tests/test_docflow.py`.
+`python3 -m pytest workers/tests/handlers/prx390_intake/test_docflow.py`.

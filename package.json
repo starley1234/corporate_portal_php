@@ -10,9 +10,9 @@
     "watch:css": "tailwindcss -c tailwind.config.js -i .tools/tailwind/input.css -o public_html/assets/css/app.css --watch",
     "test:prx-ui": "node --test tests/Js/prx_ui.test.mjs",
     "test": "node --test tests/Js/*.test.mjs",
-    "test:architecture": "node --test docs/architecture/engine/tests/*.test.mjs",
-    "check:architecture": "node docs/architecture/engine/scripts/arch.mjs check --dir docs/architecture --strict",
-    "build:architecture": "node docs/architecture/engine/scripts/build.mjs --dir docs/architecture",
+    "test:architecture": "node --test .tools/architecture/tests/*.test.mjs",
+    "check:architecture": "node .tools/architecture/scripts/arch.mjs check --dir docs/architecture --strict",
+    "build:architecture": "node .tools/architecture/scripts/build.mjs --dir docs/architecture",
     "architecture": "npm run check:architecture && npm run build:architecture"
   },
   "devDependencies": {

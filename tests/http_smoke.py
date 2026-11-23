@@ -52,7 +52,10 @@ request('/document-extract', 403)
 assert json.loads(request('/api/v1/document-extractions/1', 401)) == {'error': {'code': 'unauthorized'}}
 request('/services', 403)
 request('/employee', 403)
+request('/prx208_events', 403)
 request('/prx208_events/list_subscribers', 403)
+request('/prx100/logs', 403)
+request('/architecture/guide', 403)
 for path in ['/prx208_events/api/subscribe', '/prx208_events/api/unsubscribe', '/prx208_events/api/publish_event']:
     request(path, 403, {})
 request('/prx300/admin', 403)
@@ -60,29 +63,6 @@ request('/prx595/admin', 403)
 request('/about', 200)
 request('/privacy', 200)
 request('/terms', 200)
-design_cookies = {cookie.name for cookie in jar}
-design_lab = request('/design-lab?company=yellow', 200)
-assert 'Выберите характер корпоративного портала PRX' in design_lab
-assert 'data-company-accent="yellow"' in design_lab
-for slug in ['corporate', 'industrial', 'swiss', 'product', 'editorial', 'command', 'sample-classic', 'sample-compact', 'sample-operations', 'required-design-sample', 'sidebar-navigation']:
-    variant = request(f'/design-lab/{slug}?theme=dark&company=orange', 200)
-    assert re.search(r'<html[^>]+data-theme="dark"', variant), slug
-    assert 'data-company-accent="orange"' in variant, slug
-    assert f'data-variant="{slug}"' in variant, slug
-    assert 'Добрый день, Анна. Всё важное для работы — в одном месте.' in variant, slug
-    assert '<link' not in variant, slug
-    if slug in ('required-design-sample', 'sidebar-navigation'):
-        assert 'id="dl-icon-home"' in variant, slug
-        assert variant.count('class="dl-icon"') >= 40, slug
-        assert 'fontawesome' not in variant.lower(), slug
-    if slug == 'sidebar-navigation':
-        assert variant.index('class="dl-context-nav"') < variant.index('class="dl-favorites-nav"')
-        assert 'class="dl-page-tools"' in variant
-        assert '<header class="dl-topbar">' not in variant
-for removed_slug in ['aurora', 'sample-workbench', 'sample-reading']:
-    request(f'/design-lab/{removed_slug}', 404)
-request('/design-lab/not-a-design', 404)
-assert {cookie.name for cookie in jar} == design_cookies, 'Design lab must not create a session cookie'
 request('/vat', 404)
 request('/graph3d', 404)
 request('/auth/login', 403, {'username': 'admin', 'password': 'invalid'})
@@ -95,7 +75,7 @@ if not password:
     raise RuntimeError('ADMIN_PASSWORD is required for authenticated smoke; load local .env')
 request('/auth/login?return_url=%2F', 302, {'username': username, 'password': password, 'csrf': token[1]})
 pages = {}
-for path in ['/', '/services', '/dashboard', '/admin', '/prx595/admin', '/account/security', '/prx597', '/prx597/admin', '/prx560', '/prx115', '/tasks', '/prx120/monitor', '/document-extract', '/prx120/workers', '/migrate_pg', '/llm_admin', '/prx218', '/prx100/errors', '/architecture', '/employee', '/employee/directory', '/prx300/admin', '/prx300/admin/employees', '/prx300/admin/employee/0', '/prx300/admin/import', '/prx300/admin/import_template']:
+for path in ['/', '/services', '/dashboard', '/admin', '/prx595/admin', '/account/security', '/prx597', '/prx597/admin', '/prx560', '/prx115', '/tasks', '/prx120/monitor', '/document-extract', '/prx120/workers', '/migrate_pg', '/llm_admin', '/prx218', '/prx100/errors', '/prx100/logs', '/architecture', '/architecture/guide', '/prx208_events', '/prx208_events/list_events', '/employee', '/employee/directory', '/prx300/admin', '/prx300/admin/employees', '/prx300/admin/employee/0', '/prx300/admin/import', '/prx300/admin/import_template']:
     pages[path] = request(path, 200)
 home = pages['/']
 assert '<h1 class="prx-h1">Сервисы-пайплайны предприятия</h1>' in home
@@ -120,10 +100,13 @@ if worker_token:
     health = json.loads(request('/prx395/worker/health', 200, headers={'X-Worker-Token': worker_token}))
     assert health.get('ok') is True and health.get('module') == 'prx395'
     assert health.get('docflow_enabled') is legacy, 'Worker health disagrees with the module block'
-legacy_paths = {'/inbox', '/documents', '/analysis', '/sla'}
+legacy_paths = {'/inbox', '/prx391_documents', '/analysis', '/sla'}
 archived_paths = {'/replies', '/vlm-demo'} | (set() if legacy else legacy_paths)
 for path in sorted(legacy_paths):
     request(path, 200 if legacy else 404)
+if legacy:
+    # Старый короткий адрес остаётся 301-редиректом, а не 404.
+    request('/documents', 301)
 for module in [390, 392, 393]:
     request(f'/prx{module}/api/health', 403 if legacy else 404)
 if legacy:
@@ -134,7 +117,7 @@ else:
     request('/inbox/scan', 404)
 for path in ['/replies', '/vlm-demo', '/vlm-demo/analyze',
              '/assets/js/prx398_vlm_demo.js', '/assets/vendor/pdfjs/pdf.min.mjs',
-             '/incoming_developments/index.html', '/archive/docflow/README.md', '/prx394/api/health']:
+             '/docs/design/index.html', '/archive/docflow/README.md', '/prx394/api/health']:
     request(path, 404)
 
 # Администратор может безопасно управлять DB-подписками; тест использует
@@ -249,10 +232,6 @@ json.loads(request('/prx110/api/favorites', 409, {'csrf': nav_csrf, 'account_id[
 json.loads(request('/prx110/api/favorites', 422, {'csrf': nav_csrf, 'account_id': account_id, 'href': '//evil.test', 'pinned': '1'}))
 json.loads(request('/prx110/api/favorites', 422, {'csrf': nav_csrf, 'account_id': account_id, 'href': '/employee', 'pinned': 'invalid'}))
 json.loads(request('/prx110/api/favorites', 422, {'csrf': nav_csrf, 'account_id': account_id, 'href': '/employee', 'pinned[]': '1'}))
-json.loads(request('/prx110/api/favorites_import', 405))
-json.loads(request('/prx110/api/favorites_import', 403, {'account_id': account_id, 'hrefs': '["/employee"]'}))
-json.loads(request('/prx110/api/favorites_import', 422, {'csrf': nav_csrf, 'account_id': account_id, 'hrefs': '{"href":"/employee"}'}))
-json.loads(request('/prx110/api/favorites_import', 422, {'csrf': nav_csrf, 'account_id': account_id, 'hrefs': json.dumps(['/inbox'] * 101)}))
 assert json.loads(request('/prx110/api/favorites?user_id=' + str(account_id + 1), 200)) == favorites
 
 # Реальное сохранение и первый HTML без JS. Если записи не было, удаляем её
@@ -290,7 +269,7 @@ json.loads(request('/search/api?q=test', 200))
 catalog = json.loads(request('/prx110/api/catalog', 200))
 assert catalog['user_id'] == account_id, 'Catalog must identify the session account for stale tabs'
 catalog_hrefs = {item['href'] for item in catalog['items']}
-assert {'/architecture', '/design-lab', '/prx560', '/employee', '/prx597', '/account/security', '/document-extract'} <= catalog_hrefs
+assert {'/architecture', '/prx560', '/employee', '/prx597', '/account/security', '/document-extract'} <= catalog_hrefs
 assert not legacy or legacy_paths <= catalog_hrefs
 assert archived_paths.isdisjoint(catalog_hrefs)
 assert archived_paths.isdisjoint(favorite_hrefs)

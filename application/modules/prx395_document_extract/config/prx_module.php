@@ -2,9 +2,9 @@
 
 return [
     'id' => 395,
-    'slug' => 'document_extract',
+    'slug' => 'prx395_document_extract',
     'title' => 'Распознавание PDF',
-    'href' => '/document-extract',
+    'href' => '/prx395_document_extract',
     'group' => 'ИИ-сервисы',
     'icon' => 'fas fa-file-pdf',
     'audience' => 'admin',
@@ -14,6 +14,14 @@ return [
     'created_at' => '2026-11-18',
     'updated_at' => '2026-11-18',
     'api' => ['/api/v1/document-extractions', '/api/v1/document-extractions/{id}'],
+    // Право на машинный API объявляет владелец; ключ и лимит выдаёт prx150.
+    'api_scopes' => [
+        'prx395.extract' => [
+            'title' => 'PDF → текст',
+            'description' => 'Асинхронное распознавание PDF: очередь prx120 + Tesseract',
+            'rate_limit' => 60,
+        ],
+    ],
     'worker' => ['channels' => [
         'document.extract' => ['label' => 'PDF → текст', 'url' => '/prx120/monitor'],
     ]],

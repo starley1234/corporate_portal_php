@@ -3,7 +3,8 @@
 
     <div class="prx-card mb-8">
         <h3 class="prx-h3 mb-4"><?php echo __('Добавить новую зависимость'); ?></h3>
-        <form id="addDependencyForm" method="POST" action="<?php echo URL::site('prx218/index/add_dependency'); ?>">
+        <form id="addDependencyForm" method="POST" action="<?php echo URL::site('prx218/index/add_dependency'); ?>
+        <input type="hidden" name="csrf" value="<?php echo HTML::chars(Security::token()); ?>">">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <label for="module_id" class="prx-label mb-1">

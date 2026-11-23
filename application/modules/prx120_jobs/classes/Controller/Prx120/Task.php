@@ -8,7 +8,7 @@
  * воркеров). Лёгкий спутник монитора: из строки /prx120/monitor клик по «#N»
  * ведёт сюда.
  */
-class Controller_Prx120_Task extends Controller_Prx100_Base {
+class Controller_Prx120_Task extends Controller_Prx102_Base {
 
     public function before()
     {
@@ -54,7 +54,7 @@ class Controller_Prx120_Task extends Controller_Prx100_Base {
 
         $this->set_title('Задача #'.$job_id.' · Монитор воркеров');
 
-        $this->template->content = View::factory('120/task', [
+        $this->template->content = View::factory('prx120/task', [
             'job'       => $job,
             'job_id'    => $job_id,
             'label'     => (string) ($channels_ui[$job['channel']]['label'] ?? $job['channel']),

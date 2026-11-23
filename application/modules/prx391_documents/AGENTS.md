@@ -2,6 +2,19 @@
 
 > Тестовый контур: раскомментируйте общий блок в `application/bootstrap.php`; UI только для администратора. См. `docs/QUICK-CHECK.md`.
 
+<!-- context-index:begin -->
+<!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index application/modules/prx391_documents/AGENTS.md --write. Руками не править. -->
+| Раздел | Строка | Размер |
+|---|---|---|
+|   Состояние | 18 | 0,4 КБ |
+|   Границы | 24 | 0,4 КБ |
+|   Маршруты | 31 | 0,5 КБ |
+|   Права | 39 | 0,3 КБ |
+|   Структура сервиса | 45 | 0,6 КБ |
+|   Публичные методы | 55 | 1,1 КБ |
+|   Правила данных | 71 | 0,5 КБ |
+|   Проверки | 79 | 0,2 КБ |
+<!-- context-index:end -->
 ## Состояние
 
 MVP: регистрация из конверта prx390, карточка с реквизитами, типы,
@@ -17,11 +30,11 @@ MVP: регистрация из конверта prx390, карточка с р
 
 ## Маршруты
 
-- `/documents` — реестр с фильтрами и лентой.
-- `/documents/<id>` — карточка, вложения, текст, предложение ИИ, сроки, ответы.
-- `POST /documents/save/<id>`, `/documents/close/<id>`, `/documents/reopen/<id>`.
-- `/documents/file/<file_id>` — скачивание вложения после проверки доступа.
-- `/prx391/api/health`.
+- `/prx391_documents` — реестр с фильтрами и лентой.
+- `/prx391_documents/<id>` — карточка, вложения, текст, предложение ИИ, сроки, ответы.
+- `POST /prx391_documents/save/<id>`, `/prx391_documents/close/<id>`, `/prx391_documents/reopen/<id>`.
+- `/prx391_documents/file/<file_id>` — скачивание вложения после проверки доступа.
+- `/prx391_documents/api/health`.
 
 ## Права
 
@@ -36,7 +49,7 @@ MVP: регистрация из конверта prx390, карточка с р
 - `Service_Prx391_Card` — запись: ручные правки, закрытие, применение ИИ;
 - `Documents` — регистрация из prx390 и права (общий контракт для соседей).
 
-Вьюха карточки собрана из `views/391/partials/*` (`card`, `analysis`,
+Вьюха карточки собрана из `views/prx391/partials/*` (`card`, `analysis`,
 `attachments`, `field_events` и блоки правой колонки).
 
 ## Публичные методы
@@ -66,4 +79,4 @@ MVP: регистрация из конверта prx390, карточка с р
 ## Проверки
 
 `python3 .tools/portal_check.py`, `bash .tools/php_check_all.sh`,
-`python3 -m pytest workers/tests/test_docflow.py`.
+`python3 -m pytest workers/tests/handlers/prx390_intake/test_docflow.py`.

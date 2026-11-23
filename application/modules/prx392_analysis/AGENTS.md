@@ -2,6 +2,20 @@
 
 > Тестовый контур: раскомментируйте общий блок в `application/bootstrap.php`; UI только для администратора. См. `docs/QUICK-CHECK.md`.
 
+<!-- context-index:begin -->
+<!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index application/modules/prx392_analysis/AGENTS.md --write. Руками не править. -->
+| Раздел | Строка | Размер |
+|---|---|---|
+|   Состояние | 19 | 0,3 КБ |
+|   Границы | 25 | 0,4 КБ |
+|   Маршруты | 32 | 0,4 КБ |
+|   Права | 41 | 0,1 КБ |
+|   Структура сервиса | 46 | 0,3 КБ |
+|   Контракт предложения | 52 | 0,6 КБ |
+|   Очередь и надёжность | 65 | 0,5 КБ |
+|   Ограничения | 72 | 0,4 КБ |
+|   Проверки | 78 | 0,2 КБ |
+<!-- context-index:end -->
 ## Состояние
 
 MVP: профиль `classify_extract_v1`, прогоны `prx_392_runs`, предложения
@@ -63,5 +77,5 @@ summary отклоняется, прогон получает `failed`.
 
 ## Проверки
 
-`python3 -m pytest workers/tests/test_docflow.py` (нормализация/парсер JSON),
+`python3 -m pytest workers/tests/handlers/prx390_intake/test_docflow.py` (нормализация/парсер JSON),
 `python3 .tools/portal_check.py`, `bash .tools/php_check_all.sh`.

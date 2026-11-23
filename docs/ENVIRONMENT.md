@@ -1,5 +1,7 @@
 # Окружение PRX
 
+Граница внешних сервисов и обработчиков очереди — в [архитектуре](ARCHITECTURE.md#граница-процессов).
+
 ## Требования
 PHP 8.4 CLI/FPM с pgsql, pdo_pgsql, mbstring, curl, openssl, JSON, session;
 PostgreSQL 16+ (Docker: 17 + pgvector), Python 3.11+, Composer 2.
@@ -23,6 +25,8 @@ Symfony Mailer. Для настоящей почты обязательно `com
 Нативно: `bash bin/restore-env.sh --serve`. В ограниченной сети:
 `bash bin/setup-sandbox.sh` (сборка PHP и переносимый PG), затем
 `PORT=8080 bash bin/serve`. Подробнее: SANDBOX-SETUP.md.
+
+Необязательный LDAP-вход: [инструкция по подключению](../application/modules/ldap_auth/README.md). По умолчанию используется локальный Auth ORM.
 
 ## Конфиги
 
@@ -138,8 +142,8 @@ outbox; проверяйте состояние отдельно и не пер�
 
 ### API PDF → текст (`prx395`)
 
-`PRX395_DOCUMENT_EXTRACT_CLIENTS` — JSON с отдельным Bearer-ключом каждой
-интеграции; `{}` закрывает доступ. Параметр задаётся на PHP, не на Python.
+Машинный доступ — ключ `prx150` со scope `prx395.extract`; ключи, лимиты и
+отзыв — в `/prx150_api_hub`. Отдельной карты токенов в `.env` нет.
 Воркеру в любом режиме очереди нужны `APP_URL` (или `PRX120_API_BASE`), `WORKER_API_TOKEN` и
 канал `document.extract`. `OCR_PROVIDER=tesseract|remote` выбирает движок;
 для `remote` задайте `OCR_SERVICE_URL` до `/parse`. См. [запуск и проверку](integrations/document-extractions.md).
@@ -176,7 +180,7 @@ LEFT JOIN prx_393_deadlines dl ON dl.document_id = d.id;
 Страница `/sla` фильтрует карточки по правам prx391 среди 60 ближайших сроков
 и 20 последних эскалаций. При ограниченном доступе общие показатели скрыты;
 доступная запись за пределами этих выборок на странице не появится. Лента
-`/documents` также не показывает историю недоступных карточек.
+`/prx391_documents` также не показывает историю недоступных карточек.
 
 **Важное оставшееся ограничение доступа.** Это не аудит всего документооборота.
 На изолированном стенде пользователь только с ролью `login` получал 404 у

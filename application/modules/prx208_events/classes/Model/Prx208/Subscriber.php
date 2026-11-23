@@ -93,6 +93,8 @@ class Model_Prx208_Subscriber extends ORM {
             'event_name' => array(
                 array('not_empty'),
                 array('max_length', array(':value', 255)),
+                // То же правило, что и в Event::publish(): подписка на другое имя никогда не сработает.
+                array('regex', array(':value', Event::NAME_PATTERN)),
             ),
             'module_id' => array(
                 array('max_length', array(':value', 50)),

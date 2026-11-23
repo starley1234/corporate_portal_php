@@ -298,14 +298,14 @@ class Service_Prx392_Analysis
         }
 
         $document = Service_Prx391_Documents::document((int) $run['document_id'], self::_system_actor());
-        Event::fire('prx392.analysis.ready', [
+        Event::publish('prx392.analysis.ready', [
             'document_id' => (int) $run['document_id'],
             'run_id' => (int) $run_id,
             'suggestion_id' => (int) $suggestion['id'],
             'reg_no' => $document['reg_no'] ?? '',
             'confidence' => $normalized['type_confidence'],
-            'href' => '/documents/'.(int) $run['document_id'],
-        ]);
+            'href' => '/prx391_documents/'.(int) $run['document_id'],
+        ], (int) ($run['created_by'] ?? 0) ?: NULL);
 
         return self::suggestion((int) $suggestion['id']);
     }

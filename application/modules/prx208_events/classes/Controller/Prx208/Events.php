@@ -1,288 +1,79 @@
-<?php defined('SYSPATH') or die('No direct script access.'); 
+<?php defined('SYSPATH') or die('No direct script access.');
 
 /**
- * @package Prx208
- * @version 1.0.1
- * @author AI
+ * /prx208_events — события портала: журнал, подписки.
+ *
+ * Доступ — администратор (acl `prx208_events.*`). Журнал только читается:
+ * событие публикует код (Event::publish), а не форма.
+ * Формы подписок — POST + CSRF (Prx_PostGuard в Controller_Prx102_Base).
  */
-class Controller_Prx208_Events extends Controller_Prx208_Main {
+class Controller_Prx208_Events extends Controller_Base {
 
-    /**
-     * @var bool Отключает автоматический рендеринг шаблона для AJAX-запросов.
-     */
-    public $auto_render = TRUE;
-
-    /**
-     * @var array Мета-данные страницы.
-     */
-    protected $_meta = array(
-        'title'       => 'Управление событиями',
-        'description' => 'Просмотр и управление событиями и подписками в системе PRX.',
-        'keywords'    => 'PRX, события, EventBus, подписки, логирование'
-    );
-
-    /**
-     * Выполняется перед каждым действием контроллера.
-     * Устанавливает мета-данные и навигационное меню.
-     */
     public function before()
     {
         parent::before();
 
-        // Установка мета-данных
-        $this->_meta['title'] = __('Event Management');
-        $this->_meta['description'] = __('View and manage events and subscriptions in the PRX system.');
-        $this->set_title($this->_meta['title']);
-        $this->set_description($this->_meta['description']);
-        $this->set_keywords($this->_meta['keywords']);
-        
+        if ( ! $this->can('prx208_events.view'))
+        {
+            throw HTTP_Exception::factory(403, 'Только для администратора');
+        }
+
+        $this->set_title('События');
+        $this->set_module_nav([
+            ['title' => 'Журнал', 'href' => '/prx208_events', 'icon' => 'fas fa-bolt'],
+            ['title' => 'Подписки', 'href' => '/prx208_events/list_subscribers', 'icon' => 'fas fa-user-tag'],
+            ['title' => 'Уведомления', 'href' => '/prx597/admin', 'icon' => 'fas fa-bell'],
+            ['title' => 'Хвост ошибок', 'href' => '/prx100/errors', 'icon' => 'fas fa-heart-crack'],
+        ]);
     }
 
-    /**
-     * Главная страница модуля. Отображает дашборд с виджетами.
-     */
+    /** Инициатор события: id авторизованного пользователя или NULL (система). */
+    protected function _initiator_id(): ?int
+    {
+        return $this->_current_user ? (int) $this->_current_user->id : NULL;
+    }
+
+    /** Журнал + сводка. Старый адрес /list_events ведёт сюда же. */
     public function action_index()
     {
-        $this->redirect(Route::url('prx208_events', array('action' => 'list_events')));
+        $filters = [
+            'prefix'    => trim((string) $this->request->query('prefix')),
+            'q'         => trim((string) $this->request->query('q')),
+            'initiator' => (int) $this->request->query('initiator'),
+            'page'      => max(1, (int) $this->request->query('page')),
+            'per'       => (int) $this->request->query('per'),
+        ];
+
+        $this->template->content = View::factory('prx208/journal', [
+            'summary'   => Service_Prx208_Journal::summary(),
+            'switches'  => Service_Prx208_Journal::switches(),
+            'prefixes'  => Service_Prx208_Journal::prefixes(),
+            'titles'    => Service_Prx208_Journal::module_titles(),
+            'result'    => Service_Prx208_Journal::rows($filters),
+            'filters'   => $filters,
+        ]);
     }
 
-    /**
-     * Отображает список всех зарегистрированных событий.
-     */
     public function action_list_events()
     {
-        if ( ! $this->can('prx208_events.list_events'))
-        {
-            throw new HTTP_Exception_403('Доступ запрещен');
-        }
-
-        $this->_meta['title'] = __('Список событий');
-        $this->set_title($this->_meta['title']);
-
-        $query_params = $this->request->query();
-        $per_page = isset($query_params['per_page']) ? (int) $query_params['per_page'] : 20;
-        $search   = isset($query_params['search']) ? trim($query_params['search']) : '';
-
-        $events_model = ORM::factory('Prx208_Event');
-
-        if ( ! empty($search))
-        {
-            $events_model->where('event_name', 'LIKE', '%' . $search . '%');
-        }
-
-        $total_items = $events_model->reset(FALSE)->count_all();
-
-        $pagination = Pagination::factory(array(
-            'total_items'    => $total_items,
-            'items_per_page' => $per_page,
-            'current_page'   => array('source' => 'query_string', 'key' => 'page'),
-        ));
-
-        $events = $events_model
-            ->order_by('id', 'DESC')
-            ->limit($pagination->items_per_page)
-            ->offset($pagination->offset)
-            ->find_all();
-
-        $view = View::factory('prx208/event/list')
-            ->set('events', $events)
-            ->set('pagination', $pagination)
-            ->set('search', $search);
-        
-        $this->template->content = $view;
+        $this->action_index();
     }
 
-    /**
-     * Отображает детальную информацию о конкретном событии.
-     */
+    /** Карточка события: что, кто, когда и кто на это подписан. */
     public function action_view_event()
     {
-        $id = (int) $this->request->param('id');
-        $event = ORM::factory('Prx208_Event', $id);
+        $event = Service_Prx208_Journal::detail((int) $this->request->param('id'));
 
-        if ( ! $this->can('prx208_events.view_event', $event))
+        if ($event === NULL)
         {
-            throw new HTTP_Exception_403('Access denied');
+            throw HTTP_Exception::factory(404, 'Событие не найдено');
         }
 
-        if ( ! $event->loaded())
-        {
-            throw new HTTP_Exception_404(__('Event not found.'));
-        }
-
-        $this->_meta['title'] = __('Event Details: :event_name', array(':event_name' => $event->event_name));
-
-        $view = View::factory('prx208/event/detail')
-            ->set('event', $event);
-
-        $this->template->content = $view;
+        $this->set_title('Событие '.$event['event_name']);
+        $this->template->content = View::factory('prx208/event/detail', ['event' => $event]);
     }
 
-    /**
-     * Вспомогательный метод для нормализации payload в массив.
-     * 
-     * @param mixed $payload
-     * @return array
-     */
-    protected function _normalize_payload($payload)
-    {
-        
-        if (empty($payload))
-        {
-            return array();
-        }
-
-        if (is_array($payload))
-        {
-            return $payload;
-        }
-
-        if (is_string($payload))
-        {
-            $decoded = json_decode($payload, TRUE);
-            
-            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded))
-            {
-                return $decoded;
-            }
-            return array($payload);
-            //return array('data' => $payload);
-        }
-		return array($payload);
-        //return array('data' => $payload);
-    }
-
-    /**
-     * Создание и публикация нового события.
-     */
-    public function action_create_event()
-    {
-        $event  = ORM::factory('Prx208_Event');
-
-        if ( ! $this->can('prx208_events.create_event', $event))
-        {
-            throw new HTTP_Exception_403('Access denied');
-        }
-
-        $this->_meta['title'] = __('Create New Event');
-
-        $errors = array();
-
-        if ($post = $this->request->post())
-        {
-            try
-            {
-                $event->event_name = isset($post['event_name']) ? trim($post['event_name']) : '';
-                
-                $payload = $this->_normalize_payload(isset($post['payload']) ? $post['payload'] : array());
-                
-                $event->payload = json_encode($payload, JSON_UNESCAPED_UNICODE);
-                $event->save();
-
-                Service_Prx208_EventBus::instance()->publish($event->event_name, $payload);
-                // Event::fire('prx208_events.created', $event);
-
-                Session::instance()->set('success_message', __('Event ":event_name" created and published successfully!', array(':event_name' => $event->event_name)));
-                // $this->redirect(Route::url('prx208_events', array('action' => 'list_events')));
-            }
-            catch (ORM_Validation_Exception $e)
-            {
-                $errors = $e->errors('models');
-            }
-            catch (Exception $e)
-            {
-                Session::instance()->set('error_message', $e->getMessage());
-            }
-        }
-
-        $view = View::factory('prx208/event/form')
-            ->set('event', $event)
-            ->set('errors', $errors);
-
-        $this->template->content = $view;
-    }
-
-    /**
-     * Редактирование события.
-     */
-    public function action_edit_event()
-    {
-        $id = (int) $this->request->param('id');
-        $event = ORM::factory('Prx208_Event', $id);
-
-        if ( ! $this->can('prx208_events.edit_event', $event))
-        {
-            throw new HTTP_Exception_403('Access denied');
-        }
-
-        if ( ! $event->loaded())
-        {
-            throw new HTTP_Exception_404(__('Event not found.'));
-        }
-
-        $this->_meta['title'] = __('Edit Event: :event_name', array(':event_name' => $event->event_name));
-
-        $errors = array();
-
-        if ($post = $this->request->post())
-        {
-            try
-            {
-                $event->event_name = isset($post['event_name']) ? trim($post['event_name']) : '';
-                
-                $payload = $this->_normalize_payload(isset($post['payload']) ? $post['payload'] : array());
-
-                $event->payload = json_encode($payload, JSON_UNESCAPED_UNICODE);
-                $event->save();
-                // Event::fire('prx208_events.updated', $event);
-
-                Session::instance()->set('success_message', __('Event ":event_name" updated successfully!', array(':event_name' => $event->event_name)));
-                $this->redirect(Route::url('prx208_events', array('action' => 'view_event', 'id' => $event->id)));
-            }
-            catch (ORM_Validation_Exception $e)
-            {
-                $errors = $e->errors('models');
-            }
-        }
-
-        $view = View::factory('prx208/event/form')
-            ->set('event', $event)
-            ->set('errors', $errors);
-
-        $this->template->content = $view;
-    }
-
-    /**
-     * Удаление события.
-     */
-    public function action_delete_event()
-    {
-        $id = (int) $this->request->param('id');
-        $event = ORM::factory('Prx208_Event', $id);
-
-        if ( ! $this->can('prx208_events.delete_event', $event))
-        {
-            throw new HTTP_Exception_403('Access denied');
-        }
-
-        if ($event->loaded())
-        {
-            $event_name = $event->event_name;
-            $event->delete();
-            Event::fire('prx208_events.deleted', $event);
-            Session::instance()->set('success_message', __('Event ":event_name" deleted.', array(':event_name' => $event_name)));
-        }
-        else
-        {
-            Session::instance()->set('error_message', __('Event not found.'));
-        }
-
-        $this->redirect(Route::url('prx208_events', array('action' => 'list_events')));
-    }
-
-    /**
-     * Список подписчиков.
-     */
+    /** Список подписок. */
     public function action_list_subscribers()
     {
         if ( ! $this->can('prx208_events.list_subscribers'))
@@ -290,20 +81,19 @@ class Controller_Prx208_Events extends Controller_Prx208_Main {
             throw new HTTP_Exception_403('Доступ запрещен');
         }
 
-        $this->_meta['title'] = __('Список подписчиков');
-        $this->set_title($this->_meta['title']);
+        $this->set_title('Подписки на события');
 
         $query_params = $this->request->query();
-        $per_page = isset($query_params['per_page']) ? (int) $query_params['per_page'] : 20;
-        $search   = isset($query_params['search']) ? trim($query_params['search']) : '';
+        $per_page = isset($query_params['per_page']) ? max(1, min(200, (int) $query_params['per_page'])) : 20;
+        $search   = isset($query_params['search']) ? trim((string) $query_params['search']) : '';
 
         $subscribers_model = ORM::factory('Prx208_Subscriber');
 
-        if ( ! empty($search))
+        if ($search !== '')
         {
             $subscribers_model->where_open()
-                ->where('event_name', 'LIKE', '%' . $search . '%')
-                ->or_where('module_id', 'LIKE', '%' . $search . '%')
+                ->where('event_name', 'LIKE', '%'.$search.'%')
+                ->or_where('module_id', 'LIKE', '%'.$search.'%')
                 ->where_close();
         }
 
@@ -322,35 +112,33 @@ class Controller_Prx208_Events extends Controller_Prx208_Main {
             ->find_all();
 
         $bus_config = Kohana::$config->load('prx208_events')->get('event_bus', array());
-        $view = View::factory('prx208/subscriber/list')
+
+        $this->template->content = View::factory('prx208/subscriber/list')
             ->set('subscribers', $subscribers)
             ->set('pagination', $pagination)
             ->set('search', $search)
             ->set('csrf', Security::token())
-            ->set('db_subscribers_enabled', ! empty($bus_config['load_db_subscribers']));
-
-        $this->template->content = $view;
+            ->set('db_subscribers_enabled', ! empty($bus_config['load_db_subscribers']))
+            ->set('flash', $this->_flash());
     }
 
-    /**
-     * Управление подпиской.
-     */
+    /** Создание/редактирование подписки. */
     public function action_manage_subscription()
     {
+        if ( ! $this->can('prx208_events.manage_subscription'))
+        {
+            throw new HTTP_Exception_403('Доступ запрещен');
+        }
+
         $id = (int) $this->request->param('id');
         $subscriber = ORM::factory('Prx208_Subscriber', $id);
-
-        if ( ! $this->can('prx208_events.manage_subscription', $subscriber))
-        {
-            throw new HTTP_Exception_403('Access denied');
-        }
 
         if ($id > 0 AND ! $subscriber->loaded())
         {
             throw new HTTP_Exception_404('Подписка не найдена');
         }
 
-        $this->_meta['title'] = $subscriber->loaded() ? __('Edit Subscription') : __('Create New Subscription');
+        $this->set_title($subscriber->loaded() ? 'Подписка #'.$id : 'Новая подписка');
         $errors = array();
         $bus_config = Kohana::$config->load('prx208_events')->get('event_bus', array());
 
@@ -387,8 +175,8 @@ class Controller_Prx208_Events extends Controller_Prx208_Main {
                 else
                 {
                     $subscriber->save();
-                    Event::fire('prx208_events.subscription_saved', array('subscriber_id' => (int) $subscriber->id));
-                    Session::instance()->set('success_message', __('Subscription saved.'));
+                    Event::publish('prx208.subscriber.saved', array('subscriber_id' => (int) $subscriber->id), $this->_initiator_id());
+                    Session::instance()->set('success_message', 'Подписка сохранена.');
                     $this->redirect(Route::url('prx208_events', array('action' => 'list_subscribers')));
                 }
             }
@@ -398,44 +186,40 @@ class Controller_Prx208_Events extends Controller_Prx208_Main {
             }
         }
 
-        $view = View::factory('prx208/subscriber/form')
+        $this->template->content = View::factory('prx208/subscriber/form')
             ->set('subscriber', $subscriber)
             ->set('errors', $errors)
             ->set('csrf', Security::token())
             ->set('db_subscribers_enabled', ! empty($bus_config['load_db_subscribers']));
-
-        $this->template->content = $view;
     }
 
-    /**
-     * Удаление подписки.
-     */
+    /** Удаление подписки — POST + CSRF. */
     public function action_delete_subscription()
     {
-        $id = (int) $this->request->param('id');
-        $subscriber = ORM::factory('Prx208_Subscriber', $id);
-
-        if ( ! $this->can('prx208_events.delete_subscription', $subscriber))
+        if ( ! $this->can('prx208_events.delete_subscription'))
         {
-            throw new HTTP_Exception_403('Access denied');
+            throw new HTTP_Exception_403('Доступ запрещен');
         }
 
         $this->_check_subscription_post();
+        $subscriber = ORM::factory('Prx208_Subscriber', (int) $this->request->param('id'));
+
         if ($subscriber->loaded())
         {
             $subscriber_id = (int) $subscriber->id;
             $subscriber->delete();
-            Event::fire('prx208_events.subscription_deleted', array('subscriber_id' => $subscriber_id));
-            Session::instance()->set('success_message', __('Subscription deleted.'));
+            Event::publish('prx208.subscriber.deleted', array('subscriber_id' => $subscriber_id), $this->_initiator_id());
+            Session::instance()->set('success_message', 'Подписка удалена.');
         }
         else
         {
-            Session::instance()->set('error_message', __('Subscription not found.'));
+            Session::instance()->set('error_message', 'Подписка не найдена.');
         }
 
         $this->redirect(Route::url('prx208_events', array('action' => 'list_subscribers')));
     }
 
+    /** POST + CSRF для форм подписок (до любых изменений). */
     protected function _check_subscription_post()
     {
         if ($this->request->method() !== Request::POST)
@@ -447,5 +231,24 @@ class Controller_Prx208_Events extends Controller_Prx208_Main {
         {
             throw new HTTP_Exception_403('Сессия устарела, обновите страницу');
         }
+    }
+
+    /** Flash из сессии (старые ключи success_message/error_message) → partials/flash. */
+    protected function _flash(): array
+    {
+        $session = Session::instance();
+        $ok = (string) $session->get_once('success_message', '');
+        $err = (string) $session->get_once('error_message', '');
+
+        if ($err !== '')
+        {
+            return ['type' => 'err', 'text' => $err, 'items' => []];
+        }
+        if ($ok !== '')
+        {
+            return ['type' => 'ok', 'text' => $ok, 'items' => []];
+        }
+
+        return [];
     }
 }

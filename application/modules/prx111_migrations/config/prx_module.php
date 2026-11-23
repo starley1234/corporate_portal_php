@@ -9,6 +9,9 @@
  */
 
 return [
+    'id' => 111,
+    'slug' => 'prx111_migrations',
+    'kind' => 'platform',
     'title' => 'Миграции PostgreSQL',
     'short' => 'система миграций (`db:migrate`, веб-консоль `/migrate_pg`, таблица `migrations_pg`)',
 ];

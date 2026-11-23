@@ -16,7 +16,7 @@
  * попадает обратно на страницу, где увидел замочек «Сервис для
  * зарегистрированных». Referer остаётся запасным путём.
  */
-class Controller_Auth extends Controller_Prx100_Auth {
+class Controller_Auth extends Controller_Prx102_Auth {
 
     /**
      * Нормализация цели возврата: принимаем только локальный путь — без
@@ -203,7 +203,7 @@ class Controller_Auth extends Controller_Prx100_Auth {
 
         $this->template->title = 'Двухфакторный вход';
 
-        $this->template->content = View::factory('599/2fa')
+        $this->template->content = View::factory('prx599/2fa')
             ->bind('errors', $errors)
             ->set('csrf', Security::token());
     }

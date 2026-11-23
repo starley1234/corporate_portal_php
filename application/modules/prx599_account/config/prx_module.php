@@ -5,6 +5,9 @@
  */
 
 return [
+    'audience' => 'auth',
+    'acl' => 'prx599.view',
+    'status' => 'stable',
     'id'        => 599,
     'slug'      => 'prx599_account',
     'title'     => 'Аккаунт и безопасность',

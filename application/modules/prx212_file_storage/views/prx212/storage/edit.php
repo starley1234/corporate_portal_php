@@ -19,6 +19,7 @@
 
     <div class="prx-card p-0 overflow-hidden">
         <form action="" method="POST" class="p-6 space-y-6">
+        <input type="hidden" name="csrf" value="<?php echo HTML::chars(Security::token()); ?>">
 
             <?php if (!empty($errors)): ?>
                 <div class="prx-flash prx-flash-err mb-4 block">

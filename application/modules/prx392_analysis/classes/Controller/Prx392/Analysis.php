@@ -9,7 +9,7 @@ class Controller_Prx392_Analysis extends Controller_Prx39x_Base
         $this->set_description('Предложения по карточкам: тип, реквизиты, риск и краткое содержание');
         $this->_nav('/analysis');
 
-        $this->template->content = View::factory('392/index', [
+        $this->template->content = View::factory('prx392/index', [
             'flash' => $this->_flash(),
             'csrf' => $this->_csrf(),
             'stats' => Service_Prx392_Analysis::stats(),
@@ -29,7 +29,7 @@ class Controller_Prx392_Analysis extends Controller_Prx39x_Base
             $run_id = Service_Prx392_Analysis::queue_for_document($document_id, $this->_actor());
 
             return 'Разбор поставлен в очередь (прогон #'.$run_id.')';
-        }, '/documents/'.$document_id);
+        }, '/prx391_documents/'.$document_id);
     }
 
     public function action_accept()
@@ -64,7 +64,7 @@ class Controller_Prx392_Analysis extends Controller_Prx39x_Base
             return $res['changed']
                 ? 'Применено полей: '.$res['changed'].($res['skipped'] ? '; уже заполнено: '.implode(', ', $res['skipped']) : '')
                 : 'Новых значений нет — карточка уже заполнена';
-        }, '/documents/'.$document_id);
+        }, '/prx391_documents/'.$document_id);
     }
 
     public function action_reject()
@@ -82,6 +82,6 @@ class Controller_Prx392_Analysis extends Controller_Prx39x_Base
             Service_Prx392_Analysis::reject($suggestion_id, $this->_actor());
 
             return 'Предложение отклонено';
-        }, '/documents/'.$document_id);
+        }, '/prx391_documents/'.$document_id);
     }
 }

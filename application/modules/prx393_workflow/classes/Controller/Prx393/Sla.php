@@ -19,7 +19,7 @@ class Controller_Prx393_Sla extends Controller_Prx39x_Base
         }
 
         $actor = $this->_actor();
-        $this->template->content = View::factory('393/index', [
+        $this->template->content = View::factory('prx393/index', [
             'flash' => $this->_flash(),
             'csrf' => $this->_csrf(),
             'stats' => Service_Prx393_Workflow::visible_stats($actor),
@@ -46,7 +46,7 @@ class Controller_Prx393_Sla extends Controller_Prx39x_Base
             return $deadline
                 ? 'Маршрут: '.$deadline['department'].', срок '.date('d.m.Y H:i', strtotime($deadline['due_at']))
                 : 'Маршрут не назначен';
-        }, '/documents/'.$document_id);
+        }, '/prx391_documents/'.$document_id);
     }
 
     public function action_recalc()

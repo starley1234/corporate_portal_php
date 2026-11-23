@@ -128,13 +128,13 @@ class Service_Prx391_Documents
         ]);
         Service_Prx390_Intake::link_document($message_id, $document_id);
 
-        Event::fire('prx391.document.registered', [
+        Event::publish('prx391.document.registered', [
             'document_id' => $document_id,
             'message_id' => $message_id,
             'reg_no' => $reg_no,
             'subject' => $subject,
-            'href' => '/documents/'.$document_id,
-        ]);
+            'href' => '/prx391_documents/'.$document_id,
+        ], $message['created_by'] ? (int) $message['created_by'] : NULL);
 
         return $document_id;
     }
@@ -223,7 +223,7 @@ class Service_Prx391_Documents
         {
             return TRUE;
         }
-        if ( ! ACL::check($actor['roles'] ?? [], 'prx391.view'))
+        if ( ! Prx_Actor::fromArray($actor)->can('prx391.view'))
         {
             return FALSE;
         }
@@ -243,7 +243,7 @@ class Service_Prx391_Documents
             return TRUE;
         }
         $roles = $actor['roles'] ?? [];
-        return ACL::check($roles, 'prx391.view')
+        return Prx_Actor::fromArray($actor)->can('prx391.view')
             && (in_array('docflow_lawyer', $roles, TRUE)
                 || in_array('docflow_manager', $roles, TRUE)
                 || in_array('admin', $roles, TRUE));
@@ -261,7 +261,7 @@ class Service_Prx391_Documents
             return TRUE;
         }
 
-        return ACL::check($actor['roles'] ?? [], 'prx391.edit');
+        return Prx_Actor::fromArray($actor)->can('prx391.edit');
     }
 
     protected static function _is_system(array $actor)

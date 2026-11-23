@@ -4,11 +4,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 
+const searchSource = readFileSync(new URL('../../public_html/assets/js/search-layout.js', import.meta.url), 'utf8');
 const source = readFileSync(new URL('../../public_html/assets/js/navpalette.js', import.meta.url), 'utf8');
 const catalog = {
     items: [
         { href: '/inbox', title: 'Входящие документы', icon: 'fas fa-inbox', group: 'Документооборот', status: 'stable', nav_paths: [] },
-        { href: '/documents', title: 'Реестр входящих', icon: 'fas fa-folder', group: 'Документооборот', status: 'stable', nav_paths: ['/document-card'] },
+        { href: '/prx391_documents', title: 'Реестр входящих', icon: 'fas fa-folder', group: 'Документооборот', status: 'stable', nav_paths: ['/document-card'] },
     ],
     groups: [],
 };
@@ -32,15 +33,6 @@ function makeServer(initial = []) {
             const body = new URLSearchParams(options.body);
             assert.equal(body.get('csrf'), 'csrf-test');
             if (Number(body.get('account_id')) !== server.userId) return response({ error: 'Аккаунт изменился' }, 409);
-            if (url.endsWith('favorites_import')) {
-                let added = 0, skipped = 0;
-                for (const href of [...new Set(JSON.parse(body.get('hrefs')))]) {
-                    const item = catalog.items.find(it => it.href === href);
-                    if (!item) { skipped++; continue; }
-                    if (!server.items.some(it => it.href === href)) { server.items.push(item); added++; }
-                }
-                return response({ user_id: server.userId, items: server.items, added, skipped });
-            }
             const href = body.get('href');
             if (body.get('pinned') === '1') {
                 const item = catalog.items.find(it => it.href === href);
@@ -54,25 +46,24 @@ function makeServer(initial = []) {
     return server;
 }
 
-async function page({ path = '/inbox', initial = [], legacy = null, card = '', server = makeServer(initial), storageBlocked = false } = {}) {
+async function page({ path = '/inbox', initial = [], card = '', server = makeServer(initial), storageBlocked = false } = {}) {
     const rows = initial.map(item => `<li class="group relative"><a class="sidebar-item${item.active ? ' is-active' : ''}" href="${attr(item.href)}" data-search="${attr(item.title.toLowerCase())}">${attr(item.title)}</a><button class="nav-pin" data-nav-pin="${attr(item.href)}" aria-pressed="true">★</button></li>`).join('');
     const dom = new JSDOM(`<!doctype html><html><body>
         <aside id="sidebar" data-nav-status="ready" data-nav-user-id="7" data-nav-csrf="csrf-test" data-nav-items="${attr(JSON.stringify(initial))}">
             <input id="nav-search"><button id="nav-palette-open">Все</button>
             <nav id="sidebar-nav"><div class="sidebar-group" data-nav-group="pinned">
                 <div>Избранное</div><ul data-nav-pinned-list>${rows || '<li data-nav-pinned-empty>Добавляйте сервисы звёздочкой в каталоге</li>'}</ul>
-                <div id="nav-legacy-import" class="hidden"><button data-nav-import>Перенести</button><button data-nav-import-dismiss>Не сейчас</button></div>
                 <div id="nav-favorite-status" class="hidden" role="status"></div>
             </div><div class="sidebar-group"><a class="sidebar-item" href="/services">Все сервисы</a></div></nav>
         </aside>${card}
     </body></html>`, { url: 'https://portal.test' + path, runScripts: 'outside-only', pretendToBeVisual: true });
     const { window } = dom;
-    if (legacy) window.localStorage.setItem('prx.nav.v1', JSON.stringify(legacy));
     if (storageBlocked) Object.defineProperty(window, 'localStorage', { value: {
         getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); },
     } });
     const originalLink = window.document.querySelector('[data-nav-group="pinned"] a');
     window.fetch = server.fetch;
+    window.eval(searchSource);
     window.eval(source);
     if (window.document.readyState === 'loading') {
         await new Promise(resolve => window.document.addEventListener('DOMContentLoaded', resolve, { once: true }));
@@ -120,13 +111,13 @@ test('звезда в палитре сохраняет и удаляет зак
 });
 
 test('карточка обновляется после подтверждения сервера и учитывает фильтр', async () => {
-    const p = await page({ path: '/services', card: '<button class="nav-pin-card" data-nav-pin-card="/documents" data-nav-pin-title="Реестр входящих" data-nav-pin-icon="fas fa-folder">⋆</button>' });
+    const p = await page({ path: '/services', card: '<button class="nav-pin-card" data-nav-pin-card="/prx391_documents" data-nav-pin-title="Реестр входящих" data-nav-pin-icon="fas fa-folder">⋆</button>' });
     let filterUpdates = 0;
     p.doc.getElementById('nav-search').value = 'реестр';
     p.doc.getElementById('nav-search').addEventListener('input', () => filterUpdates++);
     click(p.window, p.doc.querySelector('.nav-pin-card'));
     await tick();
-    assert.ok(p.doc.querySelector('[data-nav-group="pinned"] a[href="/documents"]'));
+    assert.ok(p.doc.querySelector('[data-nav-group="pinned"] a[href="/prx391_documents"]'));
     assert.equal(filterUpdates, 1);
     assert.equal(p.doc.querySelector('.nav-pin-card').getAttribute('aria-pressed'), 'true');
     assert.equal(p.doc.querySelector('.nav-pin-card').getAttribute('aria-label'), 'Убрать из Избранного: Реестр входящих');
@@ -142,32 +133,6 @@ test('ошибка сохранения не выдаётся за успех и
     assert.equal(p.doc.querySelector('.nav-pin-card').getAttribute('aria-pressed'), 'false');
     assert.match(p.doc.getElementById('nav-favorite-status').textContent, /Не удалось подтвердить/);
     assert.deepEqual(p.server.items, []);
-    p.dom.window.close();
-});
-
-test('старые браузерные звёзды не импортируются без согласия и не заменяют данные аккаунта', async () => {
-    const legacy = { pinned: ['/inbox', '/prx560'], hidden: [], recents: [] };
-    const p = await page({ initial: [catalog.items[1]], legacy });
-    assert.equal(p.server.calls.length, 0);
-    assert.ok(!p.doc.getElementById('nav-legacy-import').classList.contains('hidden'));
-    assert.equal(p.doc.querySelector('[data-nav-group="pinned"] a[href="/inbox"]'), null);
-    click(p.window, p.doc.querySelector('[data-nav-import]'));
-    await tick();
-    assert.deepEqual(p.server.items.map(it => it.href), ['/documents', '/inbox']);
-    assert.ok(p.doc.querySelector('a[href="/inbox"]'));
-    assert.ok(p.doc.getElementById('nav-legacy-import').classList.contains('hidden'));
-    assert.deepEqual(JSON.parse(p.window.localStorage.getItem('prx.nav.v1')), legacy, 'старый список может принадлежать и другому пользователю');
-    assert.equal(p.window.localStorage.getItem('prx.nav.import.done.7'), '1');
-    p.dom.window.close();
-});
-
-test('«не сейчас» не отправляет и не удаляет браузерные данные', async () => {
-    const legacy = { pinned: ['/inbox'] };
-    const p = await page({ legacy });
-    click(p.window, p.doc.querySelector('[data-nav-import-dismiss]'));
-    assert.equal(p.server.calls.length, 0);
-    assert.deepEqual(JSON.parse(p.window.localStorage.getItem('prx.nav.v1')), legacy);
-    assert.equal(p.window.sessionStorage.getItem('prx.nav.import.later.7'), '1');
     p.dom.window.close();
 });
 
@@ -190,7 +155,7 @@ test('закрепление другого окна перечитываетс�
         key: 'prx.nav.favorites.changed.v1', newValue: JSON.stringify({ user_id: 7, nonce: 'n' }),
     }));
     await tick();
-    const link = p.doc.querySelector('[data-nav-group="pinned"] a[href="/documents"]');
+    const link = p.doc.querySelector('[data-nav-group="pinned"] a[href="/prx391_documents"]');
     assert.ok(link);
     assert.equal(link.getAttribute('aria-current'), 'location');
     assert.equal(p.server.calls[0].url, '/prx110/api/favorites');
@@ -246,7 +211,7 @@ test('устаревшая вкладка не меняет другой акк�
     assert.equal(p.doc.querySelector('.palette-item'), null, 'старый каталог тоже скрыт');
     assert.match(p.doc.getElementById('nav-favorite-status').textContent, /аккаунт изменились/i);
     assert.equal(p.doc.querySelector('.nav-pin-card').disabled, true);
-    assert.deepEqual(p.server.items.map(it => it.href), ['/documents']);
+    assert.deepEqual(p.server.items.map(it => it.href), ['/prx391_documents']);
     p.dom.window.close();
 });
 
@@ -364,5 +329,17 @@ test('ошибка каталога отображается и повторно
     assert.ok(p.doc.querySelector('.palette-item a[href="/inbox"]'));
     input.dispatchEvent(new p.window.KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
     assert.ok(p.doc.querySelector('.palette-item.bg-blue-50'));
+    p.dom.window.close();
+});
+
+
+test('поиск палитры понимает английскую раскладку', async () => {
+    const p = await page();
+    click(p.window, p.doc.getElementById('nav-palette-open'));
+    await tick();
+    const input = p.doc.querySelector('input[aria-label="Поиск по всем сервисам"]');
+    input.value = String.raw`d\[jzobt`;
+    input.dispatchEvent(new p.window.Event('input', { bubbles: true }));
+    assert.ok(p.doc.querySelector('.palette-item a[href="/inbox"]'));
     p.dom.window.close();
 });

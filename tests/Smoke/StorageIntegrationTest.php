@@ -21,7 +21,7 @@ class StorageIntegrationTest extends TestCase
         $tmp = sys_get_temp_dir().'/prx212-integration-'.bin2hex(random_bytes(8));
         mkdir($tmp, 0700);
         // Инициализируем общую шину до тестовой транзакции.
-        Event::has('prx212_storage.uploaded');
+        Event::has('prx212.file.uploaded');
         $db = Database::instance();
         $db->begin();
         try {
@@ -49,6 +49,7 @@ class StorageIntegrationTest extends TestCase
                 $path = $service->getFilePath($file_id);
                 $this->assertStringStartsWith($root.'/'.$module.'/', $path);
                 $this->assertSame('тестовый файл', file_get_contents($path));
+                $this->assertSame('тестовый файл', Storage::bytes($file_id)); // фасад поверх того же backend
                 clearstatcache(TRUE, $path);
                 $this->assertSame(0600, fileperms($path) & 0777);
                 $this->assertFalse($service->getFileForDownload($file_id, NULL));

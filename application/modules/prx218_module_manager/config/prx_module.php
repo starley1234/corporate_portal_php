@@ -9,6 +9,9 @@
  */
 
 return [
+    'id' => 218,
+    'slug' => 'prx218_module_manager',
+    'kind' => 'platform',
     'title' => 'Менеджер модулей (общий модуль)',
     'short' => 'реестр модулей, сканер, зависимости, LLM-анализ, scaffold',
 ];

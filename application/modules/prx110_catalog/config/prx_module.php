@@ -9,6 +9,9 @@
  */
 
 return [
+    'id' => 110,
+    'slug' => 'prx110_catalog',
+    'kind' => 'platform',
     'title' => 'Каталог сервисов',
     'short' => 'манифесты `config/prx_module.php` → меню сайдбара, карточки главной, чипы шапки, быстрый поиск',
 ];

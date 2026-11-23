@@ -2,7 +2,8 @@
     <div class="prx-card">
         <h1 class="prx-h1 mb-6"><?php echo __('Настройки реестра модулей'); ?></h1>
 
-        <form id="settings-form" method="POST" action="<?php echo URL::site('prx218_module_manager/index/save_settings'); ?>">
+        <form id="settings-form" method="POST" action="<?php echo URL::site('prx218_module_manager/index/save_settings'); ?>
+        <input type="hidden" name="csrf" value="<?php echo HTML::chars(Security::token()); ?>">">
             <div class="space-y-6">
                 <!-- Настройки сканера -->
                 <div class="border-b border-gray-200 dark:border-gray-700 pb-4">

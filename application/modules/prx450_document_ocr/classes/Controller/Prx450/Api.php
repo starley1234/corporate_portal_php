@@ -1,0 +1,32 @@
+<?php defined('SYSPATH') or die('No direct script access.');
+
+/**
+ * Машинный API: POST /api/v1/document-ocr/parse.
+ *
+ * Ключ и scope проверяет Controller_Prx150_Machine. Контракт запроса и ответа
+ * — как у внешнего шлюза: multipart `file` + query-параметры → JSON
+ * {file, content, cached, cache_source, engine_used, llm_fixed, raw_result}.
+ */
+class Controller_Prx450_Api extends Controller_Prx150_Machine
+{
+    protected const SCOPE = Service_Prx450_Ocr::SCOPE;
+
+    public function action_parse(): void
+    {
+        $this->respond(function () {
+            if ($this->request->method() !== Request::POST)
+            {
+                $this->response->headers('Allow', 'POST');
+                throw new Prx150_Error('method_not_allowed', 405);
+            }
+
+            $result = Service_Prx450_Ocr::parse(
+                $_FILES['file'] ?? NULL,
+                $this->request->query(),
+                NULL
+            );
+
+            $this->_json_response($result, 200);
+        });
+    }
+}

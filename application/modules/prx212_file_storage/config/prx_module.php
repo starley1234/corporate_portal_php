@@ -9,6 +9,9 @@
  */
 
 return [
+    'id' => 212,
+    'slug' => 'prx212_file_storage',
+    'kind' => 'platform',
     'title' => 'Файловое хранилище (общий модуль)',
     'short' => 'локальный и S3 бэкенды',
 ];

@@ -225,10 +225,14 @@ class Controller_Prx218_Index extends Controller_Prx218_Main {
                 'sort_order'      => isset($post['sort_order']) ? (int) $post['sort_order'] : $module->sort_order,
             ];
 
-            $service->update_module_metadata($module, $data);
+            $service->update_module_metadata($module, $data, $this->_actor_id());
 
             // 5. Вызов события
-            Event::fire('prx218.module.updated', $module);
+            Event::publish('prx218.module.updated', [
+                'module_id'   => (int) $module->id,
+                'system_name' => (string) $module->system_name,
+                'fields'      => array_keys($data),
+            ], $this->_actor_id());
 
             $this->_json_response(['status' => 'ok', 'message' => __('Данные обновлены')]);
             return;
@@ -262,9 +266,9 @@ class Controller_Prx218_Index extends Controller_Prx218_Main {
             if (isset($post['status']))
             {
                 $service = Service_Prx218_ModuleManager::instance();
-                $service->update_status($module->id, (string) $post['status']);
+                // Событие status_changed публикует сервис — второго вызова не нужно.
+                $service->update_status($module->id, (string) $post['status'], $this->_actor_id());
 
-                Event::fire('prx218.module.status_changed', $module);
                 $this->_json_response(['status' => 'ok', 'message' => __('Статус обновлен')]);
                 return;
             }
@@ -344,7 +348,7 @@ class Controller_Prx218_Index extends Controller_Prx218_Main {
             try
             {
                 $service = Service_Prx218_ModuleManager::instance();
-                $service->delete_module($module->id);
+                $service->delete_module($module->id, $this->_actor_id());
                 $this->_json_response(['status' => 'ok', 'message' => __('Модуль успешно удален.')]);
             }
             catch (Exception $e)
@@ -381,7 +385,7 @@ class Controller_Prx218_Index extends Controller_Prx218_Main {
             try
             {
                 $service = Service_Prx218_ModuleManager::instance();
-                $service->restore_module($module->id);
+                $service->restore_module($module->id, $this->_actor_id());
                 $this->_json_response(['status' => 'ok', 'message' => __('Модуль успешно восстановлен.')]);
             }
             catch (Exception $e)
@@ -557,8 +561,13 @@ class Controller_Prx218_Index extends Controller_Prx218_Main {
 
             try
             {
+                $event_payload = [
+                    'dependency_id'      => (int) $dependency->id,
+                    'module_id'          => (int) $dependency->module_id,
+                    'required_module_id' => (int) $dependency->required_module_id,
+                ];
                 $dependency->delete();
-                Event::fire('prx218.dependency.deleted', $dependency);
+                Event::publish('prx218.dependency.deleted', $event_payload, $this->_actor_id());
                 $this->_json_response(['status' => 'ok', 'message' => __('Зависимость успешно удалена.')]);
             }
             catch (Exception $e)

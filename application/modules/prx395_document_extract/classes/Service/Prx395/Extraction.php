@@ -4,6 +4,8 @@ class Service_Prx395_Extraction
 {
     const CHANNEL = 'document.extract';
     const MODULE = 'prx395';
+    /** Scope внешнего ключа prx150, дающий доступ к этому сервису. */
+    const SCOPE = 'prx395.extract';
     const MAX_PDF = 10485760;
     const MAX_TEXT = 1048576;
     const MAX_PAGES = 20;
@@ -16,22 +18,21 @@ class Service_Prx395_Extraction
 
     private Database $db;
     private Service_Prx120_JobQueue $queue;
-    private Service_Prx212_Storage $storage;
 
     public function __construct()
     {
         // JobQueue::push и INSERT регистрации должны использовать одно соединение.
         $this->db = Database::instance(Kohana::$config->load('prx120_jobs.db_group'));
         $this->queue = Service_Prx120_JobQueue::instance();
-        $this->storage = Service_Prx212_Storage::instance();
     }
 
-    public function submit(string $client, string $key, $upload): int
+    /** @param int $client ID ключа prx150; админка передаёт отрицательный ID пользователя */
+    public function submit(int $client, string $key, $upload): int
     {
         return $this->register($client, $key, self::validated_upload($upload));
     }
 
-    public function submit_sample(string $client, string $key): int
+    public function submit_sample(int $client, string $key): int
     {
         $path = dirname(__DIR__, 3).'/fixtures/sample.pdf';
         return $this->register($client, $key, [
@@ -39,54 +40,69 @@ class Service_Prx395_Extraction
         ]);
     }
 
-    private function register(string $client, string $key, array $upload): int
+    private function register(int $client, string $key, array $upload): int
     {
-        if ( ! preg_match('/\A[A-Za-z0-9._:-]{1,128}\z/', $key))
+        if ( ! preg_match('/'.Prx_Idempotency::KEY_PATTERN.'/', $key))
             throw new Prx395_Error('invalid_idempotency_key', 400);
         if (trim((string) getenv('WORKER_API_TOKEN')) === '') throw new Prx395_Error('worker_not_configured', 503);
         $key_hash = hash('sha256', $key);
         $sha = hash_file('sha256', $upload['tmp_name']);
         if ($sha === FALSE) throw new Prx395_Error('upload_unavailable', 503);
-        $owner = 'client_id = '.$this->db->quote($client).' AND request_key = '.$this->db->quote($key_hash);
-        $existing = $this->one('SELECT job_id, file_sha256 FROM prx_395_extractions WHERE '.$owner.' AND expires_at > now()');
-        if ($existing) return $this->replay($existing, $sha);
 
         // ФС не откатывается вместе с PostgreSQL. Сохраняем через prx212 вне
-        // транзакции; при отказе транзакции удаляем артефакт отдельной операцией.
-        $file_id = (int) $this->storage->save($upload, ['module' => self::MODULE, 'is_public' => 0]);
-        try {
-            if ( ! $this->db->begin()) throw new RuntimeException('Не начата транзакция постановки задачи');
-            try {
-                // Сериализуем только один ключ одного клиента; UNIQUE — второй барьер.
-                $lock_key = $this->db->quote(self::MODULE.':'.$client.':'.$key_hash);
-                $this->one('SELECT pg_advisory_xact_lock(hashtextextended('.$lock_key.', 0))');
-                $existing = $this->one('SELECT job_id, file_sha256, (expires_at <= now())::int AS expired FROM prx_395_extractions WHERE '.$owner);
-                if ($existing)
-                {
-                    if ((int) $existing['expired'] === 1) throw new Prx395_Error('idempotency_key_expired', 409);
-                    $job_id = $this->replay($existing, $sha);
-                }
-                else
-                {
-                    $job_id = Service_Prx120_JobQueue::push(self::CHANNEL, [], [
-                        'module' => self::MODULE, 'max_attempts' => 3, 'timeout_sec' => 300,
-                    ]);
-                    if ($job_id < 1) throw new RuntimeException('Отсутствует ID задачи');
-                    $this->db->query(Database::INSERT, 'INSERT INTO prx_395_extractions '
-                        .'(job_id, client_id, request_key, file_sha256, file_id) VALUES ('
-                        .$job_id.','.$this->db->quote($client).','.$this->db->quote($key_hash).','.$this->db->quote($sha).','.$file_id.')', FALSE);
-                }
-                if ( ! $this->db->commit()) throw new RuntimeException('Не подтверждена транзакция постановки задачи');
-            } catch (Throwable $e) {
-                $this->db->rollback();
-                throw $e;
-            }
-        } catch (Throwable $e) {
+        // транзакции; если ключ занят или транзакция не подтверждена — удаляем.
+        $file_id = Storage::save($upload, self::MODULE);
+
+        try
+        {
+            $idem = Prx_Idempotency::begin(self::SCOPE, (string) $client, $key, $sha, $this->db);
+        }
+        catch (Throwable $e)
+        {
             $this->discard($file_id);
             throw $e;
         }
-        if ($existing) $this->discard($file_id);
-        Log_Plain::event(Log::INFO, 'prx395 job_id=:id stage=queued_or_replayed', [':id' => $job_id]);
+
+        if ($idem['state'] !== Prx_Idempotency::STATE_NEW)
+        {
+            $this->discard($file_id);
+
+            if ($idem['state'] === Prx_Idempotency::STATE_REPLAY)
+            {
+                $job_id = (int) ($idem['result']['job_id'] ?? 0);
+
+                if ($job_id < 1) throw new Prx395_Error('idempotency_conflict', 409);
+                Log_Plain::event(Log::INFO, 'prx395 job_id=:id stage=replayed', [':id' => $job_id]);
+                return $job_id;
+            }
+
+            throw new Prx395_Error(
+                $idem['state'] === Prx_Idempotency::STATE_CONFLICT ? 'idempotency_conflict' : 'idempotency_key_expired',
+                409
+            );
+        }
+
+        try
+        {
+            $job_id = Service_Prx120_JobQueue::push(self::CHANNEL, [], [
+                'module' => self::MODULE, 'max_attempts' => 3, 'timeout_sec' => 300,
+            ]);
+            if ($job_id < 1) throw new RuntimeException('Отсутствует ID задачи');
+            // push и ссылка на задание — в одной транзакции с ключом идемпотентности.
+            $this->db->query(Database::INSERT, 'INSERT INTO prx_395_extractions '
+                .'(job_id, api_client_id, request_key, file_sha256, file_id) VALUES ('
+                .$job_id.','.(int) $client.','.$this->db->quote($key_hash).','
+                .$this->db->quote($sha).','.$file_id.')', FALSE);
+            Prx_Idempotency::finish((int) $idem['id'], ['job_id' => $job_id], $this->db);
+        }
+        catch (Throwable $e)
+        {
+            Prx_Idempotency::abort($this->db);
+            $this->discard($file_id);
+            throw $e;
+        }
+
+        Log_Plain::event(Log::INFO, 'prx395 job_id=:id stage=queued', [':id' => $job_id]);
         return $job_id;
     }
 
@@ -109,10 +125,10 @@ class Service_Prx395_Extraction
         return ['tmp_name' => $path, 'name' => 'document.pdf', 'size' => $size, 'type' => 'application/pdf'];
     }
 
-    public function status(string $client, int $id): array
+    public function status(int $client, int $id): array
     {
         $row = $this->one('SELECT expires_at FROM prx_395_extractions WHERE job_id = '.$id
-            .' AND client_id = '.$this->db->quote($client).' AND expires_at > now()');
+            .' AND api_client_id = '.(int) $client.' AND expires_at > now()');
         if ( ! $row) throw new Prx395_Error('not_found', 404);
         $job = $this->queue->get($id);
         $state = [
@@ -131,7 +147,7 @@ class Service_Prx395_Extraction
             $result = is_string($receipt) && preg_match('/\A[a-f0-9]{32}\z/', $receipt)
                 ? $this->result_row($id, (int) $job['attempts'], $receipt) : NULL;
             if ( ! $result) throw new Prx395_Error('result_unavailable', 503);
-            $text = $this->storage->read_owned((int) $result['file_id'], self::MODULE, self::MAX_TEXT);
+            $text = Storage::read_owned((int) $result['file_id'], self::MODULE, self::MAX_TEXT);
             if ($text === NULL) throw new Prx395_Error('result_unavailable', 503);
             $response['result'] = ['text' => $text] + json_decode($result['metadata'], TRUE, 8, JSON_THROW_ON_ERROR);
         }
@@ -150,7 +166,7 @@ class Service_Prx395_Extraction
     public function read_pdf(int $id, int $attempt): string
     {
         $row = $this->check_lease($id, $attempt);
-        $bytes = $this->storage->read_owned((int) $row['file_id'], self::MODULE, self::MAX_PDF);
+        $bytes = Storage::read_owned((int) $row['file_id'], self::MODULE, self::MAX_PDF);
         if ($bytes === NULL || ! hash_equals($row['file_sha256'], hash('sha256', $bytes)))
             throw new Prx395_Error('file_unavailable', 410);
         return $bytes;
@@ -163,7 +179,7 @@ class Service_Prx395_Extraction
         $current = $this->result_row($id, $attempt);
         if ($current) return $current['receipt']; // повтор POST после потери ответа
         $receipt = bin2hex(random_bytes(16));
-        $file_id = (int) $this->storage->saveRaw($body['text'], 'result.txt', ['module' => self::MODULE], 'text/plain');
+        $file_id = Storage::put($body['text'], 'result.txt', self::MODULE, NULL, FALSE, 'text/plain');
         try {
             $this->check_lease($id, $attempt);
             $result = $this->one('INSERT INTO prx_395_results (job_id, attempt, receipt, file_id, metadata) '
@@ -218,12 +234,6 @@ class Service_Prx395_Extraction
             .($receipt === NULL ? '' : ' AND receipt = '.$this->db->quote($receipt)));
     }
 
-    private function replay(array $row, string $sha): int
-    {
-        if ( ! hash_equals($row['file_sha256'], $sha)) throw new Prx395_Error('idempotency_conflict', 409);
-        return (int) $row['job_id'];
-    }
-
     public function purge(): array
     {
         $expired = $this->db->query(Database::SELECT,
@@ -239,14 +249,14 @@ class Service_Prx395_Extraction
                 Log_Plain::event(Log::ERROR, 'prx395 job_id=:id stage=purge error_type=:type', [':id' => $id, ':type' => get_class($e)]);
             }
         }
-        // Компенсация после SIGKILL между сохранением в storage и записью
+        // Компенсация после SIGKILL между сохранением в Storage и записью
         // ссылки в БД. Запас 48 ч больше любого TTL/таймаута нашего контура.
-        foreach ($this->storage->owned_file_ids_before(self::MODULE, 48) as $file_id)
+        foreach (Storage::owned_ids_before(self::MODULE, 48) as $file_id)
         {
             if ($this->one('SELECT 1 FROM prx_395_extractions WHERE file_id = '.$file_id
                 .' UNION ALL SELECT 1 FROM prx_395_results WHERE file_id = '.$file_id.' LIMIT 1')) continue;
             try {
-                if ( ! $this->storage->delete_owned($file_id, self::MODULE)) throw new RuntimeException('Артефакт не удалён');
+                if ( ! Storage::delete_owned($file_id, self::MODULE)) throw new RuntimeException('Артефакт не удалён');
                 $report['orphans']++;
             } catch (Throwable $e) {
                 $report['errors']++;
@@ -267,7 +277,7 @@ class Service_Prx395_Extraction
             {
                 $files = $this->db->query(Database::SELECT, 'SELECT file_id FROM prx_395_results WHERE job_id = '.$id, FALSE)->as_array();
                 foreach (array_merge([$row['file_id']], array_column($files, 'file_id')) as $file_id) {
-                    if ( ! $this->storage->delete_owned((int) $file_id, self::MODULE)) throw new RuntimeException('Артефакт не удалён');
+                    if ( ! Storage::delete_owned((int) $file_id, self::MODULE)) throw new RuntimeException('Артефакт не удалён');
                 }
                 $this->db->query(Database::DELETE, 'DELETE FROM prx_395_extractions WHERE job_id = '.$id, FALSE);
             }
@@ -282,7 +292,7 @@ class Service_Prx395_Extraction
     private function discard(int $file_id): void
     {
         try {
-            if ($this->storage->delete_owned($file_id, self::MODULE)) return;
+            if (Storage::delete_owned($file_id, self::MODULE)) return;
         } catch (Throwable $e) {
             // Не заменяем исходную ошибку; ID нужен оператору для уборки.
         }

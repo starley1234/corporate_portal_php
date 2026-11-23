@@ -87,14 +87,19 @@ class Controller_Prx208_Widget extends Controller_Base {
                 {
                     try
                     {
-                        $event_bus_service = Service_Prx208_EventBus::instance();
-                        $event_bus_service->publish($event_name, $payload);
+                        // Контракт тот же, что у кода модулей: имя и payload проверяет Event::publish().
+                        $initiator_id = $this->_current_user ? (int) $this->_current_user->id : NULL;
+                        Event::publish($event_name, $payload, $initiator_id);
 
-                        Event::fire('prx208_events.published', (object)['name' => $event_name, 'payload' => $payload]);
+                        Event::publish('prx208.event.published', array('event_name' => $event_name), $initiator_id);
 
                         $post_data = array();
                         $this->response->body('<div class="prx-flash prx-flash-ok" role="status"><i class="fas fa-circle-check"></i><span>' . HTML::chars(__('Событие ":event_name" успешно опубликовано!', array(':event_name' => $event_name))) . '</span></div>');
                         return;
+                    }
+                    catch (InvalidArgumentException $e)
+                    {
+                        $errors['event_name'] = $e->getMessage();
                     }
                     catch (Exception $e)
                     {

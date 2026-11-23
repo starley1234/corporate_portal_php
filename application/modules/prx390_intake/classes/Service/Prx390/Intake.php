@@ -305,7 +305,7 @@ class Service_Prx390_Intake
         if ($text AND (int) $text['chars'] >= (int) self::config('min_text_chars', 40))
         {
             self::_exec("UPDATE prx_390_messages SET status = '".self::STATUS_TEXT_READY."', error = NULL WHERE id = ".(int) $message_id);
-            Event::fire('prx390.text.ready', ['message_id' => (int) $message_id]);
+            Event::publish('prx390.text.ready', ['message_id' => (int) $message_id], (int) ($actor['user_id'] ?? 0) ?: NULL);
 
             return 'text_ready';
         }
@@ -434,7 +434,9 @@ class Service_Prx390_Intake
 
         if ($status === self::STATUS_TEXT_READY)
         {
-            Event::fire('prx390.text.ready', ['message_id' => (int) $message_id]);
+            // Воркер сохранил текст; инициатор — тот, кто принял конверт.
+            Event::publish('prx390.text.ready', ['message_id' => (int) $message_id],
+                $message['created_by'] ? (int) $message['created_by'] : NULL);
         }
 
         return ['text_id' => (int) $row['id'], 'chars' => $chars, 'status' => $status];
@@ -480,21 +482,12 @@ class Service_Prx390_Intake
 
     protected static function _store_file($path, $name, $user_id)
     {
-        if ( ! class_exists('Service_Prx212_Storage'))
-        {
-            throw new RuntimeException('Модуль хранения файлов prx212 не подключён');
-        }
-
-        $id = Service_Prx212_Storage::instance()->save([
+        $id = Storage::save([
             'tmp_name' => $path,
             'name' => $name,
             'size' => filesize($path),
             'type' => 'application/pdf',
-        ], [
-            'user_id' => $user_id ?: NULL,
-            'module' => 'prx390',
-            'is_public' => 0,
-        ]);
+        ], 'prx390', $user_id ?: NULL);
 
         return (int) $id;
     }
