@@ -1,7 +1,33 @@
 <?php defined('SYSPATH') or die('No direct script access.'); ?>
 
 	<!-- ================= СВОДКА ================= -->
-	<div class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+	<?php
+	// Путь уведомления одной строкой: откуда приходит, что решает, где застревает.
+	// Цифры — те же, что в карточках ниже; каждая ступень ведёт на свой разбор.
+	$steps = [
+		['fa-bolt', 'Источник', 'Модуль зовёт <code>Service_Prx597_Notify::emit()</code> сам; событие шины prx208 приходит только при включённом мосте.', '/prx208_events', 'журнал событий'],
+		['fa-file-lines', 'Реестр события', 'Шаблон, каналы, роли, важность и тихие часы — что и кому вообще отправлять.', '/prx597/admin?tab=events', 'события'],
+		['fa-shield-halved', 'Лимиты и решения', 'Потолки источника и получателя, тихие часы, сводка вместо письма: отправить, отложить, пропустить.', '/prx597/admin?tab=limits', 'лимиты'],
+		['fa-list-check', 'Очередь (outbox)', 'В очереди: <b>'.(int) Arr::get($stats, 'pending', 0).'</b> · отложено: <b>'.(int) Arr::get($stats, 'deferred', 0).'</b> — здесь видно, кто ждёт и почему.', '/prx597/admin?tab=queue#queue', 'очередь'],
+		['fa-paper-plane', 'Канал → получатель', 'Письмо, Telegram, MAX или лента колокольчика. Отправлено за сутки: <b>'.(int) Arr::get($stats, 'sent_today', 0).'</b>, в ленту: <b>'.(int) Arr::get($stats, 'inbox_24h', 0).'</b>.', '/prx597/admin?tab=queue#sent', 'отправленные'],
+		['fa-skull', 'Не дошло', 'После всех попыток — DLQ: <b>'.(int) Arr::get($stats, 'dead', 0).'</b>. Разбор и повтор — в журнале.', '/prx597/admin?tab=journal', 'журнал'],
+	];
+	?>
+	<section class="mt-5" aria-labelledby="prx597-flow">
+		<h2 id="prx597-flow" class="text-sm font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">Как идёт уведомление</h2>
+		<ol class="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+			<?php foreach ($steps as $i => $step): ?>
+			<li class="relative rounded-xl border border-gray-200 p-3 dark:border-gray-700">
+				<p class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400"><i class="fas <?php echo HTML::chars($step[0]); ?> mr-1.5 text-blue-600 dark:text-blue-400" aria-hidden="true"></i><?php echo (int) $i + 1; ?>. <?php echo HTML::chars($step[1]); ?></p>
+				<p class="mt-1.5 text-xs leading-5 text-gray-600 dark:text-gray-300"><?php echo $step[2]; ?></p>
+				<a class="prx-link mt-1.5 inline-block text-xs" href="<?php echo HTML::chars($step[3]); ?>"><?php echo HTML::chars($step[4]); ?> →</a>
+				<?php if ($i < count($steps) - 1): ?><i class="fas fa-arrow-right absolute -right-3 top-1/2 hidden -translate-y-1/2 text-gray-300 dark:text-gray-600 xl:block" aria-hidden="true"></i><?php endif; ?>
+			</li>
+			<?php endforeach; ?>
+		</ol>
+	</section>
+
+	<div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 		<?php
 		// Карточки — ссылки на разбор: владелец (16.10.2026) спросил «в очереди 10 —
 		// как посмотреть, кто и почему?». Теперь каждая цифра ведёт на свой список,

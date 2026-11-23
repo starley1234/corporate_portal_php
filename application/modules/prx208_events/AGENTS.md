@@ -2,6 +2,19 @@
 
 > Памятка агенту. Общие правила платформы — в корневом /AGENTS.md.
 
+<!-- context-index:begin -->
+<!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index application/modules/prx208_events/AGENTS.md --write. Руками не править. -->
+| Раздел | Строка | Размер |
+|---|---|---|
+|   Назначение | 18 | 0,3 КБ |
+|   Состояние | 23 | 0,6 КБ |
+|   Ключевые классы | 30 | 1,1 КБ |
+|   Таблицы | 39 | 0,1 КБ |
+|   Маршруты и API | 43 | 0,6 КБ |
+|   Именование событий | 50 | 0,2 КБ |
+|   Не трогать / подводные камни | 54 | 1,7 КБ |
+|   Долги и идеи (TODO) | 70 | 0,4 КБ |
+<!-- context-index:end -->
 ## Назначение
 Central Event Bus: pub/sub между модулями без прямых связей. Модуль публикует
 `Event::fire('prx401.task_done', [...])`, другие модули подписываются в своих
@@ -20,6 +33,7 @@ Central Event Bus: pub/sub между модулями без прямых св�
 | `Event` (application/classes/Event.php) | фасад: `Event::fire()`, `Event::listen()` — автоматом подтягивает текущего пользователя как инициатора |
 | `Service_Prx208_EventBus` | реестр слушателей, публикация, мост в центр уведомлений prx597 (`_bridge_to_prx597`), исключение инициатора из получателей |
 | `Controller_Prx208_Api` | Сессионный API: publish/get_events/subscribe/unsubscribe |
+| `Controller_Prx208_Events` + `Service_Prx208_Journal` | `/prx208_events`: сводка, схема «как идёт событие», журнал с фильтрами, карточка события; подписки (`list_subscribers`, `manage_subscription`, `delete_subscription`). Журнал только читается — create/edit/delete событий удалены 23.11.2026 |
 | `Model_Prx208_Event`, `_Subscriber`, `_EventListener`, `_EventPublisher` | модели шины |
 
 ## Таблицы
@@ -31,6 +45,7 @@ Central Event Bus: pub/sub между модулями без прямых св�
   в авторизованной сессии; отдельной токенной авторизации внешних систем нет.
 - `/prx208_events/api/subscribe|unsubscribe` — POST + CSRF + право управления.
 - `/prx208_events/widget/latest_events` — виджет последних событий.
+- `/prx208_events`, `/prx208_events/view_event/<id>` — журнал (админ, `prx208_events.view`); `/prx208_events/list_events` — тот же журнал.
 
 ## Именование событий
 `prx<id>.<сущность>.<действие>`: `prx401.task.done`, `prx501.calc.finished`.
@@ -53,4 +68,7 @@ Central Event Bus: pub/sub между модулями без прямых св�
   прерывает остальные. Остальные старые журналы могут содержать приватные данные.
 
 ## Долги и идеи (TODO)
-- Retention/очистка старых событий (журнал бесконечно растёт).
+- Retention есть (контракт `cleanup` в манифесте, 90 дней); следить за ростом
+  `prx_208_events` на `/prx100/cleanup`.
+- Явные DB-подписки не показывают слушателей в коде (`Event::listen` в init.php):
+  карточка события честно говорит об этом.

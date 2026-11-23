@@ -5,6 +5,7 @@
  *
  *   /architecture           — собранная страница (HTML)
  *   /architecture/data.json — та же модель для программ (JSON)
+ *   /architecture/guide     — памятка программиста (философия, архитектура, имена)
  */
 Route::set('prx101_architecture_data', 'architecture/data.json')
     ->defaults([

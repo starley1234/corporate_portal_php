@@ -11,6 +11,7 @@
         'title'  => 'Архитектура портала',
         'pill'   => ['Модуль PRX101', 'fa-sitemap'],
         'lead'   => 'Документация собирается из docs/architecture/model/*.yaml. Сейчас собранной страницы ещё нет.',
+        'actions' => [['label' => 'Памятка программиста', 'href' => '/architecture/guide', 'icon' => 'fa-compass', 'role' => 'secondary']],
     ]); ?>
 
     <div class="prx-card">

@@ -27,6 +27,8 @@ class Controller_Prx100_Admin extends Controller_Prx100_Base {
 			['title' => 'Дашборд', 'href' => '/dashboard', 'icon' => 'fas fa-gauge-high'],
 			['title' => 'Чистка данных', 'href' => '/prx100/cleanup', 'icon' => 'fas fa-broom'],
 			['title' => 'Хвост ошибок', 'href' => '/prx100/errors', 'icon' => 'fas fa-heart-crack'],
+			['title' => 'Логи', 'href' => '/prx100/logs', 'icon' => 'fas fa-terminal'],
+			['title' => 'События', 'href' => '/prx208_events', 'icon' => 'fas fa-bolt'],
 			['title' => 'Все сервисы', 'href' => '/services', 'icon' => 'fas fa-grip'],
 		]);
 	}

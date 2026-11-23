@@ -5,11 +5,11 @@
 | Раздел | Строка | Размер |
 |---|---|---|
 |   Проект | 14 | 0,3 КБ |
-|   Вход в задачу | 19 | 1,4 КБ |
-|   Обязательные инварианты | 34 | 5,1 КБ |
-|   Словарь кода | 81 | 0,6 КБ |
-|   Окружение | 88 | 0,6 КБ |
-|   Проверки перед завершением | 96 | 1,1 КБ |
+|   Вход в задачу | 19 | 1,6 КБ |
+|   Обязательные инварианты | 36 | 5,1 КБ |
+|   Словарь кода | 83 | 0,6 КБ |
+|   Окружение | 90 | 0,6 КБ |
+|   Проверки перед завершением | 98 | 1,1 КБ |
 <!-- context-index:end -->
 ## Проект
 PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind/jQuery,
@@ -24,6 +24,8 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
   API-пайплайны для корпоративных систем: `docs/AI-DOCUMENT-PIPELINES.md`.
 - Архитектура: `docs/ARCHITECTURE.md`, модель и схемы — `docs/architecture/model`
   (`make architecture`, страница `/architecture`); создание: `docs/MODULE_GUIDE.md`.
+  Наглядная карта для человека — `/architecture/guide` (философия, запрос, анатомия
+  модуля, имена); она ссылается на документы, а не заменяет их.
 - Фундамент (actor/policy, `Prx_Db`, `Prx_Event`, CSRF, page-kit):
   `docs/FOUNDATION.md` — читать перед новым модулем.
 - Дизайн: `docs/DESIGN-SYSTEM.md`, `.tools/tailwind/input.css`, `app.js`.

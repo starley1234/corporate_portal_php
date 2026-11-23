@@ -58,3 +58,11 @@ Route::set('prx100_errors', 'prx100/errors')
         'controller' => 'Prx100_Errors',
         'action'     => 'index',
     ]);
+
+// «Логи» — управление: журнал сайта (Log_Plain) и php-лог Kohana по дням и уровням
+Route::set('prx100_logs', 'prx100/logs')
+    ->defaults([
+        'controller' => 'Prx100_Logs',
+        'action'     => 'index',
+    ]);
+

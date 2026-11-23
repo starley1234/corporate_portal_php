@@ -34,6 +34,8 @@ $fmt = function (string $ts): string {
         </div>
         <div class="flex flex-wrap gap-2">
             <a href="/prx100/errors" class="prx-btn-secondary prx-btn-sm"><i class="fas fa-rotate mr-1.5"></i>Обновить</a>
+            <a href="/prx100/logs" class="prx-btn-secondary prx-btn-sm"><i class="fas fa-terminal mr-1.5"></i>Логи</a>
+            <a href="/prx208_events" class="prx-btn-secondary prx-btn-sm"><i class="fas fa-bolt mr-1.5"></i>События</a>
             <a href="/dashboard" class="prx-btn-secondary prx-btn-sm"><i class="fas fa-gauge mr-1.5"></i>Дашборд</a>
         </div>
     </div>

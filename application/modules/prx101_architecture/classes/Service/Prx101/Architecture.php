@@ -71,15 +71,17 @@ class Service_Prx101_Architecture
     protected static function _portal_link($html)
     {
         $link = '<style>'
-            .'#prx-arch-back{position:fixed;right:18px;bottom:18px;z-index:9999;'
-            .'display:inline-flex;align-items:center;gap:8px;padding:10px 14px;'
+            .'#prx-arch-nav{position:fixed;right:18px;bottom:18px;z-index:9999;display:flex;gap:8px}'
+            .'#prx-arch-nav a{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;'
             .'border:1px solid rgba(148,163,184,.35);border-radius:999px;'
             .'background:rgba(15,23,42,.88);color:#f8fafc;font:600 13px/1 system-ui,sans-serif;'
             .'text-decoration:none;box-shadow:0 8px 24px rgba(15,23,42,.28);backdrop-filter:blur(8px)}'
-            .'#prx-arch-back:hover{background:#1e293b;color:#fff}'
-            .'@media print{#prx-arch-back{display:none}}'
+            .'#prx-arch-nav a:hover{background:#1e293b;color:#fff}'
+            .'@media print{#prx-arch-nav{display:none}}'
             .'</style>'
-            .'<a id="prx-arch-back" href="/" title="Вернуться в портал">← Вернуться в портал</a>';
+            .'<nav id="prx-arch-nav" aria-label="Навигация по документации">'
+            .'<a href="/architecture/guide" title="Философия, архитектура и правила именования — коротко">Памятка программиста</a>'
+            .'<a href="/" title="Вернуться в портал">← Вернуться в портал</a></nav>';
 
         $pos = strripos($html, '</body>');
 
