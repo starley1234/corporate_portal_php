@@ -35,7 +35,7 @@
 - Идемпотентные миграции PostgreSQL, CLI, диагностика, генератор модулей.
 - Манифесты, каталог, навигация, общий поиск и административные страницы.
 - Фундамент для новых модулей: `Prx_Actor` + политика доступа, `Prx_Db`,
-  `Prx_Event`, глобальный CSRF-guard и page-kit — `docs/FOUNDATION.md`.
+  `Event::publish()`, глобальный CSRF-guard и page-kit — `docs/FOUNDATION.md`.
   Новый модуль: `make new-module id=312 slug=claims name="Заявки" entity=Claim`.
 - Шина событий, файловое хранилище, менеджер модулей.
 - Уведомления: in-app, outbox, email и опциональные мессенджерные адаптеры.

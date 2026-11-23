@@ -128,13 +128,13 @@ class Service_Prx391_Documents
         ]);
         Service_Prx390_Intake::link_document($message_id, $document_id);
 
-        Event::fire('prx391.document.registered', [
+        Event::publish('prx391.document.registered', [
             'document_id' => $document_id,
             'message_id' => $message_id,
             'reg_no' => $reg_no,
             'subject' => $subject,
             'href' => '/prx391_documents/'.$document_id,
-        ]);
+        ], $message['created_by'] ? (int) $message['created_by'] : NULL);
 
         return $document_id;
     }

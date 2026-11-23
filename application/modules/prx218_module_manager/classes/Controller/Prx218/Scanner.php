@@ -44,10 +44,15 @@ class Controller_Prx218_Scanner extends Controller_Prx218_Main {
         $service = Service_Prx218_Scanner::instance();
         
         // Выполняем сканирование директорий
-        $result = $service->scan_directory();
+        $result = $service->scan_directory($this->_actor_id() ?: 0);
 
         // Оповещаем систему об обновлении реестра
-        Event::fire('prx218.scanner.finished', $result);
+        Event::publish('prx218.scanner.finished', [
+            'found'   => (int) Arr::get($result, 'found', 0),
+            'created' => (int) Arr::get($result, 'created', 0),
+            'updated' => (int) Arr::get($result, 'updated', 0),
+            'skipped' => (int) Arr::get($result, 'skipped', 0),
+        ], $this->_actor_id());
 
         $this->_json_response([
             'status' => 'ok',
@@ -80,11 +85,15 @@ class Controller_Prx218_Scanner extends Controller_Prx218_Main {
         $service = Service_Prx218_LlmProcessor::instance();
         
         // Запуск процесса анализа через LLM
-        $analysis = $service->run_ai_analysis($module->id);
+        $analysis = $service->run_ai_analysis($module->id, $this->_actor_id() ?: 0);
 
         if ($analysis)
         {
-            Event::fire('prx218.module.ai_analyzed', $module);
+            Event::publish('prx218.module.ai_analyzed', [
+                'module_id'   => (int) $module->id,
+                'system_name' => (string) $module->system_name,
+                'analysis_id' => (int) $analysis->id,
+            ], $this->_actor_id());
             
             $this->_json_response([
                 'status' => 'ok',

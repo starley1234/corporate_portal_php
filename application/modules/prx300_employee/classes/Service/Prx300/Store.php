@@ -341,14 +341,9 @@ abstract class Service_Prx300_Store
 
     protected static function _event($name, array $payload, array $actor)
     {
-        if ( ! class_exists('Service_Prx208_EventBus'))
-        {
-            return;
-        }
-
         // Событие содержит только ID и счётчики: подписчик обязан заново
         // прочитать объект через публичный сервис и проверить свои права.
-        Service_Prx208_EventBus::instance()->publish($name, $payload, self::_actor_id($actor) ?: NULL);
+        Event::publish($name, $payload, self::_actor_id($actor) ?: NULL);
     }
 
     protected static function _escape_like($value)

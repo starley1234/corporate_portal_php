@@ -64,7 +64,7 @@ class Service_Prx450_Ocr
             ':ms' => $ms, ':cached' => $result['cached'] ? 1 : 0,
         ]);
 
-        Prx_Event::publish('prx450.document.parsed', [
+        Event::publish('prx450.document.parsed', [
             'sha256'      => $sha,
             'engine'      => $result['engine_used'],
             'duration_ms' => $ms,

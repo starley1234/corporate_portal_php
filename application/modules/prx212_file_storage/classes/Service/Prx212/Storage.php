@@ -370,7 +370,16 @@ class Service_Prx212_Storage {
             throw $e;
         }
 
-        Event::fire('prx212_storage.uploaded', $this->get_extended_metadata($file_model->id));
+        Event::publish('prx212.file.uploaded', [
+            'file_id'    => (int) $file_model->id,
+            'filename'   => (string) $file_model->filename,
+            'mime_type'  => (string) $file_model->mime_type,
+            'size'       => (int) $file_model->file_size,
+            'hash'       => (string) $file_model->hash,
+            'module'     => (string) $file_model->module_prefix,
+            'is_public'  => (int) $file_model->is_public,
+            'user_id'    => $file_model->user_id ? (int) $file_model->user_id : NULL,
+        ], $file_model->user_id ? (int) $file_model->user_id : NULL);
 
         return $file_model->id;
     }
@@ -443,13 +452,21 @@ class Service_Prx212_Storage {
     {
         $file_id = (int) $file->id;
         $metadata = $this->get_extended_metadata($file_id);
+        $owner_id = $file->user_id ? (int) $file->user_id : NULL;
+        $event_payload = $metadata ? [
+            'file_id'   => $file_id,
+            'filename'  => (string) $metadata['filename'],
+            'mime_type' => (string) $metadata['mime_type'],
+            'size'      => (int) $metadata['size'],
+            'module'    => (string) $metadata['module'],
+        ] : ['file_id' => $file_id];
         $backend = ORM::factory('Prx212_Backend', $file->backend_id);
         
         try {
             $this->_physical_delete($backend, $file->storage_path);
             $file->delete(); 
             
-            Event::fire('prx212_storage.deleted', (object)$metadata);
+            Event::publish('prx212.file.deleted', $event_payload, $owner_id);
             
             return TRUE;
         } catch (Exception $e) {

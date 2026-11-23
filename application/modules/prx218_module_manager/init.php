@@ -39,19 +39,19 @@ Route::set('prx218_module_manager_admin', 'prx218(/<controller>(/<action>(/<id>)
  * Модуль подписывается на системные события и объявляет свои.
  */
 
-// Пример: Логирование изменений статуса модуля в системный аудит
-Event::listen('prx218.module.status_changed', function($data) {
-    // $data содержит module_id, old_status, new_status
+// Смена статуса модуля любым путём (UI, API) — в аудит. Payload — ID и скаляры:
+// подписчик при необходимости перечитывает модуль через сервис.
+Event::listen('prx218.module.status_changed', function ($payload, $event_name, $initiator_id) {
     if (class_exists('Audit')) {
-        Audit::log('module_manager', 'status_change', $data['module_id'], [
-            'from' => $data['old_status'],
-            'to'   => $data['new_status']
+        Audit::log('module_manager', 'status_change', $payload['module_id'], [
+            'from' => $payload['old_status'],
+            'to'   => $payload['new_status'],
         ]);
     }
 });
 
-// Пример: Очистка кэша реестра при регистрации нового модуля
-Event::listen('prx218.module.registered', function($module_obj) {
+// Сканер нашёл новый модуль — сбрасываем кэш списка реестра.
+Event::listen('prx218.scanner.module_discovered', function ($payload, $event_name, $initiator_id) {
     Kohana_Cache::instance()->delete('prx218_modules_list');
 });
 

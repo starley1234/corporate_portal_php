@@ -80,20 +80,14 @@ class Model_Prx208_Event extends ORM {
     }
 
     /**
-     * Triggers the event again using the Event Bus.
-     * Useful for "Repeat Event" functionality.
+     * Опубликовать запись журнала повторно — через тот же фасад Event, что и код
+     * модулей (проверка имени и payload). Payload из JSON — только скаляры.
      *
-     * @return mixed Result of the Event Bus trigger
+     * @return void
+     * @throws InvalidArgumentException
      */
     public function trigger()
     {
-        // Класс шины — `Service_Prx208_EventBus` (было `Prx208_EventBus`,
-        // «Class not found»), метод — `publish()`, а не `trigger()`: своей
-        // публикации у шины нет. Найдено линтом ссылок на классы
-        // (.tools/php_class_ref_lint.py) после такого же падения в prx646.
-        return Service_Prx208_EventBus::instance()->publish(
-            $this->event_name,
-            (array) $this->get_payload_array()
-        );
+        Event::publish((string) $this->event_name, (array) $this->get_payload_array(), $this->initiator_id ? (int) $this->initiator_id : NULL);
     }
 }

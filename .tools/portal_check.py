@@ -110,6 +110,14 @@ check('action_register' in (ROOT / 'application/classes/Controller/Auth.php').re
 check('Disallow: /' in (ROOT / 'public_html/robots.txt').read_text(), 'Нет запрета индексации интранета')
 check('portal:maintain' in (ROOT / 'docs/WORKERS.md').read_text(), 'Не описано обслуживание')
 
+# События: единственный вход — Event::publish() (application/classes/Event.php).
+# Устаревшие fire/queue/Prx_Event и публикация мимо фасада — ошибка
+# (docs/FOUNDATION.md §3). Само правило вынесено, чтобы его проверял тест.
+sys.path.insert(0, str(ROOT / '.tools'))
+from event_lint import errors as event_lint_errors  # noqa: E402
+
+errors.extend(event_lint_errors(ROOT))
+
 if errors:
     print('\n'.join('FAIL: ' + item for item in errors))
     sys.exit(1)
@@ -117,4 +125,5 @@ optional_count = sum(status == '$docflow_status' for _, status in plan_entries)
 planned_count = sum(status == 'planned' for _, status in plan_entries)
 print(f'PRX contracts OK: {len(registered)} available modules, {len(classes)} PHP classes, '
       f'{len(active_services)} active + {optional_count} optional + {len(archived_services)} archived + '
-      f'{planned_count} planned services, {len(channel_names)} available worker channels')
+      f'{planned_count} planned services, {len(channel_names)} available worker channels, '
+      f'events via Event::publish only')

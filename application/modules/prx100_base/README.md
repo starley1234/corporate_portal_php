@@ -134,7 +134,8 @@ class Controller_MyModule_Example extends Controller_Prx100_Base {
     -   `$this->_current_user` содержит объект `Model_User`.
 
 2.  **Связи через События (Event Dispatcher)**:
-    -   Модули общаются через шину событий: `Event::fire('prx[ID].object.action', $data)`.
+    -   Модули общаются через шину событий: `Event::publish('prx[ID].object.action', $data, $initiator_id)`
+        (только ID и скаляры) и подписываются в `init.php` через `Event::listen()`.
     -   Это позволяет модулям Audit, Notify и Storage работать автоматически.
 
 3.  **Хранилище (Storage)**:
@@ -165,7 +166,8 @@ public function action_update() {
    }
 
    $model->values($this->request->post())->save();
-   Event::fire('prx100.task.updated', $model);     // Оповещаем систему
+   Event::publish('prx100.task.updated', ['task_id' => (int) $model->id], $this->_current_user ? (int) $this->_current_user->id : NULL);
+
    $this->_json_response(['status' => 'ok']);      // Отвечаем JSON'ом (для AJAX)
 }
 ```

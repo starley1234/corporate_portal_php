@@ -68,10 +68,11 @@ class Service_Prx218_ModuleManager {
      *
      * @param Model_Prx218_Module $module Объект модуля
      * @param array $data Данные для обновления (display_name, description, developer_notes, sort_order)
+     * @param int|null $actor_id Кто меняет (инициатор события)
      * @return Model_Prx218_Module
      * @throws Kohana_Exception
      */
-    public function update_module_metadata(Model_Prx218_Module $module, array $data)
+    public function update_module_metadata(Model_Prx218_Module $module, array $data, ?int $actor_id = NULL)
     {
         $db = Database::instance();
         $db->begin();
@@ -84,7 +85,11 @@ class Service_Prx218_ModuleManager {
             $db->commit();
 
             Audit::log('module_manager', 'metadata_updated', $module->id, $data);
-            Event::fire('prx218.module.metadata_updated', $module);
+            Event::publish('prx218.module.metadata_updated', [
+                'module_id'   => (int) $module->id,
+                'system_name' => (string) $module->system_name,
+                'fields'      => array_keys($data),
+            ], $actor_id);
 
             return $module;
         }
@@ -101,10 +106,11 @@ class Service_Prx218_ModuleManager {
      *
      * @param int $module_id ID модуля
      * @param string $new_status Новый статус (alpha, beta, stable, archived)
+     * @param int|null $actor_id Кто меняет (инициатор события)
      * @return Model_Prx218_Module
      * @throws Kohana_Exception
      */
-    public function update_status($module_id, $new_status)
+    public function update_status($module_id, $new_status, ?int $actor_id = NULL)
     {
         $module = ORM::factory('Prx218_Module', $module_id);
 
@@ -130,7 +136,12 @@ class Service_Prx218_ModuleManager {
             $db->commit();
 
             Audit::log('module_manager', 'status_changed', $module->id, ['old_status' => $old_status, 'new_status' => $new_status]);
-            Event::fire('prx218.module.status_changed', $module);
+            Event::publish('prx218.module.status_changed', [
+                'module_id'   => (int) $module->id,
+                'system_name' => (string) $module->system_name,
+                'old_status'  => (string) $old_status,
+                'new_status'  => (string) $new_status,
+            ], $actor_id);
 
             return $module;
         }
@@ -182,7 +193,13 @@ class Service_Prx218_ModuleManager {
             $db->commit();
 
             Audit::log('module_manager', 'version_history_added', $module->id, ['version' => $version, 'change_log' => $change_log]);
-            Event::fire('prx218.module.version_history_added', $history);
+            Event::publish('prx218.module.version_history_added', [
+                'module_id'   => (int) $module->id,
+                'system_name' => (string) $module->system_name,
+                'history_id'  => (int) $history->id,
+                'version'     => (string) $version,
+                'release_date' => (string) $history->release_date,
+            ], (int) $user_id ?: NULL);
 
             return $history;
         }
@@ -198,10 +215,11 @@ class Service_Prx218_ModuleManager {
      * Удаляет модуль (мягкое удаление).
      *
      * @param int $module_id ID модуля
+     * @param int|null $actor_id Кто удаляет (инициатор события)
      * @return bool
      * @throws Kohana_Exception
      */
-    public function delete_module($module_id)
+    public function delete_module($module_id, ?int $actor_id = NULL)
     {
         $module = ORM::factory('Prx218_Module', $module_id);
 
@@ -227,7 +245,10 @@ class Service_Prx218_ModuleManager {
             $db->commit();
 
             Audit::log('module_manager', 'module_deleted', $module->id);
-            Event::fire('prx218.module.deleted', $module);
+            Event::publish('prx218.module.deleted', [
+                'module_id'   => (int) $module->id,
+                'system_name' => (string) $module->system_name,
+            ], $actor_id);
 
             return TRUE;
         }
@@ -243,10 +264,11 @@ class Service_Prx218_ModuleManager {
      * Восстанавливает модуль после мягкого удаления.
      *
      * @param int $module_id ID модуля
+     * @param int|null $actor_id Кто восстанавливает (инициатор события)
      * @return bool
      * @throws Kohana_Exception
      */
-    public function restore_module($module_id)
+    public function restore_module($module_id, ?int $actor_id = NULL)
     {
         $module = ORM::factory('Prx218_Module', $module_id);
 
@@ -271,7 +293,10 @@ class Service_Prx218_ModuleManager {
             $db->commit();
 
             Audit::log('module_manager', 'module_restored', $module->id);
-            Event::fire('prx218.module.restored', $module);
+            Event::publish('prx218.module.restored', [
+                'module_id'   => (int) $module->id,
+                'system_name' => (string) $module->system_name,
+            ], $actor_id);
 
             return TRUE;
         }

@@ -132,12 +132,12 @@ class Service_Prx391_Card
             ]);
         }
 
-        Event::fire('prx391.document.updated', [
+        Event::publish('prx391.document.updated', [
             'document_id' => (int) $id,
             'recalc' => TRUE,
             'reason' => 'card',
             'actor_id' => (int) ($actor['user_id'] ?? 0),
-        ]);
+        ], (int) ($actor['user_id'] ?? 0) ?: NULL);
 
         return ['changed' => count($events), 'fields' => array_column($events, 0)];
     }
@@ -156,10 +156,10 @@ class Service_Prx391_Card
 
         self::_exec("UPDATE prx_391_documents SET status = 'closed', closed_at = now(), updated_at = now() WHERE id = ".(int) $id);
         self::_history($id, 'closed', 'Документ закрыт', $actor['user_id'] ?? NULL);
-        Event::fire('prx391.document.updated', [
+        Event::publish('prx391.document.updated', [
             'document_id' => (int) $id, 'recalc' => FALSE, 'reason' => 'closed',
             'actor_id' => (int) ($actor['user_id'] ?? 0),
-        ]);
+        ], (int) ($actor['user_id'] ?? 0) ?: NULL);
 
         return TRUE;
     }
@@ -178,10 +178,10 @@ class Service_Prx391_Card
 
         self::_exec("UPDATE prx_391_documents SET status = 'in_work', closed_at = NULL, updated_at = now() WHERE id = ".(int) $id);
         self::_history($id, 'reopened', 'Документ возвращён в работу', $actor['user_id'] ?? NULL);
-        Event::fire('prx391.document.updated', [
+        Event::publish('prx391.document.updated', [
             'document_id' => (int) $id, 'recalc' => TRUE, 'reason' => 'reopened',
             'actor_id' => (int) ($actor['user_id'] ?? 0),
-        ]);
+        ], (int) ($actor['user_id'] ?? 0) ?: NULL);
 
         return TRUE;
     }
@@ -344,12 +344,12 @@ class Service_Prx391_Card
             ]);
         }
 
-        Event::fire('prx391.document.updated', [
+        Event::publish('prx391.document.updated', [
             'document_id' => (int) $id,
             'recalc' => TRUE,
             'reason' => 'analysis',
             'actor_id' => (int) ($actor['user_id'] ?? 0),
-        ]);
+        ], (int) ($actor['user_id'] ?? 0) ?: NULL);
 
         return [
             'changed' => count($events),

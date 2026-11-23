@@ -63,15 +63,6 @@ Route::set('prx212_storage_root', 'prx212')
         'action'     => 'index',
     ));
 
-// Регистрация событий (если требуется)
-// Пример: очистка просроченных временных ссылок при завершении запроса
-Event::listen('system.shutdown', function() {
-    // Запуск фоновой задачи очистки (реализуется в Minion задаче)
-    // Service_Prx212_Storage::cleanup_expired_links();
-});
-
-
-
 // Инициализация конфигурации модуля
 // Загружаем конфигурационные настройки
 $config = Kohana::$config->load('prx212_storage');

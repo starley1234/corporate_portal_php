@@ -1,21 +1,22 @@
 # Фундамент платформы
 
-Что уже есть и как этим пользоваться. Коротко: пять классов, один guard,
-один набор партиалов. Всё остальное — поверх них.
+Что уже есть и как этим пользоваться. Коротко: классы `Prx_*` (actor, policy,
+SQL, идемпотентность), фасад `Event::publish()`, один guard и один набор
+партиалов. Всё остальное — поверх них.
 
 <!-- context-index:begin -->
 <!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index docs/FOUNDATION.md --write. Руками не править. -->
 | Раздел | Строка | Размер |
 |---|---|---|
-|   1. Доступ: actor → policy → сервис | 32 | 1,7 КБ |
-|   2. SQL: именованные параметры и транзакции | 60 | 2,1 КБ |
-|     Идемпотентность | 76 | 1,2 КБ |
-|   3. События | 95 | 0,4 КБ |
-|   4. POST и CSRF | 105 | 1,0 КБ |
-|   5. Манифест — контракт модуля | 120 | 0,5 КБ |
-|   6. Страница: page-kit | 133 | 0,7 КБ |
-|   7. Новый модуль | 148 | 0,4 КБ |
-|   8. Гейты | 158 | 0,8 КБ |
+|   1. Доступ: actor → policy → сервис | 33 | 1,7 КБ |
+|   2. SQL: именованные параметры и транзакции | 61 | 2,1 КБ |
+|     Идемпотентность | 77 | 1,2 КБ |
+|   3. События | 96 | 1,6 КБ |
+|   4. POST и CSRF | 123 | 1,0 КБ |
+|   5. Манифест — контракт модуля | 138 | 0,5 КБ |
+|   6. Страница: page-kit | 151 | 0,7 КБ |
+|   7. Новый модуль | 166 | 0,4 КБ |
+|   8. Гейты | 176 | 1,0 КБ |
 <!-- context-index:end -->
 | нужен | берём | где |
 |---|---|---|
@@ -23,7 +24,7 @@
 | «кто действует» (машина) | `Prx150_Principal` | `application/modules/prx150_api_hub/classes/Prx150/Principal.php` |
 | «можно ли ему эту запись» | `Prx_Policy` + политика модуля | `application/classes/Prx/Policy.php` |
 | SQL и транзакции | `Prx_Db` | `application/classes/Prx/Db.php` |
-| доменное событие | `Prx_Event` | `application/classes/Prx/Event.php` |
+| доменное событие | `Event` | `application/classes/Event.php` |
 | защита POST | `Prx_PostGuard` | `application/classes/Prx/PostGuard.php` |
 | идемпотентный ключ | `Prx_Idempotency` | `application/classes/Prx/Idempotency.php` |
 | каркас страницы | page-kit | `application/views/partials/{page_header,filters,empty_state,flash}.php` |
@@ -95,12 +96,29 @@ Prx_Idempotency::finish($idem['id'], ['job_id' => $job_id], $db);
 ## 3. События
 
 ```php
-Prx_Event::publish('prx312.claim.approved', ['claim_id' => $id], $actor->id());
+// сервис модуля-издателя
+Event::publish('prx312.claim.approved', ['claim_id' => $id], $actor->id());
+
+// init.php модуля-слушателя
+Event::listen('prx312.claim.approved', function ($payload, $event_name, $initiator_id) {
+    // перечитать объект через публичный сервис владельца, проверить свои права
+});
 ```
 
-Имя — `prxNNN.<entity>.<action>`, payload — ID и скаляры, не ORM-объекты.
-Подписчик отвечает за идемпотентность. Если `prx208_events` не подключён,
-событие пропускается с предупреждением, а не роняет запрос.
+- Имя — `prxNNN.<entity>.<action>` (`Event::NAME_PATTERN`); иначе
+  `InvalidArgumentException`.
+- Payload — ID и скаляры (массивы скаляров и NULL допустимы), не ORM-объекты;
+  иначе `InvalidArgumentException` до журнала.
+- Инициатор — явный третий аргумент; сессия не читается, `NULL` — система.
+- Подписчик отвечает за идемпотентность; шина не гарантирует доставку.
+- Если `prx208_events` не подключён, событие пропускается с предупреждением,
+  а не роняет запрос.
+
+Именование: `Event` — канонический фасад без префикса. `Prx_*` — только классы
+фундамента (`Actor`, `Policy`, `Db`, `PostGuard`, `Idempotency`, `Principal`,
+`Exception`); код модулей — `Service_/Controller_/Policy_/Task_/Model_PrxNNN_*`.
+Публикация мимо фасада запрещена — `.tools/portal_check.py` (в `make check`)
+ловит её в `application/**`.
 
 ## 4. POST и CSRF
 
@@ -161,13 +179,13 @@ make new-module id=312 slug=claims name="Заявки" entity=Claim
 
 | проверка | что ловит |
 |---|---|
-| `portal_check.py` | контракты основы, каналы воркеров, RAG |
+| `portal_check.py` | контракты основы, каналы воркеров, RAG, публикация событий только через `Event::publish()` |
 | `manifest_check.py` | схему манифестов |
 | `acl_lint.py` | необъявленные и мёртвые ключи прав |
 | `route_registry.py` | маршруты → контроллеры, реестр в `docs/architecture/dist/routes.json` |
 | `doc_links_check.py` | мёртвые ссылки в документации |
 | `js_csrf_lint.py` | CSRF на клиенте |
-| `test_storage_ops.py` | файловое хранилище |
+| `test_*.py` | файловое хранилище; правило «события — только через фасад» (`tests/test_event_lint.py`) |
 
 `bash .tools/php_check_all.sh` — PHP-синтаксис и линтеры (без PHP в окружении
 работает tree-sitter-разбор).

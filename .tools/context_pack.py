@@ -414,7 +414,7 @@ def events(name):
     """Публикует / слушает (по тексту модуля)."""
     base = os.path.join(MODULES_DIR, name)
     published, listened = [], []
-    rx_pub = (re.compile(r"publish\(\s*'([^']+)'"), re.compile(r"Event::fire\(\s*'([^']+)'"))
+    rx_pub = (re.compile(r"publish\(\s*'([^']+)'"),)
 
     for dirpath, dirnames, filenames in os.walk(base):
         for fn in filenames:

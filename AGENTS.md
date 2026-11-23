@@ -6,10 +6,10 @@
 |---|---|---|
 |   Проект | 14 | 0,3 КБ |
 |   Вход в задачу | 19 | 1,6 КБ |
-|   Обязательные инварианты | 36 | 5,5 КБ |
-|   Словарь кода | 87 | 0,6 КБ |
-|   Окружение | 94 | 0,6 КБ |
-|   Проверки перед завершением | 102 | 1,1 КБ |
+|   Обязательные инварианты | 36 | 5,7 КБ |
+|   Словарь кода | 88 | 0,6 КБ |
+|   Окружение | 95 | 0,6 КБ |
+|   Проверки перед завершением | 103 | 1,1 КБ |
 <!-- context-index:end -->
 ## Проект
 PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind/jQuery,
@@ -26,7 +26,7 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
   (`make architecture`, страница `/architecture`); создание: `docs/MODULE_GUIDE.md`.
   Наглядная карта для человека — `/architecture/guide` (философия, запрос, анатомия
   модуля, имена); она ссылается на документы, а не заменяет их.
-- Фундамент (actor/policy, `Prx_Db`, `Prx_Event`, CSRF, page-kit):
+- Фундамент (actor/policy, `Prx_Db`, `Event::publish`, CSRF, page-kit):
   `docs/FOUNDATION.md` — читать перед новым модулем.
 - Дизайн: `docs/DESIGN-SYSTEM.md`, `.tools/tailwind/input.css`, `app.js`.
 - Перед правкой читать `AGENTS.md` целевого модуля; при изменении контракта
@@ -42,7 +42,8 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
    внешний машинный контракт — `/api/v1/<domain>/…` (ключи и scope — prx150).
 2. Модуль владеет своей схемой, миграциями, бизнес-логикой и представлениями.
    Чужие таблицы/view не читать. Межмодульные контракты: публичный Service,
-   Event/EventBus, HMVC-виджет, очередь. Агрегаторы используют Manifest.
+   `Event::publish()` (только через фасад: имя `prxNNN.entity.action`, payload
+   из ID и скаляров, инициатор явный), HMVC-виджет, очередь. Агрегаторы используют Manifest.
 3. Манифест — контракт модуля: `id`, `slug`, `title`, `short`, `status`,
    `audience`, `acl`, `href` (или `kind: platform|library`). Проверка:
    `python3 .tools/manifest_check.py`. Манифест объявляет меню, каналы,

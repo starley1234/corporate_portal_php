@@ -287,7 +287,7 @@ __TITLE__.
 - Права: `prx__ID__.view`, `prx__ID__.manage` — объявлены в `application/config/acl.php`.
 - Объектный доступ: `Policy___CLASS______ENTITY__` (наследует `Prx_Policy`).
 - SQL: `Prx_Db::select/one/execute/insert/transaction`, параметры `:name`.
-- События: `Prx_Event::publish('prx__ID__.<entity>.<action>', [...])`.
+- События: `Event::publish('prx__ID__.<entity>.<action>', [...], $initiator_id)` — payload только ID и скаляры; слушатели — `Event::listen()` в `init.php`.
 
 ## URL
 Страница — `/__MODULE__`, внутренний API — `/__MODULE__/api`. Внешний машинный

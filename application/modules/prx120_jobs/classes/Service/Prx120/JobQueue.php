@@ -599,12 +599,9 @@ class Service_Prx120_JobQueue {
                     $payload['target_user_id'] = $owner;
                     $payload['force_notification'] = TRUE; // воркер — не инициатор, но Auth в HTTP-контексте пуст
                 }
-                // шина prx208 (журнал + слушатели); Kohana Event::fire не используем —
-                // слушателей у него нет, событие уходило «в пустоту»
-                if (class_exists('Service_Prx208_EventBus'))
-                {
-                    Service_Prx208_EventBus::instance()->publish('prx120.job_done', $payload);
-                }
+                // шина prx208 (журнал + слушатели) через фасад; инициатор — система:
+                // событие публикует воркер, а не владелец задачи
+                Event::publish('prx120.job_done', $payload);
             }
             catch (Exception $e)
             {
@@ -850,10 +847,7 @@ class Service_Prx120_JobQueue {
                     $payload['target_user_id'] = $owner;
                     $payload['force_notification'] = TRUE;
                 }
-                if (class_exists('Service_Prx208_EventBus'))
-                {
-                    Service_Prx208_EventBus::instance()->publish('prx120.job_failed', $payload);
-                }
+                Event::publish('prx120.job_failed', $payload);
                 $this->_callback($job_id, self::STATUS_FAILED, NULL, $error_message);
 
                 // prx597: уведомление владельцу об окончательной ошибке

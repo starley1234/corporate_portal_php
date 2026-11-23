@@ -32,7 +32,7 @@ $field_error = function (string $name) use ($errors): string {
             <label for="sub-event" class="prx-label">Имя события <span class="text-rose-500">*</span></label>
             <input id="sub-event" name="event_name" type="text" required class="prx-input mt-1.5 w-full font-mono" placeholder="prx120.job_done"
                    value="<?php echo HTML::chars((string) $subscriber->event_name); ?>"<?php echo isset($errors['event_name']) ? ' aria-invalid="true"' : ''; ?>>
-            <p class="prx-hint">Формат <code>prxNNN.сущность.действие</code>; legacy-имена вида <code>prx212_storage.file_downloaded</code> тоже принимаются.</p>
+            <p class="prx-hint">Формат <code>prxNNN.сущность.действие</code> — как в <code>Event::publish()</code>; иначе событие никто не опубликует.</p>
             <?php echo $field_error('event_name'); ?>
         </div>
 

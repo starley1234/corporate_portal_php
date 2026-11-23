@@ -23,7 +23,7 @@ $cards = [
 ];
 
 $steps = [
-    ['fa-cube', 'Модуль', 'Код публикует событие: <code>Prx_Event::publish(\'prx120.job_done\', [...])</code> или legacy <code>Event::fire()</code>.',
+    ['fa-cube', 'Модуль', 'Код публикует событие: <code>Event::publish(\'prx120.job_done\', [...], $initiator_id)</code> — имя и скалярный payload проверяет фасад.',
         $count('за неделю: '.$summary['week'])],
     ['fa-bolt', 'Шина prx208', 'Слушатели в коде получают payload; каждое событие остаётся в журнале <code>prx_208_events</code>.',
         $badge($switches['journal'], 'журнал: вкл', 'журнал: выкл')],

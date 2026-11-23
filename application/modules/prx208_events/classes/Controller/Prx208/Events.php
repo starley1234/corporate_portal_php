@@ -4,7 +4,7 @@
  * /prx208_events — события портала: журнал, подписки.
  *
  * Доступ — администратор (acl `prx208_events.*`). Журнал только читается:
- * событие публикует код (Prx_Event::publish / Event::fire), а не форма.
+ * событие публикует код (Event::publish), а не форма.
  * Формы подписок — POST + CSRF (Prx_PostGuard в Controller_Prx100_Base).
  */
 class Controller_Prx208_Events extends Controller_Base {
@@ -25,6 +25,12 @@ class Controller_Prx208_Events extends Controller_Base {
             ['title' => 'Уведомления', 'href' => '/prx597/admin', 'icon' => 'fas fa-bell'],
             ['title' => 'Хвост ошибок', 'href' => '/prx100/errors', 'icon' => 'fas fa-heart-crack'],
         ]);
+    }
+
+    /** Инициатор события: id авторизованного пользователя или NULL (система). */
+    protected function _initiator_id(): ?int
+    {
+        return $this->_current_user ? (int) $this->_current_user->id : NULL;
     }
 
     /** Журнал + сводка. Старый адрес /list_events ведёт сюда же. */
@@ -169,7 +175,7 @@ class Controller_Prx208_Events extends Controller_Base {
                 else
                 {
                     $subscriber->save();
-                    Event::fire('prx208_events.subscription_saved', array('subscriber_id' => (int) $subscriber->id));
+                    Event::publish('prx208.subscriber.saved', array('subscriber_id' => (int) $subscriber->id), $this->_initiator_id());
                     Session::instance()->set('success_message', 'Подписка сохранена.');
                     $this->redirect(Route::url('prx208_events', array('action' => 'list_subscribers')));
                 }
@@ -202,7 +208,7 @@ class Controller_Prx208_Events extends Controller_Base {
         {
             $subscriber_id = (int) $subscriber->id;
             $subscriber->delete();
-            Event::fire('prx208_events.subscription_deleted', array('subscriber_id' => $subscriber_id));
+            Event::publish('prx208.subscriber.deleted', array('subscriber_id' => $subscriber_id), $this->_initiator_id());
             Session::instance()->set('success_message', 'Подписка удалена.');
         }
         else

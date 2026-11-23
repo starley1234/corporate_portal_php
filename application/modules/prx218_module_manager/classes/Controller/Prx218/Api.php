@@ -11,6 +11,12 @@
  */
 class Controller_Prx218_Api extends Controller_Base {
 
+    /** Инициатор события: id авторизованного пользователя или NULL (система). */
+    protected function _actor_id(): ?int
+    {
+        return $this->_current_user ? (int) $this->_current_user->id : NULL;
+    }
+
     /**
      * Обновление статуса модуля (alpha, beta, stable, archived)
      * POST: id, status
@@ -35,12 +41,18 @@ class Controller_Prx218_Api extends Controller_Base {
         }
 
         // Вызов сервиса для смены статуса
+        $old_status = (string) $module->status;
         $service = Service_Prx218_Scanner::instance();
         $result = $service->update_status($id, $status);
 
         if ($result)
         {
-            Event::fire('prx218.module.status_changed', $module);
+            Event::publish('prx218.module.status_changed', [
+                'module_id'   => (int) $module->id,
+                'system_name' => (string) $module->system_name,
+                'old_status'  => $old_status,
+                'new_status'  => $status,
+            ], $this->_actor_id());
             return $this->_json_response(['status' => 'ok', 'new_status' => $status]);
         }
 
@@ -72,7 +84,11 @@ class Controller_Prx218_Api extends Controller_Base {
         $module->is_published = $is_published ? 1 : 0;
         $module->save();
 
-        Event::fire('prx218.module.updated', $module);
+        Event::publish('prx218.module.updated', [
+            'module_id'    => (int) $module->id,
+            'system_name'  => (string) $module->system_name,
+            'is_published' => (int) $module->is_published,
+        ], $this->_actor_id());
 
         return $this->_json_response(['status' => 'ok', 'is_published' => $module->is_published]);
     }
@@ -126,11 +142,16 @@ class Controller_Prx218_Api extends Controller_Base {
         }
 
         $service = Service_Prx218_LlmProcessor::instance();
-        $analysis_id = $service->run_ai_analysis($id);
+        $analysis = $service->run_ai_analysis($id, $this->_actor_id() ?: 0);
 
-        if ($analysis_id)
+        if ($analysis)
         {
-            Event::fire('prx218.module.ai_analyzed', $module);
+            $analysis_id = (int) $analysis->id;
+            Event::publish('prx218.module.ai_analyzed', [
+                'module_id'   => (int) $module->id,
+                'system_name' => (string) $module->system_name,
+                'analysis_id' => $analysis_id,
+            ], $this->_actor_id());
             return $this->_json_response(['status' => 'ok', 'analysis_id' => $analysis_id]);
         }
 
@@ -163,7 +184,10 @@ class Controller_Prx218_Api extends Controller_Base {
         $module->developer_notes = $developer_notes;
         $module->save();
 
-        Event::fire('prx218.module.notes_updated', $module);
+        Event::publish('prx218.module.notes_updated', [
+            'module_id'   => (int) $module->id,
+            'system_name' => (string) $module->system_name,
+        ], $this->_actor_id());
 
         return $this->_json_response(['status' => 'ok', 'developer_notes' => $module->developer_notes]);
     }
@@ -219,7 +243,11 @@ class Controller_Prx218_Api extends Controller_Base {
 
         try {
             $module->save();
-            Event::fire('prx218.module.attributes_updated', $module);
+            Event::publish('prx218.module.attributes_updated', [
+                'module_id'   => (int) $module->id,
+                'system_name' => (string) $module->system_name,
+                'fields'      => array_keys($updated_fields),
+            ], $this->_actor_id());
             return $this->_json_response(['status' => 'ok', 'updated_fields' => $updated_fields]);
         } catch (ORM_Validation_Exception $e) {
             return $this->_json_response(['status' => 'error', 'message' => $e->errors('models')], 400);
@@ -240,11 +268,16 @@ class Controller_Prx218_Api extends Controller_Base {
         }
 
         $service = Service_Prx218_Scanner::instance();
-        $result = $service->scan_modules_directory();
+        $result = $service->scan_modules_directory($this->_actor_id() ?: 0);
 
         if ($result)
         {
-            Event::fire('prx218.module.directory_scanned');
+            Event::publish('prx218.module.directory_scanned', [
+                'found'   => (int) Arr::get($result, 'found', 0),
+                'created' => (int) Arr::get($result, 'created', 0),
+                'updated' => (int) Arr::get($result, 'updated', 0),
+                'skipped' => (int) Arr::get($result, 'skipped', 0),
+            ], $this->_actor_id());
             return $this->_json_response(['status' => 'ok', 'message' => 'Directory scanned successfully', 'scan_results' => $result]);
         }
 
@@ -308,7 +341,10 @@ class Controller_Prx218_Api extends Controller_Base {
         $module->is_deleted = 1;
         $module->save();
 
-        Event::fire('prx218.module.deleted', $module);
+        Event::publish('prx218.module.deleted', [
+            'module_id'   => (int) $module->id,
+            'system_name' => (string) $module->system_name,
+        ], $this->_actor_id());
 
         return $this->_json_response(['status' => 'ok', 'message' => 'Module marked as deleted']);
     }
@@ -337,7 +373,10 @@ class Controller_Prx218_Api extends Controller_Base {
         $module->is_deleted = 0;
         $module->save();
 
-        Event::fire('prx218.module.restored', $module);
+        Event::publish('prx218.module.restored', [
+            'module_id'   => (int) $module->id,
+            'system_name' => (string) $module->system_name,
+        ], $this->_actor_id());
 
         return $this->_json_response(['status' => 'ok', 'message' => 'Module restored successfully']);
     }
@@ -385,10 +424,15 @@ class Controller_Prx218_Api extends Controller_Base {
             $new_dep->module_id = $module_id;
             $new_dep->required_module_id = $required_module_id;
             $new_dep->min_version = $min_version;
-            $new_dep->created_by = Auth::instance()->get_user()->id;
+            $new_dep->created_by = (int) $this->_actor_id();
             $new_dep->save();
 
-            Event::fire('prx218.module.dependency_added', $new_dep);
+            Event::publish('prx218.module.dependency_added', [
+                'dependency_id'      => (int) $new_dep->id,
+                'module_id'          => $module_id,
+                'required_module_id' => $required_module_id,
+                'min_version'        => $min_version,
+            ], $this->_actor_id());
 
             return $this->_json_response(['status' => 'ok', 'message' => 'Dependency added successfully']);
         } catch (ORM_Validation_Exception $e) {
@@ -421,7 +465,11 @@ class Controller_Prx218_Api extends Controller_Base {
         $module->sort_order = $sort_order;
         $module->save();
 
-        Event::fire('prx218.module.sort_updated', $module);
+        Event::publish('prx218.module.sort_updated', [
+            'module_id'   => (int) $module->id,
+            'system_name' => (string) $module->system_name,
+            'sort_order'  => $sort_order,
+        ], $this->_actor_id());
 
         return $this->_json_response(['status' => 'ok', 'sort_order' => $module->sort_order]);
     }

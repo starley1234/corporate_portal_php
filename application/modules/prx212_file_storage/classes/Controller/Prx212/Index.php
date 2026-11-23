@@ -138,9 +138,10 @@ class Controller_Prx212_Index extends Controller_Prx212_Main
                 }
 
                 if (!empty($files_data)) {
-                    $uploaded_items = $this->storage_service->upload_files($files_data, $this->_current_user ? $this->_current_user->id : null);
-                    foreach ($uploaded_items as $item) {
-                        Event::fire('prx212_storage.file_uploaded', $item);
+                    $user_id = $this->_current_user ? (int) $this->_current_user->id : NULL;
+                    // save() сам публикует prx212.file.uploaded по каждому файлу.
+                    foreach ($files_data as $item) {
+                        $this->storage_service->save($item, ['user_id' => $user_id, 'module' => 'default']);
                     }
                     $success_message = 'Файлы успешно загружены.';
                 }

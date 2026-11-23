@@ -21,7 +21,7 @@ class StorageIntegrationTest extends TestCase
         $tmp = sys_get_temp_dir().'/prx212-integration-'.bin2hex(random_bytes(8));
         mkdir($tmp, 0700);
         // Инициализируем общую шину до тестовой транзакции.
-        Event::has('prx212_storage.uploaded');
+        Event::has('prx212.file.uploaded');
         $db = Database::instance();
         $db->begin();
         try {

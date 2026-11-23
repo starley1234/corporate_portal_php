@@ -93,8 +93,6 @@ class Service_Prx218_Scanner {
                     
                     // Создаем запись для LLM анализа
                     $this->_init_llm_analysis($module->id, Arr::get($metadata, 'raw_readme'), $user_id);
-                    
-                    Event::fire('prx218.scanner.module_discovered', $module);
                 }
                 else
                 {
@@ -106,6 +104,16 @@ class Service_Prx218_Scanner {
                 }
 
                 $db->commit();
+
+                // После коммита: подписчик читает уже сохранённый модуль.
+                if ($is_new)
+                {
+                    Event::publish('prx218.scanner.module_discovered', [
+                        'module_id'   => (int) $module->id,
+                        'system_name' => $system_name,
+                        'path'        => (string) $module_path,
+                    ], (int) $user_id ?: NULL);
+                }
             }
             catch (Exception $e)
             {
@@ -227,8 +235,13 @@ class Service_Prx218_Scanner {
             $dependency->values($dependency_values)->save();
 
             $db->commit();
-            
-            Event::fire('prx218.dependency.added', $dependency_values);
+
+            Event::publish('prx218.dependency.added', [
+                'dependency_id'      => (int) $dependency->id,
+                'module_id'          => (int) $data['module_id'],
+                'required_module_id' => (int) $data['required_module_id'],
+                'min_version'        => (string) Arr::get($data, 'min_version', ''),
+            ], (int) $user_id ?: NULL);
             
             return $dependency;
         }

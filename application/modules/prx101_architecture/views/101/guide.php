@@ -23,7 +23,7 @@ $request_steps = [
 
 $branches = [
     ['fa-hourglass-half', 'Долго?', 'Очередь <code>prx120_jobs</code> → Python-воркер берёт канал <code>handlers/&lt;модуль&gt;/</code> → отдаёт результат в PHP. Токен воркера — не CSRF.'],
-    ['fa-bolt', 'Что-то произошло?', '<code>Prx_Event::publish(\'prxNNN.entity.action\', [...])</code> → журнал и слушатели prx208 → при необходимости уведомления prx597 (колокольчик, почта, мессенджер).'],
+    ['fa-bolt', 'Что-то произошло?', '<code>Event::publish(\'prxNNN.entity.action\', [...], $initiator_id)</code> → журнал и слушатели prx208 → при необходимости уведомления prx597 (колокольчик, почта, мессенджер). Payload — только ID и скаляры.'],
 ];
 
 $names = [
@@ -43,10 +43,10 @@ $names = [
 $tree = <<<'HTML'
 application/modules/prx312_claims/
 ├── config/prx_module.php         манифест: id, slug, права, href, каналы, cleanup, health
-├── init.php                      маршруты prx312_*; Event::listen — если модуль слушает
+├── init.php                      маршруты prx312_*; Event::listen() — если модуль слушает
 ├── classes/
 │   ├── Controller/Prx312/        тонкие контроллеры: actor → require → Service → View
-│   ├── Service/Prx312/           логика; SQL через Prx_Db; события через Prx_Event
+│   ├── Service/Prx312/           логика; SQL через Prx_Db; события через Event::publish()
 │   ├── Policy/Prx312/            доступ к записи (extends Prx_Policy)
 │   └── Model/Prx312/             ORM, если он действительно нужен
 ├── migrations_pg/                идемпотентные миграции prx_312_*
@@ -64,7 +64,7 @@ $checks = [
 
 $next = [
     ['PHP-стенд', 'Прогнать то, что в песочнице не запускается: phpunit (включая PrxFoundationTest), HTTP smoke, <code>make new-module</code> вживую.'],
-    ['Контрактные тесты платформы', 'Первый запуск и добивка: Actor, Policy, PostGuard, Prx_Db, Prx_Event — на реальном PHP/PostgreSQL.'],
+    ['Контрактные тесты платформы', 'Первый запуск и добивка: Actor, Policy, PostGuard, Prx_Db, Event::publish — на реальном PHP/PostgreSQL.'],
     ['Первый модуль на фундаменте', 'Один реальный сервис (например, заявки) по контракту из ARCHITECTURE-REVIEW §1 — проверка контракта делом.'],
     ['Аудит ассетов и чистка', 'Мёртвые JS/CSS, SQL в манифестах (<code>count_sql</code>), god-сервисы prx120/prx597 — только когда в них всё равно придётся зайти.'],
     ['Проба пера prx390–prx393', 'Удалить или переделать — решение владельца. Вместе с ней уходят <code>handlers/trial/</code> и диагностический контекст <code>ocr_client</code>.'],

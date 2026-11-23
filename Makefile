@@ -181,7 +181,7 @@ check: ## все статические контракты: манифесты, 
 	python3 .tools/route_registry.py
 	python3 .tools/doc_links_check.py
 	python3 .tools/js_csrf_lint.py
-	python3 -m unittest discover -s tests -p 'test_storage_ops.py'
+	python3 -m unittest discover -s tests -p 'test_*.py'
 
 manifest-check: ## схема манифестов модулей (id/slug/status/audience/acl)
 	python3 .tools/manifest_check.py

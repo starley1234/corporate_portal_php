@@ -263,13 +263,13 @@ return array(
 
 ### События
 
-Модуль генерирует следующие события:
+Публикует `Event::publish('prx212.file.<action>', [...], $initiator_id)` — payload
+только ID и скаляры, ORM-объекты в события не передаются:
 
--   `prx212_storage.uploaded`: После успешной загрузки файла. Передает метаданные файла.
--   `prx212_storage.metadata_read`: После успешного получения метаданных файла. Передает метаданные файла.
--   `prx212_storage.deleted`: После успешного мягкого удаления файла. Передает метаданные удаленного файла.
--   `prx212_storage.file_downloaded`: После успешного скачивания файла по ID. Передает `file_id` и `user_id`.
--   `prx212_storage.shared_file_downloaded`: После успешного скачивания файла по токену. Передает `file_id` и `token`.
+-   `prx212.file.uploaded`: файл сохранён (`file_id`, `filename`, `mime_type`, `size`, `hash`, `module`, `is_public`, `user_id`).
+-   `prx212.file.deleted`: файл удалён (`file_id`, `filename`, `mime_type`, `size`, `module`).
+-   `prx212.file.downloaded`: скачивание по ID (`file_id`, `user_id`).
+-   `prx212.file.shared_downloaded`: скачивание по временному токену (`file_id`; сам токен в журнал не попадает).
 
 ### Права доступа (ACL)
 
