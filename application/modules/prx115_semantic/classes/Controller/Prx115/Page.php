@@ -51,7 +51,7 @@ class Controller_Prx115_Page extends Controller_Prx102_Base {
             $panel = ['error' => $e->getMessage(), 'collections' => [], 'queue' => [], 'health' => [], 'totals' => []];
         }
 
-        $this->template->content = View::factory('115/index', [
+        $this->template->content = View::factory('prx115/index', [
             'panel' => $panel,
             'csrf'  => Security::token(),
         ]);

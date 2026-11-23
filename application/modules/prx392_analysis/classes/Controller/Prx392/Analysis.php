@@ -9,7 +9,7 @@ class Controller_Prx392_Analysis extends Controller_Prx39x_Base
         $this->set_description('Предложения по карточкам: тип, реквизиты, риск и краткое содержание');
         $this->_nav('/analysis');
 
-        $this->template->content = View::factory('392/index', [
+        $this->template->content = View::factory('prx392/index', [
             'flash' => $this->_flash(),
             'csrf' => $this->_csrf(),
             'stats' => Service_Prx392_Analysis::stats(),

@@ -30,7 +30,7 @@ class Controller_Prx120_Workers extends Controller_Prx102_Base {
 
     public function action_index()
     {
-        $this->template->content = View::factory('120/workers', [
+        $this->template->content = View::factory('prx120/workers', [
             'workers' => Service_Prx120_Workerdocs::all(),
             'dir'     => Service_Prx120_Workerdocs::handlers_dir(),
         ]);

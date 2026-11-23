@@ -29,19 +29,23 @@ class Prx_Gate
      * токена и, где требуется, site-токен с приоритетом над общим. Замок пропускает их
      * дальше — иначе воркер молча перестал бы доезжать (урок 21.09: «вердикт
      * воркера не доезжал»).
-     * $trim=FALSE сохраняет строгое сравнение docflow и prx395;
-     * $php_fallback сохраняет приоритет заголовка по PHP ?: у outbox prx597.
+     * Без query сравнение строгое; при opt-in токены обрезаются, как в API
+     * очереди. Пустой секрет всегда запрещает запрос.
      */
-    public static function worker_request(Request $request, bool $allow_query = FALSE, ?string $expected = NULL, bool $trim = TRUE, bool $php_fallback = FALSE): bool
+    public static function worker_request(Request $request, ?string $expected = NULL, bool $allow_query = FALSE): bool
     {
         $want = $expected === NULL ? (string) getenv('WORKER_API_TOKEN') : $expected;
         $token = $request->headers('x-worker-token');
-        if ($allow_query AND ($php_fallback ? ! $token : ($token === NULL OR ($trim ? trim((string) $token) === '' : (string) $token === ''))))
+        if ($allow_query)
         {
-            $token = $request->query('token');
+            if ($token === NULL OR trim((string) $token) === '') $token = $request->query('token');
+            $want = trim($want);
+            $token = trim((string) $token);
         }
-        $token = (string) $token;
-        if ($trim) { $want = trim($want); $token = trim($token); }
+        else
+        {
+            $token = (string) $token;
+        }
         return $want !== '' AND $token !== '' AND hash_equals($want, $token);
     }
 

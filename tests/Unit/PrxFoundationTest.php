@@ -218,6 +218,14 @@ class PrxFoundationTest extends TestCase
         @rmdir($dir);
     }
 
+    public function test_actor_from_array_does_not_promote_guests(): void
+    {
+        $this->assertFalse(Prx_Actor::fromArray(['roles' => ['admin']])->can('prx391.view'));
+        $this->assertFalse(Prx_Actor::fromArray(['user_id' => 0, 'roles' => ['admin']])->can('prx391.view'));
+        $this->assertTrue(Prx_Actor::fromArray(['user_id' => 7, 'roles' => ['admin']])->can('prx391.view'));
+        $this->assertTrue(Prx_Actor::fromArray(['user_id' => -2])->isGuest());
+    }
+
     public function test_guest_has_no_rights_and_no_org(): void
     {
         $guest = Prx_Actor::guest();

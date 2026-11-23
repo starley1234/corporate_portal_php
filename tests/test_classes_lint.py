@@ -46,6 +46,33 @@ class ClassesLintTest(unittest.TestCase):
         self.assertEqual(1, len(result), result)
         self.assertIn('prx999_test/migrations', result[0])
 
+    def test_views_must_match_module_id(self):
+        self.put('application/modules/prx301_demo/views/prx301/index.php', "<?php View::factory('partials/page_header');")
+        self.put('application/modules/prx301_demo/classes/Page.php', "<?php View::factory('prx301/index');")
+        self.assertEqual([], lint.errors(self.root))
+        self.put('application/modules/prx301_demo/views/301/index.php', '<?php')
+        self.put('application/modules/prx301_demo/classes/Bad.php', '<?php View::factory("prx302/index");')
+        result = lint.errors(self.root)
+        self.assertEqual(2, len(result), result)
+        self.assertTrue(any('prx301/' in item and 'views' in item for item in result))
+        self.assertTrue(any('prx302/' in item for item in result))
+
+    def test_libraries_exempt_and_comments_ignored(self):
+        self.put('application/modules/llm/views/llm/index.php', "<?php View::factory('llm/example');")
+        self.put('application/modules/prx301_demo/classes/Page.php', "<?php // View::factory('301/index');\nView::factory('partials/header');")
+        self.assertEqual([], lint.errors(self.root))
+
+    def test_comments_on_same_line_and_strings_ignored(self):
+        self.put('application/modules/prx301_demo/classes/Page.php', "<?php View::factory('prx301/index'); // View::factory('302/index');\n$text = \"View::factory('303/index')\";")
+        self.assertEqual([], lint.errors(self.root))
+
+    def test_scaffold_templates_use_canonical_view(self):
+        source = (ROOT / 'application/modules/prx103_platform/classes/Task/Module/Scaffold.php').read_text(encoding='utf-8')
+        self.assertIn("'views/prx__ID__/index.php'", source)
+        self.assertIn("View::factory('prx__ID__/index'", source)
+        self.assertIn("strtr($template, $replace)", source)
+        self.assertIn("strtr($content, $replace)", source)
+
     def test_repository(self):
         self.assertEqual([], lint.errors(ROOT))
 

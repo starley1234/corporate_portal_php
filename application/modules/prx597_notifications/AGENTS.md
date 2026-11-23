@@ -35,7 +35,7 @@
 
 Сводка (`/prx597/admin`) открывается полосой «Как идёт уведомление»: источник → реестр
 → лимиты → outbox → канал → DLQ, с живыми цифрами из `Service_Prx597_Engine::stats()`
-(`views/597/partials/summary.php`, 23.11.2026). Журнал источников-событий шины — `/prx208_events`.
+(`views/prx597/partials/summary.php`, 23.11.2026). Журнал источников-событий шины — `/prx208_events`.
 
 ## Состояние (16.11.2026)
 
@@ -121,8 +121,8 @@
 
 ## Вьюхи админки
 
-`views/597/admin.php` — каркас вкладок и общие переменные; содержимое каждой
-вкладки лежит в `views/597/partials/<tab>.php` (summary, queue, events,
+`views/prx597/admin.php` — каркас вкладок и общие переменные; содержимое каждой
+вкладки лежит в `views/prx597/partials/<tab>.php` (summary, queue, events,
 message, templates, channels, limits, journal) и подключается через
 `include __DIR__`. Новую вкладку добавляйте парой «каркас + partial», чтобы
 файл админки не рос обратно.

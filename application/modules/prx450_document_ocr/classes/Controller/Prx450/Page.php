@@ -53,7 +53,7 @@ class Controller_Prx450_Page extends Controller_Base
             }
         }
 
-        $this->template->content = View::factory('450/index', [
+        $this->template->content = View::factory('prx450/index', [
             'config' => Service_Prx450_Ocr::summary(),
             'result' => $result,
             'error'  => $error,

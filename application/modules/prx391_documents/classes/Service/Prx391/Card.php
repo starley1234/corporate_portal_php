@@ -428,7 +428,7 @@ class Service_Prx391_Card
             return TRUE;
         }
 
-        return (new Prx_Actor(max(1, (int) ($actor['user_id'] ?? 0)), $actor['roles'] ?? []))->can('prx391.edit');
+        return Prx_Actor::fromArray($actor)->can('prx391.edit');
     }
 
     protected static function _can_admin(array $actor)
@@ -438,7 +438,7 @@ class Service_Prx391_Card
             return TRUE;
         }
 
-        return (new Prx_Actor(max(1, (int) ($actor['user_id'] ?? 0)), $actor['roles'] ?? []))->can('prx391.admin');
+        return Prx_Actor::fromArray($actor)->can('prx391.admin');
     }
 
     protected static function _is_system(array $actor)

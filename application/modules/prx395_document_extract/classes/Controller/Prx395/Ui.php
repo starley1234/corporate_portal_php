@@ -53,7 +53,7 @@ class Controller_Prx395_Ui extends Controller_Base
         }
         if (in_array($job['status'] ?? '', ['queued', 'running'], TRUE))
             $this->add_script('/assets/js/prx395-status.js', TRUE);
-        $this->template->content = View::factory('395/index', [
+        $this->template->content = View::factory('prx395/index', [
             'id' => $id, 'job' => $job, 'error' => $error,
             'csrf' => Security::token(), 'can_monitor' => $this->can('prx120.monitor'),
         ]);

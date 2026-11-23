@@ -61,7 +61,7 @@ Tesseract-обёртка. Миграций нет — документы не х
 | манифест и scope | `config/prx_module.php` |
 | настройки | `config/prx450_document_ocr.php` |
 | API | `classes/Controller/Prx450/Api.php` |
-| страница | `classes/Controller/Prx450/Page.php`, `views/450/index.php` |
+| страница | `classes/Controller/Prx450/Page.php`, `views/prx450/index.php` |
 | шлюз и валидация | `classes/Service/Prx450/Ocr.php` |
 | ошибки | `classes/Prx450/Error.php` |
 

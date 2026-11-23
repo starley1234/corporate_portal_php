@@ -13,7 +13,7 @@
  *   Controller/PrxXXX/Api   — JSON-ответы, CSRF через Prx_PostGuard;
  *   Policy/PrxXXX/<Entity>  — объектные правила доступа (наследует Prx_Policy);
  *   Service/PrxXXX/Store    — владелец таблиц prx_XXX_*, SQL через Prx_Db;
- *   views/…                 — page-kit (page_header, filters, empty_state, flash);
+ *   views/prx<ID>/…         — page-kit (page_header, filters, empty_state, flash);
  *   migrations_pg/…         — идемпотентная миграция;
  *   tests/Unit/…            — тест политики (гость и чужая организация);
  *   AGENTS.md               — карта модуля для агента.
@@ -119,7 +119,7 @@ class Controller___CLASS___Page extends Controller_Base {
     public function action_index()
     {
         $this->set_title(__TITLE__);
-        $this->template->content = View::factory('__MODULE__/index', [
+        $this->template->content = View::factory('prx__ID__/index', [
             'rows' => (new Service___CLASS___Store)->list($this->actor()),
         ]);
     }
@@ -244,7 +244,7 @@ class pgMigration_Prx___ID___001_Initial extends pgMigration {
 
 }
 PHP,
-            'views/__MODULE__/index.php' => <<<'PHP'
+            'views/prx__ID__/index.php' => <<<'PHP'
 <?php defined('SYSPATH') or die('No direct script access.'); ?>
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
     <?php echo View::factory('partials/page_header', [
@@ -298,7 +298,7 @@ __TITLE__.
 |---|---|
 | маршруты | `init.php` |
 | манифест | `config/prx_module.php` |
-| страница | `classes/Controller/__CLASS__/Page.php`, `views/__MODULE__/index.php` |
+| страница | `classes/Controller/__CLASS__/Page.php`, `views/prx__ID__/index.php` |
 | API | `classes/Controller/__CLASS__/Api.php` |
 | доступ | `classes/Policy/__CLASS__/__ENTITY__.php` |
 | данные | `classes/Service/__CLASS__/Store.php` |

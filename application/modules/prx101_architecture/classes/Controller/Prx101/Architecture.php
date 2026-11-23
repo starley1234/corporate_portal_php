@@ -22,7 +22,7 @@ class Controller_Prx101_Architecture extends Controller_Base
         {
             $this->set_title('Архитектура портала');
             $this->set_description('Страница ещё не собрана из docs/architecture/model');
-            $this->template->content = View::factory('101/missing');
+            $this->template->content = View::factory('prx101/missing');
 
             return;
         }
@@ -52,7 +52,7 @@ class Controller_Prx101_Architecture extends Controller_Base
             ['title' => 'Администрирование', 'href' => '/admin', 'icon' => 'fas fa-gear'],
         ]);
 
-        $this->template->content = View::factory('101/guide', [
+        $this->template->content = View::factory('prx101/guide', [
             'built_at' => Service_Prx101_Architecture::built_at(),
         ]);
     }

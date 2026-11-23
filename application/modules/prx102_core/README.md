@@ -211,6 +211,6 @@ class Controller_Prx301_Tasks extends Controller_Base {
             throw new HTTP_Exception_403('Доступ запрещен');
         }
         $tasks = ORM::factory('Prx301_Task')->find_all();
-        $this->template->content = View::factory('prx100/tasks/list')->set('tasks', $tasks);
+        $this->template->content = View::factory('prx301/tasks/list')->set('tasks', $tasks);
     }
 }

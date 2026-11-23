@@ -62,7 +62,7 @@ class Controller_Prx597_Notifications extends Controller_Prx102_Base
 			$tab = 'feed';
 		}
 
-		$this->template->content = View::factory('597/index', [
+		$this->template->content = View::factory('prx597/index', [
 			'tab'     => $tab,
 			'channels' => Service_Prx597_Base::user_channels(),
 			'items'   => Service_Prx597_Notify::latest($this->_user_id, 60),

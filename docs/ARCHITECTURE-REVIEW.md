@@ -59,7 +59,7 @@ prxNNN_slug/
     Policy/PrxNNN/*.php      # объектные правила доступа (Prx_Policy)
     Service/PrxNNN/*.php     # публичный контракт + SQL через Prx_Db
     Model/PrxNNN/*.php       # только простые CRUD/ORM
-  views/NNN/*.php            # при наличии UI; без SQL и решений о доступе
+  views/prxNNN/*.php            # при наличии UI; без SQL и решений о доступе
 tests/Unit/PrxNNN*Test.php   # политика: гость и чужая организация
 ```
 

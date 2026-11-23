@@ -75,7 +75,7 @@ foreach ((array) $tasks as $t) { if (in_array($t['status'], ['pending', 'process
         <!-- ============ Правая колонка (1/3) ============ -->
         <div class="min-w-0 space-y-4 md:col-span-1">
             <?php if ( ! empty($budget)): ?>
-            <?php echo View::factory('120/_budget', ['budget' => $budget])->render(); ?>
+            <?php echo View::factory('prx120/_budget', ['budget' => $budget])->render(); ?>
             <?php endif; ?>
             <div class="prx-card">
                 <p class="text-sm font-bold text-gray-900 dark:text-white"><i class="fas fa-timeline mr-1.5 text-gray-400"></i>Жизненный цикл задачи</p>

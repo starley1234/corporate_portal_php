@@ -55,7 +55,7 @@
 | журнал | `classes/Service/Prx150/Usage.php` |
 | реестр scope | `classes/Service/Prx150/Services.php` |
 | машинный базовый контроллер | `classes/Controller/Prx150/Machine.php` |
-| админка | `classes/Controller/Prx150/Admin.php`, `views/150/*` |
+| админка | `classes/Controller/Prx150/Admin.php`, `views/prx150/*` |
 | схема | `migrations_pg/pgMigration_Prx_150_001_ApiHub.php`, `…_002_KeyOrganization.php` |
 
 ## Как добавить сервис

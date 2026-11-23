@@ -203,7 +203,7 @@ class Controller_Auth extends Controller_Prx102_Auth {
 
         $this->template->title = 'Двухфакторный вход';
 
-        $this->template->content = View::factory('599/2fa')
+        $this->template->content = View::factory('prx599/2fa')
             ->bind('errors', $errors)
             ->set('csrf', Security::token());
     }

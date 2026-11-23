@@ -32,7 +32,7 @@ class Controller_Prx103_Errors extends Controller_Prx102_Base {
 
     public function action_index()
     {
-        $this->template->content = View::factory('prx100/errors', [
+        $this->template->content = View::factory('prx103/errors', [
             'db'    => $this->_db_errors(),
             'log'   => $this->_log_tail(),
             'stats' => $this->_stats(),

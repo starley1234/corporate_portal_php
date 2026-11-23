@@ -62,6 +62,12 @@ final class Prx_Actor implements Prx_Principal
         return new self($user ? (int) $user->id : 0, $roles, $org);
     }
 
+    /** Адаптер старого серверного контекста; гость остаётся гостем. */
+    public static function fromArray(array $actor): self
+    {
+        return new self((int) ($actor['user_id'] ?? 0), $actor['roles'] ?? []);
+    }
+
     public function id(): int
     {
         return $this->user_id;

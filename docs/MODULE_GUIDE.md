@@ -34,15 +34,16 @@ prx301_onboarding/
   classes/Controller/Prx301/Api.php            # внутренний JSON API
   classes/Policy/Prx301/Step.php               # объектные правила
   classes/Service/Prx301/Store.php             # SQL через Prx_Db
-  views/prx301_onboarding/index.php            # page-kit
+  views/prx301/index.php            # page-kit
 tests/Unit/Prx301PolicyTest.php                # гость и чужая организация
 ```
 
 Обязательны `AGENTS.md` и `config/prx_module.php`. По необходимости: `init.php`
-для маршрутов, `migrations_pg/` для таблиц, `views/NNN/` для UI, `i18n/`,
+для маршрутов, `migrations_pg/` для таблиц, `views/prxNNN/` для UI (NNN — id модуля), `i18n/`,
 `messages/`, `fixtures/`. Для prx-модулей миграции — только `migrations_pg/`.
-`llm` — библиотека; её `migrations/` содержат MySQL, а PostgreSQL-миграции
-лежат отдельно в `migrations_pg/`. Служебные библиотеки остаются в
+У `kind: library` каталог views называется по имени библиотеки, например
+`llm/views/llm/` или `cookie_consent/views/cookie_consent/`. PostgreSQL-миграции
+`llm` лежат в `migrations_pg/`. Служебные библиотеки остаются в
 `application/modules/`, отдельного `application/libraries/` нет.
 
 Каркас закрыт: `status draft`, `audience admin`, права `prx301.view` и

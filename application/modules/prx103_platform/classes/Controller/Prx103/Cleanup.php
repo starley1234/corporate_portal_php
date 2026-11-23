@@ -81,7 +81,7 @@ class Controller_Prx103_Cleanup extends Controller_Prx102_Base {
 
         $this->set_title('Чистка данных · управление');
 
-        $this->template->content = View::factory('prx100/cleanup', [
+        $this->template->content = View::factory('prx103/cleanup', [
             'items' => $items,
             'state' => $state,
             'flash' => isset($_GET['flash']) ? (string) $_GET['flash'] : $flash,

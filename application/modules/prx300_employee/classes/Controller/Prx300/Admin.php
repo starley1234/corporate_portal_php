@@ -38,7 +38,7 @@ class Controller_Prx300_Admin extends Controller_Base
             throw HTTP_Exception::factory(403, $e->getMessage());
         }
 
-        $this->template->content = View::factory('prx300_employee/admin', [
+        $this->template->content = View::factory('prx300/admin', [
             'dashboard' => $dashboard,
             'organizations' => $options['organizations'],
             'sites' => $options['sites'],
@@ -109,7 +109,7 @@ class Controller_Prx300_Admin extends Controller_Base
         }
 
         $this->set_title('Сотрудники · кадровые данные');
-        $this->template->content = View::factory('prx300_employee/employees', [
+        $this->template->content = View::factory('prx300/employees', [
             'result' => $result,
             'options' => $options,
             'filters' => $filters,
@@ -137,7 +137,7 @@ class Controller_Prx300_Admin extends Controller_Base
         }
 
         $this->set_title($id ? 'Сотрудник: '.$employee['full_name'] : 'Новый сотрудник');
-        $this->template->content = View::factory('prx300_employee/employee', [
+        $this->template->content = View::factory('prx300/employee', [
             'employee' => $employee,
             'options' => $options,
             'identities' => $identities,
@@ -230,7 +230,7 @@ class Controller_Prx300_Admin extends Controller_Base
         }
 
         $this->set_title('Импорт кадровых данных');
-        $this->template->content = View::factory('prx300_employee/import', [
+        $this->template->content = View::factory('prx300/import', [
             'batches' => $batches,
             'headers' => Service_Prx300_Import::allowed_headers(),
             'required_headers' => Service_Prx300_Import::required_headers(),
@@ -286,7 +286,7 @@ class Controller_Prx300_Admin extends Controller_Base
         }
 
         $this->set_title('Пакет импорта #'.(int) $id);
-        $this->template->content = View::factory('prx300_employee/import_batch', [
+        $this->template->content = View::factory('prx300/import_batch', [
             'batch' => $batch,
             'can_import' => $this->can('prx300.import'),
             'csrf' => Security::token(),

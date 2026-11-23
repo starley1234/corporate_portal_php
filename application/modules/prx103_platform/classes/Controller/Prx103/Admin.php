@@ -124,7 +124,7 @@ class Controller_Prx103_Admin extends Controller_Prx102_Base {
 			});
 		}
 
-		$this->template->content = View::factory('prx100/admin', [
+		$this->template->content = View::factory('prx103/admin', [
 			'health'        => Service_Prx103_Health::snapshot(),
 			'flash'         => (string) Session::instance()->get_once('prx100_admin_flash', ''),
 			'csrf'          => Security::token(),

@@ -102,18 +102,17 @@ class ManifestRegistryTest extends TestCase {
             $request->headers('X-Worker-Token', '');
             $request->query('token', 'portal-test-token');
             $this->assertFalse(Prx_Gate::worker_request($request));
-            $this->assertTrue(Prx_Gate::worker_request($request, TRUE));
+            $this->assertTrue(Prx_Gate::worker_request($request, NULL, TRUE));
             $request->headers('X-Worker-Token', 'wrong');
-            $this->assertFalse(Prx_Gate::worker_request($request, TRUE));
+            $this->assertFalse(Prx_Gate::worker_request($request, NULL, TRUE));
             $request->headers('X-Worker-Token', ' portal-test-token ');
-            $this->assertTrue(Prx_Gate::worker_request($request, TRUE));
-            $this->assertFalse(Prx_Gate::worker_request($request, FALSE, NULL, FALSE));
+            $this->assertTrue(Prx_Gate::worker_request($request, NULL, TRUE));
+            $this->assertFalse(Prx_Gate::worker_request($request));
             $request->headers('X-Worker-Token', 'site-secret');
-            $this->assertTrue(Prx_Gate::worker_request($request, FALSE, 'site-secret', FALSE));
-            $this->assertFalse(Prx_Gate::worker_request($request, FALSE, 'other', FALSE));
+            $this->assertTrue(Prx_Gate::worker_request($request, 'site-secret'));
+            $this->assertFalse(Prx_Gate::worker_request($request, 'other'));
             $request->headers('X-Worker-Token', ' ');
-            $this->assertTrue(Prx_Gate::worker_request($request, TRUE));
-            $this->assertFalse(Prx_Gate::worker_request($request, TRUE, NULL, TRUE, TRUE));
+            $this->assertTrue(Prx_Gate::worker_request($request, NULL, TRUE));
         }
         finally
         {

@@ -107,4 +107,4 @@ $badge = function ($status) {
 
 </div>
 
-<?php echo View::factory('597/script'); ?>
+<?php echo View::factory('prx597/script'); ?>

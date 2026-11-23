@@ -64,7 +64,7 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
             Kohana::$log->add(Log::WARNING, 'prx595: users list: :e', [':e' => $e->getMessage()]);
         }
 
-        $this->template->content = View::factory('595/admin', [
+        $this->template->content = View::factory('prx595/admin', [
             'rows'   => $rows,
             'total'  => $total,
             'q'      => $q,
@@ -169,7 +169,7 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
 
         $this->set_title('Пользователь '.$user->username.' · управление');
 
-        $this->template->content = View::factory('595/user', [
+        $this->template->content = View::factory('prx595/user', [
             'u'      => $user,
             'roles'  => $roles,
             'mine'   => $mine,
@@ -294,7 +294,7 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
              FROM roles r LEFT JOIN roles_users ru ON ru.role_id = r.id
              GROUP BY r.id ORDER BY r.id', FALSE)->as_array();
 
-        $this->template->content = View::factory('595/roles', [
+        $this->template->content = View::factory('prx595/roles', [
             'roles' => $roles,
             'csrf'  => Security::token(),
             'flash' => isset($_GET['flash']) ? (string) $_GET['flash'] : '',
@@ -372,7 +372,7 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
             $kpi = []; $channels = []; $jobs = []; $new_users = [];
         }
 
-        $this->template->content = View::factory('595/activity', [
+        $this->template->content = View::factory('prx595/activity', [
             'kpi'       => $kpi ? (array) $kpi : [],
             'channels'  => $channels,
             'jobs'      => $jobs,

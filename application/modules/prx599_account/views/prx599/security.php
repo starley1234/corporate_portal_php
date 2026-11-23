@@ -181,4 +181,4 @@ $device = function ($ua) {
 </div>
 
 <script src="/assets/vendor/qrcode/qrcode.js"></script>
-<?php echo View::factory('599/script'); ?>
+<?php echo View::factory('prx599/script'); ?>

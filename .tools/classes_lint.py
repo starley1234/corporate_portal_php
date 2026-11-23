@@ -22,6 +22,12 @@ GATE_ENDPOINTS = {
 ACL_BASE = 'application/modules/prx102_core/classes/Controller/Prx102/Base.php'
 
 
+def php_code_mask(source: str) -> str:
+    """Скрыть строки, комментарии и heredoc, сохранив позиции кода."""
+    pattern = re.compile(r"<<<[ \t]*['\"]?([A-Za-z_]\w*)['\"]?[^\n]*\n.*?^[ \t]*\1[;,]?[^\S\n]*$|/\*.*?\*/|//[^\n]*|\#[^\n]*|'(?:\\.|[^'\\])*'|\"(?:\\.|[^\"\\])*\"|`(?:\\.|[^`\\])*`", re.S | re.M)
+    return pattern.sub(lambda m: ''.join('\n' if c == '\n' else ' ' for c in m.group()), source)
+
+
 def errors(root: Path = ROOT) -> list[str]:
     found = []
     for path in sorted((root / 'application').rglob('*.php')):
@@ -48,6 +54,31 @@ def errors(root: Path = ROOT) -> list[str]:
             for forbidden in module.rglob('migrations'):
                 if forbidden.is_dir():
                     found.append(f'{forbidden.relative_to(root)}: миграции модуля размещаются только в migrations_pg/')
+            match = re.fullmatch(r'prx([0-9]+)_.+', module.name)
+            if not match:
+                continue
+            expected = 'prx' + match.group(1)
+            views = module / 'views'
+            if views.is_dir():
+                entries = sorted(p.name for p in views.iterdir())
+                if entries != [expected] or not (views / expected).is_dir():
+                    found.append(f'{views.relative_to(root)}: ожидается только каталог {expected}/, получено {entries}')
+            for path in sorted(module.rglob('*.php')):
+                rel = path.relative_to(root).as_posix()
+                source = path.read_text(encoding='utf-8')
+                code_mask = php_code_mask(source)
+                pattern = r"\bView\s*::\s*factory\s*\(\s*(['\"])([^'\"/]+)(?:/[^'\"]*)?\1(?=\s*[,\)])"
+                for ref in re.finditer(pattern, source, re.I):
+                    line = source.count('\n', 0, ref.start()) + 1
+                    if not re.match(r'View\s*::\s*factory\s*\(', code_mask[ref.start():], re.I):
+                        continue
+                    target = ref.group(2)
+                    if target == expected or target == 'partials':
+                        continue
+                    # Авторизация ядра использует общие application/views/auth и emails.
+                    if rel == 'application/modules/prx102_core/classes/Controller/Prx102/Auth.php' and target in {'auth', 'emails'}:
+                        continue
+                    found.append(f'{rel}:{line}: View::factory с {target}/, ожидалось {expected}/ или partials/')
     return found
 
 

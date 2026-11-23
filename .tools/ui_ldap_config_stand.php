@@ -30,7 +30,7 @@ foreach (['done', 'failed', 'processing', 'pending', 'cancelled', '<script>'] as
                'created_at'=>'2026-01-01', 'finished_at'=>NULL];
 }
 ob_start();
-require APPPATH.'modules/prx595_useradmin/views/595/activity.php';
+require APPPATH.'modules/prx595_useradmin/views/prx595/activity.php';
 $html = ob_get_clean();
 foreach (['Готово', 'Ошибка', 'Выполняется', 'В очереди', 'Отменена', '&lt;script&gt;'] as $label) {
     check_ui('подпись '.$label, strpos($html, $label) !== FALSE, TRUE);
@@ -38,7 +38,7 @@ foreach (['Готово', 'Ошибка', 'Выполняется', 'В очер
 check_ui('неизвестный статус экранирован', strpos($html, '<script>'), FALSE);
 $tasks = []; $budget = []; $logged_in = FALSE;
 ob_start();
-require APPPATH.'modules/prx120_jobs/views/120/tasks.php';
+require APPPATH.'modules/prx120_jobs/views/prx120/tasks.php';
 $task_html = ob_get_clean();
 foreach (['/review', '/jobs', '/docs'] as $href) {
     check_ui('удалена ссылка '.$href, strpos($task_html, 'href="'.$href.'"'), FALSE);

@@ -189,7 +189,7 @@ class Controller_Prx120_Monitor extends Controller_Prx102_Base {
             $jobs[] = $r;
         }
 
-        $this->template->content = View::factory('120/monitor', [
+        $this->template->content = View::factory('prx120/monitor', [
             'job_id'   => (int) $this->request->query('job'),
             'p'        => $p,
             'health'   => $queue->monitor_health(),

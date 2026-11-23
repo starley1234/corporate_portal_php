@@ -38,7 +38,26 @@ class Controller_Prx597_Api extends Controller {
         // Служебный outbox вызывается python-воркером из prx603 без пользовательской сессии.
         if ($this->request->action() === 'outbox')
         {
-            if ( ! Prx_Gate::worker_request($this->request, TRUE, NULL, TRUE, TRUE))
+            // Сохраняем прежний PHP ?: приоритет заголовка: пробел не даёт
+            // fallback на query, а строка "0" считается отсутствующей.
+            $header = $this->request->headers('x-worker-token');
+            $authorized = FALSE;
+            if ($header AND trim((string) $header) === '')
+            {
+                $authorized = FALSE;
+            }
+            elseif ($header === '0')
+            {
+                $this->request->headers('x-worker-token', '');
+                try { $authorized = Prx_Gate::worker_request($this->request, NULL, TRUE); }
+                finally { $this->request->headers('x-worker-token', '0'); }
+            }
+            else
+            {
+                $authorized = Prx_Gate::worker_request($this->request, NULL, TRUE);
+            }
+
+            if ( ! $authorized)
             {
                 $this->response->status(403);
                 $this->response->body(json_encode(['error' => 'Токен воркера не совпал'], JSON_UNESCAPED_UNICODE));

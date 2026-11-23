@@ -64,7 +64,7 @@ class Controller_Prx597_Admin extends Controller_Prx102_Base
 			$tab = 'summary';
 		}
 
-		$this->template->content = View::factory('597/admin', [
+		$this->template->content = View::factory('prx597/admin', [
 			'tab'      => $tab,
 			'stats'    => Service_Prx597_Engine::stats(),
 			'events'   => Service_Prx597_Registry::events(),

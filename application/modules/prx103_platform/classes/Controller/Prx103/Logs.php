@@ -62,7 +62,7 @@ class Controller_Prx103_Logs extends Controller_Prx102_Base {
             $result = Service_Prx103_Logs::read_site($threshold, $q, $limit);
         }
 
-        $this->template->content = View::factory('prx100/logs', [
+        $this->template->content = View::factory('prx103/logs', [
             'source'    => $source,
             'result'    => $result,
             'days'      => $days,

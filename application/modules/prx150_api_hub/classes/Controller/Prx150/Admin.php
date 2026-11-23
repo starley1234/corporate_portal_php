@@ -62,7 +62,7 @@ class Controller_Prx150_Admin extends Controller_Prx102_Base
             $flash = ['type' => 'err', 'text' => 'Таблицы API-доступа ещё нет. Выполните `make migrate` (миграция prx_150_001).'];
         }
 
-        $this->template->content = View::factory('150/index', [
+        $this->template->content = View::factory('prx150/index', [
             'tab'           => 'keys',
             'keys'          => $keys,
             'scopes'        => Service_Prx150_Services::scopes(),
@@ -213,7 +213,7 @@ class Controller_Prx150_Admin extends Controller_Prx102_Base
             $flash = ['type' => 'err', 'text' => 'Журнал API-доступа ещё не создан. Выполните `make migrate` (миграция prx_150_001).'];
         }
 
-        $this->template->content = View::factory('150/usage', [
+        $this->template->content = View::factory('prx150/usage', [
             'tab'      => 'usage',
             'rows'     => $rows,
             'clients'  => $clients,
@@ -234,7 +234,7 @@ class Controller_Prx150_Admin extends Controller_Prx102_Base
     /** Документация для потребителя: что выдать, как звать, какие ошибки. */
     public function action_docs()
     {
-        $this->template->content = View::factory('150/docs', [
+        $this->template->content = View::factory('prx150/docs', [
             'tab'    => 'docs',
             'scopes' => Service_Prx150_Services::scopes(),
             'flash'  => $this->_flash(),

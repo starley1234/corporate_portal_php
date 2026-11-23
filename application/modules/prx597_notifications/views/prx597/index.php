@@ -394,4 +394,4 @@ $chip = function ($key) use ($binding) {
 	<?php endif; ?>
 </div>
 
-<?php echo View::factory('597/script'); ?>
+<?php echo View::factory('prx597/script'); ?>

@@ -17,7 +17,7 @@ class Controller_Prx300_Profile extends Controller_Base
     public function action_index()
     {
         $profile = Service_Prx300_Directory::profile_for_user((int) $this->_current_user->id);
-        $this->template->content = View::factory('prx300_employee/profile', [
+        $this->template->content = View::factory('prx300/profile', [
             'profile' => $profile,
             'user' => $this->_current_user,
             'can_admin' => $this->_can_admin(),
@@ -48,7 +48,7 @@ class Controller_Prx300_Profile extends Controller_Base
         }
 
         $this->set_title('Справочник сотрудников');
-        $this->template->content = View::factory('prx300_employee/directory', [
+        $this->template->content = View::factory('prx300/directory', [
             'result' => $result,
             'options' => $options,
             'filters' => $filters,
@@ -76,7 +76,7 @@ class Controller_Prx300_Profile extends Controller_Base
         }
 
         $this->set_title('Сотрудник: '.$colleague['full_name']);
-        $this->template->content = View::factory('prx300_employee/colleague', [
+        $this->template->content = View::factory('prx300/colleague', [
             'colleague' => $colleague,
             'can_admin' => $this->_can_admin(),
         ]);

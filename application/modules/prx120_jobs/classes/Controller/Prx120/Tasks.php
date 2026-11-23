@@ -105,7 +105,7 @@ class Controller_Prx120_Tasks extends Controller_Prx102_Base {
             $budget = [];
         }
 
-        $this->template->content = View::factory('120/tasks', [
+        $this->template->content = View::factory('prx120/tasks', [
             'tasks'       => $tasks,
             'budget'      => $budget,
             'logged_in'   => Auth::instance()->logged_in(),
@@ -194,7 +194,7 @@ class Controller_Prx120_Tasks extends Controller_Prx102_Base {
         // Своя вьюха для «списка задач по коду»: 120/task.php — экран ОДНОЙ
         // задачи (job/job_id/label/events), и подстановка её сюда давала живой
         // фатал «Undefined variable $job_id» (/tasks/cad5e0ff1e1, 27.09.2026).
-        $this->template->content = View::factory('120/tasks_code', [
+        $this->template->content = View::factory('prx120/tasks_code', [
             'code'       => $code,
             'latest'     => $latest,
             'tasks'      => $tasks,

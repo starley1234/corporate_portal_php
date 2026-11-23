@@ -597,7 +597,7 @@ class Controller_Prx115_Api extends Controller_Base {
                 : $this->_auth_fail('Токен не передан: ни заголовка X-Worker-Token, ни ?token= в запросе.');
         }
 
-        if ( ! Prx_Gate::worker_request($this->request, TRUE, $token))
+        if ( ! Prx_Gate::worker_request($this->request, $token, TRUE))
         {
             return $quiet ? FALSE
                 : $this->_auth_fail('Токен воркера не совпал с WORKER_API_TOKEN сайта (длина на сайте: '.strlen($token).').');

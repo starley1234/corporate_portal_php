@@ -94,7 +94,7 @@ $pct_cls = function ($st) {
 			</form>
 			<?php if ($current): ?>
 			<div class="mt-4 rounded-xl border border-gray-200 p-3 dark:border-gray-700">
-				<?php echo View::factory('120/_budget', ['budget' => $current, 'compact' => TRUE])->render(); ?>
+				<?php echo View::factory('prx120/_budget', ['budget' => $current, 'compact' => TRUE])->render(); ?>
 			</div>
 			<?php endif; ?>
 		</div>

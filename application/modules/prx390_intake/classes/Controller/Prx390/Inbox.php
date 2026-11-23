@@ -18,7 +18,7 @@ class Controller_Prx390_Inbox extends Controller_Prx39x_Base
         $channels = Service_Prx390_Intake::channels();
         $inbox = Service_Prx390_Intake::inbox_files();
 
-        $this->template->content = View::factory('390/index', [
+        $this->template->content = View::factory('prx390/index', [
             'flash' => $this->_flash(),
             'csrf' => $this->_csrf(),
             'can_manage' => $this->can('prx390.manage'),

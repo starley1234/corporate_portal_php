@@ -4,7 +4,7 @@ class Controller_Prx395_Worker extends Controller_Prx395_Json
 {
     private function lease(string $method): array
     {
-        if ( ! Prx_Gate::worker_request($this->request, FALSE, NULL, FALSE)) throw new Prx395_Error('unauthorized', 401);
+        if ( ! Prx_Gate::worker_request($this->request)) throw new Prx395_Error('unauthorized', 401);
         $this->require_method($method);
         $attempt = (string) $this->request->headers('X-PRX-Worker-Attempt');
         if ( ! preg_match('/\A[1-9][0-9]{0,8}\z/', $attempt)) throw new Prx395_Error('invalid_attempt', 400);
@@ -14,7 +14,7 @@ class Controller_Prx395_Worker extends Controller_Prx395_Json
     public function action_health(): void
     {
         $this->respond(function () {
-            if ( ! Prx_Gate::worker_request($this->request, FALSE, NULL, FALSE)) throw new Prx395_Error('unauthorized', 401);
+            if ( ! Prx_Gate::worker_request($this->request)) throw new Prx395_Error('unauthorized', 401);
             $this->require_method(Request::GET);
             $modules = Kohana::modules();
             $this->_json_response([

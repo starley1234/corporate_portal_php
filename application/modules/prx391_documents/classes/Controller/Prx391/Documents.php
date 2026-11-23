@@ -18,7 +18,7 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
 
         $list = Service_Prx391_Documents::list_documents($filters, $this->_actor());
 
-        $this->template->content = View::factory('391/index', [
+        $this->template->content = View::factory('prx391/index', [
             'flash' => $this->_flash(),
             'csrf' => $this->_csrf(),
             'can_edit' => $this->can('prx391.edit'),
@@ -67,7 +67,7 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
             $drafts = Service_Prx394_Drafts::drafts_for_document($id);
         }
 
-        $this->template->content = View::factory('391/show', [
+        $this->template->content = View::factory('prx391/show', [
             'flash' => $this->_flash(),
             'csrf' => $this->_csrf(),
             'doc' => $document,

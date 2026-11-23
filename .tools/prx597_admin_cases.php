@@ -102,7 +102,7 @@ function prx597_admin_render($tab, $placeholders = NULL, array $extra = [])
     $source_alert = NULL;
     extract($extra, EXTR_OVERWRITE);
     ob_start();
-    try { include dirname(__DIR__).'/application/modules/prx597_notifications/views/597/admin.php'; return ob_get_contents(); }
+    try { include dirname(__DIR__).'/application/modules/prx597_notifications/views/prx597/admin.php'; return ob_get_contents(); }
     finally { ob_end_clean(); }
 }
 set_error_handler(function ($code, $message) { throw new RuntimeException($message); }, E_WARNING | E_NOTICE);

@@ -37,7 +37,7 @@ abstract class Controller_Prx39x_Api extends Controller_Prx39x_Base
             ], 403);
         }
 
-        if ( ! Prx_Gate::worker_request($this->request, FALSE, $token, FALSE))
+        if ( ! Prx_Gate::worker_request($this->request, $token))
         {
             $this->_halt = TRUE;
 

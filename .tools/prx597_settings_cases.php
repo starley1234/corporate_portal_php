@@ -225,7 +225,7 @@ function prx597_render($tab, $channels, $binding = [], $items = [])
     $prefs = Service_Prx597_Notify::prefs_default(7);
     $matrix = ['jobs' => [['alias' => 'test', 'title' => 'Готово', 'description' => '', 'mandatory' => FALSE, 'channels' => array_keys($channels), 'state' => array_fill_keys(array_keys($channels), TRUE)]]];
     ob_start();
-    include dirname(__DIR__).'/application/modules/prx597_notifications/views/597/index.php';
+    include dirname(__DIR__).'/application/modules/prx597_notifications/views/prx597/index.php';
     return ob_get_clean();
 }
 set_error_handler(function ($code, $message) { throw new RuntimeException($message); }, E_WARNING | E_NOTICE);

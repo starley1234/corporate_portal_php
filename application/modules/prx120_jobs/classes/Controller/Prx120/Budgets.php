@@ -46,7 +46,7 @@ class Controller_Prx120_Budgets extends Controller_Prx102_Base {
 
         $this->set_title('Бюджеты токенов');
 
-        $this->template->content = View::factory('120/budgets', [
+        $this->template->content = View::factory('prx120/budgets', [
             'config'    => Service_Prx120_Budget::config(),
             'current'   => $key !== '' ? Service_Prx120_Budget::state($key) : [],
             'override'  => $key !== '' ? Service_Prx120_Budget::override($key) : NULL,

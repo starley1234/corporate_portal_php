@@ -50,7 +50,7 @@ class Controller_Prx103_Update extends Controller_Prx102_Base {
             }
         }
 
-        $this->template->content = View::factory('prx100/update', [
+        $this->template->content = View::factory('prx103/update', [
             'flash'  => $flash,
             'kicked' => $kicked,
             'log'    => self::log_tail(),
