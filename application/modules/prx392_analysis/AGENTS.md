@@ -77,5 +77,5 @@ summary отклоняется, прогон получает `failed`.
 
 ## Проверки
 
-`python3 -m pytest workers/tests/handlers/trial/test_docflow.py` (нормализация/парсер JSON),
+`python3 -m pytest workers/tests/handlers/prx390_intake/test_docflow.py` (нормализация/парсер JSON),
 `python3 .tools/portal_check.py`, `bash .tools/php_check_all.sh`.

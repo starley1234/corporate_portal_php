@@ -15,9 +15,7 @@
 
 Правила значений:
   id        целое; для `prxNNN_slug` совпадает с номером папки.
-            Исключение — семейство ядра `prx100_*`: там три модуля делят
-            префикс 100, поэтому разрешены id 100–109 (base=102, platform=103)
-  slug      имя папки либо её суффикс без `prxNNN_` (исторический стиль)
+  slug      имя папки модуля
   status    draft | beta | stable | deprecated
   audience  public | auth | admin | agent
   acl       для audience=auth|admin — ключ из application/config/acl.php
@@ -80,6 +78,11 @@ def check_module(path: Path, hrefs: dict[str, str], keys: set[str]) -> None:
     if not text(manifest.get('short') or '').strip():
         fail(f'{name}: нет `short` — аннотация для каталога и агента')
 
+    if kind == 'library' and name.startswith('prx'):
+        fail(f'{name}: библиотека должна иметь имя без префикса prx')
+    if kind != 'library' and not re.fullmatch(r'prx[0-9]+_[a-z0-9_]+', name):
+        fail(f'{name}: для модуля требуется имя prxNNN_slug')
+
     if kind != 'library':
         mid = manifest.get('id')
         if not isinstance(mid, int):
@@ -88,14 +91,12 @@ def check_module(path: Path, hrefs: dict[str, str], keys: set[str]) -> None:
             folder = re.match(r'prx(\d+)_', name)
             if folder:
                 number = int(folder.group(1))
-                core_family = number == 100 and 100 <= mid <= 109
-                if number != mid and not core_family:
+                if number != mid:
                     fail(f'{name}: `id` = {mid}, а папка prx{number}')
 
         slug = text(manifest.get('slug') or '')
-        suffix = re.sub(r'^prx\d+_', '', name)
-        if slug not in (name, suffix):
-            fail(f'{name}: `slug` = {slug!r}, ожидалось {name!r} или {suffix!r}')
+        if slug != name:
+            fail(f'{name}: `slug` = {slug!r}, ожидалось {name!r}')
 
     if kind == 'library':
         for field in ('id', 'slug', 'href', 'audience', 'acl'):
@@ -178,6 +179,15 @@ def main() -> int:
     manifests = sorted(MODULES.glob('*/config/prx_module.php'))
     if not manifests:
         fail('манифесты не найдены')
+
+    for folder in sorted(MODULES.iterdir()):
+        if folder.is_dir() and not (folder / 'config/prx_module.php').is_file():
+            fail(f'{folder.name}: отсутствует config/prx_module.php')
+        if folder.is_dir() and folder.name.startswith('prx'):
+            if not re.fullmatch(r'prx[0-9]+_[a-z0-9_]+', folder.name):
+                fail(f'{folder.name}: неверное имя prx-модуля')
+            if not (folder / 'AGENTS.md').is_file():
+                fail(f'{folder.name}: отсутствует AGENTS.md')
 
     for path in manifests:
         check_module(path, hrefs, keys)

@@ -4,7 +4,7 @@
  * Доступ к собранной странице архитектуры.
  *
  * Источник истины — docs/architecture/model/*.yaml. Страница и JSON собираются
- * командой `make architecture` (движок в docs/architecture/engine) и лежат в
+ * командой `make architecture` (движок в .tools/architecture) и лежат в
  * docs/architecture/dist. Runtime в Node не нуждается: PHP только отдаёт
  * готовый файл после проверки прав.
  */

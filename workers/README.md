@@ -1,7 +1,7 @@
 # PRX workers
 
 `prx_workers/` — runtime (очередь, сторожа, конфиг) и `handlers/<модуль-владелец>/`
-— по пакету на канал; `handlers/trial/` — проба пера (документооборот), включается
+— по пакету на канал; `prx390_intake/` и `prx392_analysis/` — условный документооборот, включается
 только на стенде. Активные каналы: echo, embeddings.index, llm.summarize,
 semantic.index, document.extract. Зависимости — requirements.txt; тестовые —
 requirements-dev.txt. Секреты — workers/.env (создаёт bin/setup.sh).

@@ -12,7 +12,7 @@ class PortalFoundationTest extends TestCase {
     {
         $queue = Service_Prx120_JobQueue::instance();
         $channel = 'portal.test.'.bin2hex(random_bytes(4));
-        $id = Service_Prx120_JobQueue::push($channel, ['message' => 'PRX'], ['module' => 'prx100_platform']);
+        $id = Service_Prx120_JobQueue::push($channel, ['message' => 'PRX'], ['module' => 'prx103_platform']);
         try
         {
             $job = $queue->claim([$channel], 'portal-test-worker');
@@ -64,13 +64,13 @@ class PortalFoundationTest extends TestCase {
     public function test_rag_remember_exact_and_delete(): void
     {
         $key = 'test-'.bin2hex(random_bytes(8));
-        $stored = Service_Prx560_Knowledge::remember('prx100_platform', 'test', $key, 'PRX test', 'Technical test only', [], NULL, FALSE);
+        $stored = Service_Prx560_Knowledge::remember('prx103_platform', 'test', $key, 'PRX test', 'Technical test only', [], NULL, FALSE);
         try
         {
-            $exact = Service_Prx560_Knowledge::find_exact('prx100_platform', $key);
+            $exact = Service_Prx560_Knowledge::find_exact('prx103_platform', $key);
             $this->assertNotEmpty($exact);
             $this->assertSame('PRX test', $exact['title']);
-            $again = Service_Prx560_Knowledge::remember('prx100_platform', 'test', $key, 'PRX test', 'Technical test only', [], NULL, FALSE);
+            $again = Service_Prx560_Knowledge::remember('prx103_platform', 'test', $key, 'PRX test', 'Technical test only', [], NULL, FALSE);
             $this->assertSame('known', $again['status']);
         }
         finally

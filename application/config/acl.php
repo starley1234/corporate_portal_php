@@ -1,5 +1,5 @@
 <?php defined('SYSPATH') or die('No direct script access.');
-// Deny by default. Роль admin имеет полный доступ через ACL::check().
+// Deny by default. Роль admin имеет полный доступ через Prx_Actor::can().
 // login — техническая роль входа, а не должность сотрудника.
 return [
     'portal.access' => ['login'],

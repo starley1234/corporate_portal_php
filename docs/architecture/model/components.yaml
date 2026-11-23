@@ -5,7 +5,7 @@ portal: "**Портал PRX.** Один deploy, одна PostgreSQL и каск�
 auth: "**Auth и сессии.** Роли `login` и `admin`, пароли — HMAC-SHA256 с `AUTH_HASH_KEY`, сессии в PostgreSQL, TOTP в prx599. Отдельный worker API проверяет `X-Worker-Token`, а не сессию."
 rbac: "**RBAC.** Право — это действие, а не должность. `login` открывает вход, но не чужие кадровые данные; сервис дополнительно проверяет объект и организационный контекст."
 catalog: "**prx110_catalog.** Собирает `config/prx_module.php` всех подключённых модулей: меню, карточки главной, поиск, статус и аудиторию. Списки чужих модулей в коде не дублируются."
-migrations: "**prx111_migrations.** Находит `migrations_pg/pgMigration_*.php`, ведёт журнал в `migrations_pg` и накатывает каждую миграцию отдельно. Первичный администратор создаётся миграцией prx110_004."
+migrations: "**prx111_migrations.** Находит `migrations_pg/pgMigration_*.php`, ведёт журнал в `migrations_pg` и накатывает каждую миграцию отдельно. Первичный администратор создаётся миграцией prx102_004."
 events: "**prx208 EventBus.** Именованные события `prxXXX.entity.action` с payload из ID, а не ORM-моделей. Подписчик сам отвечает за идемпотентность."
 queue: "**prx120_jobs.** Очередь в PostgreSQL с таймаутом, повтором, отменой, heartbeat и ресурсным учётом. Секреты и токены в payload не передаются."
 workers: "**prx_workers.** Python-runtime: claim, heartbeat, progress, retry/backoff, watchdog и graceful shutdown. Режим `pg` работает через asyncpg, `http` — через `/prx120/api/*` с отдельным токеном."

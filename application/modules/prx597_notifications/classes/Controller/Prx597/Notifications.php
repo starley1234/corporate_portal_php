@@ -12,7 +12,7 @@
  * реестр сам отсеивает чужие по ролям и правам (Service_Prx597_Registry),
  * поэтому человек не видит административных событий и не может их включить.
  */
-class Controller_Prx597_Notifications extends Controller_Prx100_Base
+class Controller_Prx597_Notifications extends Controller_Prx102_Base
 {
 	protected $_user_id = NULL;
 
@@ -175,7 +175,7 @@ class Controller_Prx597_Notifications extends Controller_Prx100_Base
 
 		if ( ! isset(Service_Prx597_Base::user_channels()[$channel])
 			OR ! in_array($channel, $event['channels'], TRUE)
-			OR ! Service_Prx597_Registry::user_allowed($event, Service_Prx597_Registry::roles_of($this->_user_id)))
+			OR ! Service_Prx597_Registry::user_allowed($event, Service_Prx597_Registry::roles_of($this->_user_id), $this->_user_id))
 		{
 			return 'Событие или канал недоступны';
 		}
@@ -199,7 +199,7 @@ class Controller_Prx597_Notifications extends Controller_Prx100_Base
 
 		foreach (Service_Prx597_Registry::events(TRUE) as $alias => $event)
 		{
-			if ( ! Service_Prx597_Registry::user_allowed($event, $roles))
+			if ( ! Service_Prx597_Registry::user_allowed($event, $roles, $this->_user_id))
 			{
 				continue;
 			}

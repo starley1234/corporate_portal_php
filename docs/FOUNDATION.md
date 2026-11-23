@@ -8,16 +8,16 @@ SQL, идемпотентность), фасады `Event::publish()` и `Storag
 <!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index docs/FOUNDATION.md --write. Руками не править. -->
 | Раздел | Строка | Размер |
 |---|---|---|
-|   1. Доступ: actor → policy → сервис | 35 | 1,7 КБ |
-|   2. SQL: именованные параметры и транзакции | 63 | 2,1 КБ |
-|     Идемпотентность | 79 | 1,2 КБ |
-|   3. События | 98 | 1,8 КБ |
-|   5. Файлы: фасад `Storage::` | 127 | 1,7 КБ |
-|   4. POST и CSRF | 152 | 1,0 КБ |
-|   6. Манифест — контракт модуля | 167 | 0,5 КБ |
-|   7. Страница: page-kit | 180 | 0,7 КБ |
-|   8. Новый модуль | 195 | 0,4 КБ |
-|   9. Гейты | 205 | 1,0 КБ |
+|   1. Доступ: actor → policy → сервис | 35 | 2,3 КБ |
+|   2. SQL: именованные параметры и транзакции | 69 | 2,1 КБ |
+|     Идемпотентность | 85 | 1,2 КБ |
+|   3. События | 104 | 1,8 КБ |
+|   5. Файлы: фасад `Storage::` | 133 | 1,7 КБ |
+|   4. POST и CSRF | 158 | 1,0 КБ |
+|   6. Манифест — контракт модуля | 173 | 0,5 КБ |
+|   7. Страница: page-kit | 186 | 0,7 КБ |
+|   8. Новый модуль | 201 | 0,4 КБ |
+|   9. Гейты | 211 | 1,0 КБ |
 <!-- context-index:end -->
 | нужен | берём | где |
 |---|---|---|
@@ -44,6 +44,12 @@ $policy = new Policy_Prx312_Claim;
 $row = Prx_Db::one('SELECT * FROM prx_312_claims WHERE id = :id', [':id' => $id]);
 $policy->requireView($actor, $row);                // объектная часть: 404/403
 ```
+
+Три независимые оси: ability — `$actor->can()` (RBAC через `Prx_Acl`);
+доступ к записи — политика модуля на базе `Prx_Policy`; гейт запроса или
+машины — `Prx_Gate` (worker-токен, auth-wall и allowlist). Гейт не является
+проверкой прав на объект. Токен проверяют только точки входа; их явный список
+и запрет прямого вызова ACL из модулей проверяет `.tools/classes_lint.py`.
 
 Правила:
 - `Prx_Actor` создаёт только сервер (`$this->actor()`), из сессии и ACL.
@@ -117,7 +123,7 @@ Event::listen('prx312.claim.approved', function ($payload, $event_name, $initiat
   а не роняет запрос.
 
 Именование: `Event` и `Storage` — канонические фасады без префикса. `Prx_*` —
-только классы фундамента (`Actor`, `Policy`, `Db`, `PostGuard`, `Idempotency`,
+только классы фундамента (`Actor`, `Acl`, `Gate`, `Policy`, `Db`, `PostGuard`, `Idempotency`,
 `Principal`, `Exception`); код модулей — `Service_/Controller_/Policy_/Task_/
 Model_PrxNNN_*`; `Service_Prx212_*` и другие сервисы — внутренности своих модулей.
 Публикация мимо `Event` и обращение к `Service_Prx212_*`/`Model_Prx212_*`/
@@ -151,7 +157,7 @@ Storage::delete($file_id, $actor->id());
 
 ## 4. POST и CSRF
 
-Ничего не нужно писать в контроллере: `Controller_Prx100_Base::before()`
+Ничего не нужно писать в контроллере: `Controller_Prx102_Base::before()`
 вызывает `Prx_PostGuard::assert_safe()`. Проходят:
 
 - валидный токен — поле `csrf` или заголовок `X-CSRF-Token`;

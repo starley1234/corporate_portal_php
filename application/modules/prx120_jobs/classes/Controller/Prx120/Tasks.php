@@ -5,7 +5,7 @@
  * из всех модулей. Идентификация — Visitor::uid() (логин или кука ubid),
  * поэтому работает и для анонимов.
  */
-class Controller_Prx120_Tasks extends Controller_Prx100_Base {
+class Controller_Prx120_Tasks extends Controller_Prx102_Base {
 
     public function before()
     {

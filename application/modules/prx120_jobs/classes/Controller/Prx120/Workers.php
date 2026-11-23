@@ -8,7 +8,7 @@
  * пайплайна с mermaid-диаграммой, переменные окружения. Источник — сам код,
  * поэтому документация не устаревает. Право prx120.monitor (только admin).
  */
-class Controller_Prx120_Workers extends Controller_Prx100_Base {
+class Controller_Prx120_Workers extends Controller_Prx102_Base {
 
     public function before()
     {

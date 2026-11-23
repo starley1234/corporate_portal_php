@@ -138,7 +138,7 @@ python3 .tools/doc_budget_lint.py                          # бюджет док
 | Воркеры, LLM, очередь | `docs/WORKERS.md` |
 | Вёрстка, страницы | `docs/DESIGN-SYSTEM.md` + `design_audit.py --module X`; вьюху эталона (70 КБ) не читать |
 | Миграции | `docs/MODULE_GUIDE.md` §4 + `AGENTS.md` §2 п. 4 |
-| Деплой, прод | `docs/DEPLOY-UBUNTU.md`, `docs/systemd-сервис.md` |
+| Деплой, прод | `docs/DEPLOY-UBUNTU.md`, `docs/DEPLOY-SYSTEMD.md` |
 | Окружение, среда | `docs/ENVIRONMENT.md` или `docs/SANDBOX-SETUP.md` |
 | Что уже ломалось | `docs/VALIDATION.md` — история проверок и инцидентов |
 | Какие решения приняты | `docs/ARCHITECTURE-REVIEW.md` |

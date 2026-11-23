@@ -4,10 +4,10 @@
 <!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index docs/MODULE_GUIDE.md --write. Руками не править. -->
 | Раздел | Строка | Размер |
 |---|---|---|
-|   1. Выберите ID и границы | 12 | 1,9 КБ |
-|   2. Реализуйте вертикальный MVP | 47 | 1,9 КБ |
-|   3. Подключите | 67 | 2,0 КБ |
-|   4. Дизайн и проверка | 104 | 0,7 КБ |
+|   1. Выберите ID и границы | 12 | 2,5 КБ |
+|   2. Реализуйте вертикальный MVP | 54 | 1,9 КБ |
+|   3. Подключите | 74 | 2,0 КБ |
+|   4. Дизайн и проверка | 111 | 0,7 КБ |
 <!-- context-index:end -->
 ## 1. Выберите ID и границы
 
@@ -37,6 +37,13 @@ prx301_onboarding/
   views/prx301_onboarding/index.php            # page-kit
 tests/Unit/Prx301PolicyTest.php                # гость и чужая организация
 ```
+
+Обязательны `AGENTS.md` и `config/prx_module.php`. По необходимости: `init.php`
+для маршрутов, `migrations_pg/` для таблиц, `views/NNN/` для UI, `i18n/`,
+`messages/`, `fixtures/`. Для prx-модулей миграции — только `migrations_pg/`.
+`llm` — библиотека; её `migrations/` содержат MySQL, а PostgreSQL-миграции
+лежат отдельно в `migrations_pg/`. Служебные библиотеки остаются в
+`application/modules/`, отдельного `application/libraries/` нет.
 
 Каркас закрыт: `status draft`, `audience admin`, права `prx301.view` и
 `prx301.manage` добавляются в `application/config/acl.php` генератором.

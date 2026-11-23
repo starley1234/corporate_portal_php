@@ -17,7 +17,7 @@
  * Действия — через /prx115/api/* (ajax, без перезагрузки страницы). Доступ:
  * право `prx115.admin` (роль admin).
  */
-class Controller_Prx115_Page extends Controller_Prx100_Base {
+class Controller_Prx115_Page extends Controller_Prx102_Base {
 
     public function before()
     {

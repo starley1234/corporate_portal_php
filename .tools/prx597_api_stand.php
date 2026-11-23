@@ -71,7 +71,7 @@ class Request
 	}
 	public function query($key) { return array_key_exists($key, $this->get) ? $this->get[$key] : NULL; }
 	public function post($key = NULL) { return $key === NULL ? $this->post_data : (array_key_exists($key, $this->post_data) ? $this->post_data[$key] : NULL); }
-	public function headers($key) { return array_key_exists($key, $this->headers_map) ? $this->headers_map[$key] : NULL; }
+	public function headers($key) { foreach ($this->headers_map as $name => $value) { if (strcasecmp($name, $key) === 0) return $value; } return NULL; }
 }
 
 #[\AllowDynamicProperties]
@@ -182,7 +182,7 @@ class Service_Prx597_Registry extends Service_Prx597_Base
 	public static function subs($user_id) { return self::$subs; }
 	public static function save_sub($user_id, $alias, $channel, $enabled) { self::$subs[$alias][$channel] = (bool) $enabled; }
 	public static function roles_of($user_id) { return ['login']; }
-	public static function user_allowed(array $event, array $roles) { return empty($event['denied']); }
+	public static function user_allowed(array $event, array $roles, $user_id = 1) { return empty($event['denied']); }
 	public static function channel_label($channel) { return isset(self::$channels[$channel]) ? self::$channels[$channel]['label'] : $channel; }
 	public static function channel_icon($channel) { return isset(self::$channels[$channel]) ? self::$channels[$channel]['icon'] : 'fas fa-bell'; }
 	public static function binding_channels() { return ['telegram', 'max']; }
@@ -232,6 +232,7 @@ class Log
 }
 
 // Настоящий контроллер API уведомлений.
+require dirname(__DIR__).'/application/classes/Prx/Gate.php';
 require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Controller/Prx597/Api.php';
 
 // ---------------------------------------------------------------- проверки

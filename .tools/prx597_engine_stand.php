@@ -111,11 +111,12 @@ class HTML
 	}
 }
 
-class ACL
+class Prx_Actor
 {
 	public static $abilities = ['prx601.admin' => TRUE];
 
-	public static function check(array $roles, $permission)
+	public function __construct($id, array $roles) {}
+	public function can($permission)
 	{
 		return ! empty(self::$abilities[$permission]);
 	}
@@ -407,6 +408,8 @@ class ORM
 	}
 }
 
+require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Notify/Unsubscribe.php';
+require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Notify/Inbox.php';
 require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Notify.php';
 
 check('kind_event: готовая задача', Service_Prx597_Notify::kind_event('job_done'), 'prx120.job.done');

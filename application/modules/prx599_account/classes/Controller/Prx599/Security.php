@@ -4,7 +4,7 @@
  * Аккаунт и безопасность (prx599): /account/security — TOTP, активные сессии,
  * журнал входов, «выйти везде». Только для вошедших.
  */
-class Controller_Prx599_Security extends Controller_Prx100_Base {
+class Controller_Prx599_Security extends Controller_Prx102_Base {
 
     protected function _uid()
     {

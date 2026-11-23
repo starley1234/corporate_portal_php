@@ -9,7 +9,7 @@
  * visitor_id ('u:<id>' у зарегистрированных, 'g:<ubid>' у гостей).
  * Опасные действия — в 2 клика (armed), window.confirm не используется.
  */
-class Controller_Prx595_Admin extends Controller_Prx100_Base {
+class Controller_Prx595_Admin extends Controller_Prx102_Base {
 
     public function before()
     {

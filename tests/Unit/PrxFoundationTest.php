@@ -260,7 +260,7 @@ class PrxFoundationTest extends TestCase
         $policy = new class extends Prx_Policy {
             protected const VIEW_ACL = 'prx999.view';
 
-            protected function scope(Prx_Actor $actor, array $row): bool
+            protected function scope(Prx_Principal $actor, array $row): bool
             {
                 return (int) ($row['organization_id'] ?? 0) === 9;
             }

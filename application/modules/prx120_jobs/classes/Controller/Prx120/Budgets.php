@@ -4,7 +4,7 @@
  * /prx120/budgets — бюджеты токенов: умолчания по ролям, кто сегодня ближе к
  * потолку, индивидуальные лимиты (выдать/снять). Право prx120.usage.admin.
  */
-class Controller_Prx120_Budgets extends Controller_Prx100_Base {
+class Controller_Prx120_Budgets extends Controller_Prx102_Base {
 
     public function before()
     {

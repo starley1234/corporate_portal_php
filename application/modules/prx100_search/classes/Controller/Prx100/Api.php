@@ -4,7 +4,7 @@
  * Глобальный поиск (prx100_search): GET /search/api?q=… — JSON-выдача для
  * выпадашки в шапке. Ошибки — ЦЕЛИКОМ в json {error} с причиной.
  */
-class Controller_Prx100_Api extends Controller_Prx100_Base {
+class Controller_Prx100_Api extends Controller_Prx102_Base {
 
     public function before()
     {

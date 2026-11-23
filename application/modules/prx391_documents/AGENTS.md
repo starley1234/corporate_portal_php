@@ -13,7 +13,7 @@
 |   Структура сервиса | 45 | 0,6 КБ |
 |   Публичные методы | 55 | 1,1 КБ |
 |   Правила данных | 71 | 0,5 КБ |
-|   Проверки | 79 | 0,1 КБ |
+|   Проверки | 79 | 0,2 КБ |
 <!-- context-index:end -->
 ## Состояние
 
@@ -79,4 +79,4 @@ MVP: регистрация из конверта prx390, карточка с р
 ## Проверки
 
 `python3 .tools/portal_check.py`, `bash .tools/php_check_all.sh`,
-`python3 -m pytest workers/tests/handlers/trial/test_docflow.py`.
+`python3 -m pytest workers/tests/handlers/prx390_intake/test_docflow.py`.

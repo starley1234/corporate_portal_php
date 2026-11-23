@@ -719,7 +719,7 @@ class Service_Prx597_Registry extends Service_Prx597_Base
 			$roles = self::roles_of($user_id);
 		}
 
-		if ( ! self::user_allowed($event, $roles))
+		if ( ! self::user_allowed($event, $roles, $user_id))
 		{
 			return [];
 		}
@@ -797,7 +797,7 @@ class Service_Prx597_Registry extends Service_Prx597_Base
 	 * Положено ли событие пользователю по ролям и правам.
 	 * Пустой список ролей события = «всем авторизованным».
 	 */
-	public static function user_allowed(array $event, array $roles)
+	public static function user_allowed(array $event, array $roles, $user_id = 1)
 	{
 		$allowed = self::_csv(Arr::get($event, 'roles', Arr::get($event, 'allowed_roles', 'login')));
 
@@ -812,9 +812,9 @@ class Service_Prx597_Registry extends Service_Prx597_Base
 
 		$ability = trim((string) Arr::get($event, 'ability', ''));
 
-		if ($ability !== '' AND class_exists('ACL'))
+		if ($ability !== '')
 		{
-			return (bool) ACL::check($roles, $ability);
+			return (new Prx_Actor((int) $user_id, $roles))->can($ability);
 		}
 
 		return TRUE;

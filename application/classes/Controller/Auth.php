@@ -16,7 +16,7 @@
  * попадает обратно на страницу, где увидел замочек «Сервис для
  * зарегистрированных». Referer остаётся запасным путём.
  */
-class Controller_Auth extends Controller_Prx100_Auth {
+class Controller_Auth extends Controller_Prx102_Auth {
 
     /**
      * Нормализация цели возврата: принимаем только локальный путь — без

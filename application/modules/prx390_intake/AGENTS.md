@@ -12,7 +12,7 @@
 |   Права | 38 | 0,2 КБ |
 |   Конвейер | 43 | 1,2 КБ |
 |   Настройки и данные | 60 | 1,0 КБ |
-|   Проверки | 72 | 0,1 КБ |
+|   Проверки | 72 | 0,2 КБ |
 <!-- context-index:end -->
 ## Состояние
 
@@ -55,7 +55,7 @@ prx212, канал `doc.normalize`, текст и событие `prx390.text.re
 API и регистрации использует `prx390_diag`; Python-этапы `doc.normalize`
 сопоставляются по `job_id`, `message_id`, `file_id`. В эти записи не включать
 имена файлов, текст, тело HTTP-ответа, адреса с секретами и значения токенов.
-Порядок сбора — `docs/systemd-сервис.md`, шаг 7.
+Порядок сбора — `docs/DEPLOY-SYSTEMD.md`, шаг 7.
 
 ## Настройки и данные
 
@@ -72,4 +72,4 @@ API и регистрации использует `prx390_diag`; Python-эта�
 ## Проверки
 
 `python3 .tools/portal_check.py`, `bash .tools/php_check_all.sh`,
-`python3 -m pytest workers/tests/handlers/trial/test_docflow.py`.
+`python3 -m pytest workers/tests/handlers/prx390_intake/test_docflow.py`.

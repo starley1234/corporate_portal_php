@@ -313,7 +313,7 @@ class Controller_Prx120_Api extends Controller {
             return FALSE;
         }
 
-        if ( ! hash_equals($token, trim((string) $given)))
+        if ( ! Prx_Gate::worker_request($this->request, TRUE, $token))
         {
             $this->_auth_fail('Токен воркера получен ('.$via.'), но не совпал с WORKER_API_TOKEN сайта. Сверьте значения посимвольно (длина на сайте: '.strlen($token).').');
             return FALSE;

@@ -2,7 +2,7 @@
 
 /**
  * 401 «нужен бесплатный аккаунт» — для JSON-API сервисов, которые работают
- * только с зарегистрированными (см. `application/classes/Gate.php`).
+ * только с зарегистрированными (см. `application/classes/Prx/Gate.php`).
  *
  * Почему отдельный класс, а не `HTTP_Exception::factory(401, …)`: у платформы
  * 401 не был объявлен, и заводской обработчик вернул бы HTML страницы ошибки.
@@ -27,7 +27,7 @@ class HTTP_Exception_401 extends Kohana_HTTP_Exception_403
 
     public function get_response()
     {
-        $page  = Gate::page_from_uri($this->request() ? (string) $this->request()->uri() : '');
+        $page  = Prx_Gate::page_from_uri($this->request() ? (string) $this->request()->uri() : '');
         $login = '/auth/login'.($page !== '' ? '?return_url='.rawurlencode($page) : '');
 
         return Response::factory()

@@ -93,7 +93,7 @@ public_html/assets/
 
 ## 2. Правила
 
-1. **Контроллер** (наследник `Controller_Prx100_Base`) задаёт `title`, стили,
+1. **Контроллер** (наследник `Controller_Prx102_Base`) задаёт `title`, стили,
    скрипты и меню; вьюха получает данные через `$this->template->content = View::factory('prx401/tasks/list', [...])`.
 2. **HMVC-виджеты**: чужие блоки вставляются через
    `Request::factory('prx118/widget/cards')->execute()` — модуль отдаёт готовый
@@ -127,7 +127,7 @@ public_html/assets/
 ## 3. Как добавить страницу модуля
 
 ```php
-class Controller_Prx401_Tasks extends Controller_Prx100_Base {
+class Controller_Prx401_Tasks extends Controller_Prx102_Base {
     public function before() {
         parent::before();
         $this->set_title('Задачи');

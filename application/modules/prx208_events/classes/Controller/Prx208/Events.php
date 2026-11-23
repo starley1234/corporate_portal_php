@@ -5,7 +5,7 @@
  *
  * Доступ — администратор (acl `prx208_events.*`). Журнал только читается:
  * событие публикует код (Event::publish), а не форма.
- * Формы подписок — POST + CSRF (Prx_PostGuard в Controller_Prx100_Base).
+ * Формы подписок — POST + CSRF (Prx_PostGuard в Controller_Prx102_Base).
  */
 class Controller_Prx208_Events extends Controller_Base {
 

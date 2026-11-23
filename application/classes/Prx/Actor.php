@@ -90,7 +90,7 @@ final class Prx_Actor implements Prx_Principal
             return FALSE;
         }
 
-        return ACL::check($this->roles, $ability);
+        return Prx_Acl::check($this->roles, $ability);
     }
 
     /** Бросает 403, если права нет. */

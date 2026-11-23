@@ -71,13 +71,13 @@ for path in (ROOT / 'application').rglob('*.php'):
         classes[name.lower()] = path
 
 # Пакет обработчика называется как модуль-владелец (handlers/prx395_document_extract/),
-# проба пера — handlers/trial/<модуль>/. Канал — модуль, импортированный в реестре
+# проба пера — handlers/<модуль>/. Канал — модуль, импортированный в реестре
 # handlers/__init__.py; остальные файлы пакета — его помощники без CHANNEL.
 handlers = ROOT / 'workers/prx_workers/handlers'
 channel_modules = {}  # путь модуля канала → имя импорта
-for imp in re.findall(r'^\s*from \.(trial\.)?(\w+) import ([\w, ]+)', (handlers / '__init__.py').read_text(), re.M):
-    package = ('trial/' if imp[0] else '') + imp[1]
-    for part in [part.strip() for part in imp[2].split(',') if part.strip()]:
+for imp in re.findall(r'^\s*from \.(\w+) import ([\w, ]+)' , (handlers / '__init__.py').read_text(), re.M):
+    package = imp[0]
+    for part in [part.strip() for part in imp[1].split(',') if part.strip()]:
         name = part.split(' as ')[0].strip()
         channel_modules[handlers / package / f'{name}.py'] = name
 channel_names = []
@@ -92,7 +92,7 @@ for path in (ROOT / 'workers/prx_workers').rglob('*.py'):
         if match:
             channel_names.append(match[1])
             parts = path.relative_to(handlers).parts
-            owner = parts[1] if parts[0] == 'trial' else parts[0]
+            owner = parts[0]
             check((ROOT / 'application/modules' / owner / 'config/prx_module.php').is_file(),
                   f'Пакет обработчика не называется как модуль-владелец: {path.relative_to(ROOT)}')
     elif handlers in path.parents and re.search(r'^CHANNEL = ', path.read_text(), re.M):
@@ -123,6 +123,10 @@ errors.extend(event_lint_errors(ROOT))
 from storage_lint import errors as storage_lint_errors  # noqa: E402
 
 errors.extend(storage_lint_errors(ROOT))
+
+from classes_lint import errors as classes_lint_errors  # noqa: E402
+
+errors.extend(classes_lint_errors(ROOT))
 
 if errors:
     print('\n'.join('FAIL: ' + item for item in errors))

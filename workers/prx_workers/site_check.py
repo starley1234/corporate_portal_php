@@ -12,7 +12,7 @@ import sys
 import httpx
 
 from . import site
-from .handlers import active_handlers, trial
+from .handlers import active_handlers, CONDITIONAL_CHANNELS, HEALTH_FLAG
 
 log = logging.getLogger("prx.site")
 
@@ -30,7 +30,7 @@ def targets(handlers) -> dict[str, tuple[str, str, str, str]]:
 async def check_site(token: str, *, legacy: bool | None, transport=None) -> int:
     """Проверить каждый канал с SITE: адрес, токен, ответ /health.
 
-    `legacy`: None — спросить у PHP, включена ли проба пера (trial.enabled через
+    `legacy`: None — спросить у PHP, включена ли проба пера (handlers.enabled через
     health document.extract); True/False — явный режим. Ничего не пишет в лог,
     кроме безопасного происхождения адреса.
     """
@@ -41,7 +41,7 @@ async def check_site(token: str, *, legacy: bool | None, transport=None) -> int:
         while index < len(queue):
             channel, (prefix, path, module, token_kind) = queue[index]
             index += 1
-            if channel in trial.CHANNELS and not legacy:
+            if channel in CONDITIONAL_CHANNELS and not legacy:
                 continue
             base, source = site.module_api_config(prefix, path)
             name = f"{channel}: {site.safe_origin(base)} ({source})"
@@ -63,8 +63,8 @@ async def check_site(token: str, *, legacy: bool | None, transport=None) -> int:
                             body = None
                         if isinstance(body, dict) and body.get("ok") is True and body.get("module") == module:
                             log.info("%s — OK, PHP принял токен", name)
-                            if legacy is None and isinstance(body.get(trial.HEALTH_FLAG), bool):
-                                legacy = body[trial.HEALTH_FLAG]
+                            if legacy is None and isinstance(body.get(HEALTH_FLAG), bool):
+                                legacy = body[HEALTH_FLAG]
                                 log.info("Пробные каналы (trial): %s", "включены" if legacy else "выключены")
                                 if legacy:
                                     queue.extend(targets(active_handlers(True)).items())

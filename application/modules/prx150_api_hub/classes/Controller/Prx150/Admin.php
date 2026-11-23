@@ -7,7 +7,7 @@
  * документация (как получить ключ и звать сервис). Полный ключ показывается
  * один раз после создания; в списке — только префикс.
  */
-class Controller_Prx150_Admin extends Controller_Prx100_Base
+class Controller_Prx150_Admin extends Controller_Prx102_Base
 {
     const PER_PAGE = 30;
 

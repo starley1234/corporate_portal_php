@@ -6,7 +6,7 @@
  * воркера, ошибки, автор задачи, параметры payload. Действия: отменить/прервать
  * (two-click), удалить завершённую (two-click). Право prx120.monitor (только admin).
  */
-class Controller_Prx120_Monitor extends Controller_Prx100_Base {
+class Controller_Prx120_Monitor extends Controller_Prx102_Base {
 
     public function before()
     {

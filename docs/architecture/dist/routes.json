@@ -12,78 +12,6 @@
       "file": "application/modules/cookie_consent/classes/Controller/CookieConsent.php"
     },
     {
-      "name": "prx100_dashboard",
-      "uri": "dashboard",
-      "regex": "",
-      "controller": "Prx100_Dashboard",
-      "action": "index",
-      "module": "prx100_platform",
-      "file": "application/modules/prx100_platform/classes/Controller/Prx100/Dashboard.php"
-    },
-    {
-      "name": "prx100_update_kick",
-      "uri": "update/kick/<token>",
-      "regex": "['token' => '[A-Za-z0-9._-]+']",
-      "controller": "Prx100_Update",
-      "action": "kick",
-      "module": "prx100_platform",
-      "file": "application/modules/prx100_platform/classes/Controller/Prx100/Update.php"
-    },
-    {
-      "name": "prx100_update",
-      "uri": "prx100/update(/<action>)",
-      "regex": "",
-      "controller": "Prx100_Update",
-      "action": "index",
-      "module": "prx100_platform",
-      "file": "application/modules/prx100_platform/classes/Controller/Prx100/Update.php"
-    },
-    {
-      "name": "prx100_cleanup",
-      "uri": "prx100/cleanup",
-      "regex": "",
-      "controller": "Prx100_Cleanup",
-      "action": "index",
-      "module": "prx100_platform",
-      "file": "application/modules/prx100_platform/classes/Controller/Prx100/Cleanup.php"
-    },
-    {
-      "name": "prx100_admin",
-      "uri": "admin",
-      "regex": "",
-      "controller": "Prx100_Admin",
-      "action": "index",
-      "module": "prx100_platform",
-      "file": "application/modules/prx100_platform/classes/Controller/Prx100/Admin.php"
-    },
-    {
-      "name": "prx100_admin_index",
-      "uri": "admin_index",
-      "regex": "",
-      "controller": "Prx100_Admin",
-      "action": "index",
-      "module": "prx100_platform",
-      "file": "application/modules/prx100_platform/classes/Controller/Prx100/Admin.php"
-    },
-    {
-      "name": "prx100_errors",
-      "uri": "prx100/errors",
-      "regex": "",
-      "controller": "Prx100_Errors",
-      "action": "index",
-      "module": "prx100_platform",
-      "file": "application/modules/prx100_platform/classes/Controller/Prx100/Errors.php"
-    },
-    {
-      "name": "prx100_logs",
-      "uri": "prx100/logs",
-      "regex": "",
-      "controller": "Prx100_Logs",
-      "action": "index",
-      "module": "prx100_platform",
-      "file": "application/modules/prx100_platform/classes/Controller/Prx100/Logs.php"
-    },
-    {
       "name": "prx100_search_api",
       "uri": "search/api",
       "regex": "",
@@ -118,6 +46,78 @@
       "action": "index",
       "module": "prx101_architecture",
       "file": "application/modules/prx101_architecture/classes/Controller/Prx101/Architecture.php"
+    },
+    {
+      "name": "prx100_dashboard",
+      "uri": "dashboard",
+      "regex": "",
+      "controller": "Prx103_Dashboard",
+      "action": "index",
+      "module": "prx103_platform",
+      "file": "application/modules/prx103_platform/classes/Controller/Prx103/Dashboard.php"
+    },
+    {
+      "name": "prx100_update_kick",
+      "uri": "update/kick/<token>",
+      "regex": "['token' => '[A-Za-z0-9._-]+']",
+      "controller": "Prx103_Update",
+      "action": "kick",
+      "module": "prx103_platform",
+      "file": "application/modules/prx103_platform/classes/Controller/Prx103/Update.php"
+    },
+    {
+      "name": "prx100_update",
+      "uri": "prx100/update(/<action>)",
+      "regex": "",
+      "controller": "Prx103_Update",
+      "action": "index",
+      "module": "prx103_platform",
+      "file": "application/modules/prx103_platform/classes/Controller/Prx103/Update.php"
+    },
+    {
+      "name": "prx100_cleanup",
+      "uri": "prx100/cleanup",
+      "regex": "",
+      "controller": "Prx103_Cleanup",
+      "action": "index",
+      "module": "prx103_platform",
+      "file": "application/modules/prx103_platform/classes/Controller/Prx103/Cleanup.php"
+    },
+    {
+      "name": "prx100_admin",
+      "uri": "admin",
+      "regex": "",
+      "controller": "Prx103_Admin",
+      "action": "index",
+      "module": "prx103_platform",
+      "file": "application/modules/prx103_platform/classes/Controller/Prx103/Admin.php"
+    },
+    {
+      "name": "prx100_admin_index",
+      "uri": "admin_index",
+      "regex": "",
+      "controller": "Prx103_Admin",
+      "action": "index",
+      "module": "prx103_platform",
+      "file": "application/modules/prx103_platform/classes/Controller/Prx103/Admin.php"
+    },
+    {
+      "name": "prx100_errors",
+      "uri": "prx100/errors",
+      "regex": "",
+      "controller": "Prx103_Errors",
+      "action": "index",
+      "module": "prx103_platform",
+      "file": "application/modules/prx103_platform/classes/Controller/Prx103/Errors.php"
+    },
+    {
+      "name": "prx100_logs",
+      "uri": "prx100/logs",
+      "regex": "",
+      "controller": "Prx103_Logs",
+      "action": "index",
+      "module": "prx103_platform",
+      "file": "application/modules/prx103_platform/classes/Controller/Prx103/Logs.php"
     },
     {
       "name": "prx110_catalog_group",

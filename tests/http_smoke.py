@@ -117,7 +117,7 @@ else:
     request('/inbox/scan', 404)
 for path in ['/replies', '/vlm-demo', '/vlm-demo/analyze',
              '/assets/js/prx398_vlm_demo.js', '/assets/vendor/pdfjs/pdf.min.mjs',
-             '/incoming_developments/index.html', '/archive/docflow/README.md', '/prx394/api/health']:
+             '/docs/design/index.html', '/archive/docflow/README.md', '/prx394/api/health']:
     request(path, 404)
 
 # Администратор может безопасно управлять DB-подписками; тест использует

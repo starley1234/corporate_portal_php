@@ -20,14 +20,21 @@ Browser → PHP/HMVC → application/config/modules.php
                                                     └─ embeddings → prx115
 ```
 
+## Граница процессов
+
+`services/` — внешние демоны и микросервисы (например, OCR); `workers/` —
+наш runtime и обработчики очереди по модулям-владельцам. См. [воркеры](WORKERS.md)
+и [окружение](ENVIRONMENT.md). Документ-контент остаётся в `docs/`, исполняемые
+инструменты архитектуры — в `.tools/architecture/`.
+
 ## Сохранённые платформенные и активные бизнес-модули
 
 | Модуль | Ответственность |
 |---|---|
 | `PostgreSQL`, `PostgreSQL_PDO` | Драйверы PostgreSQL (PDO — альтернативный, не подключён одновременно) |
 | `llm` | Конфигурация провайдеров, фасад Llm, модели и журнал запросов |
-| `prx100_base` | Auth/RBAC, общие модели, базовый контроллер, CLI пользователей |
-| `prx100_platform` | Администрирование, диагностика, scaffold, health и cleanup |
+| `prx102_core` | Auth/RBAC, общие модели, базовый контроллер, CLI пользователей |
+| `prx103_platform` | Администрирование, диагностика, scaffold, health и cleanup |
 | `prx100_search` | Агрегатор поисковых источников из манифестов |
 | `prx101_architecture` | Документация архитектуры из YAML: страница `/architecture`, JSON для агентов, проверки модели |
 | `prx110_catalog` | Каталог, меню, чипы, палитра и видимость модулей |
@@ -106,7 +113,7 @@ Browser → PHP/HMVC → application/config/modules.php
 `docs/architecture/dist/architecture.html` + `.json`. Модуль `prx101_architecture`
 отдаёт страницу после входа (право `prx101.view`) и JSON по
 `/architecture/data.json`; сборка не требует Node на production, потому что
-`dist/` коммитится. Подробности и формат вкладок — `docs/architecture/README.md`; движок — `docs/architecture/engine`.
+`dist/` коммитится. Подробности и формат вкладок — `docs/architecture/README.md`; движок — `.tools/architecture`.
 
 ## Границы безопасности
 

@@ -37,8 +37,7 @@ abstract class Controller_Prx39x_Api extends Controller_Prx39x_Base
             ], 403);
         }
 
-        $given = (string) $this->request->headers('x-worker-token');
-        if ( ! hash_equals($token, $given))
+        if ( ! Prx_Gate::worker_request($this->request, FALSE, $token, FALSE))
         {
             $this->_halt = TRUE;
 

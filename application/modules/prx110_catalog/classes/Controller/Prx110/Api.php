@@ -11,7 +11,7 @@
  * GET /prx110/api/favorites и POST /prx110/api/favorites — Избранное
  * текущего аккаунта. Изменения требуют CSRF и сверки текущего аккаунта.
  */
-class Controller_Prx110_Api extends Controller_Prx100_Base {
+class Controller_Prx110_Api extends Controller_Prx102_Base {
 
     public function before()
     {

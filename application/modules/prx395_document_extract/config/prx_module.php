@@ -2,7 +2,7 @@
 
 return [
     'id' => 395,
-    'slug' => 'document_extract',
+    'slug' => 'prx395_document_extract',
     'title' => 'Распознавание PDF',
     'href' => '/prx395_document_extract',
     'group' => 'ИИ-сервисы',

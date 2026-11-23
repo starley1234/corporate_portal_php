@@ -177,7 +177,7 @@ foreach (['TELEGRAM_BOT_TOKEN', 'TELEGRAM_BOT_NICK', 'MAX_BOT_TOKEN', 'MAX_BOT_N
 
 // Настоящая вьюха и POST-контроллер; формы проверяем и с активным ботом.
 class View { public static function factory($view, $vars = []) { return ''; } }
-class Controller_Prx100_Base
+class Controller_Prx102_Base
 {
     public $request; public $location; public static $allowed = TRUE;
     public function before() {}

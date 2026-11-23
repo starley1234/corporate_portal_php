@@ -5,7 +5,7 @@
  * токены по моделям/модулям/пользователям, время, ошибки для анализа.
  * Доступ — право prx120.usage.admin (config/acl.php).
  */
-class Controller_Prx120_Usage extends Controller_Prx100_Base {
+class Controller_Prx120_Usage extends Controller_Prx102_Base {
 
     public function before()
     {

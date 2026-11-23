@@ -223,7 +223,7 @@ class Service_Prx391_Documents
         {
             return TRUE;
         }
-        if ( ! ACL::check($actor['roles'] ?? [], 'prx391.view'))
+        if ( ! (new Prx_Actor(max(1, (int) ($actor['user_id'] ?? 0)), $actor['roles'] ?? []))->can('prx391.view'))
         {
             return FALSE;
         }
@@ -243,7 +243,7 @@ class Service_Prx391_Documents
             return TRUE;
         }
         $roles = $actor['roles'] ?? [];
-        return ACL::check($roles, 'prx391.view')
+        return (new Prx_Actor(max(1, (int) ($actor['user_id'] ?? 0)), $roles))->can('prx391.view')
             && (in_array('docflow_lawyer', $roles, TRUE)
                 || in_array('docflow_manager', $roles, TRUE)
                 || in_array('admin', $roles, TRUE));
@@ -261,7 +261,7 @@ class Service_Prx391_Documents
             return TRUE;
         }
 
-        return ACL::check($actor['roles'] ?? [], 'prx391.edit');
+        return (new Prx_Actor(max(1, (int) ($actor['user_id'] ?? 0)), $actor['roles'] ?? []))->can('prx391.edit');
     }
 
     protected static function _is_system(array $actor)

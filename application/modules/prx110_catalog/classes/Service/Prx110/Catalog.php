@@ -718,7 +718,7 @@ class Service_Prx110_Catalog {
             ['llm', 'LLM', '/llm_admin', 'fas fa-robot', 'Провайдеры и модели', 36],
             ['prx111_migrations', 'Миграции', '/migrate_pg', 'fas fa-database',
                 'Схема PostgreSQL: применить или откатить миграции модулей', 30],
-            ['prx100_platform', 'Логи платформы', '/prx100/logs', 'fas fa-terminal',
+            ['prx103_platform', 'Логи платформы', '/prx100/logs', 'fas fa-terminal',
                 'Журнал сайта и php-лог Kohana: по дням, уровням и подстроке; где что пишется', 31],
             ['prx208_events', 'События', '/prx208_events', 'fas fa-bolt',
                 'Журнал доменных событий и подписки: кто что опубликовал и кто слушает', 32],

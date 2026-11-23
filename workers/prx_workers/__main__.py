@@ -12,8 +12,8 @@ from pathlib import Path
 
 from .base import BaseWorker
 from .config import Config
-from .handlers import TRIAL_CHANNELS, active_handlers
-from .handlers.trial import enabled as trial_enabled
+from .handlers import CONDITIONAL_CHANNELS, active_handlers
+from .handlers import enabled as trial_enabled
 from .site_check import targets
 from .queue import make_queue
 from .site import module_api_config, safe_origin
@@ -171,7 +171,7 @@ def main() -> int:
     problems = config.validate()
     requested = set(config.channels)
     handlers = active_handlers()
-    unknown_channels = sorted(requested - handlers.keys() - TRIAL_CHANNELS)
+    unknown_channels = sorted(requested - handlers.keys() - CONDITIONAL_CHANNELS)
     if unknown_channels:
         problems.append("WORKER_CHANNELS: неизвестные каналы: " + ", ".join(unknown_channels)
                         + ". Уберите их или оставьте WORKER_CHANNELS пустым.")
@@ -180,7 +180,7 @@ def main() -> int:
             logging.error("Конфигурация: %s", p)
         return 2
 
-    if (not requested or requested & TRIAL_CHANNELS) and asyncio.run(trial_enabled(config.api_token)):
+    if (not requested or requested & CONDITIONAL_CHANNELS) and asyncio.run(trial_enabled(config.api_token)):
         handlers = active_handlers(True)
     disabled = requested - handlers.keys()
     if disabled:

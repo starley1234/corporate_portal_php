@@ -90,7 +90,7 @@
             <?php if (isset($style['file'])): ?>
                 <link rel="stylesheet" href="<?php echo HTML::chars($style['file']); ?>" <?php echo (isset($style['media']) ? 'media="'.HTML::chars($style['media']).'"' : ''); ?>>
             <?php elseif (isset($style['code'])): ?>
-                <?php /* design-audit: allow style — API add_inline_style() у Controller_Prx100_Base (сейчас никем не вызывается) */ ?>
+                <?php /* design-audit: allow style — API add_inline_style() у Controller_Prx102_Base (сейчас никем не вызывается) */ ?>
                 <style><?php echo $style['code']; ?></style>
             <?php endif; ?>
         <?php endforeach; ?>

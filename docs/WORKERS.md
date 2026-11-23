@@ -4,13 +4,15 @@
 <!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index docs/WORKERS.md --write. Руками не править. -->
 | Раздел | Строка | Размер |
 |---|---|---|
-|   Процесс воркера | 14 | 3,1 КБ |
-|     Распознавание документов | 48 | 0,9 КБ |
-|   Обслуживание и уведомления | 60 | 1,9 КБ |
-|   Приоритеты обзора Python (17.11.2026; пересмотрено 23.11.2026) | 89 | 1,8 КБ |
-|   Структура `workers/` | 108 | 3,6 КБ |
+|   Процесс воркера | 16 | 3,2 КБ |
+|     Распознавание документов | 50 | 0,9 КБ |
+|   Обслуживание и уведомления | 62 | 1,9 КБ |
+|   Приоритеты обзора Python (17.11.2026; пересмотрено 23.11.2026) | 91 | 1,8 КБ |
+|   Структура `workers/` | 110 | 3,4 КБ |
 |   Проверки | 156 | 0,4 КБ |
 <!-- context-index:end -->
+Граница `services/` и `workers/` описана в [архитектуре](ARCHITECTURE.md#граница-процессов).
+
 ## Процесс воркера
 
 `workers/prx_workers` — общий runtime: claim, heartbeat, progress,
@@ -27,7 +29,7 @@ cd workers && python3 -m prx_workers
 из корневого `.env`. `workers/.env` и переменные systemd могут их переопределить.
 Даже `pg`-воркер обращается к PHP по HTTP. `python -m prx_workers --check-site`
 проверяет адрес и токен без постановки задач. Подробности — в
-[инструкции для systemd](systemd-сервис.md). В браузере — относительные URL.
+[инструкции для systemd](DEPLOY-SYSTEMD.md). В браузере — относительные URL.
 
 | Канал | Что делает |
 |---|---|
@@ -47,7 +49,7 @@ cd workers && python3 -m prx_workers
 
 ### Распознавание документов
 
-`doc.normalize` и `doc.analyze` (пакет `handlers/trial/`) включаются только на
+`doc.normalize` и `doc.analyze` (пакеты `handlers/prx390_intake/` и `handlers/prx392_analysis/`) включаются только на
 тестовом стенде после раскомментирования общего блока в `application/bootstrap.php`.
 [Быстрая проверка в UI](QUICK-CHECK.md).
 
@@ -116,15 +118,13 @@ workers/
 │   ├── llm.py  providers.py  llmwatch.py  ocr_client.py  docflow_trace.py
 │   │           # общие клиенты без доменных знаний (ocr_client/trace — см. «Долг»)
 │   └── handlers/
-│       ├── __init__.py                 # реестр: HANDLERS, TRIAL_CHANNELS, active_handlers()
+│       ├── __init__.py                 # реестр: HANDLERS, CONDITIONAL_CHANNELS, enabled(), active_handlers()
 │       ├── prx120_jobs/                # echo, embeddings.index
 │       ├── llm/                        # llm.summarize
 │       ├── prx115_semantic/            # semantic.index
 │       ├── prx395_document_extract/    # handler, document_extract, ocr-помощники, pdf_probe
-│       └── trial/                      # проба пера: удаляется одним `rm -r`
-│           ├── __init__.py             # CHANNELS и enabled(): спросить у PHP, включена ли
-│           ├── prx390_intake/          # doc.normalize
-│           └── prx392_analysis/        # doc.analyze
+│       ├── prx390_intake/              # doc.normalize
+│       └── prx392_analysis/            # doc.analyze
 ├── mock/                              # мок-серверы LLM и эмбеддингов
 └── tests/                             # зеркалит: runtime/, handlers/<пакет>/, clients/, mock/
 ```
@@ -139,7 +139,7 @@ workers/
    или `prx390`, живёт в их пакете. Обработчик, которому нужен PHP, объявляет
    `SITE = (префикс env, путь API, модуль, чей токен)` — `--check-site` читает
    только его.
-3. Runtime не знает о пробе пера: `handlers/trial/enabled()` спрашивает PHP,
+3. Runtime не знает о пробе пера: `handlers.enabled()` спрашивает PHP,
    `__main__` лишь подмешивает trial-каналы, если ответ «включена».
 4. Тесты зеркалят структуру (`tests/runtime/`, `tests/handlers/<пакет>/`,
    `tests/clients/`, `tests/mock/`); тесты пробы пера лежат вместе с ней.

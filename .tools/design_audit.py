@@ -49,7 +49,7 @@ SHARED_VIEWS = ROOT / 'application/views'
 DONE = {
     'cookie_consent',
     'llm',
-    'prx100_platform',
+    'prx103_platform',
     'prx110_catalog',
     'prx111_migrations',
     'prx115_semantic',
@@ -135,7 +135,7 @@ RULES = {
 DARK_DONE = {
     'cookie_consent',
     'llm',
-    'prx100_platform',
+    'prx103_platform',
     'prx110_catalog',
     'prx111_migrations',
     'prx115_semantic',

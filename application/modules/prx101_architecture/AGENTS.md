@@ -33,7 +33,7 @@
 
 ```bash
 make architecture
-node docs/architecture/engine/scripts/arch.mjs check --dir docs/architecture --strict
+node .tools/architecture/scripts/arch.mjs check --dir docs/architecture --strict
 ```
 
 ## Состояние

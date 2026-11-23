@@ -11,9 +11,9 @@ return [
     'pagination' => MODPATH.'pagination',
     'PostgreSQL' => APPPATH.'modules/PostgreSQL',
     'llm' => APPPATH.'modules/llm',
-    'prx100_base' => APPPATH.'modules/prx100_base',
+    'prx102_core' => APPPATH.'modules/prx102_core',
     'prx111_migrations' => APPPATH.'modules/prx111_migrations',
-    'prx100_platform' => APPPATH.'modules/prx100_platform',
+    'prx103_platform' => APPPATH.'modules/prx103_platform',
     'prx100_search' => APPPATH.'modules/prx100_search',
     // Документация архитектуры: YAML -> страница и JSON (make architecture).
     'prx101_architecture' => APPPATH.'modules/prx101_architecture',

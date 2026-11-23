@@ -77,7 +77,7 @@ else
     msg ".env уже существует — пропускаю"
 fi
 
-# Первичный администратор. По умолчанию его создаёт миграция prx110_004
+# Первичный администратор. По умолчанию его создаёт миграция prx102_004
 # (admin/admin) — только на пустой базе.
 # Для production: PRX_DEFAULT_ADMIN=0, затем make seed с сильным паролем.
 case "$(env_value .env PRX_DEFAULT_ADMIN)" in
@@ -88,7 +88,7 @@ case "$(env_value .env PRX_DEFAULT_ADMIN)" in
         fi
         ;;
     *)
-        msg "Первичный вход: admin / admin (миграция prx110_004). Смените пароль после входа"
+        msg "Первичный вход: admin / admin (миграция prx102_004). Смените пароль после входа"
         ;;
 esac
 

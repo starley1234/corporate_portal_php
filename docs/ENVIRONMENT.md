@@ -1,5 +1,7 @@
 # Окружение PRX
 
+Граница внешних сервисов и обработчиков очереди — в [архитектуре](ARCHITECTURE.md#граница-процессов).
+
 ## Требования
 PHP 8.4 CLI/FPM с pgsql, pdo_pgsql, mbstring, curl, openssl, JSON, session;
 PostgreSQL 16+ (Docker: 17 + pgvector), Python 3.11+, Composer 2.

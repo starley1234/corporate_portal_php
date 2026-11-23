@@ -16,7 +16,7 @@
  * Всё остальное — 403. Исключения только для входящих вебхуков с собственной
  * подписью: `config/post_guard.php`, ключ `webhooks`.
  *
- * Контроллеру ничего не нужно: `Controller_Prx100_Base::before()` вызывает
+ * Контроллеру ничего не нужно: `Controller_Prx102_Base::before()` вызывает
  * `Prx_PostGuard::assert_safe()`. Токен в форму — `Security::token()`.
  */
 final class Prx_PostGuard

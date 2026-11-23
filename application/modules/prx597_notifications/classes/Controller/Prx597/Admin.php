@@ -19,7 +19,7 @@
  * Опасные действия (чистка, сброс счётчиков, повтор DLQ) — двухшаговые:
  * кнопка сначала «взводится» (data-prx-arm, app.js), повторный клик выполняет.
  */
-class Controller_Prx597_Admin extends Controller_Prx100_Base
+class Controller_Prx597_Admin extends Controller_Prx102_Base
 {
 	/** Вкладки управления. */
 	const TABS = ['summary', 'queue', 'message', 'events', 'templates', 'channels', 'limits', 'journal'];

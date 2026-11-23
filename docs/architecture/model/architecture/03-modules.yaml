@@ -8,8 +8,8 @@ overview:
     - scheme:
         size: [1160, 520]
         nodes:
-          - { id: core, at: [160, 250, 200], label: prx100_base, sub: "Auth, RBAC, база", kind: core, info: "{portal}" }
-          - { id: platform, at: [420, 110, 200], label: prx100_platform, sub: админ и диагностика, kind: core }
+          - { id: core, at: [160, 250, 200], label: prx102_core, sub: "Auth, RBAC, база", kind: core, info: "{portal}" }
+          - { id: platform, at: [420, 110, 200], label: prx103_platform, sub: админ и диагностика, kind: core }
           - { id: catalog, at: [420, 230, 200], label: prx110_catalog, sub: меню и видимость, kind: core, info: "{catalog}" }
           - { id: migrations, at: [420, 350, 200], label: prx111_migrations, sub: схема БД, kind: data, info: "{migrations}" }
           - { id: events, at: [700, 90, 200], label: prx208 EventBus, sub: события, kind: module, info: "{events}" }
@@ -42,7 +42,7 @@ overview:
         - title: Ядро
           text: Auth, RBAC, каталог, миграции и общий контроллер.
           color: "#f59e0b"
-          chips: [prx100_base, prx100_platform, prx110_catalog, prx111_migrations]
+          chips: [prx102_core, prx103_platform, prx110_catalog, prx111_migrations]
         - title: Данные и связи
           text: Файлы, события, очередь и уведомления — общие контракты, а не копии в каждом модуле.
           color: "#10b981"
@@ -68,7 +68,7 @@ detail:
         head: [Слой, Модули, Ответственность]
         rows:
           - - Ядро
-            - prx100_base, prx100_platform, prx100_search
+            - prx102_core, prx103_platform, prx100_search
             - Auth, RBAC, общий контроллер, диагностика, глобальный поиск
           - - Каталог и схема
             - prx110_catalog, prx111_migrations, prx218_module_manager
