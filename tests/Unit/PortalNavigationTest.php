@@ -26,7 +26,7 @@ class PortalNavigationTest extends TestCase
         $items = Service_Prx110_Catalog::search_json($admin)['items'];
         $hrefs = array_column($items, 'href');
         foreach ([
-            '/architecture', '/design-lab', '/prx560', '/employee', '/prx597', '/account/security', '/document-extract',
+            '/architecture', '/prx560', '/employee', '/prx597', '/account/security', '/document-extract',
         ] as $href) {
             $this->assertContains($href, $hrefs, $href);
         }
@@ -52,7 +52,7 @@ class PortalNavigationTest extends TestCase
         $guest_hrefs = array_column(Service_Prx110_Catalog::search_json($guest)['items'], 'href');
         $this->assertNotContains('/employee', $guest_hrefs);
         $this->assertNotContains('/prx560', $guest_hrefs);
-        $this->assertContains('/design-lab', $guest_hrefs);
+        $this->assertSame([], $guest_hrefs);
     }
 
     public function test_catalog_passes_only_local_navigation_aliases(): void

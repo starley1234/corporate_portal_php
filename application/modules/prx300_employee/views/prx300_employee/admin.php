@@ -10,7 +10,7 @@
         ],
         'lead' => 'Организации, площадки и иерархия подразделений. HR-пользователь видит и изменяет только организацию своего сопоставленного сотрудника; администратор портала — все.',
     ]); ?>
-    <?php echo View::factory('prx300_employee/_flash', ['flash' => $flash]); ?>
+    <?php echo View::factory('partials/flash', ['flash' => $flash]); ?>
 
     <div class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <?php foreach ([

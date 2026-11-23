@@ -8,6 +8,7 @@
  * очередь и правила доступа.
  */
 return [
+    'acl' => 'prx101.view',
     'id'        => 101,
     'slug'      => 'prx101_architecture',
     'title'     => 'Архитектура',

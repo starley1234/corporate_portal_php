@@ -60,29 +60,6 @@ request('/prx595/admin', 403)
 request('/about', 200)
 request('/privacy', 200)
 request('/terms', 200)
-design_cookies = {cookie.name for cookie in jar}
-design_lab = request('/design-lab?company=yellow', 200)
-assert 'Выберите характер корпоративного портала PRX' in design_lab
-assert 'data-company-accent="yellow"' in design_lab
-for slug in ['corporate', 'industrial', 'swiss', 'product', 'editorial', 'command', 'sample-classic', 'sample-compact', 'sample-operations', 'required-design-sample', 'sidebar-navigation']:
-    variant = request(f'/design-lab/{slug}?theme=dark&company=orange', 200)
-    assert re.search(r'<html[^>]+data-theme="dark"', variant), slug
-    assert 'data-company-accent="orange"' in variant, slug
-    assert f'data-variant="{slug}"' in variant, slug
-    assert 'Добрый день, Анна. Всё важное для работы — в одном месте.' in variant, slug
-    assert '<link' not in variant, slug
-    if slug in ('required-design-sample', 'sidebar-navigation'):
-        assert 'id="dl-icon-home"' in variant, slug
-        assert variant.count('class="dl-icon"') >= 40, slug
-        assert 'fontawesome' not in variant.lower(), slug
-    if slug == 'sidebar-navigation':
-        assert variant.index('class="dl-context-nav"') < variant.index('class="dl-favorites-nav"')
-        assert 'class="dl-page-tools"' in variant
-        assert '<header class="dl-topbar">' not in variant
-for removed_slug in ['aurora', 'sample-workbench', 'sample-reading']:
-    request(f'/design-lab/{removed_slug}', 404)
-request('/design-lab/not-a-design', 404)
-assert {cookie.name for cookie in jar} == design_cookies, 'Design lab must not create a session cookie'
 request('/vat', 404)
 request('/graph3d', 404)
 request('/auth/login', 403, {'username': 'admin', 'password': 'invalid'})
@@ -249,10 +226,6 @@ json.loads(request('/prx110/api/favorites', 409, {'csrf': nav_csrf, 'account_id[
 json.loads(request('/prx110/api/favorites', 422, {'csrf': nav_csrf, 'account_id': account_id, 'href': '//evil.test', 'pinned': '1'}))
 json.loads(request('/prx110/api/favorites', 422, {'csrf': nav_csrf, 'account_id': account_id, 'href': '/employee', 'pinned': 'invalid'}))
 json.loads(request('/prx110/api/favorites', 422, {'csrf': nav_csrf, 'account_id': account_id, 'href': '/employee', 'pinned[]': '1'}))
-json.loads(request('/prx110/api/favorites_import', 405))
-json.loads(request('/prx110/api/favorites_import', 403, {'account_id': account_id, 'hrefs': '["/employee"]'}))
-json.loads(request('/prx110/api/favorites_import', 422, {'csrf': nav_csrf, 'account_id': account_id, 'hrefs': '{"href":"/employee"}'}))
-json.loads(request('/prx110/api/favorites_import', 422, {'csrf': nav_csrf, 'account_id': account_id, 'hrefs': json.dumps(['/inbox'] * 101)}))
 assert json.loads(request('/prx110/api/favorites?user_id=' + str(account_id + 1), 200)) == favorites
 
 # Реальное сохранение и первый HTML без JS. Если записи не было, удаляем её
@@ -290,7 +263,7 @@ json.loads(request('/search/api?q=test', 200))
 catalog = json.loads(request('/prx110/api/catalog', 200))
 assert catalog['user_id'] == account_id, 'Catalog must identify the session account for stale tabs'
 catalog_hrefs = {item['href'] for item in catalog['items']}
-assert {'/architecture', '/design-lab', '/prx560', '/employee', '/prx597', '/account/security', '/document-extract'} <= catalog_hrefs
+assert {'/architecture', '/prx560', '/employee', '/prx597', '/account/security', '/document-extract'} <= catalog_hrefs
 assert not legacy or legacy_paths <= catalog_hrefs
 assert archived_paths.isdisjoint(catalog_hrefs)
 assert archived_paths.isdisjoint(favorite_hrefs)

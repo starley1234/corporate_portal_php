@@ -32,15 +32,6 @@ function makeServer(initial = []) {
             const body = new URLSearchParams(options.body);
             assert.equal(body.get('csrf'), 'csrf-test');
             if (Number(body.get('account_id')) !== server.userId) return response({ error: 'Аккаунт изменился' }, 409);
-            if (url.endsWith('favorites_import')) {
-                let added = 0, skipped = 0;
-                for (const href of [...new Set(JSON.parse(body.get('hrefs')))]) {
-                    const item = catalog.items.find(it => it.href === href);
-                    if (!item) { skipped++; continue; }
-                    if (!server.items.some(it => it.href === href)) { server.items.push(item); added++; }
-                }
-                return response({ user_id: server.userId, items: server.items, added, skipped });
-            }
             const href = body.get('href');
             if (body.get('pinned') === '1') {
                 const item = catalog.items.find(it => it.href === href);
@@ -54,20 +45,18 @@ function makeServer(initial = []) {
     return server;
 }
 
-async function page({ path = '/inbox', initial = [], legacy = null, card = '', server = makeServer(initial), storageBlocked = false } = {}) {
+async function page({ path = '/inbox', initial = [], card = '', server = makeServer(initial), storageBlocked = false } = {}) {
     const rows = initial.map(item => `<li class="group relative"><a class="sidebar-item${item.active ? ' is-active' : ''}" href="${attr(item.href)}" data-search="${attr(item.title.toLowerCase())}">${attr(item.title)}</a><button class="nav-pin" data-nav-pin="${attr(item.href)}" aria-pressed="true">★</button></li>`).join('');
     const dom = new JSDOM(`<!doctype html><html><body>
         <aside id="sidebar" data-nav-status="ready" data-nav-user-id="7" data-nav-csrf="csrf-test" data-nav-items="${attr(JSON.stringify(initial))}">
             <input id="nav-search"><button id="nav-palette-open">Все</button>
             <nav id="sidebar-nav"><div class="sidebar-group" data-nav-group="pinned">
                 <div>Избранное</div><ul data-nav-pinned-list>${rows || '<li data-nav-pinned-empty>Добавляйте сервисы звёздочкой в каталоге</li>'}</ul>
-                <div id="nav-legacy-import" class="hidden"><button data-nav-import>Перенести</button><button data-nav-import-dismiss>Не сейчас</button></div>
                 <div id="nav-favorite-status" class="hidden" role="status"></div>
             </div><div class="sidebar-group"><a class="sidebar-item" href="/services">Все сервисы</a></div></nav>
         </aside>${card}
     </body></html>`, { url: 'https://portal.test' + path, runScripts: 'outside-only', pretendToBeVisual: true });
     const { window } = dom;
-    if (legacy) window.localStorage.setItem('prx.nav.v1', JSON.stringify(legacy));
     if (storageBlocked) Object.defineProperty(window, 'localStorage', { value: {
         getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); },
     } });
@@ -142,32 +131,6 @@ test('ошибка сохранения не выдаётся за успех и
     assert.equal(p.doc.querySelector('.nav-pin-card').getAttribute('aria-pressed'), 'false');
     assert.match(p.doc.getElementById('nav-favorite-status').textContent, /Не удалось подтвердить/);
     assert.deepEqual(p.server.items, []);
-    p.dom.window.close();
-});
-
-test('старые браузерные звёзды не импортируются без согласия и не заменяют данные аккаунта', async () => {
-    const legacy = { pinned: ['/inbox', '/prx560'], hidden: [], recents: [] };
-    const p = await page({ initial: [catalog.items[1]], legacy });
-    assert.equal(p.server.calls.length, 0);
-    assert.ok(!p.doc.getElementById('nav-legacy-import').classList.contains('hidden'));
-    assert.equal(p.doc.querySelector('[data-nav-group="pinned"] a[href="/inbox"]'), null);
-    click(p.window, p.doc.querySelector('[data-nav-import]'));
-    await tick();
-    assert.deepEqual(p.server.items.map(it => it.href), ['/documents', '/inbox']);
-    assert.ok(p.doc.querySelector('a[href="/inbox"]'));
-    assert.ok(p.doc.getElementById('nav-legacy-import').classList.contains('hidden'));
-    assert.deepEqual(JSON.parse(p.window.localStorage.getItem('prx.nav.v1')), legacy, 'старый список может принадлежать и другому пользователю');
-    assert.equal(p.window.localStorage.getItem('prx.nav.import.done.7'), '1');
-    p.dom.window.close();
-});
-
-test('«не сейчас» не отправляет и не удаляет браузерные данные', async () => {
-    const legacy = { pinned: ['/inbox'] };
-    const p = await page({ legacy });
-    click(p.window, p.doc.querySelector('[data-nav-import-dismiss]'));
-    assert.equal(p.server.calls.length, 0);
-    assert.deepEqual(JSON.parse(p.window.localStorage.getItem('prx.nav.v1')), legacy);
-    assert.equal(p.window.sessionStorage.getItem('prx.nav.import.later.7'), '1');
     p.dom.window.close();
 });
 

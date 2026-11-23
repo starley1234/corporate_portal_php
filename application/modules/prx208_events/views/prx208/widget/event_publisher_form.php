@@ -17,6 +17,7 @@
     <?php endif; ?>
 
     <form action="<?php echo URL::site('prx208_events/widget/event_publisher_form'); ?>" method="post" class="space-y-4">
+        <input type="hidden" name="csrf" value="<?php echo HTML::chars(Security::token()); ?>">
         <div>
             <label for="event_name" class="prx-label">
                 <?php echo __('Event Name'); ?> <span class="text-rose-500">*</span>

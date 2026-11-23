@@ -7,7 +7,7 @@
         'actions' => [['label' => 'Скачать шаблон CSV', 'href' => '/prx300/admin/import_template', 'icon' => 'fa-download', 'role' => 'secondary']],
         'lead' => 'Сначала пакет только проверяется. Применение — отдельным действием и одной транзакцией: частично применённого импорта не будет.',
     ]); ?>
-    <?php echo View::factory('prx300_employee/_flash', ['flash' => $flash]); ?>
+    <?php echo View::factory('partials/flash', ['flash' => $flash]); ?>
 
     <div class="mt-6 gap-6 space-y-6 lg:grid lg:grid-cols-3 lg:items-start lg:space-y-0">
         <section class="prx-card">

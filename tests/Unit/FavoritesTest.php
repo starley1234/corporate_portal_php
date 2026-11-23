@@ -72,24 +72,6 @@ class FavoritesTest extends TestCase
         });
     }
 
-    public function test_explicit_import_merges_only_accessible_unique_entries(): void
-    {
-        $ctx = $this->login_context();
-        $this->with_users(function ($first, $second) use ($ctx) {
-            Service_Prx110_Favorites::set($first, '/prx597', TRUE, $ctx);
-            $result = Service_Prx110_Favorites::import($first,
-                ['/employee', '/prx560', '//evil.test', '/prx597', '/employee'], $ctx);
-            $this->assertSame(['added' => 1, 'skipped' => 2], $result);
-            $this->assertSame(['/prx597', '/employee'], array_column(Service_Prx110_Favorites::items($first, $ctx), 'href'));
-            $this->assertSame([], Service_Prx110_Favorites::items($second, $ctx));
-            $this->assertSame(['added' => 0, 'skipped' => 0], Service_Prx110_Favorites::import($first, ['/employee'], $ctx));
-            $rejected = FALSE;
-            try { Service_Prx110_Favorites::import($first, array_fill(0, 101, '/employee'), $ctx); }
-            catch (InvalidArgumentException $e) { $rejected = TRUE; }
-            $this->assertTrue($rejected);
-        });
-    }
-
     /**
      * @runInSeparateProcess
      * @preserveGlobalState disabled
@@ -104,7 +86,7 @@ class FavoritesTest extends TestCase
             $this->with_users(function ($first) {
                 DB::query(Database::UPDATE, "INSERT INTO roles_users (user_id, role_id) SELECT :uid, id FROM roles WHERE name = 'login'")
                     ->param(':uid', $first)->execute();
-                $this->assertTrue(Service_Prx110_Favorites::set($first, '/design-lab', TRUE, $this->login_context()));
+                $this->assertTrue(Service_Prx110_Favorites::set($first, '/architecture', TRUE, $this->login_context()));
                 $session = Session::instance();
                 $original = $session->as_array();
                 try {
@@ -115,7 +97,7 @@ class FavoritesTest extends TestCase
                         $session->set(Kohana::$config->load('auth.session_key'), $user);
                         $response = Request::factory($uri)->execute();
                         $this->assertSame($expected, $response->status(), $uri);
-                        $this->assertStringNotContainsString('href="/design-lab"', $response->body());
+                        $this->assertStringNotContainsString('href="/architecture"', $response->body());
                         if ($expected === 401) $this->assertSame('auth', json_decode($response->body(), TRUE)['error'] ?? NULL);
                     }
                 } finally {

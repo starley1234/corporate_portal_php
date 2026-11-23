@@ -54,14 +54,23 @@ abstract class Controller_Prx100_Base extends Controller {
     protected $_current_user = NULL;
 
     /**
-     * @var  array  Массив имен ролей текущего авторизованного пользователя.
+     * @var array Массив имен ролей текущего авторизованного пользователя.
      */
     protected $_current_user_roles = [];
+
+    /** @var Prx_Actor|null Серверный контекст доступа (создаётся по требованию). */
+    protected $_actor = NULL;
 
     public function before()
     {
         parent::before();
-      
+
+        // CSRF: одно правило на всё приложение (Prx_PostGuard). Формы и AJAX
+        // передают `csrf` из Security::token(), машинные API — заголовок
+        // Authorization/X-Worker-Token, вебхуки — config/post_guard.php.
+        // Проверка до любых побочных эффектов запроса.
+        Prx_PostGuard::assert_safe($this->request);
+
 		// Controller_Robotprotection::check_protection();
       
 		$site_config = Kohana::$config->load('site_config');
@@ -498,6 +507,42 @@ abstract class Controller_Prx100_Base extends Controller {
         //$this->response->body(json_encode($response_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
     }
 	
+    /**
+     * Серверный контекст доступа (Prx_Actor): кто действует, с какими ролями
+     * и в каком оргконтексте. Единственный источник actor для сервисов.
+     */
+    public function actor()
+    {
+        if ($this->_actor !== NULL)
+        {
+            return $this->_actor;
+        }
+
+        if ( ! $this->_current_user)
+        {
+            return $this->_actor = Prx_Actor::guest();
+        }
+
+        $org = [];
+        if (class_exists('Service_Prx300_Directory'))
+        {
+            try
+            {
+                $org = (array) Service_Prx300_Directory::context_for_user((int) $this->_current_user->id);
+            }
+            catch (Throwable $e)
+            {
+                Kohana::$log->add(Log::WARNING, 'actor: org context: :e', [':e' => $e->getMessage()]);
+            }
+        }
+
+        return $this->_actor = new Prx_Actor(
+            (int) $this->_current_user->id,
+            $this->_current_user_roles,
+            is_array($org) ? $org : []
+        );
+    }
+
     /**
      * Главный метод проверки прав в системе (Единообразно)
      * 

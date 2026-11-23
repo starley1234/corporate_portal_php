@@ -3,8 +3,6 @@
 /** Персональные закладки. Метаданные и видимость всегда берутся из каталога. */
 class Service_Prx110_Favorites
 {
-    const IMPORT_LIMIT = 100;
-
     /** Текущие видимые закладки пользователя в порядке закрепления. */
     public static function items($user_id, $ctx = NULL)
     {
@@ -50,53 +48,6 @@ class Service_Prx110_Favorites
                 ->where('href', '=', $href)->execute();
         }
         return TRUE;
-    }
-
-    /**
-     * По явному выбору пользователя объединить старые браузерные адреса с
-     * аккаунтом. Один INSERT атомарен; недоступные адреса не импортируются.
-     */
-    public static function import($user_id, array $hrefs, $ctx = NULL)
-    {
-        $user_id = (int) $user_id;
-        if ($user_id <= 0 OR count($hrefs) > self::IMPORT_LIMIT)
-        {
-            throw new InvalidArgumentException('Некорректный список Избранного');
-        }
-
-        $catalog = self::catalog_map($ctx);
-        $valid = [];
-        $seen = [];
-        $skipped = 0;
-        foreach ($hrefs as $value)
-        {
-            $href = is_string($value) ? $value : '';
-            if (isset($seen[$href])) continue;
-            $seen[$href] = TRUE;
-            if ( ! self::valid_href($href) OR ! isset($catalog[$href]))
-            {
-                $skipped++;
-                continue;
-            }
-            $valid[] = $href;
-        }
-
-        $added = 0;
-        if ($valid)
-        {
-            $values = [];
-            $params = [':uid' => $user_id];
-            foreach ($valid as $i => $href)
-            {
-                $key = ':href'.$i;
-                $values[] = '(:uid, '.$key.')';
-                $params[$key] = $href;
-            }
-            $added = (int) DB::query(Database::UPDATE,
-                'INSERT INTO prx_110_favorites (user_id, href) VALUES '.implode(', ', $values)
-                .' ON CONFLICT (user_id, href) DO NOTHING')->parameters($params)->execute();
-        }
-        return ['added' => $added, 'skipped' => $skipped];
     }
 
     /** Разметка активной закладки учитывает вложенные страницы и nav_paths. */

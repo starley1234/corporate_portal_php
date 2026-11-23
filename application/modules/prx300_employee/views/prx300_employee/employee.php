@@ -7,7 +7,7 @@
         'actions' => [['label' => 'К списку', 'href' => '/prx300/admin/employees', 'icon' => 'fa-arrow-left', 'role' => 'secondary']],
         'lead' => 'Кадровый профиль отделён от Auth: сопоставление с аккаунтом и внешние идентификаторы управляются отдельными контрактами справа.',
     ]); ?>
-    <?php echo View::factory('prx300_employee/_flash', ['flash' => $flash]); ?>
+    <?php echo View::factory('partials/flash', ['flash' => $flash]); ?>
 
     <div class="mt-6 gap-6 space-y-6 xl:grid xl:grid-cols-3 xl:items-start xl:space-y-0">
         <form method="post" action="/prx300/admin/employee_save/<?php echo (int) $employee['id']; ?>" class="prx-card xl:col-span-2">

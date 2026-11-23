@@ -9,7 +9,7 @@
  *   поведение  PRX.run, PRX.confirm, data-prx-arm, data-prx-copy … → public_html/assets/js/app.js
  *   шапка      partials/page_header
  *   рецепты    docs/DESIGN-SYSTEM.md — агенту читать его, а не этот файл (73 КБ разметки);
- *   план       docs/PLAN-2026-10-20-design.md — перевод модулей на эталон.
+ *   правила    docs/DESIGN-SYSTEM.md — единственная рабочая дизайн-система.
  * Скрипт внизу — только демонстрация (имитация воркера, «Тест ошибки»).
  *
  * СТАНДАРТ ЦВЕТОВЫХ РОЛЕЙ КНОПОК И ДЕЙСТВИЙ (UI SEMANTICS):

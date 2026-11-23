@@ -12,6 +12,7 @@
 
     <div class="prx-card sm:p-8">
         <form id="moduleEditForm" method="POST" action="<?php echo Route::url('prx218_module_manager_admin', ['controller' => 'index', 'action' => 'edit', 'id' => $module->id]); ?>">
+            <input type="hidden" name="csrf" value="<?php echo HTML::chars(Security::token()); ?>">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- Display Name -->
                 <div>

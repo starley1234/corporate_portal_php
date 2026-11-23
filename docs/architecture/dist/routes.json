@@ -1,0 +1,789 @@
+{
+  "ok": true,
+  "count": 87,
+  "routes": [
+    {
+      "name": "cookie_consent_close",
+      "uri": "cookie_consent/close",
+      "regex": "",
+      "controller": "CookieConsent",
+      "action": "close",
+      "module": "cookie_consent",
+      "file": "application/modules/cookie_consent/classes/Controller/CookieConsent.php"
+    },
+    {
+      "name": "prx100_dashboard",
+      "uri": "dashboard",
+      "regex": "",
+      "controller": "Prx100_Dashboard",
+      "action": "index",
+      "module": "prx100_platform",
+      "file": "application/modules/prx100_platform/classes/Controller/Prx100/Dashboard.php"
+    },
+    {
+      "name": "prx100_update_kick",
+      "uri": "update/kick/<token>",
+      "regex": "['token' => '[A-Za-z0-9._-]+']",
+      "controller": "Prx100_Update",
+      "action": "kick",
+      "module": "prx100_platform",
+      "file": "application/modules/prx100_platform/classes/Controller/Prx100/Update.php"
+    },
+    {
+      "name": "prx100_update",
+      "uri": "prx100/update(/<action>)",
+      "regex": "",
+      "controller": "Prx100_Update",
+      "action": "index",
+      "module": "prx100_platform",
+      "file": "application/modules/prx100_platform/classes/Controller/Prx100/Update.php"
+    },
+    {
+      "name": "prx100_cleanup",
+      "uri": "prx100/cleanup",
+      "regex": "",
+      "controller": "Prx100_Cleanup",
+      "action": "index",
+      "module": "prx100_platform",
+      "file": "application/modules/prx100_platform/classes/Controller/Prx100/Cleanup.php"
+    },
+    {
+      "name": "prx100_admin",
+      "uri": "admin",
+      "regex": "",
+      "controller": "Prx100_Admin",
+      "action": "index",
+      "module": "prx100_platform",
+      "file": "application/modules/prx100_platform/classes/Controller/Prx100/Admin.php"
+    },
+    {
+      "name": "prx100_admin_index",
+      "uri": "admin_index",
+      "regex": "",
+      "controller": "Prx100_Admin",
+      "action": "index",
+      "module": "prx100_platform",
+      "file": "application/modules/prx100_platform/classes/Controller/Prx100/Admin.php"
+    },
+    {
+      "name": "prx100_errors",
+      "uri": "prx100/errors",
+      "regex": "",
+      "controller": "Prx100_Errors",
+      "action": "index",
+      "module": "prx100_platform",
+      "file": "application/modules/prx100_platform/classes/Controller/Prx100/Errors.php"
+    },
+    {
+      "name": "prx100_search_api",
+      "uri": "search/api",
+      "regex": "",
+      "controller": "Prx100_Api",
+      "action": "search",
+      "module": "prx100_search",
+      "file": "application/modules/prx100_search/classes/Controller/Prx100/Api.php"
+    },
+    {
+      "name": "prx100_search_page",
+      "uri": "search",
+      "regex": "",
+      "controller": "Prx100_Search",
+      "action": "index",
+      "module": "prx100_search",
+      "file": "application/modules/prx100_search/classes/Controller/Prx100/Search.php"
+    },
+    {
+      "name": "prx101_architecture_data",
+      "uri": "architecture/data.json",
+      "regex": "",
+      "controller": "Prx101_Architecture",
+      "action": "data",
+      "module": "prx101_architecture",
+      "file": "application/modules/prx101_architecture/classes/Controller/Prx101/Architecture.php"
+    },
+    {
+      "name": "prx101_architecture",
+      "uri": "architecture",
+      "regex": "",
+      "controller": "Prx101_Architecture",
+      "action": "index",
+      "module": "prx101_architecture",
+      "file": "application/modules/prx101_architecture/classes/Controller/Prx101/Architecture.php"
+    },
+    {
+      "name": "prx110_catalog_group",
+      "uri": "services/<slug>",
+      "regex": "['slug' => '[a-z0-9-]+']",
+      "controller": "Prx110_Catalog",
+      "action": "group",
+      "module": "prx110_catalog",
+      "file": "application/modules/prx110_catalog/classes/Controller/Prx110/Catalog.php"
+    },
+    {
+      "name": "prx110_catalog_page",
+      "uri": "services",
+      "regex": "",
+      "controller": "Prx110_Catalog",
+      "action": "index",
+      "module": "prx110_catalog",
+      "file": "application/modules/prx110_catalog/classes/Controller/Prx110/Catalog.php"
+    },
+    {
+      "name": "prx110_catalog_api",
+      "uri": "prx110/api(/<action>)",
+      "regex": "",
+      "controller": "Prx110_Api",
+      "action": "catalog",
+      "module": "prx110_catalog",
+      "file": "application/modules/prx110_catalog/classes/Controller/Prx110/Api.php"
+    },
+    {
+      "name": "prx111_migrations",
+      "uri": "migrate_pg",
+      "regex": "",
+      "controller": "Prx111_Migrate",
+      "action": "index",
+      "module": "prx111_migrations",
+      "file": "application/modules/prx111_migrations/classes/Controller/Prx111/Migrate.php"
+    },
+    {
+      "name": "prx111_api",
+      "uri": "migrate_pg/api/<action>",
+      "regex": "",
+      "controller": "Prx111_Api",
+      "action": "status",
+      "module": "prx111_migrations",
+      "file": "application/modules/prx111_migrations/classes/Controller/Prx111/Api.php"
+    },
+    {
+      "name": "prx115_api",
+      "uri": "prx115/api(/<action>(/<id>))",
+      "regex": "",
+      "controller": "Prx115_Api",
+      "action": "stats",
+      "module": "prx115_semantic",
+      "file": "application/modules/prx115_semantic/classes/Controller/Prx115/Api.php"
+    },
+    {
+      "name": "prx115_page",
+      "uri": "prx115(/<action>)",
+      "regex": "",
+      "controller": "Prx115_Page",
+      "action": "index",
+      "module": "prx115_semantic",
+      "file": "application/modules/prx115_semantic/classes/Controller/Prx115/Page.php"
+    },
+    {
+      "name": "prx120_api",
+      "uri": "prx120/api(/<action>(/<id>))",
+      "regex": "",
+      "controller": "Prx120_Api",
+      "action": "stats",
+      "module": "prx120_jobs",
+      "file": "application/modules/prx120_jobs/classes/Controller/Prx120/Api.php"
+    },
+    {
+      "name": "prx120_tasks",
+      "uri": "tasks(/<code>)",
+      "regex": "",
+      "controller": "Prx120_Tasks",
+      "action": "index",
+      "module": "prx120_jobs",
+      "file": "application/modules/prx120_jobs/classes/Controller/Prx120/Tasks.php"
+    },
+    {
+      "name": "prx120_usage",
+      "uri": "prx120/usage",
+      "regex": "",
+      "controller": "Prx120_Usage",
+      "action": "index",
+      "module": "prx120_jobs",
+      "file": "application/modules/prx120_jobs/classes/Controller/Prx120/Usage.php"
+    },
+    {
+      "name": "prx120_budgets",
+      "uri": "prx120/budgets",
+      "regex": "",
+      "controller": "Prx120_Budgets",
+      "action": "index",
+      "module": "prx120_jobs",
+      "file": "application/modules/prx120_jobs/classes/Controller/Prx120/Budgets.php"
+    },
+    {
+      "name": "prx120_workers",
+      "uri": "prx120/workers",
+      "regex": "",
+      "controller": "Prx120_Workers",
+      "action": "index",
+      "module": "prx120_jobs",
+      "file": "application/modules/prx120_jobs/classes/Controller/Prx120/Workers.php"
+    },
+    {
+      "name": "prx120_task",
+      "uri": "prx120/task(/<id>)",
+      "regex": "['id' => '\\d+']",
+      "controller": "Prx120_Task",
+      "action": "index",
+      "module": "prx120_jobs",
+      "file": "application/modules/prx120_jobs/classes/Controller/Prx120/Task.php"
+    },
+    {
+      "name": "prx120_monitor",
+      "uri": "prx120/monitor",
+      "regex": "",
+      "controller": "Prx120_Monitor",
+      "action": "index",
+      "module": "prx120_jobs",
+      "file": "application/modules/prx120_jobs/classes/Controller/Prx120/Monitor.php"
+    },
+    {
+      "name": "prx208_events_api",
+      "uri": "prx208_events/api(/<action>(/<id>))",
+      "regex": "",
+      "controller": "Prx208_Api",
+      "action": "index",
+      "module": "prx208_events",
+      "file": "application/modules/prx208_events/classes/Controller/Prx208/Api.php"
+    },
+    {
+      "name": "prx208_events_widget",
+      "uri": "prx208_events/widget(/<action>(/<id>))",
+      "regex": "",
+      "controller": "Prx208_Widget",
+      "action": "latest_events",
+      "module": "prx208_events",
+      "file": "application/modules/prx208_events/classes/Controller/Prx208/Widget.php"
+    },
+    {
+      "name": "prx208_events",
+      "uri": "prx208_events(/<action>(/<id>))",
+      "regex": "",
+      "controller": "Prx208_Events",
+      "action": "index",
+      "module": "prx208_events",
+      "file": "application/modules/prx208_events/classes/Controller/Prx208/Events.php"
+    },
+    {
+      "name": "prx212_storage",
+      "uri": "prx212_storage(/<action>(/<id>))",
+      "regex": "",
+      "controller": "Prx212_Storage",
+      "action": "index",
+      "module": "prx212_file_storage",
+      "file": "application/modules/prx212_file_storage/classes/Controller/Prx212/Storage.php"
+    },
+    {
+      "name": "prx212_storage_api",
+      "uri": "prx212_api/<action>(/<id>)",
+      "regex": "",
+      "controller": "Prx212_Api",
+      "action": "index",
+      "module": "prx212_file_storage",
+      "file": "application/modules/prx212_file_storage/classes/Controller/Prx212/Api.php"
+    },
+    {
+      "name": "prx212_storage_download_short",
+      "uri": "storage/get/<id>",
+      "regex": "",
+      "controller": "Prx212_Download",
+      "action": "file",
+      "module": "prx212_file_storage",
+      "file": "application/modules/prx212_file_storage/classes/Controller/Prx212/Download.php"
+    },
+    {
+      "name": "prx212_storage_download_file",
+      "uri": "prx212_download/file/<id>",
+      "regex": "",
+      "controller": "Prx212_Download",
+      "action": "file",
+      "module": "prx212_file_storage",
+      "file": "application/modules/prx212_file_storage/classes/Controller/Prx212/Download.php"
+    },
+    {
+      "name": "prx212_storage_download_shared",
+      "uri": "prx212_download/shared/<token>",
+      "regex": "",
+      "controller": "Prx212_Download",
+      "action": "shared",
+      "module": "prx212_file_storage",
+      "file": "application/modules/prx212_file_storage/classes/Controller/Prx212/Download.php"
+    },
+    {
+      "name": "prx212_storage_widget",
+      "uri": "prx212_widget/<action>",
+      "regex": "",
+      "controller": "Prx212_Widget",
+      "action": "uploader",
+      "module": "prx212_file_storage",
+      "file": "application/modules/prx212_file_storage/classes/Controller/Prx212/Widget.php"
+    },
+    {
+      "name": "prx212_storage_root",
+      "uri": "prx212",
+      "regex": "",
+      "controller": "Prx212_Index",
+      "action": "index",
+      "module": "prx212_file_storage",
+      "file": "application/modules/prx212_file_storage/classes/Controller/Prx212/Index.php"
+    },
+    {
+      "name": "prx218_module_manager_api",
+      "uri": "prx218/api(/<action>(/<id>))",
+      "regex": "",
+      "controller": "Prx218_Api",
+      "action": "index",
+      "module": "prx218_module_manager",
+      "file": "application/modules/prx218_module_manager/classes/Controller/Prx218/Api.php"
+    },
+    {
+      "name": "prx218_module_manager_scanner",
+      "uri": "prx218/scanner(/<action>(/<id>))",
+      "regex": "",
+      "controller": "Prx218_Scanner",
+      "action": "index",
+      "module": "prx218_module_manager",
+      "file": "application/modules/prx218_module_manager/classes/Controller/Prx218/Scanner.php"
+    },
+    {
+      "name": "prx218_module_manager_admin",
+      "uri": "prx218(/<controller>(/<action>(/<id>)))",
+      "regex": "",
+      "controller": "Prx218_Index",
+      "action": "index",
+      "module": "prx218_module_manager",
+      "file": "application/modules/prx218_module_manager/classes/Controller/Prx218/Index.php"
+    },
+    {
+      "name": "prx300_employee_api_colleague",
+      "uri": "employee/api/colleague/<id>",
+      "regex": "['id' => '\\d+']",
+      "controller": "Prx300_Api",
+      "action": "colleague",
+      "module": "prx300_employee",
+      "file": "application/modules/prx300_employee/classes/Controller/Prx300/Api.php"
+    },
+    {
+      "name": "prx300_employee_api",
+      "uri": "employee/api(/<action>)",
+      "regex": "['action' => '[a-z_]+']",
+      "controller": "Prx300_Api",
+      "action": "me",
+      "module": "prx300_employee",
+      "file": "application/modules/prx300_employee/classes/Controller/Prx300/Api.php"
+    },
+    {
+      "name": "prx300_employee_directory",
+      "uri": "employee/directory",
+      "regex": "",
+      "controller": "Prx300_Profile",
+      "action": "directory",
+      "module": "prx300_employee",
+      "file": "application/modules/prx300_employee/classes/Controller/Prx300/Profile.php"
+    },
+    {
+      "name": "prx300_employee_colleague",
+      "uri": "employee/colleague/<id>",
+      "regex": "['id' => '\\d+']",
+      "controller": "Prx300_Profile",
+      "action": "colleague",
+      "module": "prx300_employee",
+      "file": "application/modules/prx300_employee/classes/Controller/Prx300/Profile.php"
+    },
+    {
+      "name": "prx300_employee",
+      "uri": "employee",
+      "regex": "",
+      "controller": "Prx300_Profile",
+      "action": "index",
+      "module": "prx300_employee",
+      "file": "application/modules/prx300_employee/classes/Controller/Prx300/Profile.php"
+    },
+    {
+      "name": "prx300_employee_admin",
+      "uri": "prx300/admin(/<action>(/<id>))",
+      "regex": "[\n        'action' => '[a-z_]+',\n        'id' => '\\d+',\n    ]",
+      "controller": "Prx300_Admin",
+      "action": "index",
+      "module": "prx300_employee",
+      "file": "application/modules/prx300_employee/classes/Controller/Prx300/Admin.php"
+    },
+    {
+      "name": "prx390_intake_api_file",
+      "uri": "prx390/api/file/<id>",
+      "regex": "['id' => '\\d+']",
+      "controller": "Prx390_Api",
+      "action": "file",
+      "module": "prx390_intake",
+      "file": "application/modules/prx390_intake/classes/Controller/Prx390/Api.php"
+    },
+    {
+      "name": "prx390_intake_api_text",
+      "uri": "prx390/api/text/<id>",
+      "regex": "['id' => '\\d+']",
+      "controller": "Prx390_Api",
+      "action": "text",
+      "module": "prx390_intake",
+      "file": "application/modules/prx390_intake/classes/Controller/Prx390/Api.php"
+    },
+    {
+      "name": "prx390_intake_api",
+      "uri": "prx390/api(/<action>)",
+      "regex": "['action' => '[a-z_]+']",
+      "controller": "Prx390_Api",
+      "action": "health",
+      "module": "prx390_intake",
+      "file": "application/modules/prx390_intake/classes/Controller/Prx390/Api.php"
+    },
+    {
+      "name": "prx390_intake_scan",
+      "uri": "inbox/scan",
+      "regex": "",
+      "controller": "Prx390_Inbox",
+      "action": "scan",
+      "module": "prx390_intake",
+      "file": "application/modules/prx390_intake/classes/Controller/Prx390/Inbox.php"
+    },
+    {
+      "name": "prx390_intake_upload",
+      "uri": "inbox/upload",
+      "regex": "",
+      "controller": "Prx390_Inbox",
+      "action": "upload",
+      "module": "prx390_intake",
+      "file": "application/modules/prx390_intake/classes/Controller/Prx390/Inbox.php"
+    },
+    {
+      "name": "prx390_intake_retry",
+      "uri": "inbox/retry/<id>",
+      "regex": "['id' => '\\d+']",
+      "controller": "Prx390_Inbox",
+      "action": "retry",
+      "module": "prx390_intake",
+      "file": "application/modules/prx390_intake/classes/Controller/Prx390/Inbox.php"
+    },
+    {
+      "name": "prx390_intake",
+      "uri": "inbox",
+      "regex": "",
+      "controller": "Prx390_Inbox",
+      "action": "index",
+      "module": "prx390_intake",
+      "file": "application/modules/prx390_intake/classes/Controller/Prx390/Inbox.php"
+    },
+    {
+      "name": "prx391_documents_api",
+      "uri": "prx391/api(/<action>)",
+      "regex": "['action' => '[a-z_]+']",
+      "controller": "Prx39x_Api",
+      "action": "health",
+      "module": "prx391_documents",
+      "file": "application/modules/prx390_intake/classes/Controller/Prx39x/Api.php"
+    },
+    {
+      "name": "prx391_documents_file",
+      "uri": "documents/file/<id>",
+      "regex": "['id' => '\\d+']",
+      "controller": "Prx391_Documents",
+      "action": "download",
+      "module": "prx391_documents",
+      "file": "application/modules/prx391_documents/classes/Controller/Prx391/Documents.php"
+    },
+    {
+      "name": "prx391_documents_save",
+      "uri": "documents/save/<id>",
+      "regex": "['id' => '\\d+']",
+      "controller": "Prx391_Documents",
+      "action": "save",
+      "module": "prx391_documents",
+      "file": "application/modules/prx391_documents/classes/Controller/Prx391/Documents.php"
+    },
+    {
+      "name": "prx391_documents_close",
+      "uri": "documents/close/<id>",
+      "regex": "['id' => '\\d+']",
+      "controller": "Prx391_Documents",
+      "action": "close",
+      "module": "prx391_documents",
+      "file": "application/modules/prx391_documents/classes/Controller/Prx391/Documents.php"
+    },
+    {
+      "name": "prx391_documents_reopen",
+      "uri": "documents/reopen/<id>",
+      "regex": "['id' => '\\d+']",
+      "controller": "Prx391_Documents",
+      "action": "reopen",
+      "module": "prx391_documents",
+      "file": "application/modules/prx391_documents/classes/Controller/Prx391/Documents.php"
+    },
+    {
+      "name": "prx391_documents_show",
+      "uri": "documents/<id>",
+      "regex": "['id' => '\\d+']",
+      "controller": "Prx391_Documents",
+      "action": "show",
+      "module": "prx391_documents",
+      "file": "application/modules/prx391_documents/classes/Controller/Prx391/Documents.php"
+    },
+    {
+      "name": "prx391_documents",
+      "uri": "documents",
+      "regex": "",
+      "controller": "Prx391_Documents",
+      "action": "index",
+      "module": "prx391_documents",
+      "file": "application/modules/prx391_documents/classes/Controller/Prx391/Documents.php"
+    },
+    {
+      "name": "prx392_analysis_api_input",
+      "uri": "prx392/api/input/<id>",
+      "regex": "['id' => '\\d+']",
+      "controller": "Prx392_Api",
+      "action": "input",
+      "module": "prx392_analysis",
+      "file": "application/modules/prx392_analysis/classes/Controller/Prx392/Api.php"
+    },
+    {
+      "name": "prx392_analysis_api_result",
+      "uri": "prx392/api/result/<id>",
+      "regex": "['id' => '\\d+']",
+      "controller": "Prx392_Api",
+      "action": "result",
+      "module": "prx392_analysis",
+      "file": "application/modules/prx392_analysis/classes/Controller/Prx392/Api.php"
+    },
+    {
+      "name": "prx392_analysis_api",
+      "uri": "prx392/api(/<action>)",
+      "regex": "['action' => '[a-z_]+']",
+      "controller": "Prx392_Api",
+      "action": "health",
+      "module": "prx392_analysis",
+      "file": "application/modules/prx392_analysis/classes/Controller/Prx392/Api.php"
+    },
+    {
+      "name": "prx392_analysis_run",
+      "uri": "analysis/run/<id>",
+      "regex": "['id' => '\\d+']",
+      "controller": "Prx392_Analysis",
+      "action": "run",
+      "module": "prx392_analysis",
+      "file": "application/modules/prx392_analysis/classes/Controller/Prx392/Analysis.php"
+    },
+    {
+      "name": "prx392_analysis_accept",
+      "uri": "analysis/accept/<id>",
+      "regex": "['id' => '\\d+']",
+      "controller": "Prx392_Analysis",
+      "action": "accept",
+      "module": "prx392_analysis",
+      "file": "application/modules/prx392_analysis/classes/Controller/Prx392/Analysis.php"
+    },
+    {
+      "name": "prx392_analysis_reject",
+      "uri": "analysis/reject/<id>",
+      "regex": "['id' => '\\d+']",
+      "controller": "Prx392_Analysis",
+      "action": "reject",
+      "module": "prx392_analysis",
+      "file": "application/modules/prx392_analysis/classes/Controller/Prx392/Analysis.php"
+    },
+    {
+      "name": "prx392_analysis",
+      "uri": "analysis",
+      "regex": "",
+      "controller": "Prx392_Analysis",
+      "action": "index",
+      "module": "prx392_analysis",
+      "file": "application/modules/prx392_analysis/classes/Controller/Prx392/Analysis.php"
+    },
+    {
+      "name": "prx393_workflow_api",
+      "uri": "prx393/api(/<action>)",
+      "regex": "['action' => '[a-z_]+']",
+      "controller": "Prx393_Api",
+      "action": "health",
+      "module": "prx393_workflow",
+      "file": "application/modules/prx393_workflow/classes/Controller/Prx393/Api.php"
+    },
+    {
+      "name": "prx393_workflow_route",
+      "uri": "sla/route/<id>",
+      "regex": "['id' => '\\d+']",
+      "controller": "Prx393_Sla",
+      "action": "route",
+      "module": "prx393_workflow",
+      "file": "application/modules/prx393_workflow/classes/Controller/Prx393/Sla.php"
+    },
+    {
+      "name": "prx393_workflow_recalc",
+      "uri": "sla/recalc",
+      "regex": "",
+      "controller": "Prx393_Sla",
+      "action": "recalc",
+      "module": "prx393_workflow",
+      "file": "application/modules/prx393_workflow/classes/Controller/Prx393/Sla.php"
+    },
+    {
+      "name": "prx393_workflow",
+      "uri": "sla",
+      "regex": "",
+      "controller": "Prx393_Sla",
+      "action": "index",
+      "module": "prx393_workflow",
+      "file": "application/modules/prx393_workflow/classes/Controller/Prx393/Sla.php"
+    },
+    {
+      "name": "prx395_extraction",
+      "uri": "api/v1/document-extractions(/<id>)",
+      "regex": "['id' => '[1-9][0-9]{0,17}']",
+      "controller": "Prx395_Api",
+      "action": "extraction",
+      "module": "prx395_document_extract",
+      "file": "application/modules/prx395_document_extract/classes/Controller/Prx395/Api.php"
+    },
+    {
+      "name": "prx395_worker_health",
+      "uri": "prx395/worker/health",
+      "regex": "",
+      "controller": "Prx395_Worker",
+      "action": "health",
+      "module": "prx395_document_extract",
+      "file": "application/modules/prx395_document_extract/classes/Controller/Prx395/Worker.php"
+    },
+    {
+      "name": "prx395_worker",
+      "uri": "prx395/worker/<id>/<action>",
+      "regex": "[\n    'id' => '[1-9][0-9]{0,17}', 'action' => 'file|result',\n]",
+      "controller": "Prx395_Worker",
+      "action": "index",
+      "module": "prx395_document_extract",
+      "file": "application/modules/prx395_document_extract/classes/Controller/Prx395/Worker.php"
+    },
+    {
+      "name": "prx395_ui",
+      "uri": "document-extract(/<id>)",
+      "regex": "['id' => '[1-9][0-9]{0,17}']",
+      "controller": "Prx395_Ui",
+      "action": "index",
+      "module": "prx395_document_extract",
+      "file": "application/modules/prx395_document_extract/classes/Controller/Prx395/Ui.php"
+    },
+    {
+      "name": "prx560_knowledge",
+      "uri": "prx560(/<action>(/<id>))",
+      "regex": "",
+      "controller": "Prx560_Knowledge",
+      "action": "index",
+      "module": "prx560_knowledge",
+      "file": "application/modules/prx560_knowledge/classes/Controller/Prx560/Knowledge.php"
+    },
+    {
+      "name": "prx595_admin",
+      "uri": "prx595/admin(/<action>(/<id>))",
+      "regex": "",
+      "controller": "Prx595_Admin",
+      "action": "index",
+      "module": "prx595_useradmin",
+      "file": "application/modules/prx595_useradmin/classes/Controller/Prx595/Admin.php"
+    },
+    {
+      "name": "prx597_hook",
+      "uri": "prx597/hook/<action>",
+      "regex": "['action' => '(telegram|max)']",
+      "controller": "Prx597_Hook",
+      "action": "index",
+      "module": "prx597_notifications",
+      "file": "application/modules/prx597_notifications/classes/Controller/Prx597/Hook.php"
+    },
+    {
+      "name": "prx597_admin",
+      "uri": "prx597/admin(/<action>)",
+      "regex": "",
+      "controller": "Prx597_Admin",
+      "action": "index",
+      "module": "prx597_notifications",
+      "file": "application/modules/prx597_notifications/classes/Controller/Prx597/Admin.php"
+    },
+    {
+      "name": "prx597_api",
+      "uri": "prx597/api(/<action>)",
+      "regex": "",
+      "controller": "Prx597_Api",
+      "action": "unread",
+      "module": "prx597_notifications",
+      "file": "application/modules/prx597_notifications/classes/Controller/Prx597/Api.php"
+    },
+    {
+      "name": "prx597_unsub",
+      "uri": "prx597/unsub",
+      "regex": "",
+      "controller": "Prx597_Unsub",
+      "action": "index",
+      "module": "prx597_notifications",
+      "file": "application/modules/prx597_notifications/classes/Controller/Prx597/Unsub.php"
+    },
+    {
+      "name": "prx597_page",
+      "uri": "prx597",
+      "regex": "",
+      "controller": "Prx597_Notifications",
+      "action": "index",
+      "module": "prx597_notifications",
+      "file": "application/modules/prx597_notifications/classes/Controller/Prx597/Notifications.php"
+    },
+    {
+      "name": "prx599_security",
+      "uri": "account/security",
+      "regex": "",
+      "controller": "Prx599_Security",
+      "action": "index",
+      "module": "prx599_account",
+      "file": "application/modules/prx599_account/classes/Controller/Prx599/Security.php"
+    },
+    {
+      "name": "prx599_2fa",
+      "uri": "auth/2fa",
+      "regex": "",
+      "controller": "Auth",
+      "action": "2fa",
+      "module": "prx599_account",
+      "file": "application/classes/Controller/Auth.php"
+    },
+    {
+      "name": "static_pages",
+      "uri": "<action>",
+      "regex": "array('action' => 'terms|privacy|about')",
+      "controller": "Pages",
+      "action": "index",
+      "module": "application",
+      "file": "application/classes/Controller/Pages.php"
+    },
+    {
+      "name": "portal_plan",
+      "uri": "portal-plan",
+      "regex": "",
+      "controller": "Welcome",
+      "action": "portal_plan",
+      "module": "application",
+      "file": "application/classes/Controller/Welcome.php"
+    },
+    {
+      "name": "default",
+      "uri": "(<controller>(/<action>(/<id>)))",
+      "regex": "",
+      "controller": "welcome",
+      "action": "index",
+      "module": "application",
+      "file": "application/classes/Controller/Welcome.php"
+    },
+    {
+      "name": "universal_param",
+      "uri": "<controller>(/<action>(/<id>(/<param>)))",
+      "regex": "",
+      "controller": "Welcome",
+      "action": "index",
+      "module": "application",
+      "file": "application/classes/Controller/Welcome.php"
+    }
+  ]
+}

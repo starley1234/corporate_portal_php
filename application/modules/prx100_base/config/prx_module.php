@@ -9,6 +9,9 @@
  */
 
 return [
+    'id' => 102,
+    'slug' => 'prx100_base',
+    'kind' => 'platform',
     'title' => 'База PRX (общий модуль)',
     'short' => 'контроллеры, Auth/RBAC, пользователи, профили',
 ];

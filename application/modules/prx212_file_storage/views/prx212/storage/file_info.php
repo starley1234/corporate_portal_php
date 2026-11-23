@@ -140,6 +140,7 @@
                                             <td class="px-4 py-3 whitespace-nowrap text-right text-sm">
                                                 <?php if (!empty($perm['id'])): ?>
                                                     <form method="post" class="inline">
+        <input type="hidden" name="csrf" value="<?php echo HTML::chars(Security::token()); ?>">
                                                         <input type="hidden" name="action" value="delete_permission">
                                                         <input type="hidden" name="permission_id" value="<?php echo (int) $perm['id']; ?>">
                                                         <button type="submit" data-prx-arm="Точно удалить?" class="prx-btn-danger prx-btn-sm">Удалить</button>

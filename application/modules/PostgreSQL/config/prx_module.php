@@ -9,6 +9,7 @@
  */
 
 return [
+    'kind' => 'library',
     'title' => 'Драйвер PostgreSQL',
     'short' => 'нативный драйвер `pg_*` для Kohana Database',
 ];

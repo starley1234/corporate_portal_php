@@ -24,7 +24,8 @@ PHPUNIT  ?= bin/test
 .PHONY: help restore restore-pg restore-php restore-app setup up down restart logs shell ps \
         migrate migrate-status migrate-down seed test test-coverage lint doctor \
         modules new-module fresh cache-clear console composer worker worker-install \
-        brief backlog doc-index architecture \
+        brief backlog doc-index architecture manifest-check acl-lint routes doc-links \
+        csrf-lint \
         up-worker worker-logs mock-llm mock-embed stack up-tools backup backup-check
 
 help: ## показать эту справку
@@ -173,9 +174,29 @@ stack: ## полный стек: ядро + инструменты + ворке�
 	$(DOCKER) --profile tools --profile workers up -d
 
 .PHONY: check env-check maintain
-check: ## проверить контракты и storage (PHP для HTTP-теста необязателен)
+check: ## все статические контракты: манифесты, ACL, маршруты, ссылки, storage
 	python3 .tools/portal_check.py
+	python3 .tools/manifest_check.py
+	python3 .tools/acl_lint.py
+	python3 .tools/route_registry.py
+	python3 .tools/doc_links_check.py
+	python3 .tools/js_csrf_lint.py
 	python3 -m unittest discover -s tests -p 'test_storage_ops.py'
+
+manifest-check: ## схема манифестов модулей (id/slug/status/audience/acl)
+	python3 .tools/manifest_check.py
+
+acl-lint: ## ключи ACL: объявлены и используются
+	python3 .tools/acl_lint.py
+
+routes: ## реестр маршрутов → docs/architecture/dist/routes.json
+	python3 .tools/route_registry.py
+
+doc-links: ## мёртвые ссылки в документации
+	python3 .tools/doc_links_check.py
+
+csrf-lint: ## CSRF: глобальный хук на клиенте и POST только на свой origin
+	python3 .tools/js_csrf_lint.py
 
 env-check: ## сверить .env.example с getenv/os.environ в коде
 	python3 .tools/env_check.py

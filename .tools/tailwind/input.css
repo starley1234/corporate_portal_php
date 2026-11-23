@@ -567,6 +567,9 @@
     .prx-empty-icon {
         @apply mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-2xl text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400;
     }
+    .prx-empty-title {
+        @apply mx-auto mt-4 text-lg font-semibold text-gray-900 dark:text-white;
+    }
     .prx-empty-text {
         @apply mx-auto mt-1 max-w-sm text-gray-500 dark:text-gray-400;
         font-size: var(--prx-fs-sm);
@@ -670,7 +673,7 @@ input[type="range"]:focus-visible::-webkit-slider-thumb { outline: 3px solid rgb
 input[type="range"]:focus-visible::-moz-range-thumb { outline: 3px solid rgb(59 130 246 / 0.35); }
 
 /* Бренд компании: задаётся в site_config.php и не перекрашивает CTA,
-   процессы и состояния. Токены согласованы с витриной /design-lab. */
+   процессы и состояния. Токены относятся к дизайн-системе v6. */
 :root, html[data-company-accent="orange"] {
     --company-accent: #ea580c; --company-ink: #9a3412;
     --company-soft: #fff7ed; --company-on: #fff;

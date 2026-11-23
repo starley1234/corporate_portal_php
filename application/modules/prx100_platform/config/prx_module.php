@@ -9,6 +9,9 @@
  */
 
 return [
+    'id' => 103,
+    'slug' => 'prx100_platform',
+    'kind' => 'platform',
     'title' => 'Инструменты платформы',
     'short' => 'CLI-инструменты: `module:list`, `module:scaffold`, `dev:doctor`',
 ];

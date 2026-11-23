@@ -10,6 +10,7 @@
  */
 
 return [
+    'kind' => 'library',
     // Назначение модуля: отсюда его берёт реестр в docs/ARCHITECTURE.md §2
     // (bin/console module:list --markdown). Без `href` в меню и на /services
     // модуль не показывается.

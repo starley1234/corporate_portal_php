@@ -19,6 +19,7 @@
         <?php endif; ?>
 
         <form action="" method="post" class="prx-card space-y-6">
+        <input type="hidden" name="csrf" value="<?php echo HTML::chars(Security::token()); ?>">
             <fieldset>
                 <legend class="prx-label">Выберите роли</legend>
                 <div class="mt-3 space-y-2">

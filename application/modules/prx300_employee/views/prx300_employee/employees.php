@@ -7,20 +7,26 @@
         'actions' => $can_manage ? [['label' => 'Новый сотрудник', 'href' => '/prx300/admin/employee/0', 'icon' => 'fa-plus', 'role' => 'cta']] : [],
         'lead' => 'Рабочие профили из HR-источника и ручных исправлений. Пароли, роли входа и сессии здесь не редактируются.',
     ]); ?>
-    <?php echo View::factory('prx300_employee/_flash', ['flash' => $flash]); ?>
+    <?php echo View::factory('partials/flash', ['flash' => $flash]); ?>
 
-    <form method="get" action="/prx300/admin/employees" class="prx-card mt-5">
-        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div><label class="prx-label" for="employees-q">Поиск</label><input id="employees-q" name="q" type="search" value="<?php echo HTML::chars($filters['q']); ?>" placeholder="ФИО, email, табельный номер" class="prx-input mt-1 w-full"></div>
-            <div><label class="prx-label" for="employees-org">Организация</label><select id="employees-org" name="organization_id" class="prx-select mt-1 w-full"><option value="0">Доступные организации</option><?php foreach ($options['organizations'] as $org): ?><option value="<?php echo (int) $org['id']; ?>" <?php echo (int) $filters['organization_id'] === (int) $org['id'] ? 'selected' : ''; ?>><?php echo HTML::chars($org['name']); ?></option><?php endforeach; ?></select></div>
-            <div><label class="prx-label" for="employees-dept">Подразделение</label><select id="employees-dept" name="department_id" class="prx-select mt-1 w-full"><option value="0">Все подразделения</option><?php foreach ($options['departments'] as $dept): ?><option value="<?php echo (int) $dept['id']; ?>" <?php echo (int) $filters['department_id'] === (int) $dept['id'] ? 'selected' : ''; ?>><?php echo HTML::chars($dept['name']); ?></option><?php endforeach; ?></select></div>
-            <div><label class="prx-label" for="employees-site">Площадка</label><select id="employees-site" name="site_id" class="prx-select mt-1 w-full"><option value="0">Все площадки</option><?php foreach ($options['sites'] as $site): ?><option value="<?php echo (int) $site['id']; ?>" <?php echo (int) $filters['site_id'] === (int) $site['id'] ? 'selected' : ''; ?>><?php echo HTML::chars($site['name']); ?></option><?php endforeach; ?></select></div>
-            <div><label class="prx-label" for="employees-status">Статус</label><select id="employees-status" name="status" class="prx-select mt-1 w-full"><option value="">Любой</option><?php foreach (['active' => 'Работает', 'on_leave' => 'В отпуске / отсутствует', 'suspended' => 'Приостановлен', 'terminated' => 'Уволен'] as $status => $label): ?><option value="<?php echo $status; ?>" <?php echo $filters['status'] === $status ? 'selected' : ''; ?>><?php echo $label; ?></option><?php endforeach; ?></select></div>
-            <label class="flex min-h-[44px] items-center gap-2 self-end text-sm text-gray-700 dark:text-gray-200"><input type="checkbox" name="unlinked" value="1" <?php echo $filters['unlinked'] ? 'checked' : ''; ?> class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">Без аккаунта</label>
-            <label class="flex min-h-[44px] items-center gap-2 self-end text-sm text-gray-700 dark:text-gray-200"><input type="checkbox" name="without_external" value="1" <?php echo $filters['without_external'] ? 'checked' : ''; ?> class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">Без внешнего ID</label>
-            <div class="flex items-end gap-2"><button class="prx-btn-process" type="submit"><i class="fas fa-filter"></i>Применить</button><a class="prx-btn-secondary" href="/prx300/admin/employees">Сбросить</a></div>
-        </div>
-    </form>
+    <?php echo View::factory('partials/filters', [
+        'id' => 'employees',
+        'action' => '/prx300/admin/employees',
+        'fields' => [
+            ['type' => 'search', 'name' => 'q', 'label' => 'Поиск', 'placeholder' => 'ФИО, email, табельный номер', 'value' => $filters['q']],
+            ['type' => 'select', 'name' => 'organization_id', 'label' => 'Организация', 'value' => (int) $filters['organization_id'],
+             'options' => [0 => 'Доступные организации'] + array_column($options['organizations'], 'name', 'id')],
+            ['type' => 'select', 'name' => 'department_id', 'label' => 'Подразделение', 'value' => (int) $filters['department_id'],
+             'options' => [0 => 'Все подразделения'] + array_column($options['departments'], 'name', 'id')],
+            ['type' => 'select', 'name' => 'site_id', 'label' => 'Площадка', 'value' => (int) $filters['site_id'],
+             'options' => [0 => 'Все площадки'] + array_column($options['sites'], 'name', 'id')],
+            ['type' => 'select', 'name' => 'status', 'label' => 'Статус', 'value' => (string) $filters['status'],
+             'options' => ['' => 'Любой', 'active' => 'Работает', 'on_leave' => 'В отпуске / отсутствует', 'suspended' => 'Приостановлен', 'terminated' => 'Уволен']],
+            ['type' => 'checkbox', 'name' => 'unlinked', 'label' => 'Без аккаунта', 'checked' => (bool) $filters['unlinked']],
+            ['type' => 'checkbox', 'name' => 'without_external', 'label' => 'Без внешнего ID', 'checked' => (bool) $filters['without_external']],
+        ],
+        'reset' => '/prx300/admin/employees',
+    ]); ?>
 
     <div class="prx-card mt-5 overflow-x-auto p-0">
         <table class="prx-table min-w-[980px]">

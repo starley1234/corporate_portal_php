@@ -1,7 +1,7 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
 Route::set('prx391_documents_api', 'prx391/api(/<action>)', ['action' => '[a-z_]+'])
-    ->defaults(['controller' => 'Prx391_Api', 'action' => 'health']);
+    ->defaults(['controller' => 'Prx39x_Api', 'action' => 'health']);
 
 Route::set('prx391_documents_file', 'documents/file/<id>', ['id' => '\d+'])
     ->defaults(['controller' => 'Prx391_Documents', 'action' => 'download']);

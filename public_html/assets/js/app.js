@@ -593,6 +593,67 @@
         });
     }
 
+    /* CSRF: сервер (Prx_PostGuard) требует токен у каждого небезопасного
+       запроса. Один хук добавляет заголовок X-CSRF-Token ко всем same-origin
+       POST/PUT/PATCH/DELETE — модульным скриптам не нужно таскать токен. */
+    function csrfToken() {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? (meta.getAttribute('content') || '') : '';
+    }
+    PRX.csrfToken = csrfToken;
+
+    (function installCsrfHook() {
+        var UNSAFE = { POST: 1, PUT: 1, PATCH: 1, DELETE: 1 };
+
+        function sameOrigin(url) {
+            if (!url) return true;
+            if (url.charAt(0) === '/' || url.charAt(0) === '?') return true;
+            try { return new URL(url, window.location.href).origin === window.location.origin; }
+            catch (e) { return false; }
+        }
+
+        var nativeFetch = window.fetch;
+        if (typeof nativeFetch === 'function') {
+            window.fetch = function (input, init) {
+                var isRequest = input && typeof input === 'object';
+                var url = isRequest ? input.url : (input || '');
+                var method = ((init && init.method) || (isRequest && input.method) || 'GET').toUpperCase();
+
+                if (UNSAFE[method] && sameOrigin(url)) {
+                    var headers = new Headers((init && init.headers) || (isRequest && input.headers) || {});
+                    if (!headers.has('X-CSRF-Token') && csrfToken()) {
+                        headers.set('X-CSRF-Token', csrfToken());
+                    }
+                    if (isRequest) {
+                        // Request нельзя менять на месте: пересобираем, иначе
+                        // потеряются body, signal и keepalive.
+                        input = new Request(input, { headers: headers });
+                    } else {
+                        init = Object.assign({}, init || {}, { headers: headers });
+                    }
+                }
+                return nativeFetch.call(this, input, init);
+            };
+        }
+
+        var xhr = window.XMLHttpRequest;
+        if (xhr && xhr.prototype) {
+            var nativeOpen = xhr.prototype.open;
+            var nativeSend = xhr.prototype.send;
+            xhr.prototype.open = function (method, url) {
+                this.__prxMethod = String(method).toUpperCase();
+                this.__prxUrl = String(url);
+                return nativeOpen.apply(this, arguments);
+            };
+            xhr.prototype.send = function () {
+                if (UNSAFE[this.__prxMethod] && sameOrigin(this.__prxUrl) && csrfToken()) {
+                    this.setRequestHeader('X-CSRF-Token', csrfToken());
+                }
+                return nativeSend.apply(this, arguments);
+            };
+        }
+    })();
+
     window.PRX = PRX;
 
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initDeclarative);

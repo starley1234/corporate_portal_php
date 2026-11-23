@@ -19,6 +19,7 @@
         <?php endif; ?>
 
         <form action="<?php echo HTML::chars($event->loaded() ? Route::url('prx208_events', array('action' => 'edit_event', 'id' => $event->id)) : Route::url('prx208_events', array('action' => 'create_event'))); ?>" method="post">
+            <input type="hidden" name="csrf" value="<?php echo HTML::chars(Security::token()); ?>">
             <div class="mb-4">
                 <label for="event_name" class="prx-label mb-2">
                     <?php echo __('Event Name'); ?> <span class="text-rose-500">*</span>

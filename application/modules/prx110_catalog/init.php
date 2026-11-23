@@ -6,8 +6,7 @@
  *   GET /services          — полный каталог опубликованных сервисов (SSR, SEO);
  *   GET /services/<slug>   — хаб группы (slug из Service_Prx110_Catalog::group_slug);
  *   GET /prx110/api/catalog — JSON реестра видимых сервисов (палитра поиска);
- *   GET|POST /prx110/api/favorites — закладки текущего аккаунта;
- *   POST /prx110/api/favorites_import — явное объединение старых закладок.
+ *   GET|POST /prx110/api/favorites — закладки текущего аккаунта.
  *
  * Роут group с ограничением [a-z0-9-]+ регистрируется ДО page-роута, иначе
  * «services» без слага перехватывает «services/json» (см. prx611 init).

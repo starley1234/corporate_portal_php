@@ -38,6 +38,7 @@
                     <h2 class="prx-h3">Добавить пользователя</h2>
                 </div>
                 <form method="post" class="p-6 space-y-4">
+        <input type="hidden" name="csrf" value="<?php echo HTML::chars(Security::token()); ?>">
                     <div>
                         <label for="user_id" class="prx-label mb-1">Выберите пользователя</label>
                         <select name="user_id" id="user_id" class="prx-input prx-select w-full">
@@ -113,6 +114,7 @@
                                         <td class="px-6 py-4 text-right">
                                             <?php // Отзыв = те же права, все выключены (POST этой страницы; раньше кнопка была заглушкой). ?>
                                             <form method="post" class="inline">
+        <input type="hidden" name="csrf" value="<?php echo HTML::chars(Security::token()); ?>">
                                                 <input type="hidden" name="user_id" value="<?php echo (int) $perm->user_id; ?>">
                                                 <button type="submit" data-prx-arm="Отозвать?" class="prx-btn-icon-danger" title="Отозвать все права" aria-label="Отозвать права">
                                                     <i class="fas fa-trash-alt"></i>

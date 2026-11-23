@@ -1,22 +1,18 @@
 /*
  * Навигация: Избранное принадлежит аккаунту и приходит в первом HTML.
  * Звёзды сохраняются POST-запросом; localStorage не является источником
- * Избранного. Старые браузерные закладки можно перенести только явно.
+ * Избранного.
  */
 (function (window, document) {
     'use strict';
 
-    var LEGACY_STORE = 'prx.nav.v1';
     var RECENTS_STORE = 'prx.nav.recents.v1';
     var CHANGE_SIGNAL = 'prx.nav.favorites.changed.v1';
-    var IMPORT_DONE = 'prx.nav.import.done.';
-    var IMPORT_LATER = 'prx.nav.import.later.';
     var MAX_RECENTS = 12;
-    var IMPORT_LIMIT = 100;
     var catalogData = null, catalogRequest = null, catalogEpoch = 0;
     var state = { status: 'guest', userId: 0, csrf: '', items: [], saving: false, version: 0 };
     var refreshing = false, refreshNeeded = false, channel = null;
-    var sidebar = null, paletteView = null, legacyHrefs = [];
+    var sidebar = null, paletteView = null;
 
     function readRecents() {
         try {
@@ -145,9 +141,6 @@
         document.querySelectorAll('[data-palette-pin]').forEach(function (btn) {
             btn.disabled = state.status !== 'ready' || state.saving;
         });
-        document.querySelectorAll('[data-nav-import], [data-nav-import-dismiss]').forEach(function (btn) {
-            btn.disabled = state.saving || state.status !== 'ready' || (btn.hasAttribute('data-nav-import') && legacyHrefs.length > IMPORT_LIMIT);
-        });
     }
 
     function renderFavorites() {
@@ -247,8 +240,6 @@
             catalogEpoch++;
             catalogData = null;
             renderFavorites();
-            var importBox = document.getElementById('nav-legacy-import');
-            if (importBox) importBox.classList.add('hidden');
             if (paletteView) paletteView.invalidate();
             status('Сессия или аккаунт изменились. Обновите страницу и войдите снова.');
         } else {
@@ -318,36 +309,6 @@
         });
     }
 
-    function initLegacyImport() {
-        var box = document.getElementById('nav-legacy-import');
-        if (!box || state.status !== 'ready') return;
-        try {
-            if (localStorage.getItem(IMPORT_DONE + state.userId) || sessionStorage.getItem(IMPORT_LATER + state.userId)) return;
-            var old = JSON.parse(localStorage.getItem(LEGACY_STORE) || '{}');
-            if (!old || !Array.isArray(old.pinned)) return;
-            old.pinned.forEach(function (href) {
-                if (typeof href === 'string' && href && legacyHrefs.indexOf(href) === -1) legacyHrefs.push(href);
-            });
-        } catch (e) { return; }
-        if (!legacyHrefs.length) return;
-        box.classList.remove('hidden');
-        if (legacyHrefs.length > IMPORT_LIMIT) {
-            status('Слишком много старых закладок для переноса за один раз; обратитесь к администратору.');
-        }
-        syncCards();
-        box.querySelector('[data-nav-import]').addEventListener('click', function () {
-            saveFavorites('/prx110/api/favorites_import', { hrefs: JSON.stringify(legacyHrefs) }, function (data) {
-                try { localStorage.setItem(IMPORT_DONE + state.userId, '1'); } catch (e) { /* optional */ }
-                box.classList.add('hidden');
-                toast('Перенесено: ' + Number(data.added || 0) + (data.skipped ? '; недоступные пропущены: ' + Number(data.skipped) : ''));
-            });
-        });
-        box.querySelector('[data-nav-import-dismiss]').addEventListener('click', function () {
-            try { sessionStorage.setItem(IMPORT_LATER + state.userId, '1'); } catch (e) { /* optional */ }
-            box.classList.add('hidden');
-        });
-    }
-
     function initFavorites() {
         sidebar = document.getElementById('sidebar');
         if (!sidebar) return;
@@ -359,7 +320,6 @@
 
         // Уже отрендеренный сервером список не заменяем на DOMContentLoaded.
         syncCards();
-        initLegacyImport();
         sidebar.addEventListener('click', function (event) {
             var link = event.target.closest('a.sidebar-item');
             if (link) {

@@ -59,7 +59,7 @@ class Task_Module_List extends Minion_Task {
 
             $rows[] = [
                 'module'      => $name,
-                'kind'        => strpos($name, 'prx') === 0 ? 'prx' : 'без номера',
+                'numbered'    => strpos($name, 'prx') === 0 ? 'prx' : 'без номера',
                 'registered'  => isset($registered[$name]) ? 'да' : 'НЕТ',
                 'agents_md'   => is_file($path.'/AGENTS.md') ? 'да' : '—',
                 'readme'      => is_file($path.'/README.md') ? 'да' : '—',
@@ -100,13 +100,13 @@ class Task_Module_List extends Minion_Task {
         foreach ($rows as $r)
         {
             $out[] = sprintf('%-32s %-12s %-11s %-10s %-7s %6d %7d',
-                $r['module'], $r['kind'], $r['registered'], $r['agents_md'],
+                $r['module'], $r['numbered'], $r['registered'], $r['agents_md'],
                 $r['readme'], $r['migrations'], $r['classes']);
         }
 
         $out[] = '';
         $out[] = 'Всего модулей: '.count($rows).
-            ' | prx: '.count(array_filter($rows, function ($r) { return $r['kind'] === 'prx'; })).
+            ' | prx: '.count(array_filter($rows, function ($r) { return $r['numbered'] === 'prx'; })).
             ' | без AGENTS.md: '.count(array_filter($rows, function ($r) { return $r['agents_md'] === '—'; }));
         $out[] = 'Подробности: docs/MODULE_GUIDE.md, карточка модуля — <модуль>/AGENTS.md';
 

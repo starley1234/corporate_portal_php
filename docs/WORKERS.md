@@ -108,6 +108,71 @@ outbox, дайджесты и poll мессенджеров (если настр
    Существующие тесты очереди и watchdog сохранять; смену поведения отделять
    от механического рефакторинга.
 
+## Структура `workers/` — предложение (23.11.2026, ждёт решения)
+
+Что сейчас:
+
+- `prx_workers/` — 16 файлов в корне плюс `handlers/` из 7 файлов. В корне
+  смешаны три рода кода: runtime (`__main__`, `config`, `base`, `queue`,
+  `usage`, `watchdogs`, `site`, `site_check`), общие клиенты (`llm`,
+  `providers`, `llmwatch`, `ocr_client`, `pdf_probe`, `webread`) и доменный
+  код (`document_extract.py`, `docflow_trace.py`).
+- Пробный документооборот протёк в runtime: `site_check.docflow_enabled()`,
+  три спец-случая в `__main__.py`, `LEGACY_CHANNELS`/`ARCHIVED_CHANNELS` в реестре.
+- Мёртвое: `webread.py` (901 строк) не импортируется ни одним обработчиком —
+  его потребители `prx598`/`prx591`/`prx592`/`prx635` удалены; вместе с ним
+  тянут `trafilatura`, `markdownify`, `bs4` из requirements и раздел
+  `PRX_WEBREAD_MOCK` в `mock/README.md`. `ARCHIVED_CHANNELS = {"doc.draft"}`
+  — обработчик жил в удалённом `archive/`.
+
+Предлагаемая структура (минимум перемещений, без новых абстракций):
+
+```
+workers/
+├── README.md, pyproject.toml, requirements*.txt, .env.example
+├── prx_workers/
+│   ├── __main__.py  config.py  base.py  queue.py  usage.py  watchdogs.py  site.py  site_check.py
+│   │           # runtime — не знает доменов
+│   ├── llm.py  providers.py  llmwatch.py          # общие клиенты без доменных знаний
+│   └── handlers/
+│       ├── __init__.py                 # реестр: HANDLERS + TRIAL_CHANNELS
+│       ├── prx120_jobs/                # echo, embeddings.index
+│       ├── llm/                        # llm.summarize
+│       ├── prx115_semantic/            # semantic.index
+│       ├── prx395_document_extract/    # handler, document_extract, ocr_client, pdf_probe
+│       └── trial/                      # проба пера: удаляется одним `rm`
+│           ├── prx390_intake/          # doc.normalize, trace
+│           └── prx392_analysis/        # doc.analyze
+├── mock/
+└── tests/                              # зеркалит: runtime/, handlers/<пакет>/, clients/
+```
+
+Правила:
+
+1. Пакет обработчика называется как модуль-владелец в `application/modules/`;
+   канал из `worker.channels` манифеста ↔ файл в этом пакете. Явная
+   регистрация остаётся только в `handlers/__init__.py`.
+2. В корне `prx_workers/` — только runtime и клиенты. Всё, что знает
+   `prx395` или `prx390`, живёт в их пакете.
+3. Runtime не знает о документообороте: `docflow_enabled()` переезжает в
+   `handlers/trial/`, runtime спрашивает у реестра одно — включены ли
+   trial-каналы. `ARCHIVED_CHANNELS` удаляется.
+4. Тесты зеркалят структуру: `tests/runtime/`, `tests/handlers/<пакет>/`,
+   `tests/clients/`.
+
+Удалить до перемещения (меньше двигать): `webread.py`, `test_webread_search.py`,
+три зависимости из `requirements.txt`, раздел `PRX_WEBREAD_MOCK` из `mock/README.md`,
+`ARCHIVED_CHANNELS`.
+
+Не делать в том же шаге: разбиение `base.py`/`queue.py` (приоритет 4 выше) —
+отдельным шагом после переезда, чтобы механический `git mv` не смешивался
+с изменением поведения.
+
+Порядок: (1) удалить мёртвое → (2) `git mv` обработчиков по пакетам, правка
+импортов → (3) вынос docflow-хука из runtime → (4) зеркалирование тестов →
+(5) `portal_check.py` ищет каналы в `handlers/**/`, а не в одном файле.
+После каждого шага — `pytest workers/tests`.
+
 ## Проверки
 
 ```bash

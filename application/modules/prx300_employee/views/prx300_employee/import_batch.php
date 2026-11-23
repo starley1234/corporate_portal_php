@@ -7,7 +7,7 @@
         'actions' => [['label' => 'Все пакеты', 'href' => '/prx300/admin/import', 'icon' => 'fa-arrow-left', 'role' => 'secondary']],
         'lead' => 'Файл '.$batch['file_name'].' · источник '.$batch['source_system'].' · загружен '.date('d.m.Y H:i', strtotime($batch['created_at'])).'.',
     ]); ?>
-    <?php echo View::factory('prx300_employee/_flash', ['flash' => $flash]); ?>
+    <?php echo View::factory('partials/flash', ['flash' => $flash]); ?>
 
     <div class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <?php foreach ([
