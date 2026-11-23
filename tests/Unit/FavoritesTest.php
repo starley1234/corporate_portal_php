@@ -127,8 +127,8 @@ class FavoritesTest extends TestCase
     public function test_server_render_contains_the_active_favorite_without_loading_placeholder(): void
     {
         $items = Service_Prx110_Favorites::mark_active([
-            ['href' => '/documents', 'title' => 'Документы', 'icon' => 'fas fa-folder', 'nav_paths' => []],
-            ['href' => '/documents/settings', 'title' => 'Настройки', 'icon' => 'fas fa-gear', 'nav_paths' => ['/document-settings']],
+            ['href' => '/prx391_documents', 'title' => 'Документы', 'icon' => 'fas fa-folder', 'nav_paths' => []],
+            ['href' => '/prx391_documents/settings', 'title' => 'Настройки', 'icon' => 'fas fa-gear', 'nav_paths' => ['/document-settings']],
         ], '/document-settings/42');
         $this->assertFalse($items[0]['active']);
         $this->assertTrue($items[1]['active']);
@@ -139,7 +139,7 @@ class FavoritesTest extends TestCase
         ])->render();
         $this->assertStringContainsString('data-nav-status="ready"', $sidebar);
         $this->assertStringContainsString('data-nav-user-id="9"', $sidebar);
-        $this->assertStringContainsString('href="/documents/settings"', $sidebar);
+        $this->assertStringContainsString('href="/prx391_documents/settings"', $sidebar);
         $this->assertStringContainsString('aria-current="location"', $sidebar);
         $this->assertStringContainsString('Убрать из Избранного: Настройки', $sidebar);
         $this->assertStringNotContainsString('Загрузка Избранного', $sidebar);

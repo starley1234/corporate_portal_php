@@ -7,7 +7,7 @@
                 </div>
 
                 <?php if ($can_edit): ?>
-                <form method="post" action="/documents/save/<?php echo (int) $doc['id']; ?>" class="mt-4">
+                <form method="post" action="/prx391_documents/save/<?php echo (int) $doc['id']; ?>" class="mt-4">
                     <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
                     <div class="grid gap-3 md:grid-cols-2">
                         <div class="md:col-span-2">

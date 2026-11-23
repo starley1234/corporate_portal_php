@@ -12,7 +12,7 @@ $status_badge = [
 $priority_badge = ['urgent' => 'err', 'high' => 'run', 'normal' => 'info', 'low' => 'wait'][$doc['priority']] ?? 'info';
 $risk_badge = ['high' => 'err', 'medium' => 'warn', 'low' => 'ok'][$doc['risk_level'] ?? ''] ?? 'wait';
 
-$close_form = '<form method="post" action="/documents/'.($doc['status'] === 'closed' ? 'reopen' : 'close').'/'.(int) $doc['id'].'" class="inline-flex">'
+$close_form = '<form method="post" action="/prx391_documents/'.($doc['status'] === 'closed' ? 'reopen' : 'close').'/'.(int) $doc['id'].'" class="inline-flex">'
     .'<input type="hidden" name="csrf" value="'.HTML::chars($csrf).'">'
     .'<button type="submit" class="'.($doc['status'] === 'closed' ? 'prx-btn-secondary' : 'prx-btn-secondary').'"><i class="fas '.($doc['status'] === 'closed' ? 'fa-rotate-left' : 'fa-circle-check').'"></i><span>'.($doc['status'] === 'closed' ? 'Вернуть в работу' : 'Закрыть').'</span></button>'
     .'</form>';
@@ -26,10 +26,10 @@ if ($can_draft)
 {
     $actions[] = ['label' => 'Подготовить ответ', 'href' => '/replies/document/'.(int) $doc['id'], 'icon' => 'fa-reply', 'role' => 'cta'];
 }
-$actions[] = ['label' => 'К реестру', 'href' => '/documents', 'icon' => 'fa-arrow-left', 'role' => 'secondary'];
+$actions[] = ['label' => 'К реестру', 'href' => '/prx391_documents', 'icon' => 'fa-arrow-left', 'role' => 'secondary'];
 
 echo View::factory('partials/page_header', [
-    'crumbs' => [['Кабинет', '/dashboard'], ['Реестр', '/documents'], [$doc['reg_no']]],
+    'crumbs' => [['Кабинет', '/dashboard'], ['Реестр', '/prx391_documents'], [$doc['reg_no']]],
     'title' => $doc['subject'] ?: 'Без темы',
     'pill' => [$doc['reg_no'], 'fa-file-lines'],
     'actions' => $actions,

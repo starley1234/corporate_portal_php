@@ -5,7 +5,7 @@
         'title' => 'ИИ-разбор входящих',
         'pill' => ['prx392 · предложения', 'fa-wand-magic-sparkles'],
         'actions' => [
-            ['label' => 'Реестр', 'href' => '/documents', 'icon' => 'fa-folder-open', 'role' => 'secondary'],
+            ['label' => 'Реестр', 'href' => '/prx391_documents', 'icon' => 'fa-folder-open', 'role' => 'secondary'],
             ['label' => 'Сроки', 'href' => '/sla', 'icon' => 'fa-clock', 'role' => 'secondary'],
         ],
         'lead' => 'Модель извлекает тип и реквизиты, но не пишет в карточку: результат ждёт проверки человеком. Разрешён только локальный провайдер — текст документов не уходит наружу.',
@@ -50,7 +50,7 @@
                 <?php foreach ($proposals as $p): $payload = json_decode($p['payload'], TRUE) ?: []; ?>
                     <tr>
                         <td>
-                            <a class="block font-semibold text-gray-900 hover:text-blue-600 dark:text-white dark:hover:text-blue-400" href="/documents/<?php echo (int) $p['document_id']; ?>"><?php echo HTML::chars($p['reg_no']); ?></a>
+                            <a class="block font-semibold text-gray-900 hover:text-blue-600 dark:text-white dark:hover:text-blue-400" href="/prx391_documents/<?php echo (int) $p['document_id']; ?>"><?php echo HTML::chars($p['reg_no']); ?></a>
                             <span class="block max-w-[260px] truncate text-xs text-gray-500 dark:text-gray-400" title="<?php echo HTML::chars($p['subject']); ?>"><?php echo HTML::chars($p['subject']); ?></span>
                             <span class="block text-[11px] text-gray-400"><?php echo HTML::chars(date('d.m.Y H:i', strtotime($p['created_at']))); ?></span>
                         </td>
@@ -76,7 +76,7 @@
                                         <button class="prx-btn-secondary prx-btn-sm" type="submit"><i class="fas fa-xmark"></i></button>
                                     </form>
                                 <?php endif; ?>
-                                <a class="prx-btn-secondary prx-btn-sm" href="/documents/<?php echo (int) $p['document_id']; ?>">Карточка</a>
+                                <a class="prx-btn-secondary prx-btn-sm" href="/prx391_documents/<?php echo (int) $p['document_id']; ?>">Карточка</a>
                             </div>
                         </td>
                     </tr>
@@ -96,7 +96,7 @@
                 <?php foreach ($runs as $run): ?>
                     <tr>
                         <td class="font-mono text-xs">#<?php echo (int) $run['id']; ?><span class="mt-0.5 block text-[11px] text-gray-400"><?php echo HTML::chars(date('d.m H:i', strtotime($run['created_at']))); ?></span></td>
-                        <td><a class="font-semibold text-gray-900 hover:text-blue-600 dark:text-white dark:hover:text-blue-400" href="/documents/<?php echo (int) $run['document_id']; ?>"><?php echo HTML::chars($run['reg_no'] ?: '—'); ?></a></td>
+                        <td><a class="font-semibold text-gray-900 hover:text-blue-600 dark:text-white dark:hover:text-blue-400" href="/prx391_documents/<?php echo (int) $run['document_id']; ?>"><?php echo HTML::chars($run['reg_no'] ?: '—'); ?></a></td>
                         <td><span class="prx-badge prx-badge-<?php echo ['queued' => 'wait', 'running' => 'run', 'ready' => 'ok', 'failed' => 'err'][$run['status']] ?? 'wait'; ?>"><span class="prx-dot"></span><?php echo HTML::chars($run['status']); ?></span><?php if ($run['error']): ?><span class="mt-1 block max-w-[220px] truncate text-xs text-red-500" title="<?php echo HTML::chars($run['error']); ?>"><?php echo HTML::chars($run['error']); ?></span><?php endif; ?></td>
                         <td class="max-w-[220px] truncate font-mono text-xs" title="<?php echo HTML::chars($run['model']); ?>"><?php echo HTML::chars($run['model']); ?></td>
                         <td><?php echo $run['tokens'] !== NULL ? (int) $run['tokens'] : '—'; ?></td>

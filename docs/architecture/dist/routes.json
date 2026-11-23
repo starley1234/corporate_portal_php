@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "count": 88,
+  "count": 92,
   "routes": [
     {
       "name": "cookie_consent_close",
@@ -246,6 +246,15 @@
       "file": "application/modules/prx120_jobs/classes/Controller/Prx120/Monitor.php"
     },
     {
+      "name": "prx150_api_hub",
+      "uri": "prx150_api_hub(/<action>(/<id>))",
+      "regex": "[\n    'action' => 'index|create|revoke|usage|docs',\n    'id' => '[1-9][0-9]{0,17}',\n]",
+      "controller": "Prx150_Admin",
+      "action": "index",
+      "module": "prx150_api_hub",
+      "file": "application/modules/prx150_api_hub/classes/Controller/Prx150/Admin.php"
+    },
+    {
       "name": "prx208_events_api",
       "uri": "prx208_events/api(/<action>(/<id>))",
       "regex": "",
@@ -480,8 +489,17 @@
       "file": "application/modules/prx390_intake/classes/Controller/Prx390/Inbox.php"
     },
     {
+      "name": "prx391_documents_legacy",
+      "uri": "documents(/<path>)",
+      "regex": "['path' => '[a-z0-9_/]*']",
+      "controller": "Prx391_Legacy",
+      "action": "index",
+      "module": "prx391_documents",
+      "file": "application/modules/prx391_documents/classes/Controller/Prx391/Legacy.php"
+    },
+    {
       "name": "prx391_documents_api",
-      "uri": "prx391/api(/<action>)",
+      "uri": "prx391_documents/api(/<action>)",
       "regex": "['action' => '[a-z_]+']",
       "controller": "Prx39x_Api",
       "action": "health",
@@ -490,8 +508,8 @@
     },
     {
       "name": "prx391_documents_file",
-      "uri": "documents/file/<id>",
-      "regex": "['id' => '\\d+']",
+      "uri": "prx391_documents/file/<id>",
+      "regex": "['id' => '\\\\d+']",
       "controller": "Prx391_Documents",
       "action": "download",
       "module": "prx391_documents",
@@ -499,8 +517,8 @@
     },
     {
       "name": "prx391_documents_save",
-      "uri": "documents/save/<id>",
-      "regex": "['id' => '\\d+']",
+      "uri": "prx391_documents/save/<id>",
+      "regex": "['id' => '\\\\d+']",
       "controller": "Prx391_Documents",
       "action": "save",
       "module": "prx391_documents",
@@ -508,8 +526,8 @@
     },
     {
       "name": "prx391_documents_close",
-      "uri": "documents/close/<id>",
-      "regex": "['id' => '\\d+']",
+      "uri": "prx391_documents/close/<id>",
+      "regex": "['id' => '\\\\d+']",
       "controller": "Prx391_Documents",
       "action": "close",
       "module": "prx391_documents",
@@ -517,8 +535,8 @@
     },
     {
       "name": "prx391_documents_reopen",
-      "uri": "documents/reopen/<id>",
-      "regex": "['id' => '\\d+']",
+      "uri": "prx391_documents/reopen/<id>",
+      "regex": "['id' => '\\\\d+']",
       "controller": "Prx391_Documents",
       "action": "reopen",
       "module": "prx391_documents",
@@ -526,8 +544,8 @@
     },
     {
       "name": "prx391_documents_show",
-      "uri": "documents/<id>",
-      "regex": "['id' => '\\d+']",
+      "uri": "prx391_documents/<id>",
+      "regex": "['id' => '\\\\d+']",
       "controller": "Prx391_Documents",
       "action": "show",
       "module": "prx391_documents",
@@ -535,7 +553,7 @@
     },
     {
       "name": "prx391_documents",
-      "uri": "documents",
+      "uri": "prx391_documents",
       "regex": "",
       "controller": "Prx391_Documents",
       "action": "index",
@@ -676,6 +694,24 @@
       "action": "index",
       "module": "prx395_document_extract",
       "file": "application/modules/prx395_document_extract/classes/Controller/Prx395/Ui.php"
+    },
+    {
+      "name": "prx450_document_ocr_api",
+      "uri": "api/v1/document-ocr/parse",
+      "regex": "",
+      "controller": "Prx450_Api",
+      "action": "parse",
+      "module": "prx450_document_ocr",
+      "file": "application/modules/prx450_document_ocr/classes/Controller/Prx450/Api.php"
+    },
+    {
+      "name": "prx450_document_ocr",
+      "uri": "prx450_document_ocr",
+      "regex": "",
+      "controller": "Prx450_Page",
+      "action": "index",
+      "module": "prx450_document_ocr",
+      "file": "application/modules/prx450_document_ocr/classes/Controller/Prx450/Page.php"
     },
     {
       "name": "prx560_knowledge",

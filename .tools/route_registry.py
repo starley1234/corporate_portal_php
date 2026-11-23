@@ -184,15 +184,39 @@ def collect() -> list[dict]:
     return routes
 
 
+def new_modules() -> set[str]:
+    """Модули, созданные после правила URL «префикс + слаг» (23.11.2026)."""
+    out: set[str] = set()
+    for path in MODULES.glob('*/config/prx_module.php'):
+        data = read_config(path)
+        if not data:
+            continue
+        created = data.get('created_at')
+        created = created.text.strip("'\"") if isinstance(created, Raw) else str(created or '')
+        if created >= '2026-11-23':
+            out.add(path.parent.parent.name)
+    return out
+
+
 def main() -> int:
     routes = collect()
     seen_names: dict[str, str] = {}
     seen_uris: dict[str, str] = {}
     cache: dict[str, set[str]] = {}
     patterns: list[re.Pattern] = []
+    strict_urls = new_modules()
 
     for route in routes:
         name, uri, module = route['name'], route['uri'], route['module']
+
+        # Правило URL: страницы нового модуля живут под /<имя_папки>;
+        # машинный контракт — /api/v1/…; legacy-алиасы помечены словом legacy.
+        if module in strict_urls and 'legacy' not in name:
+            plain = uri.lstrip('/')
+            if not (plain.startswith(module) or plain.startswith('api/')):
+                ERRORS.append(
+                    f'{module}: URI `{uri}` должен начинаться с `/{module}` или `/api/` '
+                    f'(правило «префикс + слаг»)')
 
         if name in seen_names:
             ERRORS.append(f'имя маршрута повторяется: {name} ({seen_names[name]} и {module})')

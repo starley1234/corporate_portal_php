@@ -445,7 +445,7 @@ class Service_Prx393_Workflow
                 'hours_left' => round($hours_left, 1),
                 'level' => $level,
                 'title' => 'Срок: '.$row['reg_no'],
-                'href' => '/documents/'.(int) $row['document_id'],
+                'href' => '/prx391_documents/'.(int) $row['document_id'],
                 'target_user_ids' => $targets,
             ]);
             $sent++;

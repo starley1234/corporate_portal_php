@@ -46,7 +46,7 @@ class Controller_Prx393_Sla extends Controller_Prx39x_Base
             return $deadline
                 ? 'Маршрут: '.$deadline['department'].', срок '.date('d.m.Y H:i', strtotime($deadline['due_at']))
                 : 'Маршрут не назначен';
-        }, '/documents/'.$document_id);
+        }, '/prx391_documents/'.$document_id);
     }
 
     public function action_recalc()

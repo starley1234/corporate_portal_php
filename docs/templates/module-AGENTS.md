@@ -38,8 +38,9 @@
 - `prx_XXX_*` — назначение, ключевые колонки, статусы.
 
 ## Маршруты и API
-- `GET /prxXXX/...` — ...
-- `POST /prxXXX/api/...` — (auth: login / token / admin)
+- `GET /prxXXX_slug/...` — страницы модуля (URL = префикс + слаг).
+- `POST /prxXXX_slug/api/...` — внутренний API (auth: login / token / admin).
+- Внешний машинный контракт — `/api/v1/<domain>/...`, ключ и scope — prx150.
 
 ## События
 - Публикует: `prxXXX.*`

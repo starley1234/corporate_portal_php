@@ -37,7 +37,7 @@
 
     <div class="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div class="min-w-0">
-            <form method="get" action="/documents" class="prx-card">
+            <form method="get" action="/prx391_documents" class="prx-card">
                 <div class="grid gap-3 md:grid-cols-2 2xl:grid-cols-[minmax(0,1fr)_180px_200px_auto]">
                     <div>
                         <label class="prx-label" for="docs-q">Поиск</label>
@@ -63,7 +63,7 @@
                     </div>
                     <div class="flex flex-wrap items-end gap-2 md:col-span-2 2xl:col-span-1">
                         <button class="prx-btn-process" type="submit"><i class="fas fa-filter"></i>Применить</button>
-                        <a class="prx-btn-secondary" href="/documents">Сбросить</a>
+                        <a class="prx-btn-secondary" href="/prx391_documents">Сбросить</a>
                     </div>
                 </div>
             </form>
@@ -85,7 +85,7 @@
                     <?php foreach ($rows as $row): ?>
                         <tr>
                             <td>
-                                <a href="/documents/<?php echo (int) $row['id']; ?>" class="block font-semibold text-gray-900 hover:text-blue-600 dark:text-white dark:hover:text-blue-400"><?php echo HTML::chars($row['subject'] ?: 'Без темы'); ?></a>
+                                <a href="/prx391_documents/<?php echo (int) $row['id']; ?>" class="block font-semibold text-gray-900 hover:text-blue-600 dark:text-white dark:hover:text-blue-400"><?php echo HTML::chars($row['subject'] ?: 'Без темы'); ?></a>
                                 <span class="block font-mono text-xs text-gray-500 dark:text-gray-400"><?php echo HTML::chars($row['reg_no']); ?></span>
                                 <span class="block text-[11px] text-gray-400"><?php echo HTML::chars(date('d.m.Y H:i', strtotime($row['received_at']))); ?></span>
                             </td>
@@ -122,7 +122,7 @@
                                     <span class="text-xs text-gray-400">—</span>
                                 <?php endif; ?>
                             </td>
-                            <td class="text-right"><a class="prx-btn-secondary prx-btn-sm" href="/documents/<?php echo (int) $row['id']; ?>">Карточка</a></td>
+                            <td class="text-right"><a class="prx-btn-secondary prx-btn-sm" href="/prx391_documents/<?php echo (int) $row['id']; ?>">Карточка</a></td>
                         </tr>
                     <?php endforeach; ?>
                     <?php if (empty($rows)): ?>
@@ -135,9 +135,9 @@
             <?php if ($pages > 1): ?>
                 <nav class="mt-4 flex items-center justify-between" aria-label="Страницы реестра">
                     <?php $base = $filters; unset($base['page']); ?>
-                    <?php if ($page > 1): ?><a class="prx-btn-secondary" href="/documents?<?php echo http_build_query($base + ['page' => $page - 1]); ?>">← Назад</a><?php else: ?><span></span><?php endif; ?>
+                    <?php if ($page > 1): ?><a class="prx-btn-secondary" href="/prx391_documents?<?php echo http_build_query($base + ['page' => $page - 1]); ?>">← Назад</a><?php else: ?><span></span><?php endif; ?>
                     <span class="text-sm text-gray-500 dark:text-gray-400">Страница <?php echo (int) $page; ?> из <?php echo (int) $pages; ?></span>
-                    <?php if ($page < $pages): ?><a class="prx-btn-secondary" href="/documents?<?php echo http_build_query($base + ['page' => $page + 1]); ?>">Вперёд →</a><?php else: ?><span></span><?php endif; ?>
+                    <?php if ($page < $pages): ?><a class="prx-btn-secondary" href="/prx391_documents?<?php echo http_build_query($base + ['page' => $page + 1]); ?>">Вперёд →</a><?php else: ?><span></span><?php endif; ?>
                 </nav>
             <?php endif; ?>
         </div>
@@ -162,7 +162,7 @@
                     <ul class="mt-3 space-y-3">
                         <?php foreach ($history as $h): ?>
                             <li class="border-l-2 border-gray-200 pl-3 dark:border-gray-700">
-                                <a href="/documents/<?php echo (int) $h['document_id']; ?>" class="block text-sm font-semibold text-gray-900 hover:text-blue-600 dark:text-white dark:hover:text-blue-400"><?php echo HTML::chars($h['reg_no']); ?></a>
+                                <a href="/prx391_documents/<?php echo (int) $h['document_id']; ?>" class="block text-sm font-semibold text-gray-900 hover:text-blue-600 dark:text-white dark:hover:text-blue-400"><?php echo HTML::chars($h['reg_no']); ?></a>
                                 <span class="block text-xs text-gray-600 dark:text-gray-300"><?php echo HTML::chars($h['note'] ?: $h['event']); ?></span>
                                 <span class="block text-[11px] text-gray-400"><?php echo HTML::chars(date('d.m.Y H:i', strtotime($h['created_at']))); ?></span>
                             </li>

@@ -30,7 +30,7 @@
         <?php if ($docflow_enabled): ?>
         <div class="flex flex-wrap gap-2.5 p-5">
             <a class="prx-btn-secondary" href="/inbox">Входящие документы</a>
-            <a class="prx-btn-secondary" href="/documents">Реестр входящих</a>
+            <a class="prx-btn-secondary" href="/prx391_documents">Реестр входящих</a>
             <a class="prx-btn-secondary" href="/analysis">ИИ-анализ входящих</a>
             <a class="prx-btn-secondary" href="/sla">Сроки и маршруты</a>
         </div>

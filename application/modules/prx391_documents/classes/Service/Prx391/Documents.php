@@ -133,7 +133,7 @@ class Service_Prx391_Documents
             'message_id' => $message_id,
             'reg_no' => $reg_no,
             'subject' => $subject,
-            'href' => '/documents/'.$document_id,
+            'href' => '/prx391_documents/'.$document_id,
         ]);
 
         return $document_id;

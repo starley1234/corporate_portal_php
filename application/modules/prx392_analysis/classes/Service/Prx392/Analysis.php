@@ -304,7 +304,7 @@ class Service_Prx392_Analysis
             'suggestion_id' => (int) $suggestion['id'],
             'reg_no' => $document['reg_no'] ?? '',
             'confidence' => $normalized['type_confidence'],
-            'href' => '/documents/'.(int) $run['document_id'],
+            'href' => '/prx391_documents/'.(int) $run['document_id'],
         ]);
 
         return self::suggestion((int) $suggestion['id']);

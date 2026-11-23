@@ -39,6 +39,8 @@ Browser → PHP/HMVC → application/config/modules.php
 | `prx218_module_manager` | Инвентаризация и метаданные жизненного цикла |
 | `prx300_employee` | Организации, площадки, подразделения, профиль сотрудника, внешние ID, сопоставление Auth↔сотрудник и delta-импорт HR-данных |
 | `prx395_document_extract` | PDF → текст: машинный API, приватные файлы prx212 и очередь prx120 |
+| `prx450_document_ocr` | Распознавание документов: внешний OCR-шлюз, API `/api/v1/document-ocr/parse`, ключи prx150 |
+| `prx150_api_hub` | Ключи внешних потребителей, scope, лимиты и журнал использования API |
 | `prx560_knowledge` | Технический RAG-кэш наработок, дедупликация, admin UI |
 | `prx595_useradmin` | Управление пользователями и ролями |
 | `prx597_notifications` | Уведомления, шаблоны, предпочтения каналов и outbox |

@@ -100,10 +100,13 @@ if worker_token:
     health = json.loads(request('/prx395/worker/health', 200, headers={'X-Worker-Token': worker_token}))
     assert health.get('ok') is True and health.get('module') == 'prx395'
     assert health.get('docflow_enabled') is legacy, 'Worker health disagrees with the module block'
-legacy_paths = {'/inbox', '/documents', '/analysis', '/sla'}
+legacy_paths = {'/inbox', '/prx391_documents', '/analysis', '/sla'}
 archived_paths = {'/replies', '/vlm-demo'} | (set() if legacy else legacy_paths)
 for path in sorted(legacy_paths):
     request(path, 200 if legacy else 404)
+if legacy:
+    # Старый короткий адрес остаётся 301-редиректом, а не 404.
+    request('/documents', 301)
 for module in [390, 392, 393]:
     request(f'/prx{module}/api/health', 403 if legacy else 404)
 if legacy:

@@ -147,6 +147,30 @@ def check_module(path: Path, hrefs: dict[str, str], keys: set[str]) -> None:
         if not text(item).startswith('/'):
             fail(f'{name}: путь `api` должен начинаться с "/": {text(item)!r}')
 
+    # api_scopes: права внешнего API, которые модуль отдаёт потребителям.
+    # Ключ — prxNNN.<action> с ID модуля; значение — title и необязательный rate_limit.
+    scopes = manifest.get('api_scopes')
+    if scopes is None or scopes == []:
+        scopes = {}
+    if not isinstance(scopes, dict):
+        fail(f'{name}: `api_scopes` должен быть массивом scope => описание')
+        scopes = {}
+    for scope, meta in scopes.items():
+        scope_text = text(scope)
+        if not re.fullmatch(r'prx\d+\.[a-z0-9_.]+', scope_text):
+            fail(f'{name}: scope {scope_text!r} должен быть prxNNN.<action>')
+            continue
+        if isinstance(manifest.get('id'), int) and not scope_text.startswith(f'prx{manifest["id"]}.'):
+            fail(f'{name}: scope {scope_text!r} не совпадает с ID модуля {manifest["id"]}')
+        if not isinstance(meta, dict):
+            fail(f'{name}: scope {scope_text!r} должен описываться массивом')
+            continue
+        if not text(meta.get('title') or '').strip():
+            fail(f'{name}: scope {scope_text!r} без `title`')
+        rate = meta.get('rate_limit', 60)
+        if isinstance(rate, Raw) or not isinstance(rate, int) or rate < 1:
+            fail(f'{name}: scope {scope_text!r}: `rate_limit` — целое ≥ 1')
+
 
 def main() -> int:
     hrefs: dict[str, str] = {}

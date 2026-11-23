@@ -34,7 +34,7 @@ class PortalNavigationTest extends TestCase
             $this->assertNotContains($href, $hrefs, $href);
         }
         $modules = Kohana::modules();
-        foreach (['/inbox' => 'prx390_intake', '/documents' => 'prx391_documents', '/analysis' => 'prx392_analysis', '/sla' => 'prx393_workflow'] as $href => $module) {
+        foreach (['/inbox' => 'prx390_intake', '/prx391_documents' => 'prx391_documents', '/analysis' => 'prx392_analysis', '/sla' => 'prx393_workflow'] as $href => $module) {
             $this->assertSame(isset($modules[$module]), in_array($href, $hrefs, TRUE), $href);
         }
         foreach ($items as $item) {
@@ -44,7 +44,7 @@ class PortalNavigationTest extends TestCase
         $login = ['guest' => FALSE, 'logged' => TRUE, 'roles' => ['login'], 'admin' => FALSE, 'agent' => FALSE];
         $login_hrefs = array_column(Service_Prx110_Catalog::search_json($login)['items'], 'href');
         $this->assertContains('/employee', $login_hrefs);
-        foreach (['/prx560', '/document-extract', '/inbox', '/documents', '/analysis', '/sla'] as $href) {
+        foreach (['/prx560', '/document-extract', '/inbox', '/prx391_documents', '/analysis', '/sla'] as $href) {
             $this->assertNotContains($href, $login_hrefs);
         }
 

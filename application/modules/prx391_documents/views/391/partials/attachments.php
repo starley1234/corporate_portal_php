@@ -10,7 +10,7 @@
                                     <span class="block truncate text-sm font-semibold"><i class="fas fa-file-pdf mr-1 text-red-500"></i><?php echo HTML::chars($file['filename']); ?></span>
                                     <span class="block text-xs text-gray-500 dark:text-gray-400"><?php echo HTML::chars($file['mime']); ?> · <?php echo number_format((int) $file['size_bytes'] / 1024, 0, ',', ' '); ?> КБ</span>
                                 </div>
-                                <a class="prx-btn-secondary prx-btn-sm" href="/documents/file/<?php echo (int) $file['file_id']; ?>"><i class="fas fa-download"></i>Скачать PDF</a>
+                                <a class="prx-btn-secondary prx-btn-sm" href="/prx391_documents/file/<?php echo (int) $file['file_id']; ?>"><i class="fas fa-download"></i>Скачать PDF</a>
                             </li>
                         <?php endforeach; ?>
                     </ul>

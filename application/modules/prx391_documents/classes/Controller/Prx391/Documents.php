@@ -7,7 +7,7 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
         $this->_require('prx391.view');
         $this->set_title('Реестр входящих документов');
         $this->set_description('Карточки, реквизиты, корреспонденты и сроки');
-        $this->_nav('/documents');
+        $this->_nav('/prx391_documents');
 
         $filters = [
             'q' => trim((string) $this->request->query('q')),
@@ -47,7 +47,7 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
 
         $this->set_title('Документ '.$document['reg_no']);
         $this->set_description($document['subject']);
-        $this->_nav('/documents');
+        $this->_nav('/prx391_documents');
 
         $analysis = NULL;
         $runs = [];
@@ -113,7 +113,7 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
             $res = Service_Prx391_Documents::save_card($id, $input, $this->_actor());
 
             return $res['changed'] ? 'Сохранено полей: '.$res['changed'] : 'Изменений нет';
-        }, '/documents/'.$id);
+        }, '/prx391_documents/'.$id);
     }
 
     public function action_close()
@@ -125,7 +125,7 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
             Service_Prx391_Documents::close($id, $this->_actor());
 
             return 'Документ закрыт';
-        }, '/documents/'.$id);
+        }, '/prx391_documents/'.$id);
     }
 
     public function action_reopen()
@@ -137,7 +137,7 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
             Service_Prx391_Documents::reopen($id, $this->_actor());
 
             return 'Документ возвращён в работу';
-        }, '/documents/'.$id);
+        }, '/prx391_documents/'.$id);
     }
 
     public function action_download()

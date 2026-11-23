@@ -9,14 +9,14 @@ return [
     'title' => 'Реестр входящих',
     'short' => 'Карточка документа, реквизиты, корреспонденты и провенанс полей',
     'icon' => 'fas fa-folder-open',
-    'href' => '/documents',
+    'href' => '/prx391_documents',
     'group' => 'Документооборот',
     'sort' => 391,
     'status' => 'beta',
     'audience' => 'admin',
     'acl' => 'prx391.view',
     'keywords' => 'реестр документов карточка входящего корреспондент реквизиты номер дата',
-    'api' => ['/prx391/api/health'],
+    'api' => ['/prx391_documents/api/health'],
 
     'notify' => [
         'events' => [

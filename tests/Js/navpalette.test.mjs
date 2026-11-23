@@ -8,7 +8,7 @@ const source = readFileSync(new URL('../../public_html/assets/js/navpalette.js',
 const catalog = {
     items: [
         { href: '/inbox', title: 'Входящие документы', icon: 'fas fa-inbox', group: 'Документооборот', status: 'stable', nav_paths: [] },
-        { href: '/documents', title: 'Реестр входящих', icon: 'fas fa-folder', group: 'Документооборот', status: 'stable', nav_paths: ['/document-card'] },
+        { href: '/prx391_documents', title: 'Реестр входящих', icon: 'fas fa-folder', group: 'Документооборот', status: 'stable', nav_paths: ['/document-card'] },
     ],
     groups: [],
 };
@@ -109,13 +109,13 @@ test('звезда в палитре сохраняет и удаляет зак
 });
 
 test('карточка обновляется после подтверждения сервера и учитывает фильтр', async () => {
-    const p = await page({ path: '/services', card: '<button class="nav-pin-card" data-nav-pin-card="/documents" data-nav-pin-title="Реестр входящих" data-nav-pin-icon="fas fa-folder">⋆</button>' });
+    const p = await page({ path: '/services', card: '<button class="nav-pin-card" data-nav-pin-card="/prx391_documents" data-nav-pin-title="Реестр входящих" data-nav-pin-icon="fas fa-folder">⋆</button>' });
     let filterUpdates = 0;
     p.doc.getElementById('nav-search').value = 'реестр';
     p.doc.getElementById('nav-search').addEventListener('input', () => filterUpdates++);
     click(p.window, p.doc.querySelector('.nav-pin-card'));
     await tick();
-    assert.ok(p.doc.querySelector('[data-nav-group="pinned"] a[href="/documents"]'));
+    assert.ok(p.doc.querySelector('[data-nav-group="pinned"] a[href="/prx391_documents"]'));
     assert.equal(filterUpdates, 1);
     assert.equal(p.doc.querySelector('.nav-pin-card').getAttribute('aria-pressed'), 'true');
     assert.equal(p.doc.querySelector('.nav-pin-card').getAttribute('aria-label'), 'Убрать из Избранного: Реестр входящих');
@@ -153,7 +153,7 @@ test('закрепление другого окна перечитываетс�
         key: 'prx.nav.favorites.changed.v1', newValue: JSON.stringify({ user_id: 7, nonce: 'n' }),
     }));
     await tick();
-    const link = p.doc.querySelector('[data-nav-group="pinned"] a[href="/documents"]');
+    const link = p.doc.querySelector('[data-nav-group="pinned"] a[href="/prx391_documents"]');
     assert.ok(link);
     assert.equal(link.getAttribute('aria-current'), 'location');
     assert.equal(p.server.calls[0].url, '/prx110/api/favorites');
@@ -209,7 +209,7 @@ test('устаревшая вкладка не меняет другой акк�
     assert.equal(p.doc.querySelector('.palette-item'), null, 'старый каталог тоже скрыт');
     assert.match(p.doc.getElementById('nav-favorite-status').textContent, /аккаунт изменились/i);
     assert.equal(p.doc.querySelector('.nav-pin-card').disabled, true);
-    assert.deepEqual(p.server.items.map(it => it.href), ['/documents']);
+    assert.deepEqual(p.server.items.map(it => it.href), ['/prx391_documents']);
     p.dom.window.close();
 });
 

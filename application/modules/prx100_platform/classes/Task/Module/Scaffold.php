@@ -61,7 +61,7 @@ class Task_Module_Scaffold extends Minion_Task {
         $base = APPPATH.'modules/'.$module;
         $replace = [
             '__MODULE__' => $module, '__CLASS__' => $class, '__ID__' => (string) $id,
-            '__SLUG__' => $slug, '__TITLE__' => var_export($name, TRUE),
+            '__SLUG__' => $slug, '__TITLE__' => var_export($name, TRUE), '__TODAY__' => date('Y-m-d'),
             '__ENTITY__' => $entity, '__ENTITY_LOWER__' => strtolower($entity),
             '__TABLE__' => $table,
         ];
@@ -70,11 +70,12 @@ class Task_Module_Scaffold extends Minion_Task {
             'init.php' => <<<'PHP'
 <?php defined('SYSPATH') or die('No direct script access.');
 
-// Страница сервиса и его внутренний API. Внешний машинный контракт, если
-// понадобится, живёт отдельно: /api/v1/<domain>/... (см. prx395).
-Route::set('__MODULE___api', '__SLUG__/api(/<action>)', ['action' => '[a-z_]+'])
+// Страница сервиса и его внутренний API. URL по умолчанию — префикс + слаг
+// (/prxNNN_slug), чтобы разработчик сразу видел владельца. Внешний машинный
+// контракт, если понадобится, живёт отдельно: /api/v1/<domain>/... (см. prx395).
+Route::set('__MODULE___api', '__MODULE__/api(/<action>)', ['action' => '[a-z_]+'])
     ->defaults(['controller' => '__CLASS___Api', 'action' => 'index']);
-Route::set('__MODULE__', '__SLUG__(/<action>(/<id>))', [
+Route::set('__MODULE__', '__MODULE__(/<action>(/<id>))', [
         'action' => '[a-z_]+', 'id' => '\d+',
     ])->defaults(['controller' => '__CLASS___Page', 'action' => 'index']);
 PHP,
@@ -88,13 +89,14 @@ return [
     'title' => __TITLE__,
     'short' => 'Короткое описание для каталога: что здесь делает сотрудник',
     'icon' => 'fas fa-cube',
-    'href' => '/__SLUG__',
+    'href' => '/__MODULE__',
     'sort' => __ID__,
+    'created_at' => '__TODAY__',
     // draft — только admin/agent; переведите в beta/stable после тестов
     'status' => 'draft',
     'audience' => 'admin',
     'acl' => 'prx__ID__.view',
-    'api' => ['/__SLUG__/api'],
+    'api' => ['/__MODULE__/api'],
 ];
 PHP,
             'config/__MODULE__.php' => <<<'PHP'
@@ -246,7 +248,7 @@ PHP,
         'crumbs' => [['Сервисы', '/services'], [__TITLE__]],
         'title'  => __TITLE__,
         'pill'   => [count($rows).' записей', 'fa-cube'],
-        'actions' => [['label' => 'Создать', 'href' => '/__SLUG__/create', 'icon' => 'fa-plus', 'role' => 'cta']],
+        'actions' => [['label' => 'Создать', 'href' => '/__MODULE__/create', 'icon' => 'fa-plus', 'role' => 'cta']],
         'lead'   => 'Одной-двумя фразами: что делает страница и кому доступна.',
     ]); ?>
 
@@ -283,6 +285,10 @@ __TITLE__.
 - Объектный доступ: `Policy___CLASS______ENTITY__` (наследует `Prx_Policy`).
 - SQL: `Prx_Db::select/one/execute/insert/transaction`, параметры `:name`.
 - События: `Prx_Event::publish('prx__ID__.<entity>.<action>', [...])`.
+
+## URL
+Страница — `/__MODULE__`, внутренний API — `/__MODULE__/api`. Внешний машинный
+контракт — `/api/v1/<domain>/…` и ключ prx150; не смешивайте с страницаи модуля.
 
 ## Карта
 | что | где |

@@ -26,6 +26,8 @@ return [
     'prx597.view' => ['login'],
     'prx599.view' => ['login'],
     'prx395.ui' => ['admin'],
+    'prx150.admin' => ['admin'],
+    'prx450.view' => ['admin'],
     'prx595.users.admin' => ['admin'],
     'prx597.admin' => ['admin'],
     'prx560.admin' => ['admin'],
