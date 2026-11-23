@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from prx_workers import ocr_client
-from prx_workers.handlers import doc_normalize
+from prx_workers.handlers.trial.prx390_intake import normalize as doc_normalize
 
 
 @pytest.fixture(autouse=True)

@@ -19,10 +19,11 @@ from urllib.parse import urlparse
 
 import pytest
 
-from prx_workers.handlers import doc_analyze, doc_normalize
+from prx_workers.handlers.trial.prx390_intake import normalize as doc_normalize
+from prx_workers.handlers.trial.prx392_analysis import analyze as doc_analyze
 from prx_workers.llm import LlmClient, Provider
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[4]
 DEMO = ROOT / "application" / "modules" / "prx390_intake" / "demo"
 MOCK_SERVER = ROOT / "workers" / "mock" / "mock_llm_server.py"
 

@@ -17,7 +17,7 @@ def test_disabled_legacy_channels_do_not_stop_pdf_worker(monkeypatch, caplog):
     from prx_workers import __main__ as worker
     from prx_workers.config import Config
 
-    config = Config(queue_mode="pg", pg_dsn="postgres://example", channels=["echo", "document.extract", "doc.normalize", "doc.draft"])
+    config = Config(queue_mode="pg", pg_dsn="postgres://example", channels=["echo", "document.extract", "doc.normalize"])
     monkeypatch.setattr(worker.Config, "load", lambda: config)
     monkeypatch.setattr(worker, "setup_logging", lambda: None)
     monkeypatch.setattr(worker, "make_queue", lambda _: None)
@@ -33,10 +33,22 @@ def test_disabled_legacy_channels_do_not_stop_pdf_worker(monkeypatch, caplog):
         async def run(self):
             pass
 
-    monkeypatch.setattr(worker, "docflow_enabled", off)
+    monkeypatch.setattr(worker, "trial_enabled", off)
     monkeypatch.setattr(worker, "BaseWorker", Worker)
     assert worker.main() == 0
-    assert "Пропущены выключенные каналы: doc.draft, doc.normalize" in caplog.text
+    assert "Пропущены выключенные каналы: doc.normalize" in caplog.text
+
+
+def test_archived_draft_channel_is_unknown():
+    """doc.draft жил в удалённом archive/: теперь это просто неизвестный канал."""
+    from prx_workers.config import Config
+    from prx_workers.handlers import active_handlers
+
+    config = Config(queue_mode="pg", pg_dsn="postgres://example", channels=["echo", "doc.draft"])
+    problems = config.validate()
+    handlers = active_handlers()
+    unknown = sorted(set(config.channels) - handlers.keys())
+    assert unknown == ["doc.draft"] and problems == []
 
 
 def test_only_requested_legacy_channels_return_with_switch():

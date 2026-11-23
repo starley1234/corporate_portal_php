@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from prx_workers.handlers.doc_analyze import parse_json_reply
-from prx_workers.handlers.doc_normalize import _clean, _extract_pypdf
+from prx_workers.handlers.trial.prx392_analysis.analyze import parse_json_reply
+from prx_workers.handlers.trial.prx390_intake.normalize import _clean, _extract_pypdf
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[4]
 DEMO = ROOT / "application" / "modules" / "prx390_intake" / "demo"
 
 

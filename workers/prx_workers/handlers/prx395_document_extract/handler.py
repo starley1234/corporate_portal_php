@@ -12,11 +12,16 @@ from pathlib import Path
 
 import httpx
 
-from .. import document_extract, site
-from ..base import HandlerContext, PermanentJobError
-from ..document_extract import DocumentJobError, MAX_PDF
+from . import document_extract
+from ... import site
+from ...base import HandlerContext, PermanentJobError
+from .document_extract import DocumentJobError, MAX_PDF
 
 CHANNEL = "document.extract"
+
+# Куда воркер ходит за файлом и куда отдаёт результат: (префикс env, путь API,
+# модуль, чей токен показывать в --check-site — "worker" | "site").
+SITE = ("PRX395_DOCUMENT_EXTRACT", "/prx395/worker", "prx395", "worker")
 log = logging.getLogger("prx.document_extract")
 
 

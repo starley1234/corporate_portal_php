@@ -1,5 +1,14 @@
 # Новый бизнес-модуль PRX
 
+<!-- context-index:begin -->
+<!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index docs/MODULE_GUIDE.md --write. Руками не править. -->
+| Раздел | Строка | Размер |
+|---|---|---|
+|   1. Выберите ID и границы | 12 | 1,9 КБ |
+|   2. Реализуйте вертикальный MVP | 47 | 1,8 КБ |
+|   3. Подключите | 66 | 1,3 КБ |
+|   4. Дизайн и проверка | 94 | 0,7 КБ |
+<!-- context-index:end -->
 ## 1. Выберите ID и границы
 
 Сверьтесь с `application/config/portal.php`: зарезервированы 50 возможностей.
@@ -47,7 +56,8 @@ tests/Unit/Prx301PolicyTest.php                # гость и чужая орг
    CSRF уже проверен `Prx_PostGuard`; идентификатор пользователя — из сессии.
 5. Для долгой задачи используйте `Service_Prx120_JobQueue::instance()`;
    публичный контракт очереди уточняйте в её сервисе/README. Добавьте handler
-   в `workers/prx_workers/handlers/`, HANDLERS и `worker.channels` манифеста.
+   в `workers/prx_workers/handlers/<модуль>/`, реестр `handlers/__init__.py`
+   и `worker.channels` манифеста (docs/WORKERS.md, «Структура»).
 6. Уведомления — через `prx597`, доменные события — `Prx_Event::publish()`.
    Ссылки на приватные объекты не должны раскрывать их данные.
 7. Добавьте test cases: свой/чужой сотрудник и организация, нет роли,

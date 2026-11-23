@@ -16,7 +16,7 @@ import pytest
 
 from prx_workers import ocr_client, site
 from prx_workers.docflow_trace import NORMALIZE_TRACE
-from prx_workers.handlers import doc_normalize
+from prx_workers.handlers.trial.prx390_intake import normalize as doc_normalize
 
 SECRET = "private-secret-and-document-content-42"
 

@@ -47,7 +47,7 @@
 
 ## Очередь (если используется)
 - Каналы: `...` (постановка: `Service_Prx120_JobQueue::push`)
-- Обработчик: `workers/prx_workers/handlers/...`
+- Обработчик: `workers/prx_workers/handlers/<модуль>/...`
 - Манифест: `'worker' => ['channels' => [...]]` в `config/prx_module.php`
 
 ## Env

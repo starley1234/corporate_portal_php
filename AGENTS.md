@@ -63,7 +63,7 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
    Миграция prx110_004 создаёт admin/admin только на пустой базе; на production
    задайте `PRX_DEFAULT_ADMIN=0` и создайте администратора через `make seed`.
 8. LLM/эмбеддинги и тяжёлые операции — очередь `prx120_jobs`; общий код воркера
-   `workers/prx_workers/{base,llm,llmwatch,usage,webread}.py` не дублировать.
+   `workers/prx_workers/{base,queue,llm,llmwatch,usage,ocr_client}.py` не дублировать.
    Heartbeat, retry, cancel, usage сохраняются. Новый канал регистрируется в
    Python HANDLERS и в манифесте PHP-владельца.
 9. Внешние JS/CSS/шрифты в HTML запрещены: только локальные ресурсы

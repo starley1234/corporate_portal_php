@@ -27,7 +27,7 @@
 
 ## Состояние
 - Готовность: **рабочий** (миграция, сервис, HTTP-API, minion-задача).
-- Python-сторона: `workers/prx_workers/` (queue.py, base.py, handlers/).
+- Python-сторона: `workers/prx_workers/` (queue.py, base.py, handlers/prx120_jobs/).
 
 ## Ключевые классы
 | Класс | Роль |

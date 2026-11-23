@@ -111,21 +111,24 @@ def test_startup_logs_only_site_origin_without_credentials_or_query(tmp_path, mo
 
     class Config:
         queue_mode = "pg"
-        channels = ["echo"]
+        channels = ["echo", "document.extract"]
 
         def validate(self):
             return []
 
     class Worker:
+        def __init__(self, _config, _queue, _handlers):
+            pass
+
         async def run(self):
             return None
 
     monkeypatch.setattr(entry.Config, "load", lambda: Config())
     monkeypatch.setattr(entry, "make_queue", lambda _config: None)
-    monkeypatch.setattr(entry, "BaseWorker", lambda *_args: Worker())
+    monkeypatch.setattr(entry, "BaseWorker", Worker)
     assert entry.main() == 0
     text = target.read_text(encoding="utf-8")
-    assert "PHP: https://portal.example (PRX120_API_BASE)" in text
+    assert "PHP для document.extract: https://portal.example (PRX120_API_BASE)" in text
     assert secret not in text
 
 

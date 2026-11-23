@@ -2,7 +2,7 @@ import httpx
 import pytest
 from pypdf import PdfWriter
 
-from prx_workers import document_extract as ocr
+from prx_workers.handlers.prx395_document_extract import document_extract as ocr
 from prx_workers.base import PermanentJobError
 
 

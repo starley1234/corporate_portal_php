@@ -12,8 +12,9 @@ from pathlib import Path
 
 from .base import BaseWorker
 from .config import Config
-from .handlers import ARCHIVED_CHANNELS, LEGACY_CHANNELS, active_handlers
-from .site_check import docflow_enabled
+from .handlers import TRIAL_CHANNELS, active_handlers
+from .handlers.trial import enabled as trial_enabled
+from .site_check import targets
 from .queue import make_queue
 from .site import module_api_config, safe_origin
 
@@ -170,7 +171,7 @@ def main() -> int:
     problems = config.validate()
     requested = set(config.channels)
     handlers = active_handlers()
-    unknown_channels = sorted(requested - handlers.keys() - LEGACY_CHANNELS - ARCHIVED_CHANNELS)
+    unknown_channels = sorted(requested - handlers.keys() - TRIAL_CHANNELS)
     if unknown_channels:
         problems.append("WORKER_CHANNELS: неизвестные каналы: " + ", ".join(unknown_channels)
                         + ". Уберите их или оставьте WORKER_CHANNELS пустым.")
@@ -179,7 +180,7 @@ def main() -> int:
             logging.error("Конфигурация: %s", p)
         return 2
 
-    if (not requested or requested & LEGACY_CHANNELS) and asyncio.run(docflow_enabled(config.api_token)):
+    if (not requested or requested & TRIAL_CHANNELS) and asyncio.run(trial_enabled(config.api_token)):
         handlers = active_handlers(True)
     disabled = requested - handlers.keys()
     if disabled:
@@ -197,14 +198,11 @@ def main() -> int:
                  log_file or "(только stderr)",
                  ", ".join(_quiet_loggers()) or "—",
                  ", ".join(skip) or "—")
-    site_url, source = module_api_config("PRX395_DOCUMENT_EXTRACT", "/prx395/worker")
-    logging.info("Очередь: %s · каналы: %s · PHP: %s (%s)",
-                 config.queue_mode,
-                 ",".join(config.channels) or "все",
-                 safe_origin(site_url), source)
-    if "doc.normalize" in (config.channels or handlers):
-        legacy_base, legacy_source = module_api_config("PRX390", "/prx390/api")
-        logging.info("PHP для doc.normalize: %s (%s)", safe_origin(legacy_base), legacy_source)
+    logging.info("Очередь: %s · каналы: %s", config.queue_mode, ",".join(config.channels) or "все")
+    for channel, (prefix, path, _module, _token_kind) in targets(handlers).items():
+        if channel in (config.channels or handlers):
+            base, source = module_api_config(prefix, path)
+            logging.info("PHP для %s: %s (%s)", channel, safe_origin(base), source)
 
     worker = BaseWorker(config, make_queue(config), handlers)
     try:

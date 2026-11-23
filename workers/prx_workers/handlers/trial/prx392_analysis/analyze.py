@@ -15,8 +15,8 @@ import json
 import re
 import time
 
-from .. import site
-from ..base import HandlerContext
+from .... import site
+from ....base import HandlerContext
 
 CHANNEL = "doc.analyze"
 _PREFIX = "PRX392"

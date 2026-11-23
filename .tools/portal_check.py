@@ -70,18 +70,33 @@ for path in (ROOT / 'application').rglob('*.php'):
         check(name.lower() not in classes, f'Дубликат PHP-класса {name}: {path}')
         classes[name.lower()] = path
 
+# Пакет обработчика называется как модуль-владелец (handlers/prx395_document_extract/),
+# проба пера — handlers/trial/<модуль>/. Канал — модуль, импортированный в реестре
+# handlers/__init__.py; остальные файлы пакета — его помощники без CHANNEL.
 handlers = ROOT / 'workers/prx_workers/handlers'
+channel_modules = {}  # путь модуля канала → имя импорта
+for imp in re.findall(r'^\s*from \.(trial\.)?(\w+) import ([\w, ]+)', (handlers / '__init__.py').read_text(), re.M):
+    package = ('trial/' if imp[0] else '') + imp[1]
+    for part in [part.strip() for part in imp[2].split(',') if part.strip()]:
+        name = part.split(' as ')[0].strip()
+        channel_modules[handlers / package / f'{name}.py'] = name
 channel_names = []
 for path in (ROOT / 'workers/prx_workers').rglob('*.py'):
     try:
         ast.parse(path.read_text(), filename=str(path))
     except SyntaxError as error:
         errors.append(str(error))
-    if path.parent == handlers and path.name != '__init__.py':
+    if path in channel_modules:
         match = re.search(r'^CHANNEL = "([^"]+)"', path.read_text(), re.M)
-        check(bool(match), f'Нет CHANNEL в {path.name}')
+        check(bool(match), f'Нет CHANNEL в {path.relative_to(ROOT)}')
         if match:
             channel_names.append(match[1])
+            parts = path.relative_to(handlers).parts
+            owner = parts[1] if parts[0] == 'trial' else parts[0]
+            check((ROOT / 'application/modules' / owner / 'config/prx_module.php').is_file(),
+                  f'Пакет обработчика не называется как модуль-владелец: {path.relative_to(ROOT)}')
+    elif handlers in path.parents and re.search(r'^CHANNEL = ', path.read_text(), re.M):
+        errors.append(f'Канал не зарегистрирован в handlers/__init__.py: {path.relative_to(ROOT)}')
 check(set(channel_names) == {'doc.analyze', 'doc.normalize', 'document.extract', 'echo', 'embeddings.index', 'llm.summarize', 'semantic.index'}, 'Лишние/потерянные worker-каналы')
 manifest_text = '\n'.join(p.read_text() for p in (ROOT / 'application/modules').glob('*/config/prx_module.php'))
 for channel in channel_names:

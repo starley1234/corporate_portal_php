@@ -17,7 +17,7 @@ ctx (см. WORKER_PG_DSN в конфиге).
 
 from __future__ import annotations
 
-from ..base import HandlerContext
+from ...base import HandlerContext
 
 CHANNEL = "embeddings.index"
 

@@ -57,9 +57,9 @@ import hashlib
 import json
 import os
 
-from .. import site
-from ..base import HandlerContext
-from ..llmwatch import wait_with_ticks
+from ... import site
+from ...base import HandlerContext
+from ...llmwatch import wait_with_ticks
 
 CHANNEL = "semantic.index"
 

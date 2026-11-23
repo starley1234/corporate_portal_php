@@ -10,8 +10,8 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from .base import PermanentJobError
-from .ocr_client import OcrSettings, TESSERACT_LANGS, provider_name, tesseract_available
+from ...base import PermanentJobError
+from ...ocr_client import OcrSettings, TESSERACT_LANGS, provider_name, tesseract_available
 from .pdf_probe import MAX_TEXT
 
 MAX_PDF = 10 * 1024 * 1024

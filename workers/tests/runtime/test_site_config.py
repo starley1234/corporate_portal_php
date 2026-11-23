@@ -72,7 +72,7 @@ async def test_check_site_rejects_login_wrong_token_and_redirect(monkeypatch, ca
 @pytest.mark.asyncio
 @pytest.mark.parametrize('enabled', [True, False])
 async def test_legacy_state_comes_from_authenticated_php_route(monkeypatch, enabled):
-    from prx_workers.site_check import docflow_enabled
+    from prx_workers.handlers.trial import enabled as docflow_enabled
 
     monkeypatch.setenv('PRX395_DOCUMENT_EXTRACT_API_BASE', 'https://portal.toolforge.ru/prx395/worker')
 

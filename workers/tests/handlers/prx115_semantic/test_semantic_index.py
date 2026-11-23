@@ -12,7 +12,7 @@ import json
 
 import pytest
 
-from prx_workers.handlers import semantic_index
+from prx_workers.handlers.prx115_semantic import index as semantic_index
 
 
 class _Tx:

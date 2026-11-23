@@ -13,7 +13,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-MOCK = Path(__file__).resolve().parents[1] / "mock" / "mock_llm_server.py"
+MOCK = Path(__file__).resolve().parents[2] / "mock" / "mock_llm_server.py"
 
 
 def _mock():

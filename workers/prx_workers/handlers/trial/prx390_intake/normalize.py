@@ -30,13 +30,14 @@ from typing import Any
 
 import httpx
 
-from .. import ocr_client, site
-from ..base import HandlerContext
-from ..docflow_trace import NORMALIZE_TRACE as _TRACE
+from .... import ocr_client, site
+from ....base import HandlerContext
+from ....docflow_trace import NORMALIZE_TRACE as _TRACE
 
 log = logging.getLogger("prx.docflow")
 
 CHANNEL = "doc.normalize"
+SITE = ("PRX390", "/prx390/api", "prx390", "site")
 _PREFIX = "PRX390"
 _ROUTE_BASE = "/prx390/api"
 

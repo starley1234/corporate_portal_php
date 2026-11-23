@@ -1,4 +1,5 @@
-"""Провайдеры OCR для канала `doc.normalize`.
+"""Провайдеры OCR (tesseract локально / remote `/parse`) для каналов
+`document.extract` (prx395) и `doc.normalize` (проба пера).
 
 Зачем отдельный модуль. Tesseract удобен локально, но на production его место
 занимает внешний сервис (Docling / PaddleOCR / MinerU). Воркеру не нужно знать,

@@ -2,6 +2,19 @@
 
 > Тестовый контур: раскомментируйте общий блок в `application/bootstrap.php`; UI только для администратора. См. `docs/QUICK-CHECK.md`.
 
+<!-- context-index:begin -->
+<!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index application/modules/prx391_documents/AGENTS.md --write. Руками не править. -->
+| Раздел | Строка | Размер |
+|---|---|---|
+|   Состояние | 18 | 0,4 КБ |
+|   Границы | 24 | 0,4 КБ |
+|   Маршруты | 31 | 0,4 КБ |
+|   Права | 39 | 0,3 КБ |
+|   Структура сервиса | 45 | 0,6 КБ |
+|   Публичные методы | 55 | 1,1 КБ |
+|   Правила данных | 71 | 0,5 КБ |
+|   Проверки | 79 | 0,1 КБ |
+<!-- context-index:end -->
 ## Состояние
 
 MVP: регистрация из конверта prx390, карточка с реквизитами, типы,
@@ -66,4 +79,4 @@ MVP: регистрация из конверта prx390, карточка с р
 ## Проверки
 
 `python3 .tools/portal_check.py`, `bash .tools/php_check_all.sh`,
-`python3 -m pytest workers/tests/test_docflow.py`.
+`python3 -m pytest workers/tests/handlers/trial/test_docflow.py`.

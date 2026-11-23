@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from ..base import HandlerContext
+from ...base import HandlerContext
 
 CHANNEL = "llm.summarize"
 

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import asyncio
 
-from ..base import HandlerContext, utcnow_iso
+from ...base import HandlerContext, utcnow_iso
 
 CHANNEL = "echo"
 
