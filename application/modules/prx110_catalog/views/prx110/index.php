@@ -18,11 +18,6 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
         'lead'   => (int) $total.' сервисов, готовых к работе. Состав зависит от прав доступа.',
     ]); ?>
 
-
-    <?php if ($preview): ?>
-    <p class="prx-hint mt-4" role="status">Предпросмотр: показаны сервисы «в работе» (beta/draft). Обычным сотрудникам они не видны.</p>
-    <?php endif; ?>
-
     <section class="prx-panel mt-6" data-catalog-favorites aria-labelledby="catalog-favorites-title"<?php echo $favorite_items ? '' : ' hidden'; ?>>
         <div class="prx-panel-head"><h2 id="catalog-favorites-title" class="prx-h3">Избранное</h2></div>
         <div class="flex flex-wrap gap-2.5 p-5" data-catalog-favorites-list>
@@ -60,14 +55,11 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
             </a>
             <ul class="mt-3.5 space-y-1 text-sm leading-snug text-gray-600 dark:text-gray-300">
                 <?php foreach ($g['items'] as $m): ?>
-                <?php $state = Service_Prx110_Catalog::resolve_state($m); ?>
                 <li class="catalog-item group/item flex items-center gap-1 break-inside-avoid" data-search="<?php echo HTML::chars(mb_strtolower($m['title'].' '.($m['short'] ?? '').' '.($m['keywords'] ?? ''))); ?>">
                     <a href="<?php echo HTML::chars($m['href']); ?>"<?php echo empty($m['short']) ? '' : ' title="'.HTML::chars($m['short']).'"'; ?> class="inline-flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-0.5 -mx-1.5 transition hover:bg-gray-50 hover:text-blue-600 dark:hover:bg-gray-700/50 dark:hover:text-blue-400">
                         <i class="<?php echo HTML::chars($m['icon']); ?> w-4 shrink-0 text-center text-sm text-gray-400"></i>
                         <span class="truncate"><?php echo HTML::chars($m['title']); ?></span>
-                        <?php if ($state === 'wip'): ?>
-                        <span class="prx-badge prx-badge-info shrink-0">В работе</span>
-                        <?php elseif ( ! empty($m['badge'])): ?>
+                        <?php if ( ! empty($m['badge'])): ?>
                         <span class="shrink-0 text-[10px] font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400"><?php echo HTML::chars((string) $m['badge']); ?></span>
                         <?php endif; ?>
                     </a>

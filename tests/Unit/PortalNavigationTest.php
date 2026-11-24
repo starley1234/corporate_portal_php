@@ -77,6 +77,22 @@ class PortalNavigationTest extends TestCase
         $this->assertSame([], $guest_hrefs);
     }
 
+    public function test_global_search_is_not_in_the_catalog_or_palette(): void
+    {
+        $search = Service_Prx110_Catalog::get('prx100_search');
+        $this->assertNotNull($search);
+        foreach ([['login', 'admin'], ['login']] as $roles) {
+            $admin = in_array('admin', $roles, TRUE);
+            $ctx = ['logged' => TRUE, 'roles' => $roles, 'admin' => $admin, 'agent' => $admin];
+            $visible = Service_Prx110_Catalog::visible_modules($ctx);
+            $this->assertNotContains('/', array_column($visible, 'href'));
+            $this->assertNotContains('prx100_search', array_column($visible, 'module_name'));
+            $items = Service_Prx110_Catalog::search_json($ctx)['items'];
+            $this->assertNotContains('/', array_column($items, 'href'));
+            $this->assertNotContains($search['title'], array_column($items, 'title'));
+        }
+    }
+
     public function test_catalog_passes_only_local_navigation_aliases(): void
     {
         $property = new ReflectionProperty('Service_Prx110_Catalog', '_modules');

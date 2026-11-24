@@ -32,11 +32,10 @@
  *   'status'   => draft|beta|stable|deprecated  (beta — фолбэк из badge)
  *   'audience' => public|auth|admin|agent      (auth — фолбэк для hidden)
  *
- * Рабочий каталог /services показывает только ОДОБРЕННЫЕ сервисы (status=stable).
- * beta/draft — это «в работе»: они не попадают на /services, в палитру и
- * сайдбар, но видны на /portal-plan и в режиме предпросмотра ?agent_preview=1
- * для агента/администратора. Отсутствие status больше НЕ означает публикацию:
- * без явного решения модуль считается черновиком (draft).
+ * Рабочий каталог /services показывает только сервисы в состоянии approved.
+ * Для управляемых модулей решение из prx_110_publications имеет приоритет
+ * над состоянием манифеста, кроме архива манифеста. Сервисы в работе видны
+ * на /portal-plan и в API каталога в режиме ?agent_preview=1 для агента/админа.
  *
  * Про эти поля подробнее — в Service_Prx110_Catalog::visible_modules() и
  * user_context(). Манифесты БЕЗ явного status подтягивают статус из prx218
@@ -263,7 +262,7 @@ class Service_Prx110_Catalog {
      *
      * agent   — управление: администратор или роль 'agent' (audience='agent').
      * preview — дополнительный флаг: тот же агент/админ с ?agent_preview=1;
-     *           только он показывает beta/draft («в работе») в рабочем каталоге.
+     *           он разрешает показать wip, но SSR-каталог не включает предпросмотр.
      */
     public static function user_context()
     {
@@ -389,10 +388,10 @@ class Service_Prx110_Catalog {
     /**
      * Состояние сервиса для витрин: approved|wip|unpublished|archived.
      *
-     *   approved    — stable и опубликован в рабочем каталоге (/services);
-     *   wip         — beta/draft, «в работе» (/portal-plan, предпросмотр);
+     *   approved    — опубликован в рабочем каталоге (/services);
+     *   wip         — «в работе» (/portal-plan, предпросмотр);
      *   unpublished — catalog:false: реализован, но публикация отложена;
-     *   archived    — deprecated: выведен из работы, остаётся в архиве плана.
+     *   archived    — решение в таблице или deprecated: сервис выведен из работы.
      */
     public static function resolve_state(array $m)
     {
@@ -542,8 +541,8 @@ class Service_Prx110_Catalog {
 
     /**
      * Может ли пользователь ВИДЕТЬ сервис (меню/поиск/каталог/карточки/чипы).
-     * Рабочая витрина: публикация, аудитория, ACL и статус ТОЛЬКО stable —
-     * «одобрен». beta/draft («в работе») видны лишь в предпросмотре.
+     * Рабочая витрина: аудитория, ACL и состояние approved.
+     * wip разрешён только вызывающим кодом с контекстом предпросмотра.
      */
     public static function can_see(array $m, array $ctx)
     {
@@ -565,7 +564,7 @@ class Service_Prx110_Catalog {
     /**
      * Манифесты для /portal-plan: все состояния (approved/wip/unpublished/archived)
      * с учётом аудитории и ACL, в порядке каталога. План показывает и одобренные,
-     * и «в работе», и отложенные публикацией; архив контроллер выводит отдельно.
+     * и «в работе», и отложенные публикацией, и архив.
      */
     public static function plan_modules($ctx = NULL)
     {

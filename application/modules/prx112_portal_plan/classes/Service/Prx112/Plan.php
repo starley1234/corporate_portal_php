@@ -2,10 +2,54 @@
 
 class Service_Prx112_Plan
 {
+    public const STATES = ['all', 'approved', 'wip', 'unpublished', 'archived', 'planned'];
+
+    public static function counts(array $domains): array
+    {
+        $counts = array_fill_keys(self::STATES, 0);
+        foreach ($domains as $services)
+        {
+            foreach ($services as $service)
+            {
+                $counts['all']++;
+                $state = $service['state'];
+                if ($state !== 'all' && isset($counts[$state]))
+                {
+                    $counts[$state]++;
+                }
+            }
+        }
+        return $counts;
+    }
+
+    public static function filter(array $domains, string $state): array
+    {
+        if ($state === 'all' || ! in_array($state, self::STATES, TRUE))
+        {
+            return $domains;
+        }
+
+        $filtered = [];
+        foreach ($domains as $title => $services)
+        {
+            $matches = array_filter($services, static function (array $service) use ($state): bool {
+                return $service['state'] === $state;
+            });
+            if ($matches)
+            {
+                $filtered[$title] = $matches;
+            }
+        }
+        return $filtered;
+    }
+
     public static function domains(Prx_Actor $actor): array
     {
         $ctx = Service_Prx110_Catalog::user_context();
-        $visible = array_column(Service_Prx110_Catalog::plan_modules($ctx), NULL, 'module_name');
+        $modules = array_filter(Service_Prx110_Catalog::plan_modules($ctx), static function (array $module): bool {
+            return ($module['kind'] ?? 'module') === 'module';
+        });
+        $visible = array_column($modules, NULL, 'module_name');
         $can_approve = $actor->can('prx112.approve');
         $domains = [];
         $seen = [];
@@ -19,7 +63,8 @@ class Service_Prx112_Plan
                 $seen[$name] = TRUE;
                 if (isset($visible[$name]))
                 {
-                    $domains[$title][] = self::module_item($visible[$name], $ctx, $can_approve);
+                    $domains[$title][] = self::module_item($visible[$name], $ctx,
+                        $can_approve && ! in_array($name, Service_Prx110_Publication::PROTECTED_MODULES, TRUE));
                 }
                 elseif (Service_Prx110_Catalog::get($name) === NULL)
                 {
@@ -33,12 +78,12 @@ class Service_Prx112_Plan
 
         foreach ($visible as $name => $module)
         {
-            if (isset($seen[$name]) || in_array($name, ['prx110_catalog', 'prx112_portal_plan'], TRUE)
-                || ($module['kind'] ?? 'module') !== 'module')
+            if (isset($seen[$name]))
             {
                 continue;
             }
-            $domains[$module['group']][] = self::module_item($module, $ctx, $can_approve);
+            $domains[$module['group']][] = self::module_item($module, $ctx,
+                $can_approve && ! in_array($name, Service_Prx110_Publication::PROTECTED_MODULES, TRUE));
         }
 
         foreach ((array) Kohana::$config->load('enterprise_plan')->get('phases') as $phase)

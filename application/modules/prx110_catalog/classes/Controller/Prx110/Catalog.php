@@ -13,7 +13,7 @@ class Controller_Prx110_Catalog extends Controller_Base {
     public function before()
     {
         parent::before();
-
+        $this->response->headers('Cache-Control', 'private, no-store');
     }
 
     /** GET /services — каталог по группам + палитра поиска. */
@@ -21,12 +21,11 @@ class Controller_Prx110_Catalog extends Controller_Base {
     {
         $groups = [];
         $total  = 0;
-        $preview = FALSE;
 
         if (class_exists('Service_Prx110_Catalog'))
         {
             $ctx = Service_Prx110_Catalog::user_context();
-            $preview = ! empty($ctx['preview']);
+            $ctx['preview'] = FALSE; // Предпросмотр остаётся в API каталога, не в /services.
             $summary = Service_Prx110_Catalog::groups_summary($ctx);
 
             foreach ($summary as $info)
@@ -51,7 +50,6 @@ class Controller_Prx110_Catalog extends Controller_Base {
         $this->template->content = View::factory('prx110/index', [
             'groups'  => $groups,
             'total'   => $total,
-            'preview' => $preview,
         ]);
     }
 
@@ -62,12 +60,11 @@ class Controller_Prx110_Catalog extends Controller_Base {
 
         $title = '';
         $items = [];
-        $preview = FALSE;
 
         if (class_exists('Service_Prx110_Catalog'))
         {
             $ctx = Service_Prx110_Catalog::user_context();
-            $preview = ! empty($ctx['preview']);
+            $ctx['preview'] = FALSE; // Предпросмотр остаётся в API каталога, не в /services.
 
             foreach (Service_Prx110_Catalog::groups_summary($ctx) as $info)
             {

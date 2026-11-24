@@ -30,6 +30,9 @@ $user=['guest'=>FALSE,'logged'=>TRUE,'user_id'=>1,'admin'=>FALSE,'agent'=>FALSE,
 $visible=array_column(Service_Prx110_Catalog::visible_modules($admin),NULL,'module_name');
 $regular=array_column(Service_Prx110_Catalog::visible_modules($user),NULL,'module_name');
 $plan=array_column(Service_Prx110_Catalog::plan_modules($admin),NULL,'module_name');
+if (($plan['prx100_search']['catalog'] ?? TRUE) !== FALSE || ($plan['prx100_search']['state'] ?? NULL) !== 'unpublished') {
+ throw new RuntimeException('Global search must exercise the catalog:false branch');
+}
 $no_ui=['llm','prx102_core','cookie_consent','ldap_auth'];
 $count=0;
 $wip=0;
@@ -123,8 +126,8 @@ echo "Publication: admin-only, connected services only, manifest and ACL intact\
 
 $notifications = Service_Prx110_Catalog::get('prx597_notifications');
 try {
- Service_Prx110_Publication::set_state('prx597_notifications', 'wip', Prx_Actor::fromArray($user));
- throw new RuntimeException('Non-admin could withdraw a module');
+ Service_Prx110_Publication::set_state('prx597_notifications', 'archived', Prx_Actor::fromArray($user));
+ throw new RuntimeException('Non-admin could archive a module');
 } catch (HTTP_Exception $e) {
  if ($e->getCode() !== 403) throw $e;
 }
@@ -137,3 +140,36 @@ if (Service_Prx110_Catalog::resolve_manifest_state($notifications) !== 'approved
 }
 Service_Prx110_Publication::approve('prx597_notifications', $publisher);
 if (!Service_Prx110_Catalog::can_see($notifications, $user)) throw new RuntimeException('Reapproval did not restore a stable service');
+
+foreach (['prx100_search', 'prx110_catalog', 'prx112_portal_plan'] as $name) {
+ try {
+  Service_Prx110_Publication::set_state($name, 'archived', $publisher);
+  throw new RuntimeException('Non-manageable module accepted a publication decision: '.$name);
+ } catch (HTTP_Exception $e) {
+  if ($e->getCode() !== 404) throw $e;
+ }
+}
+try {
+ Service_Prx110_Publication::set_state('prx597_notifications', 'unknown', $publisher);
+ throw new RuntimeException('Unknown publication state was accepted');
+} catch (HTTP_Exception $e) {
+ if ($e->getCode() !== 400) throw $e;
+}
+Service_Prx110_Publication::set_state('prx597_notifications', 'archived', $publisher);
+if (Service_Prx110_Catalog::resolve_state($notifications) !== 'archived'
+ || Service_Prx110_Catalog::can_see($notifications, $user)
+ || Service_Prx110_Catalog::can_see($notifications, $preview)
+ || in_array($notifications['href'], array_column(Service_Prx110_Catalog::search_json($user)['items'], 'href'), TRUE)) {
+ throw new RuntimeException('Archived publication did not disappear from the catalog');
+}
+Service_Prx110_Publication::set_state('prx597_notifications', 'wip', $publisher);
+if (Service_Prx110_Catalog::resolve_state($notifications) !== 'wip'
+ || Service_Prx110_Catalog::can_see($notifications, $user)) {
+ throw new RuntimeException('Restored service was not returned to work');
+}
+Service_Prx110_Publication::set_state('prx597_notifications', 'approved', $publisher);
+if (Service_Prx110_Catalog::resolve_state($notifications) !== 'approved'
+ || !Service_Prx110_Catalog::can_see($notifications, $user)) {
+ throw new RuntimeException('Restored service could not be republished');
+}
+echo "Publication archive: hidden from the catalog and preview, reversible through work\n";

@@ -3,6 +3,9 @@
 /** Решение о публикации в каталоге не меняет статус разработки и ACL модуля. */
 final class Service_Prx110_Publication
 {
+    public const STATES = ['approved', 'wip', 'archived'];
+    public const PROTECTED_MODULES = ['prx110_catalog', 'prx112_portal_plan'];
+
     private static ?array $decisions = NULL;
 
     public static function eligible(array $module): bool
@@ -42,12 +45,13 @@ final class Service_Prx110_Publication
     public static function set_state(string $name, string $state, Prx_Actor $actor): void
     {
         $actor->require('prx112.approve');
-        if ( ! in_array($state, ['approved', 'wip'], TRUE))
+        if ( ! in_array($state, self::STATES, TRUE))
         {
             throw HTTP_Exception::factory(400, 'Некорректное состояние публикации');
         }
         $module = Service_Prx110_Catalog::get($name);
-        if ($module === NULL || $module['module_name'] !== $name || ! self::eligible($module))
+        if ($module === NULL || $module['module_name'] !== $name
+            || in_array($name, self::PROTECTED_MODULES, TRUE) || ! self::eligible($module))
         {
             throw HTTP_Exception::factory(404, 'Нет подключённого сервиса для изменения публикации');
         }

@@ -41,6 +41,7 @@ def request(path, expected, data=None, headers=None, method=None):
 
 request('/', 302)
 request('/portal-plan', 302)
+request('/portal-plan/approve', 405)
 login = request('/auth/login', 200)
 request('/auth/register', 404)
 request('/prx100_auth/register', 404)
@@ -72,6 +73,10 @@ request('/auth/login', 403, {'username': 'admin', 'password': 'invalid'})
 login = request('/auth/login', 200)
 token = re.search(r'name="csrf" value="([^"]+)"', login)
 assert token, 'Login form has no CSRF token'
+# No publication permission, even with a valid token (the role itself is covered by the PHP contract).
+request('/portal-plan/approve', 403, {
+    'module': 'prx395_document_extract', 'state': 'archived', 'csrf': html_module.unescape(token[1]),
+})
 username = os.environ.get('ADMIN_USERNAME', 'admin')
 password = os.environ.get('ADMIN_PASSWORD', '')
 if not password:
@@ -115,9 +120,18 @@ assert 'Рабочий стол' in home and 'href="/portal-plan"' in home
 assert 'Отработка рекламаций' not in home
 archive = request('/portal-plan', 200)
 assert 'План и архив портала' in archive and 'План производственных пайплайнов' not in archive
-assert 'Сервисы домена:' in archive and 'action="/portal-plan/approve"' in archive
+assert 'В каталог (/services) попадают только одобренные.' in archive
+assert re.search(r'>Глобальный поиск</span>\s*<span class="prx-badge [^"]+">Не опубликован</span>', archive)
+for module in ['prx100_search', 'prx110_catalog', 'prx112_portal_plan']:
+    assert f'name="module" value="{module}"' not in archive
+assert 'action="/portal-plan/approve"' in archive
+for state in ['approved', 'wip', 'unpublished', 'archived', 'planned']:
+    filtered = request(f'/portal-plan?state={state}', 200)
+    assert re.search(rf'href="/portal-plan\?state={state}"\s+class="[^"]*is-active" aria-current="page"', filtered)
 request('/portal-plan/approve', 405)
-request('/portal-plan/approve', 403, {'module': 'prx395_document_extract'})
+request('/portal-plan/approve', 403, {'module': 'prx395_document_extract', 'state': 'archived'})
+plan_csrf = html_module.unescape(re.search(r'action="/portal-plan/approve">\s*<input type="hidden" name="csrf" value="([^"]+)"', archive)[1])
+request('/portal-plan/approve', 400, {'module': 'prx395_document_extract', 'state': 'unknown', 'csrf': plan_csrf})
 for heading in ['Ведение проектов', 'Разработка конструкций', 'Разработка РЭА',
                 'Производство и сборка', 'Отработка рекламаций']:
     assert heading in archive, heading
@@ -311,6 +325,7 @@ assert {'/architecture', '/prx395_document_extract'}.isdisjoint(catalog_hrefs)
 assert legacy_paths.isdisjoint(catalog_hrefs)
 assert archived_paths.isdisjoint(catalog_hrefs)
 assert '/employee' not in catalog_hrefs and '/employee' not in favorite_hrefs
+assert '/' not in catalog_hrefs and '/' not in preview_hrefs
 assert archived_paths.isdisjoint(favorite_hrefs)
 json.loads(request('/employee/api/me', 404))  # seed-администратор намеренно не сопоставлен с сотрудником
 json.loads(request('/employee/api/directory', 200))
