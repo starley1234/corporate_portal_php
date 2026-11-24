@@ -35,12 +35,20 @@ async function runTimer(p, ms) {
     await new Promise(resolve => setImmediate(resolve));
 }
 
-test('document page includes poller after process markup in bounded sidebar', () => {
+test('document controls precede equal document and proposal columns on desktop and mobile', () => {
     const view = readFileSync(new URL('application/modules/prx391_documents/views/prx391/show.php', root), 'utf8');
     assert.ok(view.indexOf('<aside') < view.indexOf("/partials/ai_sidebar.php"));
     assert.ok(view.indexOf("/partials/ai_sidebar.php") < view.indexOf("partials/live_status_js"));
     assert.match(view, /xl:grid-cols-2/);
-    assert.match(view, /order-1 min-w-0 space-y-4 xl:order-2/);
+    const controls = view.indexOf('aria-label="Управление документом"');
+    const card = view.indexOf("/partials/card.php");
+    const proposal = view.indexOf("/partials/analysis.php");
+    const attachments = view.indexOf("/partials/attachments.php");
+    assert.ok(controls < view.indexOf("/partials/ai_sidebar.php"));
+    assert.ok(view.indexOf("/partials/sla_sidebar.php") < card);
+    assert.ok(card < proposal && proposal < attachments);
+    assert.match(view, /aria-label="Результат разбора"/);
+    assert.doesNotMatch(view, /order-[12]|xl:order-/);
     assert.match(view, /md:grid-cols-2/);
 });
 
