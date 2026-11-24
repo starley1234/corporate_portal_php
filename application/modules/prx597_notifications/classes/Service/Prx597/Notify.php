@@ -141,8 +141,8 @@ SQL
      * OUTBOX-доставка (21.09): python-воркеры в режиме pg завершают задачи
      * ПРЯМО в БД, мимо PHP JobQueue::complete() — хук уведомлений там мёртв.
      * Поэтому: сгребаем завершённые задачи без маркера notified_at и шлём
-     * уведомления. Вызывается из «Пиналки» (каждые 10 минут), Minion-задачи
-     * Prx120:NotifyOutbox и страницы «Мои задачи».
+     * уведомления. Вызывается обслуживанием portal:maintain/NotifyOutbox,
+     * не общим HTTP-контроллером и не посещением страницы задач.
      */
     /**
      * PostgreSQL возвращает BOOLEAN строками 't'/'f' — (bool)'f' в PHP это
@@ -155,25 +155,9 @@ SQL
 
     public static function sweep_jobs($limit = 40)
     {
-        try
-        {
-            // маркер доставки живёт в prx_120_jobs (ленивая миграция, идемпотентно)
-            DB::query(NULL, 'ALTER TABLE "prx_120_jobs" ADD COLUMN IF NOT EXISTS "notified_at" TIMESTAMPTZ NULL')->execute();
-        }
-        catch (Throwable $e)
-        {
-            Kohana::$log->add(Log::WARNING, 'prx597: sweep alter: :e', [':e' => $e->getMessage()]);
-
-            return 0;
-        }
-
-        $db = self::_db();
-        $rows = $db->query(Database::SELECT,
-            "SELECT id, channel, status, payload, error, created_by, visitor_id
-             FROM prx_120_jobs
-             WHERE notified_at IS NULL AND status IN ('done', 'failed')
-               AND (created_by IS NOT NULL OR visitor_id LIKE 'u:%')
-             ORDER BY id DESC LIMIT ".(int) $limit, FALSE)->as_array();
+        // Схема/соединение очереди принадлежат prx120. Runtime DDL здесь нет.
+        $queue = Service_Prx120_JobQueue::instance();
+        $rows = $queue->pending_notifications((int) $limit);
 
         $sent = 0;
 
@@ -188,13 +172,12 @@ SQL
             catch (Throwable $e)
             {
                 Kohana::$log->add(Log::WARNING, 'prx597: sweep job :j: :e', [':j' => (int) $r['id'], ':e' => $e->getMessage()]);
+                continue; // исключение при обработке не подтверждает задачу
             }
 
             try
             {
-                $db->query(Database::INSERT,
-                    'UPDATE prx_120_jobs SET notified_at = now() WHERE id = '.(int) $r['id'], FALSE);
-                $sent++;
+                if ($queue->mark_notification_processed((int) $r['id'])) $sent++;
             }
             catch (Throwable $e)
             {

@@ -1333,6 +1333,17 @@ class Service_Prx120_JobQueue {
     /**
      * Сводка очереди по статусам/каналам.
      */
+    /** Завершённые задачи, ещё не обработанные сборщиком уведомлений. Доверенный серверный API. */
+    public function pending_notifications(int $limit = 40): array
+    {
+        return (new Service_Prx120_NotificationJobs($this->_db))->pending($limit);
+    }
+
+    public function mark_notification_processed(int $id): bool
+    {
+        return (new Service_Prx120_NotificationJobs($this->_db))->mark_processed($id);
+    }
+
     public function stats()
     {
         $result = $this->_db->query(Database::SELECT,
