@@ -78,21 +78,19 @@ pages = {}
 for path in ['/', '/services', '/dashboard', '/admin', '/prx595/admin', '/account/security', '/prx597', '/prx597/admin', '/prx560', '/prx115', '/tasks', '/prx120/monitor', '/document-extract', '/prx120/workers', '/migrate_pg', '/llm_admin', '/prx218', '/prx100/errors', '/prx100/logs', '/architecture', '/architecture/guide', '/prx208_events', '/prx208_events/list_events', '/employee', '/employee/directory', '/prx300/admin', '/prx300/admin/employees', '/prx300/admin/employee/0', '/prx300/admin/import', '/prx300/admin/import_template']:
     pages[path] = request(path, 200)
 home = pages['/']
-assert '<h1 class="prx-h1">Сервисы-пайплайны предприятия</h1>' in home
-assert 'href="/portal-plan"' in home
+assert 'Рабочий стол' in home and 'href="/portal-plan"' in home
+assert 'Отработка рекламаций' not in home
+archive = request('/portal-plan', 200)
+assert 'План и архив портала' in archive
 for heading in ['Ведение проектов', 'Разработка конструкций', 'Разработка РЭА',
                 'Производство и сборка', 'Отработка рекламаций']:
-    assert f'<h3 class="prx-h3">{heading}</h3>' in home, heading
-archive_title = 'Корпоративный портал: отложенный план и архив'
-assert archive_title not in home and 'Лента новостей' not in home
-archive = request('/portal-plan', 200)
-assert f'<h1 class="prx-h1">{archive_title}</h1>' in archive
+    assert f'<h4 class="prx-h3">{heading}</h4>' in archive, heading
 assert 'Лента новостей' in archive and 'Ответы на письма' in archive
-assert 'href="/employee"' in archive
-assert 'Отработка рекламаций' not in archive
+assert 'Мой профиль сотрудника' in archive and 'Не опубликован' in archive
+assert 'href="/employee"' not in archive
 assert 'value="probe"' in pages['/prx120/monitor'], 'Worker probe button is missing'
 assert 'Распознать пробный PDF' in pages['/document-extract']
-assert 'href="/document-extract"' in pages['/']
+assert 'href="/prx395_document_extract"' in home
 request('/document-extract', 403, {'sample': '1'})
 legacy = os.environ.get('SMOKE_EXPECT_DOCFLOW') == '1'
 worker_token = os.environ.get('WORKER_API_TOKEN')
@@ -236,21 +234,21 @@ assert json.loads(request('/prx110/api/favorites?user_id=' + str(account_id + 1)
 
 # Реальное сохранение и первый HTML без JS. Если записи не было, удаляем её
 # в finally; остальные закладки и порядок сохраняются, повторное pin идемпотентно.
-was_pinned = '/employee' in favorite_hrefs
+was_pinned = '/prx597' in favorite_hrefs
 try:
-    saved = json.loads(request('/prx110/api/favorites', 200, {'csrf': nav_csrf, 'account_id': account_id, 'href': '/employee', 'pinned': '1'}))
-    assert [item['href'] for item in saved['items']].count('/employee') == 1
-    saved_again = json.loads(request('/prx110/api/favorites', 200, {'csrf': nav_csrf, 'account_id': account_id, 'href': '/employee', 'pinned': '1'}))
+    saved = json.loads(request('/prx110/api/favorites', 200, {'csrf': nav_csrf, 'account_id': account_id, 'href': '/prx597', 'pinned': '1'}))
+    assert [item['href'] for item in saved['items']].count('/prx597') == 1
+    saved_again = json.loads(request('/prx110/api/favorites', 200, {'csrf': nav_csrf, 'account_id': account_id, 'href': '/prx597', 'pinned': '1'}))
     assert saved_again == saved
     services_pinned = request('/services', 200)
-    card = re.search(r'<button\s+type="button"\s+data-nav-pin-card="/employee"[^>]*>', services_pinned, re.S)
+    card = re.search(r'<button\s+type="button"\s+data-nav-pin-card="/prx597"[^>]*>', services_pinned, re.S)
     assert card and 'aria-pressed="true"' in card[0], 'Card state must be present in HTML'
-    employee_pinned = request('/employee', 200)
-    link = re.search(r'<a href="/employee"[^>]*>', employee_pinned, re.S)
+    notifications_pinned = request('/prx597', 200)
+    link = re.search(r'<a href="/prx597"[^>]*>', notifications_pinned, re.S)
     assert link and 'aria-current="page"' in link[0], 'Favorite must be active in HTML'
 finally:
     if not was_pinned:
-        json.loads(request('/prx110/api/favorites', 200, {'csrf': nav_csrf, 'account_id': account_id, 'href': '/employee', 'pinned': '0'}))
+        json.loads(request('/prx110/api/favorites', 200, {'csrf': nav_csrf, 'account_id': account_id, 'href': '/prx597', 'pinned': '0'}))
 assert json.loads(request('/prx110/api/favorites', 200)) == favorites
 # Мобильный ряд содержит контекстные ссылки, в том числе те, которых нет
 # в каталоге; он отдельный от короткого sidebar и без повторяющихся href.
@@ -269,9 +267,10 @@ json.loads(request('/search/api?q=test', 200))
 catalog = json.loads(request('/prx110/api/catalog', 200))
 assert catalog['user_id'] == account_id, 'Catalog must identify the session account for stale tabs'
 catalog_hrefs = {item['href'] for item in catalog['items']}
-assert {'/architecture', '/prx560', '/employee', '/prx597', '/account/security', '/document-extract'} <= catalog_hrefs
+assert {'/architecture', '/prx560', '/prx597', '/account/security', '/prx395_document_extract'} <= catalog_hrefs
 assert not legacy or legacy_paths <= catalog_hrefs
 assert archived_paths.isdisjoint(catalog_hrefs)
+assert '/employee' not in catalog_hrefs and '/employee' not in favorite_hrefs
 assert archived_paths.isdisjoint(favorite_hrefs)
 json.loads(request('/employee/api/me', 404))  # seed-администратор намеренно не сопоставлен с сотрудником
 json.loads(request('/employee/api/directory', 200))

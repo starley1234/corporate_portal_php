@@ -22,15 +22,15 @@ class PortalNavigationTest extends TestCase
 
     public function test_catalog_excludes_archived_and_deleted_services_even_for_admin(): void
     {
-        $admin = ['guest' => FALSE, 'logged' => TRUE, 'roles' => ['login', 'admin'], 'admin' => TRUE, 'agent' => TRUE];
+        $admin = ['guest' => FALSE, 'logged' => TRUE, 'user_id' => 1, 'roles' => ['login', 'admin'], 'admin' => TRUE, 'agent' => TRUE];
         $items = Service_Prx110_Catalog::search_json($admin)['items'];
         $hrefs = array_column($items, 'href');
         foreach ([
-            '/architecture', '/prx560', '/employee', '/prx597', '/account/security', '/prx395_document_extract',
+            '/architecture', '/prx560', '/prx597', '/account/security', '/prx395_document_extract',
         ] as $href) {
             $this->assertContains($href, $hrefs, $href);
         }
-        foreach (['/replies', '/vlm-demo'] as $href) {
+        foreach (['/replies', '/vlm-demo', '/employee'] as $href) {
             $this->assertNotContains($href, $hrefs, $href);
         }
         $modules = Kohana::modules();
@@ -41,9 +41,9 @@ class PortalNavigationTest extends TestCase
             $this->assertArrayHasKey('nav_paths', $item);
         }
 
-        $login = ['guest' => FALSE, 'logged' => TRUE, 'roles' => ['login'], 'admin' => FALSE, 'agent' => FALSE];
+        $login = ['guest' => FALSE, 'logged' => TRUE, 'user_id' => 1, 'roles' => ['login'], 'admin' => FALSE, 'agent' => FALSE];
         $login_hrefs = array_column(Service_Prx110_Catalog::search_json($login)['items'], 'href');
-        $this->assertContains('/employee', $login_hrefs);
+        $this->assertNotContains('/employee', $login_hrefs);
         foreach (['/prx560', '/prx395_document_extract', '/inbox', '/prx391_documents', '/analysis', '/sla'] as $href) {
             $this->assertNotContains($href, $login_hrefs);
         }

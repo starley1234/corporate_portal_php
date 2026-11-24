@@ -6,6 +6,7 @@
  * SSR: всё видимо поисковику и без JS; поле поиска фильтрует на клиенте.
  */
 $nav_favorite_hrefs = array_fill_keys(array_column((array) ($nav_favorites['items'] ?? []), 'href'), TRUE);
+$favorite_items = (array) ($nav_favorites['items'] ?? []);
 $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
 ?>
 
@@ -18,6 +19,18 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
     ]); ?>
 
 
+    <section class="prx-panel mt-6" data-catalog-favorites aria-labelledby="catalog-favorites-title"<?php echo $favorite_items ? '' : ' hidden'; ?>>
+        <div class="prx-panel-head"><h2 id="catalog-favorites-title" class="prx-h3">Избранное</h2></div>
+        <div class="flex flex-wrap gap-2.5 p-5" data-catalog-favorites-list>
+            <?php foreach ($favorite_items as $favorite): ?>
+                <a class="prx-btn-secondary" href="<?php echo HTML::chars($favorite['href']); ?>"><?php echo HTML::chars($favorite['title']); ?></a>
+            <?php endforeach; ?>
+        </div>
+    </section>
+
+    <?php if ( ! $groups): ?>
+        <p class="prx-hint mt-6">Нет доступных сервисов.</p>
+    <?php else: ?>
     <!-- Единый поиск по каталогу; область поиска не смешивается с поиском по содержимому сайта. -->
     <div class="mb-6 mt-6 max-w-2xl">
         <label class="sr-only" for="catalog-search">Поиск по каталогу сервисов</label>
@@ -25,7 +38,7 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
             <i class="fas fa-magnifying-glass pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-gray-400" aria-hidden="true"></i>
             <input id="catalog-search" type="search" autocomplete="off" spellcheck="false"
                    aria-controls="catalog-groups" aria-describedby="catalog-search-empty"
-                   placeholder="Поиск по названию или ключевому слову…"
+                   placeholder="Найти сервис по названию или ключевому слову…"
                    class="prx-input pl-10">
         </div>
         <p id="catalog-search-empty" class="prx-hint mt-2 hidden" role="status" aria-live="polite">Ничего не найдено — измените запрос или выберите раздел.</p>
@@ -43,13 +56,19 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
             </a>
             <ul class="mt-3.5 space-y-1 text-sm leading-snug text-gray-600 dark:text-gray-300">
                 <?php foreach ($g['items'] as $m): ?>
+                <?php $badge = Service_Prx110_Catalog::resolve_status($m) === 'beta' ? 'Тестовый режим' : ($m['badge'] ?? ''); ?>
                 <li class="catalog-item group/item flex items-center gap-1 break-inside-avoid" data-search="<?php echo HTML::chars(mb_strtolower($m['title'].' '.($m['short'] ?? '').' '.($m['keywords'] ?? ''))); ?>">
                     <a href="<?php echo HTML::chars($m['href']); ?>" class="inline-flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-0.5 -mx-1.5 transition hover:bg-gray-50 hover:text-blue-600 dark:hover:bg-gray-700/50 dark:hover:text-blue-400">
                         <i class="<?php echo HTML::chars($m['icon']); ?> w-4 shrink-0 text-center text-sm text-gray-400"></i>
-                        <span class="truncate"><?php echo HTML::chars($m['title']); ?></span>
-                        <?php if ( ! empty($m['badge'])): ?>
-                        <span class="prx-count shrink-0 uppercase"><?php echo HTML::chars((string) $m['badge']); ?></span>
-                        <?php endif; ?>
+                        <span class="min-w-0">
+                            <span class="font-semibold"><?php echo HTML::chars($m['title']); ?></span>
+                            <?php if ( ! empty($badge)): ?>
+                                <span class="prx-badge prx-badge-info"><?php echo HTML::chars($badge); ?></span>
+                            <?php endif; ?>
+                            <?php if ( ! empty($m['short'])): ?>
+                                <span class="block text-xs text-gray-600 dark:text-gray-300"><?php echo HTML::chars($m['short']); ?></span>
+                            <?php endif; ?>
+                        </span>
                     </a>
                     <?php // Состояние звезды приходит в первом HTML вместе с аккаунтом. ?>
                     <?php $nav_is_pinned = isset($nav_favorite_hrefs[$m['href']]);
@@ -99,4 +118,5 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
             });
         })();
     </script>
+    <?php endif; ?>
 </div>

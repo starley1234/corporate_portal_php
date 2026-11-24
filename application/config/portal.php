@@ -3,7 +3,7 @@
 $docflow_status = isset(Kohana::modules()['prx390_intake']) ? 'active' : 'archived';
 return ['domains' => [
     'hr' => ['title' => 'HR и развитие персонала', 'services' => [
-        ['module' => 'prx300_employee', 'title' => 'Личный кабинет сотрудника', 'status' => 'active'],
+        ['module' => 'prx300_employee', 'title' => 'Мой профиль сотрудника', 'status' => 'pilot'],
         ['module' => 'prx301_onboarding', 'title' => 'Онбординг-трек', 'status' => 'planned'],
         ['module' => 'prx302_career', 'title' => 'Карьерный трек', 'status' => 'planned'],
         ['module' => 'prx303_performance', 'title' => 'Управление эффективностью', 'status' => 'planned'],

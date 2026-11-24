@@ -3,6 +3,15 @@
 if (!defined('SYSPATH')) define('SYSPATH',dirname(__DIR__,2).'/system/');
 define('APPPATH',dirname(__DIR__,2).'/application/');
 define('MODPATH',dirname(__DIR__,2).'/modules/');
+class Kohana { public static $config; }
+class CatalogTestConfig {
+ public function load($name) { return $this; }
+ public function get($ability) { return (require APPPATH.'config/acl.php')[$ability] ?? NULL; }
+}
+Kohana::$config = new CatalogTestConfig();
+require APPPATH.'classes/Prx/Acl.php';
+require APPPATH.'classes/Prx/Principal.php';
+require APPPATH.'classes/Prx/Actor.php';
 class Manifest {
  static function all() {
   $modules=require APPPATH.'config/modules.php';
@@ -16,13 +25,17 @@ class Manifest {
  }
 }
 require APPPATH.'modules/prx110_catalog/classes/Service/Prx110/Catalog.php';
-$admin=['guest'=>FALSE,'logged'=>TRUE,'admin'=>TRUE,'agent'=>TRUE,'roles'=>['admin']];
-$user=['guest'=>FALSE,'logged'=>TRUE,'admin'=>FALSE,'agent'=>FALSE,'roles'=>['login']];
+$admin=['guest'=>FALSE,'logged'=>TRUE,'user_id'=>1,'admin'=>TRUE,'agent'=>TRUE,'roles'=>['admin']];
+$user=['guest'=>FALSE,'logged'=>TRUE,'user_id'=>1,'admin'=>FALSE,'agent'=>FALSE,'roles'=>['login']];
 $visible=array_column(Service_Prx110_Catalog::visible_modules($admin),NULL,'module_name');
 $regular=array_column(Service_Prx110_Catalog::visible_modules($user),NULL,'module_name');
 $no_ui=['llm','prx102_core','cookie_consent','ldap_auth'];
 $count=0;
 foreach (Manifest::all() as $name=>$manifest) {
+ if (($manifest['catalog'] ?? TRUE) === FALSE) {
+  if (isset($visible[$name]) || isset($regular[$name])) throw new RuntimeException('Unpublished module leaked: '.$name);
+  continue;
+ }
  if (($manifest['kind'] ?? '')==='library' || in_array($name,$no_ui,TRUE)) continue;
  if (empty($visible[$name]['href'])) throw new RuntimeException('Missing catalog entry: '.$name);
  $count++;
@@ -34,6 +47,9 @@ foreach ($links as $name=>$href) {
  if ($visible[$name]['href']!==$href) throw new RuntimeException('Wrong catalog route: '.$name);
  if ($name!=='prx110_catalog' && isset($regular[$name])) throw new RuntimeException('Admin module leaked: '.$name);
 }
+$acl_probe = ['audience'=>'auth', 'status'=>'stable', 'acl'=>'prx120.monitor'];
+if (!Service_Prx110_Catalog::can_see($acl_probe,$admin) || Service_Prx110_Catalog::can_see($acl_probe,$user)) throw new RuntimeException('Catalog does not enforce manifest ACL');
+if (Service_Prx110_Catalog::can_see(['status'=>'draft','audience'=>'admin'],$admin)) throw new RuntimeException('Draft leaked into the working catalog');
 $grouped=[];
 foreach (Service_Prx110_Catalog::groups_summary($admin) as $group) {
  $items=Service_Prx110_Catalog::group_modules($group['slug'],$admin);

@@ -21,16 +21,13 @@
             <ul class="mt-3 space-y-2 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
                 <?php foreach ($domain['services'] as $service): ?>
                 <li>
-                    <?php if ($service['status'] === 'active' && $service['module'] === 'prx300_employee'): ?>
-                        <a class="prx-link font-semibold" href="/employee"><?php echo HTML::chars($service['title']); ?></a>
-                        <span class="prx-badge prx-badge-ok ml-2">Доступно</span>
-                    <?php else: ?>
-                        <?php echo HTML::chars($service['title']); ?>
-                        <?php if ($service['status'] === 'archived'): ?>
+                    <?php echo HTML::chars($service['title']); ?>
+                    <?php if ($service['status'] === 'archived'): ?>
                         <span class="prx-badge ml-2">Архив</span>
-                        <?php elseif ($service['status'] === 'active'): ?>
+                    <?php elseif ($service['status'] === 'active'): ?>
                         <span class="prx-badge prx-badge-info ml-2">Тестовый режим</span>
-                        <?php endif; ?>
+                    <?php elseif ($service['status'] === 'pilot'): ?>
+                        <span class="prx-badge prx-badge-info ml-2">Не опубликован</span>
                     <?php endif; ?>
                 </li>
                 <?php endforeach; ?>

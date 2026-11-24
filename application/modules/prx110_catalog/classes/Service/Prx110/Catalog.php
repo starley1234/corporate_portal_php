@@ -269,6 +269,7 @@ class Service_Prx110_Catalog {
         }
 
         $roles = [];
+        $user_id = 0;
 
         try
         {
@@ -278,6 +279,7 @@ class Service_Prx110_Catalog {
 
                 if ($user !== NULL)
                 {
+                    $user_id = (int) $user->id;
                     foreach ($user->roles->find_all() as $role)
                     {
                         $roles[] = (string) $role->name;
@@ -301,6 +303,7 @@ class Service_Prx110_Catalog {
             'guest'  => empty($roles),
             'logged' => ! empty($roles),
             'roles'  => $roles,
+            'user_id' => $user_id,
             'admin'  => $is_admin,
             'agent'  => $is_agent,
         ];
@@ -431,11 +434,15 @@ class Service_Prx110_Catalog {
 
     /**
      * Может ли пользователь ВИДЕТЬ сервис (меню/поиск/каталог/карточки/чипы).
-     * Матрица: audience-гейт затем status-гейт:
-     *   draft/deprecated — только agent|admin; stable/beta — всем, кому audience.
+     * Рабочая витрина: публикация, аудитория, ACL и статус stable/beta.
      */
     public static function can_see(array $m, array $ctx)
     {
+        if (($m['catalog'] ?? TRUE) === FALSE)
+        {
+            return FALSE;
+        }
+
         switch (self::resolve_audience($m))
         {
             case 'public':
@@ -451,14 +458,13 @@ class Service_Prx110_Catalog {
                 break;
         }
 
-        switch (self::resolve_status($m))
+        if ( ! empty($m['acl']) && (empty($ctx['logged'])
+            || ! Prx_Actor::fromArray($ctx)->can($m['acl'])))
         {
-            case 'draft':
-            case 'deprecated':
-                return $ctx['agent'] OR $ctx['admin'];
-            default:
-                return TRUE;
+            return FALSE;
         }
+
+        return in_array(self::resolve_status($m), ['stable', 'beta'], TRUE);
     }
 
     /**
