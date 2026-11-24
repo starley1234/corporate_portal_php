@@ -8,6 +8,7 @@ def test_only_active_handlers_are_registered():
         "document.extract",
         "pdf.chunks",
         "invoice.extract",
+        "doc.route",
         "echo",
         "embeddings.index",
         "llm.summarize",
