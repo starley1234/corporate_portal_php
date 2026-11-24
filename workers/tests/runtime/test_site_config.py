@@ -43,12 +43,16 @@ async def test_site_checks_both_real_paths_without_showing_tokens(monkeypatch, c
     monkeypatch.setenv('PRX120_API_BASE', 'https://portal.toolforge.ru')
     monkeypatch.delenv('PRX390_API_BASE', raising=False)
     monkeypatch.delenv('PRX395_DOCUMENT_EXTRACT_API_BASE', raising=False)
+    monkeypatch.delenv('PRX396_PDF_CHUNKS_API_BASE', raising=False)
     monkeypatch.setenv('PRX390_SITE_TOKEN', 'legacy-token')
 
     def handler(request):
         if request.url.path == '/prx395/worker/health':
             assert request.headers['X-Worker-Token'] == 'secret-probe-token'
             return httpx.Response(200, json={'ok': True, 'module': 'prx395'})
+        if request.url.path == '/prx396/worker/health':
+            assert request.headers['X-Worker-Token'] == 'secret-probe-token'
+            return httpx.Response(200, json={'ok': True, 'module': 'prx396'})
         assert request.url.path == '/prx390/api/health'
         assert request.headers['X-Worker-Token'] == 'legacy-token'
         raise httpx.ConnectError('secret-probe-token') from ConnectionRefusedError(111, 'legacy-token')

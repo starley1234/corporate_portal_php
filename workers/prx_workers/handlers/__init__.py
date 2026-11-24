@@ -50,10 +50,12 @@ from .prx120_jobs import echo, embeddings
 from .prx115_semantic import index as semantic_index
 from .llm import summarize as llm_task
 from .prx395_document_extract import handler as document_extract
+from .prx396_pdf_chunks import handler as pdf_chunks
 
 
 HANDLERS = {
     document_extract.CHANNEL: document_extract.handle,
+    pdf_chunks.CHANNEL: pdf_chunks.handle,
     echo.CHANNEL: echo.handle,
     embeddings.CHANNEL: embeddings.handle,
     llm_task.CHANNEL: llm_task.handle,

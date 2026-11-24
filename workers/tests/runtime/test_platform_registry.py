@@ -6,6 +6,7 @@ from prx_workers.llm import scan_providers
 def test_only_active_handlers_are_registered():
     assert set(HANDLERS) == {
         "document.extract",
+        "pdf.chunks",
         "echo",
         "embeddings.index",
         "llm.summarize",
