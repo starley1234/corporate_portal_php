@@ -77,7 +77,7 @@ final class Service_Prx115_SearchLog
                 'results'     => (int) $row['results'],
                 'vector_hits' => (int) $row['vector_hits'],
                 'text_hits'   => (int) $row['text_hits'],
-                'cached'      => (bool) $row['cached'],
+                'cached'      => in_array($row['cached'], [TRUE, 't', 'true', 1, '1'], TRUE), // PG 'f' не является TRUE
                 'ms'          => (int) $row['ms'],
                 'error'       => (string) (isset($row['error']) ? $row['error'] : ''),
                 'created_at'  => (string) (isset($row['created_at']) ? $row['created_at'] : ''),

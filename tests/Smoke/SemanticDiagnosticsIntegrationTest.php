@@ -42,6 +42,9 @@ class SemanticDiagnosticsIntegrationTest extends TestCase
         $this->assertSame(30, $stats['avg_ms']);
         $rows = $facade::recent_searches(3);
         $this->assertSame('ошибка', $rows[0]['query']);
+        $this->assertFalse($rows[0]['cached']);
+        $this->assertTrue($rows[1]['cached']);
+        $this->assertFalse($rows[2]['cached']);
         $this->assertSame(1, $rows[2]['text_hits']);
         $this->assertSame(1, $rows[2]['vector_hits']);
         $this->assertCount(1, $facade::recent_searches(0));
