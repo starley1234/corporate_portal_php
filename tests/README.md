@@ -36,7 +36,30 @@ npm run test:architecture
 Контракты `employee_access.php` и `employee_cli.php` проверяют доступ prx300:
 общий ACL, организацию из актуальной связи, отказ массивам с `can_*`, явного
 CLI-оператора и staging без автоматического применения. ORM/БД в них подменены;
-реальную связь и её отзыв проверяет `Smoke/EmployeeDirectoryTest.php`.
+реальную связь, её отзыв и запуск импорта отдельным CLI-процессом проверяет
+`Smoke/EmployeeDirectoryTest.php`. CLI-тест создаёт оператора, назначает роль
+через Auth и проверяет staging/apply и ID в аудите на реальной БД.
+
+## CI с PostgreSQL
+
+Workflow `.github/workflows/ci.yml` разделяет изолированные проверки и
+интеграцию. Последняя запускает нативный PHP 8.4 с PostgreSQL 17/pgvector,
+Composer, bootstrap, миграции дважды и полный PHPUnit. Это временная новая
+БД CI, не production. Локальный аналог — `bash bin/check-fresh.sh`.
+
+При падении PHPUnit JUnit преобразуется в аннотации GitHub Actions:
+
+```bash
+bash bin/test --log-junit /tmp/prx-phpunit.xml
+python3 .tools/phpunit_report.py /tmp/prx-phpunit.xml
+```
+
+Вторая команда выводит ошибки с файлом/строкой и краткий итог (в том числе
+пропуски); пустой, отсутствующий или повреждённый отчёт — ошибка, не успех.
+При ненулевом коде PHPUnit CI также публикует ограниченный хвост вывода
+процесса: JUnit не отражает все risky/warning. Аннотации не заменяют код
+возврата PHPUnit. Отчёт может содержать значения из
+проверок: использовать только синтетические тестовые данные, не production.
 
 ## Среда без PHP CLI
 
