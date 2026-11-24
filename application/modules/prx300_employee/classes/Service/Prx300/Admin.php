@@ -7,10 +7,10 @@
  */
 class Service_Prx300_Admin extends Service_Prx300_Store
 {
-    public static function dashboard(array $actor)
+    public static function dashboard(Prx_Actor $actor)
     {
-        self::_require_admin_read($actor);
-        $scope = self::_assert_scope($actor);
+        Policy_Prx300_Employee::requireAdministration($actor);
+        $scope = Policy_Prx300_Employee::assertOrganization($actor);
         $where = $scope['global'] ? 'TRUE' : 'organization_id = '.(int) $scope['organization_id'];
         $org_count = $scope['global']
             ? (int) (self::_row('SELECT count(*) AS c FROM prx_300_organizations')['c'] ?? 0)
@@ -41,10 +41,10 @@ class Service_Prx300_Admin extends Service_Prx300_Store
         ];
     }
 
-    public static function structure(array $actor)
+    public static function structure(Prx_Actor $actor)
     {
-        self::_require_admin_read($actor);
-        $scope = self::_assert_scope($actor);
+        Policy_Prx300_Employee::requireAdministration($actor);
+        $scope = Policy_Prx300_Employee::assertOrganization($actor);
         $org_where = $scope['global'] ? 'TRUE' : 'id = '.(int) $scope['organization_id'];
         $site_where = $scope['global'] ? 'TRUE' : 's.organization_id = '.(int) $scope['organization_id'];
         $department_where = $scope['global'] ? 'TRUE' : 'd.organization_id = '.(int) $scope['organization_id'];
@@ -70,7 +70,7 @@ class Service_Prx300_Admin extends Service_Prx300_Store
         ];
     }
 
-    public static function form_options(array $actor)
+    public static function form_options(Prx_Actor $actor)
     {
         $structure = self::structure($actor);
         $scope = $structure['scope'];
@@ -84,14 +84,14 @@ class Service_Prx300_Admin extends Service_Prx300_Store
         return $structure + ['employees' => $employees];
     }
 
-    public static function save_organization(array $actor, array $data, $id = NULL)
+    public static function save_organization(Prx_Actor $actor, array $data, $id = NULL)
     {
-        self::_require_can($actor, 'can_manage', 'Нужна роль hr_admin для изменения структуры');
+        Policy_Prx300_Employee::requireAbility($actor, 'prx300.manage', 'Нужна роль hr_admin для изменения структуры');
         if ($id)
         {
-            self::_assert_scope($actor, (int) $id);
+            Policy_Prx300_Employee::assertOrganization($actor, (int) $id);
         }
-        elseif ( ! self::_is_admin($actor))
+        elseif ( ! $actor->isAdmin())
         {
             throw new DomainException('Новую организацию может создать только администратор портала');
         }
@@ -127,15 +127,15 @@ class Service_Prx300_Admin extends Service_Prx300_Store
         return (int) $id;
     }
 
-    public static function save_site(array $actor, array $data, $id = NULL)
+    public static function save_site(Prx_Actor $actor, array $data, $id = NULL)
     {
-        self::_require_can($actor, 'can_manage', 'Нужна роль hr_admin для изменения структуры');
+        Policy_Prx300_Employee::requireAbility($actor, 'prx300.manage', 'Нужна роль hr_admin для изменения структуры');
         $existing_org = $id ? self::_org_of('prx_300_sites', (int) $id) : NULL;
         $org_id = (int) ($data['organization_id'] ?? $existing_org ?? 0);
-        self::_assert_scope($actor, $org_id);
+        Policy_Prx300_Employee::assertOrganization($actor, $org_id);
         if ($existing_org !== NULL)
         {
-            self::_assert_scope($actor, $existing_org);
+            Policy_Prx300_Employee::assertOrganization($actor, $existing_org);
             if ($org_id !== $existing_org)
             {
                 throw new DomainException('Организация площадки не меняется обычным редактированием: создайте площадку в новой организации и заархивируйте старую');
@@ -179,15 +179,15 @@ class Service_Prx300_Admin extends Service_Prx300_Store
         return (int) $id;
     }
 
-    public static function save_department(array $actor, array $data, $id = NULL)
+    public static function save_department(Prx_Actor $actor, array $data, $id = NULL)
     {
-        self::_require_can($actor, 'can_manage', 'Нужна роль hr_admin для изменения структуры');
+        Policy_Prx300_Employee::requireAbility($actor, 'prx300.manage', 'Нужна роль hr_admin для изменения структуры');
         $existing_org = $id ? self::_org_of('prx_300_departments', (int) $id) : NULL;
         $org_id = (int) ($data['organization_id'] ?? $existing_org ?? 0);
-        self::_assert_scope($actor, $org_id);
+        Policy_Prx300_Employee::assertOrganization($actor, $org_id);
         if ($existing_org !== NULL)
         {
-            self::_assert_scope($actor, $existing_org);
+            Policy_Prx300_Employee::assertOrganization($actor, $existing_org);
             if ($org_id !== $existing_org)
             {
                 throw new DomainException('Организация подразделения не меняется обычным редактированием: создайте подразделение в новой организации и заархивируйте старое');
@@ -248,10 +248,10 @@ class Service_Prx300_Admin extends Service_Prx300_Store
         return (int) $id;
     }
 
-    public static function employees(array $actor, array $filters = [])
+    public static function employees(Prx_Actor $actor, array $filters = [])
     {
-        self::_require_admin_read($actor);
-        $scope = self::_assert_scope($actor);
+        Policy_Prx300_Employee::requireAdministration($actor);
+        $scope = Policy_Prx300_Employee::assertOrganization($actor);
         $where = ['TRUE'];
         if ( ! $scope['global'])
         {
@@ -336,23 +336,23 @@ class Service_Prx300_Admin extends Service_Prx300_Store
         ];
     }
 
-    public static function employee_detail(array $actor, $employee_id)
+    public static function employee_detail(Prx_Actor $actor, $employee_id)
     {
-        self::_require_admin_read($actor);
+        Policy_Prx300_Employee::requireAdministration($actor);
         $row = self::_employee_or_fail((int) $employee_id, $actor);
 
         return self::_format_employee($row, TRUE);
     }
 
-    public static function save_employee(array $actor, array $data, $id = NULL)
+    public static function save_employee(Prx_Actor $actor, array $data, $id = NULL)
     {
-        self::_require_can($actor, 'can_manage', 'Нужна роль hr_admin для изменения сотрудников');
+        Policy_Prx300_Employee::requireAbility($actor, 'prx300.manage', 'Нужна роль hr_admin для изменения сотрудников');
         $existing_org = $id ? self::_org_of('prx_300_employees', (int) $id) : NULL;
         $org_id = (int) ($data['organization_id'] ?? $existing_org ?? 0);
-        self::_assert_scope($actor, $org_id);
+        Policy_Prx300_Employee::assertOrganization($actor, $org_id);
         if ($existing_org !== NULL)
         {
-            self::_assert_scope($actor, $existing_org);
+            Policy_Prx300_Employee::assertOrganization($actor, $existing_org);
             if ($org_id !== $existing_org)
             {
                 throw new DomainException('Перевод сотрудника между организациями требует отдельной согласованной процедуры и не выполняется обычным редактированием');
@@ -470,10 +470,10 @@ class Service_Prx300_Admin extends Service_Prx300_Store
         return (int) $id;
     }
 
-    public static function recent_audit(array $actor, $limit = 30)
+    public static function recent_audit(Prx_Actor $actor, $limit = 30)
     {
-        self::_require_admin_read($actor);
-        $scope = self::_assert_scope($actor);
+        Policy_Prx300_Employee::requireAdministration($actor);
+        $scope = Policy_Prx300_Employee::assertOrganization($actor);
         $where = $scope['global'] ? 'TRUE' : 'organization_id = '.(int) $scope['organization_id'];
         $rows = self::_all('SELECT * FROM prx_300_audit_log WHERE '.$where
             .' ORDER BY created_at DESC LIMIT '.max(1, min(100, (int) $limit)));
@@ -489,15 +489,6 @@ class Service_Prx300_Admin extends Service_Prx300_Store
         unset($row);
 
         return $rows;
-    }
-
-    protected static function _require_admin_read(array $actor)
-    {
-        if ( ! self::_can($actor, 'can_admin_view') AND ! self::_can($actor, 'can_manage')
-            AND ! self::_can($actor, 'can_import') AND ! self::_can($actor, 'can_identity'))
-        {
-            throw new DomainException('Нужен HR-доступ к кадровым данным');
-        }
     }
 
     protected static function _entity_status($status)

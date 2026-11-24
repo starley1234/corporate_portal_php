@@ -44,7 +44,7 @@ class Controller_Prx300_Api extends Controller_Base
         }
         try
         {
-            $result = Service_Prx300_Directory::directory($this->_actor(), [
+            $result = Service_Prx300_Directory::directory($this->actor(), [
                 'q' => trim((string) $this->request->query('q')),
                 'organization_id' => (int) $this->request->query('organization_id'),
                 'department_id' => (int) $this->request->query('department_id'),
@@ -68,7 +68,7 @@ class Controller_Prx300_Api extends Controller_Base
         }
         try
         {
-            $employee = Service_Prx300_Directory::colleague_card($this->_actor(), (int) $this->request->param('id'));
+            $employee = Service_Prx300_Directory::colleague_card($this->actor(), (int) $this->request->param('id'));
             if ($employee === NULL)
             {
                 $this->_json_response(['ok' => FALSE, 'error' => 'Сотрудник не найден'], 404);
@@ -82,16 +82,4 @@ class Controller_Prx300_Api extends Controller_Base
         }
     }
 
-    protected function _actor()
-    {
-        return [
-            'user_id' => (int) $this->_current_user->id,
-            'roles' => $this->_current_user_roles,
-            'can_admin_view' => $this->can('prx300.admin.view'),
-            'can_manage' => $this->can('prx300.manage'),
-            'can_import' => $this->can('prx300.import'),
-            'can_identity' => $this->can('prx300.identity'),
-            'can_directory' => $this->can('prx300.directory'),
-        ];
-    }
 }

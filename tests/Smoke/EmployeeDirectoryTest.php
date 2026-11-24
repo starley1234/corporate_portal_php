@@ -8,6 +8,7 @@ class EmployeeDirectoryTest extends TestCase
     protected $source = '';
     protected $org_codes = [];
     protected $user_ids = [];
+    protected $operator;
 
     protected function setUp(): void
     {
@@ -15,6 +16,7 @@ class EmployeeDirectoryTest extends TestCase
         $this->source = 'test300'.$this->suffix;
         $this->org_codes = [];
         $this->user_ids = [];
+        $this->operator = NULL;
     }
 
     protected function tearDown(): void
@@ -85,7 +87,7 @@ class EmployeeDirectoryTest extends TestCase
         $this->assertSame($employee_id, $context['employee_id']);
         $this->assertSame($detail['organization_id'], $context['organization_id']);
 
-        $actor = $this->_actor((int) $user->id, ['login'], ['can_directory' => TRUE]);
+        $actor = $this->_actor((int) $user->id, ['login']);
         $directory = Service_Prx300_Directory::directory($actor, ['q' => 'Сотрудник']);
         $this->assertSame(1, $directory['total']);
         $this->assertArrayNotHasKey('personnel_number', $directory['rows'][0]);
@@ -188,13 +190,7 @@ class EmployeeDirectoryTest extends TestCase
 
         $user = $this->_make_user('hr');
         Service_Prx300_Identity::link_user($this->_global_actor(), $employee_a, (string) $user->email, 'test');
-        $hr = $this->_actor((int) $user->id, ['login', 'hr_admin'], [
-            'can_admin_view' => TRUE,
-            'can_manage' => TRUE,
-            'can_import' => TRUE,
-            'can_identity' => TRUE,
-            'can_directory' => TRUE,
-        ]);
+        $hr = $this->_actor((int) $user->id, ['login', 'hr_admin']);
 
         $this->assertNull(Service_Prx300_Directory::colleague_card($hr, $employee_b));
         $employees = Service_Prx300_Admin::employees($hr, []);
@@ -227,8 +223,18 @@ class EmployeeDirectoryTest extends TestCase
             Service_Prx300_Admin::save_employee($this->_global_actor(), $manager_detail, $manager_a);
         });
 
+        // Даже уже созданный actor теряет оргдоступ после отзыва связи.
+        $hr = $hr->withOrg(['organization_id' => $employee_detail['organization_id']]);
+        Service_Prx300_Identity::unlink_user($this->_global_actor(), $employee_a, 'access regression');
+        $this->_assert_throws(DomainException::class, function () use ($hr) {
+            Service_Prx300_Admin::employees($hr);
+        });
+        $this->_assert_throws(DomainException::class, function () use ($hr) {
+            Service_Prx300_Directory::directory($hr);
+        });
+
         $unlinked = $this->_make_user('free');
-        $regular = $this->_actor((int) $unlinked->id, ['login'], ['can_directory' => TRUE]);
+        $regular = $this->_actor((int) $unlinked->id, ['login']);
         $this->_assert_throws(DomainException::class, function () use ($regular) {
             Service_Prx300_Directory::directory($regular, []);
         });
@@ -335,28 +341,13 @@ class EmployeeDirectoryTest extends TestCase
 
     protected function _global_actor()
     {
-        return [
-            'user_id' => 0,
-            'roles' => ['admin'],
-            'can_admin_view' => TRUE,
-            'can_manage' => TRUE,
-            'can_import' => TRUE,
-            'can_identity' => TRUE,
-            'can_directory' => TRUE,
-        ];
+        if ( ! isset($this->operator)) $this->operator = $this->_make_user('operator');
+        return new Prx_Actor((int) $this->operator->id, ['admin']);
     }
 
-    protected function _actor($user_id, array $roles, array $flags)
+    protected function _actor($user_id, array $roles)
     {
-        return array_merge([
-            'user_id' => (int) $user_id,
-            'roles' => $roles,
-            'can_admin_view' => FALSE,
-            'can_manage' => FALSE,
-            'can_import' => FALSE,
-            'can_identity' => FALSE,
-            'can_directory' => FALSE,
-        ], $flags);
+        return new Prx_Actor((int) $user_id, $roles);
     }
 
     protected function _assert_throws($class, callable $operation)

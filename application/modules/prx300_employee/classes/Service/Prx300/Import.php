@@ -159,9 +159,9 @@ class Service_Prx300_Import extends Service_Prx300_Store
         }
     }
 
-    public static function stage_upload(array $actor, array $file, $source_system)
+    public static function stage_upload(Prx_Actor $actor, array $file, $source_system)
     {
-        self::_require_can($actor, 'can_import', 'Нужна роль hr_admin для импорта кадровых данных');
+        Policy_Prx300_Employee::requireAbility($actor, 'prx300.import', 'Нужна роль hr_admin для импорта кадровых данных');
         if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK)
         {
             throw new InvalidArgumentException('Файл не загрузился. Проверьте размер и повторите отправку');
@@ -189,9 +189,9 @@ class Service_Prx300_Import extends Service_Prx300_Store
     }
 
     /** Серверный вход для CLI/тестов и будущей интеграции, не HTTP-контракт. */
-    public static function stage_rows(array $actor, $source_system, array $input_rows, $file_name = '', $file_sha256 = '')
+    public static function stage_rows(Prx_Actor $actor, $source_system, array $input_rows, $file_name = '', $file_sha256 = '')
     {
-        self::_require_can($actor, 'can_import', 'Нужна роль hr_admin для импорта кадровых данных');
+        Policy_Prx300_Employee::requireAbility($actor, 'prx300.import', 'Нужна роль hr_admin для импорта кадровых данных');
         $source = self::_code($source_system, 'Код системы-источника');
         $max_rows = (int) self::_config('import.max_rows', 5000);
         if ( ! $input_rows OR count($input_rows) > $max_rows)
@@ -221,9 +221,9 @@ class Service_Prx300_Import extends Service_Prx300_Store
         $organization_codes = array_keys($organization_codes);
         sort($organization_codes);
 
-        if ( ! self::_is_admin($actor))
+        if ( ! $actor->isAdmin())
         {
-            $scope = self::_assert_scope($actor);
+            $scope = Policy_Prx300_Employee::assertOrganization($actor);
             if ($organization_codes !== [(string) $scope['organization_code']])
             {
                 throw new DomainException('HR-оператор может импортировать только свою организацию одним пакетом');
@@ -247,11 +247,11 @@ class Service_Prx300_Import extends Service_Prx300_Store
                                 WHERE source_system = '.self::_q($source).' AND file_sha256 = '.self::_q($hash).' LIMIT 1');
         if ($existing)
         {
-            self::_assert_batch_scope($actor, $existing);
+            Policy_Prx300_Employee::assertBatch($actor, $existing);
             return (int) $existing['id'];
         }
 
-        $actor_id = self::_actor_id($actor);
+        $actor_id = $actor->id();
         $db = self::_db();
         $db->begin();
         try
@@ -284,11 +284,11 @@ class Service_Prx300_Import extends Service_Prx300_Store
         }
     }
 
-    public static function validate_batch(array $actor, $batch_id)
+    public static function validate_batch(Prx_Actor $actor, $batch_id)
     {
-        self::_require_can($actor, 'can_import', 'Нужна роль hr_admin для импорта кадровых данных');
+        Policy_Prx300_Employee::requireAbility($actor, 'prx300.import', 'Нужна роль hr_admin для импорта кадровых данных');
         $batch = self::_batch_row((int) $batch_id);
-        self::_assert_batch_scope($actor, $batch);
+        Policy_Prx300_Employee::assertBatch($actor, $batch);
         if ((string) $batch['status'] === 'applied')
         {
             return self::_format_batch($batch);
@@ -714,11 +714,11 @@ class Service_Prx300_Import extends Service_Prx300_Store
         return self::_format_batch(self::_batch_row((int) $batch_id));
     }
 
-    public static function apply_batch(array $actor, $batch_id)
+    public static function apply_batch(Prx_Actor $actor, $batch_id)
     {
-        self::_require_can($actor, 'can_import', 'Нужна роль hr_admin для импорта кадровых данных');
+        Policy_Prx300_Employee::requireAbility($actor, 'prx300.import', 'Нужна роль hr_admin для импорта кадровых данных');
         $batch = self::_batch_row((int) $batch_id);
-        self::_assert_batch_scope($actor, $batch);
+        Policy_Prx300_Employee::assertBatch($actor, $batch);
         if ((string) $batch['status'] === 'applied')
         {
             return self::_format_batch($batch);
@@ -1009,7 +1009,7 @@ class Service_Prx300_Import extends Service_Prx300_Store
 
             $summary = self::_summary($batch);
             $summary['applied'] = $counts + ['applied_at' => date('c')];
-            $actor_id = self::_actor_id($actor);
+            $actor_id = $actor->id();
             self::_execute("UPDATE prx_300_import_batches SET status = 'applied', created_count = "
                 .(int) $counts['employees_created'].', updated_count = '.(int) $counts['employees_updated']
                 .', skipped_count = '.(int) $counts['skipped'].', applied_by_user_id = '
@@ -1044,18 +1044,15 @@ class Service_Prx300_Import extends Service_Prx300_Store
         return $applied;
     }
 
-    public static function batches(array $actor, $limit = 30)
+    public static function batches(Prx_Actor $actor, $limit = 30)
     {
-        if ( ! self::_can($actor, 'can_import') AND ! self::_can($actor, 'can_admin_view') AND ! self::_can($actor, 'can_manage'))
-        {
-            throw new DomainException('Нужен HR-доступ к импорту');
-        }
+        Policy_Prx300_Employee::requireImportRead($actor);
         $rows = self::_all('SELECT * FROM prx_300_import_batches ORDER BY created_at DESC LIMIT '
             .max(1, min(100, (int) $limit)));
         $out = [];
         foreach ($rows as $row)
         {
-            if (self::_is_admin($actor) OR self::_batch_in_scope($actor, $row))
+            if (Policy_Prx300_Employee::batchInScope($actor, $row))
             {
                 $out[] = self::_format_batch($row);
             }
@@ -1064,14 +1061,11 @@ class Service_Prx300_Import extends Service_Prx300_Store
         return $out;
     }
 
-    public static function batch(array $actor, $batch_id, $include_rows = TRUE)
+    public static function batch(Prx_Actor $actor, $batch_id, $include_rows = TRUE)
     {
-        if ( ! self::_can($actor, 'can_import') AND ! self::_can($actor, 'can_admin_view') AND ! self::_can($actor, 'can_manage'))
-        {
-            throw new DomainException('Нужен HR-доступ к импорту');
-        }
+        Policy_Prx300_Employee::requireImportRead($actor);
         $batch = self::_batch_row((int) $batch_id);
-        self::_assert_batch_scope($actor, $batch);
+        Policy_Prx300_Employee::assertBatch($actor, $batch);
         $out = self::_format_batch($batch);
         if ($include_rows)
         {
@@ -1156,27 +1150,6 @@ class Service_Prx300_Import extends Service_Prx300_Store
         }
 
         return $row;
-    }
-
-    protected static function _batch_in_scope(array $actor, array $batch)
-    {
-        if (self::_is_admin($actor))
-        {
-            return TRUE;
-        }
-        $scope = self::_scope($actor);
-        $codes = json_decode((string) ($batch['organization_codes'] ?? '[]'), TRUE);
-
-        return is_array($codes) AND $codes === [(string) ($scope['organization_code'] ?? '')]
-            AND (string) ($scope['organization_code'] ?? '') !== '';
-    }
-
-    protected static function _assert_batch_scope(array $actor, array $batch)
-    {
-        if ( ! self::_batch_in_scope($actor, $batch))
-        {
-            throw new DomainException('Пакет относится к другой организации');
-        }
     }
 
     protected static function _summary(array $batch)

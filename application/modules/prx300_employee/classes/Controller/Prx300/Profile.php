@@ -39,8 +39,8 @@ class Controller_Prx300_Profile extends Controller_Base
         ];
         try
         {
-            $result = Service_Prx300_Directory::directory($this->_actor(), $filters);
-            $options = Service_Prx300_Directory::filter_options($this->_actor(), $filters);
+            $result = Service_Prx300_Directory::directory($this->actor(), $filters);
+            $options = Service_Prx300_Directory::filter_options($this->actor(), $filters);
         }
         catch (DomainException $e)
         {
@@ -64,7 +64,7 @@ class Controller_Prx300_Profile extends Controller_Base
         }
         try
         {
-            $colleague = Service_Prx300_Directory::colleague_card($this->_actor(), (int) $this->request->param('id'));
+            $colleague = Service_Prx300_Directory::colleague_card($this->actor(), (int) $this->request->param('id'));
         }
         catch (DomainException $e)
         {
@@ -82,23 +82,9 @@ class Controller_Prx300_Profile extends Controller_Base
         ]);
     }
 
-    protected function _actor()
-    {
-        return [
-            'user_id' => (int) $this->_current_user->id,
-            'roles' => $this->_current_user_roles,
-            'can_admin_view' => $this->can('prx300.admin.view'),
-            'can_manage' => $this->can('prx300.manage'),
-            'can_import' => $this->can('prx300.import'),
-            'can_identity' => $this->can('prx300.identity'),
-            'can_directory' => $this->can('prx300.directory'),
-        ];
-    }
-
     protected function _can_admin()
     {
-        return $this->can('prx300.admin.view') OR $this->can('prx300.manage')
-            OR $this->can('prx300.import') OR $this->can('prx300.identity');
+        return Policy_Prx300_Employee::canReadAdministration($this->actor());
     }
 
     protected function _nav()

@@ -4,11 +4,7 @@
  * Внутренняя основа сервисов prx300: доступ к своим таблицам, валидация и
  * вычисление организационного контекста.
  *
- * Actor — серверный контекст уже аутентифицированного пользователя:
- * ['user_id'=>int, 'roles'=>string[], 'can_admin_view'=>bool,
- *  'can_manage'=>bool, 'can_import'=>bool, 'can_identity'=>bool,
- *  'can_directory'=>bool]. Клиентские значения сюда передавать нельзя:
- * флаги вычисляет контроллер из сессии и ACL.
+ * Сервисы принимают Prx_Actor; ACL и границы организации — Policy_Prx300_Employee.
  */
 abstract class Service_Prx300_Store
 {
@@ -149,34 +145,6 @@ abstract class Service_Prx300_Store
         return $date->format('Y-m-d H:i:sP');
     }
 
-    protected static function _actor_id(array $actor)
-    {
-        return max(0, (int) ($actor['user_id'] ?? 0));
-    }
-
-    protected static function _actor_roles(array $actor)
-    {
-        return array_values(array_unique(array_map('strval', (array) ($actor['roles'] ?? []))));
-    }
-
-    protected static function _is_admin(array $actor)
-    {
-        return in_array('admin', self::_actor_roles($actor), TRUE);
-    }
-
-    protected static function _can(array $actor, $flag)
-    {
-        return self::_is_admin($actor) OR ! empty($actor[$flag]);
-    }
-
-    protected static function _require_can(array $actor, $flag, $message = 'Недостаточно прав для этой операции')
-    {
-        if ( ! self::_can($actor, $flag))
-        {
-            throw new DomainException($message);
-        }
-    }
-
     protected static function _employee_select()
     {
         return "SELECT e.*, o.code AS organization_code, o.name AS organization_name,
@@ -207,43 +175,7 @@ abstract class Service_Prx300_Store
         return $row ? self::_format_employee($row, TRUE) : NULL;
     }
 
-    protected static function _scope(array $actor)
-    {
-        if (self::_is_admin($actor))
-        {
-            return ['global' => TRUE, 'organization_id' => NULL, 'organization_code' => ''];
-        }
-
-        $own = self::_employee_for_user(self::_actor_id($actor));
-        if ($own === NULL)
-        {
-            return ['global' => FALSE, 'organization_id' => 0, 'organization_code' => ''];
-        }
-
-        return [
-            'global' => FALSE,
-            'organization_id' => (int) $own['organization_id'],
-            'organization_code' => (string) $own['organization_code'],
-        ];
-    }
-
-    protected static function _assert_scope(array $actor, $organization_id = NULL)
-    {
-        $scope = self::_scope($actor);
-        if ( ! $scope['global'] AND (int) $scope['organization_id'] <= 0)
-        {
-            throw new DomainException('Пользователь не сопоставлен с сотрудником, поэтому организационный доступ не определён');
-        }
-        if ($organization_id !== NULL AND ! $scope['global']
-            AND (int) $organization_id !== (int) $scope['organization_id'])
-        {
-            throw new DomainException('Запись относится к другой организации');
-        }
-
-        return $scope;
-    }
-
-    protected static function _employee_or_fail($employee_id, array $actor = NULL)
+    protected static function _employee_or_fail($employee_id, ?Prx_Actor $actor = NULL)
     {
         $row = self::_row(self::_employee_select().' WHERE e.id = '.(int) $employee_id.' LIMIT 1');
         if ($row === NULL)
@@ -252,7 +184,7 @@ abstract class Service_Prx300_Store
         }
         if ($actor !== NULL)
         {
-            self::_assert_scope($actor, (int) $row['organization_id']);
+            Policy_Prx300_Employee::assertOrganization($actor, (int) $row['organization_id']);
         }
 
         return $row;
@@ -329,9 +261,9 @@ abstract class Service_Prx300_Store
         return $out;
     }
 
-    protected static function _audit(array $actor, $organization_id, $entity_type, $entity_id, $action, array $details = [])
+    protected static function _audit(Prx_Actor $actor, $organization_id, $entity_type, $entity_id, $action, array $details = [])
     {
-        $actor_id = self::_actor_id($actor);
+        $actor_id = $actor->id();
         self::_execute(
             'INSERT INTO prx_300_audit_log (actor_user_id, organization_id, entity_type, entity_id, action, details)
              VALUES ('.($actor_id > 0 ? $actor_id : 'NULL').', '.self::_qi($organization_id).', '
@@ -339,11 +271,11 @@ abstract class Service_Prx300_Store
         );
     }
 
-    protected static function _event($name, array $payload, array $actor)
+    protected static function _event($name, array $payload, Prx_Actor $actor)
     {
         // Событие содержит только ID и счётчики: подписчик обязан заново
         // прочитать объект через публичный сервис и проверить свои права.
-        Event::publish($name, $payload, self::_actor_id($actor) ?: NULL);
+        Event::publish($name, $payload, $actor->id() ?: NULL);
     }
 
     protected static function _escape_like($value)

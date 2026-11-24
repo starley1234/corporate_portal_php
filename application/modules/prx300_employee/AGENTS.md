@@ -32,7 +32,7 @@ Auth не расширяется: сопоставление `users.id ↔ prx_3
   внешние ID и история сопоставлений.
 - `/prx300/admin/import`, `/prx300/admin/import/<batch_id>` — staging,
   валидация и отдельное применение пакета.
-- CLI: `bin/console prx300:import --file=... --source=hris [--apply=1]`.
+- CLI: `bin/console prx300:import --user=operator --file=... --source=hris [--apply=1]`.
 
 ## Права
 
@@ -59,8 +59,15 @@ Auth не расширяется: сопоставление `users.id ↔ prx_3
   allowlist рабочих полей после проверки организации.
 - `Service_Prx300_Identity::{employee_id_for_user,user_id_for_employee,
   employee_id_for_external,external_identity}` — интеграционный контракт.
-- `Service_Prx300_Admin` и `Service_Prx300_Import` требуют actor с флагами,
-  вычисленными сервером из сессии/ACL. Не передавать actor из запроса.
+- Все actor-aware сервисы принимают `Prx_Actor`, в HTTP — унаследованный
+  `$this->actor()`. Массивы и флаги `can_*` не поддерживаются.
+- `Policy_Prx300_Employee` проверяет ACL и организацию по актуальной активной
+  связи в БД, а не по снимку `actor->organizationId()` или входным фильтрам.
+  Ошибки доступа остаются `DomainException`, как ожидают HTTP/API-контроллеры.
+- CLI требует `--user=<id|username|email>` существующего оператора. Роли
+  читаются из Auth, HR ограничен своей организацией, portal-admin глобален.
+  Оператор записывается в аудит; пользователя 0 и автоматического повышения
+  до admin нет. Это локальная административная команда, не механизм входа.
 
 События: `prx300.employee.linked`, `prx300.employee.unlinked`,
 `prx300.import.applied`. Payload — только ID и счётчики.
@@ -102,3 +109,7 @@ Auth не расширяется: сопоставление `users.id ↔ prx_3
 `EmployeeDirectoryTest` в `tests/Smoke` создаёт временные организации,
 пользователей и пакеты, затем удаляет их в `finally`. Проверяются импорт,
 идемпотентность, сопоставление, изоляция организаций, права и циклы.
+
+Изолированные регрессии `tests/Contracts/employee_access.php` и `employee_cli.php`
+проверяют ACL, запрет actor-массивов, устаревший/отозванный оргконтекст и CLI
+с явным оператором. PostgreSQL-интеграция остаётся в `EmployeeDirectoryTest`.

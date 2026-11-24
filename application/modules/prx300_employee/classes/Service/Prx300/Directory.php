@@ -25,7 +25,7 @@ class Service_Prx300_Directory extends Service_Prx300_Store
             'site_id' => $employee['site_id'],
             'manager_employee_id' => $employee['manager_employee_id'],
             'employment_status' => $employee['employment_status'],
-            'is_directory_active' => in_array($employee['employment_status'], self::_directory_statuses(), TRUE),
+            'is_directory_active' => in_array($employee['employment_status'], Policy_Prx300_Employee::directoryStatuses(), TRUE),
         ];
     }
 
@@ -35,53 +35,13 @@ class Service_Prx300_Directory extends Service_Prx300_Store
         return self::_employee_for_user((int) $user_id);
     }
 
-    protected static function _directory_statuses()
+    public static function directory(Prx_Actor $actor, array $filters = [])
     {
-        $statuses = (array) self::_config('directory.statuses', ['active', 'on_leave']);
-
-        return array_values(array_intersect($statuses, ['active', 'on_leave', 'suspended']));
-    }
-
-    protected static function _directory_scope(array $actor, array $filters)
-    {
-        $admin_view = self::_can($actor, 'can_admin_view')
-            || self::_can($actor, 'can_manage')
-            || self::_can($actor, 'can_import')
-            || self::_can($actor, 'can_identity');
-
-        if ($admin_view)
-        {
-            $scope = self::_assert_scope($actor);
-            if ($scope['global'])
-            {
-                $requested = (int) ($filters['organization_id'] ?? 0);
-                return $requested > 0 ? $requested : NULL;
-            }
-
-            return (int) $scope['organization_id'];
-        }
-
-        self::_require_can($actor, 'can_directory', 'Справочник сотрудников недоступен');
-        $own = self::_employee_for_user(self::_actor_id($actor));
-        if ($own === NULL)
-        {
-            throw new DomainException('Справочник доступен после сопоставления аккаунта с сотрудником');
-        }
-        if ( ! in_array($own['employment_status'], self::_directory_statuses(), TRUE))
-        {
-            throw new DomainException('Справочник недоступен при текущем кадровом статусе');
-        }
-
-        return (int) $own['organization_id'];
-    }
-
-    public static function directory(array $actor, array $filters = [])
-    {
-        $organization_id = self::_directory_scope($actor, $filters);
+        $organization_id = Policy_Prx300_Employee::directoryOrganization($actor, $filters);
         $page = max(1, (int) ($filters['page'] ?? 1));
         $per_page = max(1, min(100, (int) ($filters['per_page'] ?? self::_config('directory.page_size', 50))));
         $offset = ($page - 1) * $per_page;
-        $statuses = self::_directory_statuses();
+        $statuses = Policy_Prx300_Employee::directoryStatuses();
 
         $where = ['e.employment_status IN ('.self::_in($statuses).')'];
         if ($organization_id !== NULL)
@@ -128,12 +88,12 @@ class Service_Prx300_Directory extends Service_Prx300_Store
         ];
     }
 
-    public static function colleague_card(array $actor, $employee_id)
+    public static function colleague_card(Prx_Actor $actor, $employee_id)
     {
         // Сначала определяем допустимую организацию, а уже потом ищем запись:
         // отсутствие карточки и чужая организация снаружи неразличимы.
-        $organization_id = self::_directory_scope($actor, []);
-        $where = 'e.id = '.(int) $employee_id.' AND e.employment_status IN ('.self::_in(self::_directory_statuses()).')';
+        $organization_id = Policy_Prx300_Employee::directoryOrganization($actor, []);
+        $where = 'e.id = '.(int) $employee_id.' AND e.employment_status IN ('.self::_in(Policy_Prx300_Employee::directoryStatuses()).')';
         if ($organization_id !== NULL)
         {
             $where .= ' AND e.organization_id = '.(int) $organization_id;
@@ -144,9 +104,9 @@ class Service_Prx300_Directory extends Service_Prx300_Store
         return $row ? self::_format_employee($row, FALSE) : NULL;
     }
 
-    public static function filter_options(array $actor, array $filters = [])
+    public static function filter_options(Prx_Actor $actor, array $filters = [])
     {
-        $organization_id = self::_directory_scope($actor, $filters);
+        $organization_id = Policy_Prx300_Employee::directoryOrganization($actor, $filters);
         $organizations = [];
         if ($organization_id === NULL)
         {
@@ -212,7 +172,7 @@ class Service_Prx300_Directory extends Service_Prx300_Store
     }
 
     /** Рабочая карточка по внутреннему ID для серверных модулей с actor-контекстом. */
-    public static function employee_card(array $actor, $employee_id)
+    public static function employee_card(Prx_Actor $actor, $employee_id)
     {
         return self::colleague_card($actor, $employee_id);
     }
