@@ -74,3 +74,47 @@ foreach (Service_Prx110_Catalog::groups_summary($admin) as $group) {
 }
 if (count($grouped)!==count($visible) || count(array_unique($grouped))!==count($visible)) throw new RuntimeException('Catalog grouping lost/duplicated entries');
 echo "Catalog completeness: $count approved modules, $wip in progress, unpublished and planning OK\n";
+
+class HTTP_Exception extends RuntimeException
+{
+ public static function factory($status, $message) { return new self($message, $status); }
+}
+class Prx_Db
+{
+ public static $approved = [];
+ public static function select($sql) { return array_values(self::$approved); }
+ public static function execute($sql, $params) {
+  if (strpos($sql, 'ON CONFLICT (module_name) DO NOTHING') === FALSE) throw new RuntimeException('Approval insert is not idempotent');
+  self::$approved[$params[':name']] ??= ['module_name' => $params[':name'], 'approved_by' => $params[':actor']];
+ }
+}
+require APPPATH.'modules/prx110_catalog/classes/Service/Prx110/Publication.php';
+$publisher = Prx_Actor::fromArray($admin);
+try {
+ Service_Prx110_Publication::approve('prx395_document_extract', Prx_Actor::fromArray($user));
+ throw new RuntimeException('Non-admin could approve a module');
+} catch (HTTP_Exception $e) {
+ if ($e->getCode() !== 403 || Prx_Db::$approved) throw $e;
+}
+try {
+ Service_Prx110_Publication::approve('prx301_onboarding', $publisher);
+ throw new RuntimeException('A plan-only service was approved');
+} catch (HTTP_Exception $e) {
+ if ($e->getCode() !== 404 || Prx_Db::$approved) throw $e;
+}
+Service_Prx110_Publication::approve('prx395_document_extract', $publisher);
+Service_Prx110_Publication::approve('prx395_document_extract', new Prx_Actor(2, ['admin']));
+$approved_pdf = Service_Prx110_Catalog::get('prx395_document_extract');
+if (Service_Prx110_Catalog::resolve_manifest_state($approved_pdf) !== 'wip'
+ || !Service_Prx110_Catalog::can_see($approved_pdf, $admin)
+ || Service_Prx110_Catalog::can_see($approved_pdf, $user)
+ || Prx_Db::$approved['prx395_document_extract']['approved_by'] !== 1) {
+ throw new RuntimeException('Approval mutated the manifest, ACL or original approver');
+}
+$approved_pdf['status'] = 'deprecated';
+if (Service_Prx110_Catalog::can_see($approved_pdf, $admin)) throw new RuntimeException('Archived module retained visibility');
+Service_Prx110_Publication::approve('prx300_employee', $publisher);
+if (!in_array('/employee', array_column(Service_Prx110_Catalog::search_json($user)['items'], 'href'), TRUE)) {
+ throw new RuntimeException('Approved employee profile did not enter regular catalog');
+}
+echo "Publication: admin-only, connected services only, manifest and ACL intact\n";

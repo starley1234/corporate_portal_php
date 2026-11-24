@@ -396,17 +396,33 @@ class Service_Prx110_Catalog {
      */
     public static function resolve_state(array $m)
     {
+        $state = self::resolve_manifest_state($m);
+        if (in_array($state, ['wip', 'unpublished'], TRUE)
+            && ! empty($m['module_name']) && class_exists('Service_Prx110_Publication')
+            && Service_Prx110_Publication::eligible($m)
+            && Service_Prx110_Publication::is_approved($m['module_name']))
+        {
+            return 'approved';
+        }
+        return $state;
+    }
+
+    public static function resolve_manifest_state(array $m)
+    {
+        $status = self::resolve_status($m);
+        if ($status === 'deprecated')
+        {
+            return 'archived';
+        }
         if (($m['catalog'] ?? TRUE) === FALSE)
         {
             return 'unpublished';
         }
 
-        switch (self::resolve_status($m))
+        switch ($status)
         {
             case 'stable':
                 return 'approved';
-            case 'deprecated':
-                return 'archived';
             case 'beta':
             case 'draft':
                 return 'wip';
@@ -533,11 +549,6 @@ class Service_Prx110_Catalog {
      */
     public static function can_see(array $m, array $ctx)
     {
-        if (($m['catalog'] ?? TRUE) === FALSE)
-        {
-            return FALSE;
-        }
-
         if ( ! self::_audience_allows($m, $ctx))
         {
             return FALSE;
@@ -676,6 +687,7 @@ class Service_Prx110_Catalog {
                 })),
                 'badge'    => (string) ($m['badge'] ?? ''),
                 'status'   => self::resolve_status($m),
+                'state'    => self::resolve_state($m),
                 'audience' => self::resolve_audience($m),
                 'hidden'   => ! empty($m['hidden']),
             ];

@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "count": 99,
+  "count": 101,
   "routes": [
     {
       "name": "cookie_consent_close",
@@ -163,6 +163,33 @@
       "action": "status",
       "module": "prx111_migrations",
       "file": "application/modules/prx111_migrations/classes/Controller/Prx111/Api.php"
+    },
+    {
+      "name": "prx112_portal_plan_approve",
+      "uri": "portal-plan/approve",
+      "regex": "",
+      "controller": "Prx112_Plan",
+      "action": "approve",
+      "module": "prx112_portal_plan",
+      "file": "application/modules/prx112_portal_plan/classes/Controller/Prx112/Plan.php"
+    },
+    {
+      "name": "prx112_portal_plan",
+      "uri": "prx112_portal_plan",
+      "regex": "",
+      "controller": "Prx112_Plan",
+      "action": "index",
+      "module": "prx112_portal_plan",
+      "file": "application/modules/prx112_portal_plan/classes/Controller/Prx112/Plan.php"
+    },
+    {
+      "name": "portal_plan",
+      "uri": "portal-plan",
+      "regex": "",
+      "controller": "Prx112_Plan",
+      "action": "index",
+      "module": "prx112_portal_plan",
+      "file": "application/modules/prx112_portal_plan/classes/Controller/Prx112/Plan.php"
     },
     {
       "name": "prx115_api",
@@ -865,15 +892,6 @@
       "action": "index",
       "module": "application",
       "file": "application/classes/Controller/Pages.php"
-    },
-    {
-      "name": "portal_plan",
-      "uri": "portal-plan",
-      "regex": "",
-      "controller": "Welcome",
-      "action": "portal_plan",
-      "module": "application",
-      "file": "application/classes/Controller/Welcome.php"
     },
     {
       "name": "default",

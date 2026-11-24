@@ -476,10 +476,10 @@
                 var group = document.createElement('span');
                 group.className = 'shrink-0 rounded-md bg-gray-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-gray-500 dark:bg-gray-800 dark:text-gray-400';
                 group.textContent = x.it.group; link.appendChild(group);
-                if (x.it.status === 'beta') {
+                if (x.it.state === 'wip' || (!x.it.state && x.it.status === 'beta')) {
                     var beta = document.createElement('span');
                     beta.className = 'shrink-0 rounded-full bg-blue-50 px-1.5 py-0.5 text-xs font-bold uppercase text-blue-600 dark:bg-blue-950/60 dark:text-blue-400';
-                    beta.textContent = 'beta'; link.appendChild(beta);
+                    beta.textContent = 'В работе'; link.appendChild(beta);
                 }
                 var pin = document.createElement('button');
                 pin.type = 'button'; pin.setAttribute('data-palette-pin', x.it.href);

@@ -83,7 +83,7 @@
         ]
       },
       "detail": {
-        "lead": "**Где что искать.** Полный перечень — `application/config/portal.php`; подключение и порядок миграций — `application/config/modules.php`.",
+        "lead": "**Где что искать.** Полный перечень — `application/modules/prx112_portal_plan/config/portal.php`; подключение и порядок миграций — `application/config/modules.php`.",
         "blocks": [
           {"type":"table","head":["Слой","Модули","Ответственность"],"rows":[["Ядро","prx102_core, prx103_platform, prx100_search","Auth, RBAC, общий контроллер, диагностика, глобальный поиск"],["Каталог и схема","prx110_catalog, prx111_migrations, prx218_module_manager","Меню и видимость, миграции, жизненный цикл модулей"],["Инфраструктура","prx208_events, prx120_jobs, prx212_file_storage, prx115_semantic, prx150_api_hub","События, очередь, приватные файлы, векторный поиск"],["Люди","prx300_employee, prx595_useradmin, prx599_account","Оргструктура, роли, TOTP и сессии"],["ИИ-пайплайн","prx395_document_extract","API PDF → текст для интеграций, асинхронно через prx120"],["ИИ-пайплайн (внешний OCR)","prx450_document_ocr","PDF и сканы → Markdown через внешний шлюз; API и ключи prx150"],["ИИ","llm, prx560_knowledge","Провайдеры моделей, техническая база знаний"]]},
           {"type":"note","text":"Документооборот `prx390`–`prx393` подключён для проверки явным блоком в `application/bootstrap.php`. Ответы `prx394` остаются в архиве."}

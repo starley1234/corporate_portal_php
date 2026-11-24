@@ -114,10 +114,13 @@ home = pages['/']
 assert 'Рабочий стол' in home and 'href="/portal-plan"' in home
 assert 'Отработка рекламаций' not in home
 archive = request('/portal-plan', 200)
-assert 'План и архив портала' in archive
+assert 'План и архив портала' in archive and 'План производственных пайплайнов' not in archive
+assert 'Сервисы домена:' in archive and 'action="/portal-plan/approve"' in archive
+request('/portal-plan/approve', 405)
+request('/portal-plan/approve', 403, {'module': 'prx395_document_extract'})
 for heading in ['Ведение проектов', 'Разработка конструкций', 'Разработка РЭА',
                 'Производство и сборка', 'Отработка рекламаций']:
-    assert f'<h4 class="prx-h3">{heading}</h4>' in archive, heading
+    assert heading in archive, heading
 assert 'Лента новостей' in archive and 'Ответы на письма' in archive
 assert 'Мой профиль сотрудника' in archive and 'Не опубликован' in archive
 assert 'href="/employee"' not in archive
@@ -141,7 +144,7 @@ if legacy:
 for module in [390, 392, 393]:
     request(f'/prx{module}/api/health', 403 if legacy else 404)
 if legacy:
-    assert 'Документооборот · тестовый режим' in pages['/']
+    assert 'Стенд и диагностика' in pages['/']
     request('/inbox/scan', 405)
     request('/inbox/upload', 403, {'sample': '1'})
 else:
@@ -300,8 +303,12 @@ json.loads(request('/search/api?q=test', 200))
 catalog = json.loads(request('/prx110/api/catalog', 200))
 assert catalog['user_id'] == account_id, 'Catalog must identify the session account for stale tabs'
 catalog_hrefs = {item['href'] for item in catalog['items']}
-assert {'/architecture', '/prx560', '/prx597', '/account/security', '/prx395_document_extract'} <= catalog_hrefs
-assert not legacy or legacy_paths <= catalog_hrefs
+assert {'/prx112_portal_plan', '/prx560', '/prx597', '/account/security'} <= catalog_hrefs
+preview_hrefs = {item['href'] for item in json.loads(request('/prx110/api/catalog?agent_preview=1', 200))['items']}
+assert {'/architecture', '/prx395_document_extract'} <= preview_hrefs
+assert not legacy or legacy_paths <= preview_hrefs
+assert {'/architecture', '/prx395_document_extract'}.isdisjoint(catalog_hrefs)
+assert legacy_paths.isdisjoint(catalog_hrefs)
 assert archived_paths.isdisjoint(catalog_hrefs)
 assert '/employee' not in catalog_hrefs and '/employee' not in favorite_hrefs
 assert archived_paths.isdisjoint(favorite_hrefs)

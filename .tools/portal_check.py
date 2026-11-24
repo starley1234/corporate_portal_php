@@ -27,7 +27,7 @@ check((ROOT / 'docs/architecture/dist/architecture.html').is_file(), 'Нет с�
 check((ROOT / 'docs/architecture/dist/architecture.json').is_file(), 'Нет собранной docs/architecture/dist/architecture.json')
 check("config/modules.php" in bootstrap, 'Bootstrap обходит базовый реестр')
 
-plan = (ROOT / 'application/config/portal.php').read_text(encoding='utf-8')
+plan = (ROOT / 'application/modules/prx112_portal_plan/config/portal.php').read_text(encoding='utf-8')
 plan_entries = re.findall(r"'module' => '(prx\d+_[a-z_]+)',\s*'title' => '[^']+',\s*'status' => ('(?:planned|active|pilot|archived)'|\$docflow_status)", plan)
 plan_entries = [(name, status.strip("'")) for name, status in plan_entries]
 planned = [name for name, _status in plan_entries]

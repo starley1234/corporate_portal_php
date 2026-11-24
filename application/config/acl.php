@@ -10,6 +10,7 @@ return [
     'prx100.search' => ['login'],
     'prx111.view' => ['admin'],
     'prx111.apply' => ['admin'],
+    'prx112.approve' => ['admin'],
     'prx115.admin' => ['admin'],
     'prx120.monitor' => ['admin'],
     'prx120.usage.admin' => ['admin'],
