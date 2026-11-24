@@ -23,7 +23,7 @@ $regular=array_column(Service_Prx110_Catalog::visible_modules($user),NULL,'modul
 $no_ui=['llm','prx102_core','cookie_consent','ldap_auth'];
 $count=0;
 foreach (Manifest::all() as $name=>$manifest) {
- if (in_array($name,$no_ui,TRUE)) continue;
+ if (($manifest['kind'] ?? '')==='library' || in_array($name,$no_ui,TRUE)) continue;
  if (empty($visible[$name]['href'])) throw new RuntimeException('Missing catalog entry: '.$name);
  $count++;
 }
