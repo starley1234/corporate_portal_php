@@ -223,6 +223,48 @@ class Service_Prx212_Storage {
             ->find_all();
     }
 
+    /** Безопасное представление настроек для админки: без ключей S3 и сырых config_data. */
+    public function settings_summary(): array
+    {
+        $default_id = (int) $this->_get_default_backend_id();
+        $backends = [];
+        foreach ($this->get_active_backends() as $backend)
+        {
+            $config = $backend->get_config_array();
+            $local = $backend->driver === 'local';
+            $destination = $local ? '' : ($config['bucket'] ?? '');
+            $invalid_path = FALSE;
+            if ($local)
+            {
+                try
+                {
+                    $root = $this->_configured_local_root($config);
+                    $destination = realpath($root) ?: $root;
+                }
+                catch (InvalidArgumentException | RuntimeException $e)
+                {
+                    $invalid_path = TRUE;
+                }
+            }
+            $backends[] = [
+                'id' => (int) $backend->id,
+                'driver' => (string) $backend->driver,
+                'default' => (int) $backend->id === $default_id,
+                'destination' => $destination,
+                'invalid_path' => $invalid_path,
+                'source' => $local ? (isset($config['root_path']) ? 'Настройка бэкенда' : 'Конфигурация модуля') : '',
+            ];
+        }
+
+        return [
+            'backends' => $backends,
+            'max_file_size' => $this->get_max_size(),
+            'allowed_types' => (array) Kohana::$config->load('prx212_storage')->get('allowed_mime_types'),
+            'php_upload_limit' => (string) ini_get('upload_max_filesize'),
+            'php_post_limit' => (string) ini_get('post_max_size'),
+        ];
+    }
+
     /**
      * Инициализация бэкенда
      */
@@ -651,7 +693,7 @@ class Service_Prx212_Storage {
         }
     }
 
-    protected function _get_local_root($config)
+    protected function _configured_local_root($config)
     {
         if (isset($config['root_path'])) {
             $path = $config['root_path'];
@@ -672,7 +714,12 @@ class Service_Prx212_Storage {
             }
             $path = $cwd.DIRECTORY_SEPARATOR.$path;
         }
-        $path = Storage_Path::absolute($path);
+        return Storage_Path::absolute($path);
+    }
+
+    protected function _get_local_root($config)
+    {
+        $path = $this->_configured_local_root($config);
         if (!is_dir($path) && !@mkdir($path, 0700, true) && !is_dir($path)) {
             throw new RuntimeException('Не удалось создать папку хранилища prx212: '.$path);
         }

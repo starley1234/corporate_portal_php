@@ -79,7 +79,7 @@ class Service_Prx218_Scanner {
                 
                 $data = [
                     'system_name'  => $system_name,
-                    'display_name' => Arr::get($metadata, 'name', $system_name),
+                    'display_name' => ($metadata['name'] ?? '') ?: $system_name,
                     // 'description'  => Arr::get($metadata, 'description'),
                     'version'      => Arr::get($metadata, 'version', '1.0.0'),
                     'path'         => $module_path,
@@ -89,7 +89,6 @@ class Service_Prx218_Scanner {
                 if ($is_new)
                 {
                     $module->values($data)->save();
-                    $stats['created']++;
                     
                     // Создаем запись для LLM анализа
                     $this->_init_llm_analysis($module->id, Arr::get($metadata, 'raw_readme'), $user_id);
@@ -100,10 +99,10 @@ class Service_Prx218_Scanner {
                     $module->path = $module_path;
                     // if (empty($module->description)) $module->description = $data['description'];
                     $module->save();
-                    $stats['updated']++;
                 }
 
                 $db->commit();
+                $stats[$is_new ? 'created' : 'updated']++;
 
                 // После коммита: подписчик читает уже сохранённый модуль.
                 if ($is_new)

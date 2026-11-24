@@ -18,6 +18,7 @@ $modules = [
     // Документация архитектуры: YAML -> страница и JSON (make architecture).
     'prx101_architecture' => APPPATH.'modules/prx101_architecture',
     'prx110_catalog' => APPPATH.'modules/prx110_catalog',
+    'prx112_portal_plan' => APPPATH.'modules/prx112_portal_plan',
     'prx208_events' => APPPATH.'modules/prx208_events',
     'prx120_jobs' => APPPATH.'modules/prx120_jobs',
     'prx150_api_hub' => APPPATH.'modules/prx150_api_hub',

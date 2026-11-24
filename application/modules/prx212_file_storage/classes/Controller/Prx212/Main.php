@@ -41,31 +41,31 @@ abstract class Controller_Prx212_Main extends Controller_Base
         $menu = [
             [
                 'title' => 'Файлы',
-                'href'  => '/prx212_index',
+                'href'  => '/prx212_file_storage',
                 'icon'  => 'fas fa-cloud-upload-alt',
                 'acl'   => 'prx212_storage.view_files'
             ],
             [
                 'title' => 'Общие файлы',
-                'href'  => '/prx212_storage/public',
+                'href'  => '/prx212_file_storage/public',
                 'icon'  => 'fas fa-share-alt',
                 'acl'   => 'prx212_storage.view_public_files'
             ],
             [
                 'title' => 'Загрузить',
-                'href'  => '/prx212_storage/upload',
+                'href'  => '/prx212_file_storage/upload',
                 'icon'  => 'fas fa-cloud-upload-alt',
                 'acl'   => 'prx212_storage.upload'
             ],
             [
                 'title' => 'Настройки',
-                'href'  => '/prx212_storage/settings',
+                'href'  => '/prx212_file_storage/settings',
                 'icon'  => 'fas fa-cogs',
                 'acl'   => 'prx212_storage.manage_settings'
             ]
         ];
 
-        $this->set_menu($menu);
+        $this->set_module_nav($menu);
     }
 
     /**

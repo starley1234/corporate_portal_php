@@ -114,6 +114,8 @@ make new-module id=301 slug=onboarding name="Онбординг-трек"
 [ARCHITECTURE](docs/ARCHITECTURE.md), карта 55 сервисов —
 [ROADMAP](docs/ROADMAP.md), правила разработки — [AGENTS.md](AGENTS.md).
 
+Быстрый вход: [карта портала и план развития](docs/PORTAL-ARCHITECTURE.md).
+
 ## Проверки
 
 Расположение и запуск тестов — [tests/README.md](tests/README.md).

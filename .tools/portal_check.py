@@ -27,8 +27,8 @@ check((ROOT / 'docs/architecture/dist/architecture.html').is_file(), 'Нет с�
 check((ROOT / 'docs/architecture/dist/architecture.json').is_file(), 'Нет собранной docs/architecture/dist/architecture.json')
 check("config/modules.php" in bootstrap, 'Bootstrap обходит базовый реестр')
 
-plan = (ROOT / 'application/config/portal.php').read_text(encoding='utf-8')
-plan_entries = re.findall(r"'module' => '(prx\d+_[a-z_]+)',\s*'title' => '[^']+',\s*'status' => ('(?:planned|active|archived)'|\$docflow_status)", plan)
+plan = (ROOT / 'application/modules/prx112_portal_plan/config/portal.php').read_text(encoding='utf-8')
+plan_entries = re.findall(r"'module' => '(prx\d+_[a-z_]+)',\s*'title' => '[^']+',\s*'status' => ('(?:planned|active|pilot|archived)'|\$docflow_status)", plan)
 plan_entries = [(name, status.strip("'")) for name, status in plan_entries]
 planned = [name for name, _status in plan_entries]
 active_services = [name for name, status in plan_entries if status == 'active']
@@ -39,7 +39,7 @@ check(len({re.search(r'\d+', name)[0] for name in planned}) == 55, 'Дубли I
 for name, status in plan_entries:
     exists = (ROOT / 'application/modules' / name).exists()
     registered_service = name in {entry[0] for entry in registered}
-    if status == 'active':
+    if status in {'active', 'pilot'}:
         check(exists and registered_service, f'Активный сервис не реализован/не подключён: {name}')
     elif status == '$docflow_status':
         check(exists and registered_service, f'Нет условного модуля стенда: {name}')
@@ -134,6 +134,6 @@ if errors:
 optional_count = sum(status == '$docflow_status' for _, status in plan_entries)
 planned_count = sum(status == 'planned' for _, status in plan_entries)
 print(f'PRX contracts OK: {len(registered)} available modules, {len(classes)} PHP classes, '
-      f'{len(active_services)} active + {optional_count} optional + {len(archived_services)} archived + '
+      f'{len(active_services)} active + {sum(status == "pilot" for _, status in plan_entries)} pilot + {optional_count} optional + {len(archived_services)} archived + '
       f'{planned_count} planned services, {len(channel_names)} available worker channels, '
       f'events via Event::publish only, files via Storage:: only')

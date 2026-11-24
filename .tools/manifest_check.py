@@ -104,6 +104,9 @@ def check_module(path: Path, hrefs: dict[str, str], keys: set[str]) -> None:
                 fail(f'{name}: `kind=library` не должен объявлять `{field}`')
         return
 
+    if 'catalog' in manifest and not isinstance(manifest['catalog'], bool):
+        fail(f'{name}: `catalog` должен быть логическим значением')
+
     status = manifest.get('status')
     if status is not None and text(status) not in STATUSES:
         fail(f'{name}: `status` = {text(status)!r}, ожидалось одно из {sorted(STATUSES)}')

@@ -18,7 +18,7 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
 
 ## Вход в задачу
 - Базовые модули: `application/config/modules.php`; стендовый блок — в bootstrap.
-- Карта сервисов: `application/config/portal.php`, `docs/ROADMAP.md` — 50 из
+- Карта сервисов: `application/modules/prx112_portal_plan/config/portal.php`, `docs/ROADMAP.md` — 50 из
   отложенного портального плана плюс старый документооборот. `prx390`–`prx393`
   подключены для проверки явным блоком в `application/bootstrap.php`. Новый фокус —
   API-пайплайны для корпоративных систем: `docs/AI-DOCUMENT-PIPELINES.md`.

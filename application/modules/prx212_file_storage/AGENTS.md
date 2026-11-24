@@ -42,7 +42,13 @@
 Инвентаризация `owned_file_ids_before` нужна для безопасной уборки после сбоев.
 
 ## Маршруты и API
-- `POST /prx212/api/upload`, `GET /prx212/api/file/<id>`, DELETE и т.д. (см. init.php)
+- `/prx212_file_storage` — список, `/prx212_file_storage/upload` — форма;
+  кнопка и API проверяют `prx212_storage.upload`. `/prx212` и `/prx212_index`
+  ведут на каноническую страницу.
+- `/prx212_file_storage/settings` (`prx212_storage.manage_settings`) — только
+  просмотр активных бэкендов, эффективного пути/бакета и лимитов; без ключей S3.
+- `POST /prx212_api/upload` (multipart `file` + CSRF; MIME проверяет сервер),
+  `GET /prx212_api/file/<id>`, `DELETE /prx212_api/delete/<id>`.
 - Скачивание: через контроллер Download (не прямые пути к диску).
 - Свои контроллеры зовут сервис напрямую; `delete()` — с явным ID пользователя.
 

@@ -18,12 +18,12 @@
     </div>
 
     <?php echo View::factory('partials/page_header', [
-        'crumbs' => [['Файлы', '/prx212_storage'], ['Загрузка файлов']],
+        'crumbs' => [['Файлы', '/prx212_file_storage'], ['Загрузка файлов']],
         'title'  => 'Загрузка файлов',
         'pill'   => ['prx212 · хранилище', 'fa-cloud-arrow-up'],
-        'lead'   => 'Выберите файл и хранилище. После загрузки файл станет доступен в соответствии с правами доступа.',
+        'lead'   => 'Выберите файл. Он сохранится в хранилище по умолчанию и будет доступен владельцу.',
         'actions' => [
-            ['label' => 'Мои файлы', 'href' => $cancel_url ?? '/prx212_storage', 'icon' => 'fa-folder-open', 'role' => 'secondary'],
+            ['label' => 'Мои файлы', 'href' => $cancel_url ?? '/prx212_file_storage', 'icon' => 'fa-folder-open', 'role' => 'secondary'],
         ],
     ]); ?>
 
@@ -42,9 +42,7 @@
                       id="upload-form"
                       class="space-y-6">
 
-                    <?php if (isset($csrf_token)): ?>
-                        <input type="hidden" name="csrf_token" value="<?php echo HTML::chars($csrf_token); ?>">
-                    <?php endif; ?>
+                    <input type="hidden" name="csrf" value="<?php echo HTML::chars(Security::token()); ?>">
 
                     <div id="drop-zone-container">
                         <label class="prx-label mb-2">
@@ -59,18 +57,14 @@
                                     <label for="file-upload" class="relative cursor-pointer bg-white dark:bg-gray-800 rounded-md font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 focus-within:outline-none">
                                         <span>Загрузить файл</span>
                                         <input id="file-upload" name="file" type="file" class="sr-only"
-                                               accept="<?php echo isset($allowed_extensions) ? '.' . implode(',.', $allowed_extensions) : '*/*'; ?>"
+                                               accept="<?php echo HTML::chars(implode(',', $allowed_types ?? [])); ?>"
                                                <?php echo isset($max_file_size) ? 'data-max-size="' . $max_file_size . '"' : ''; ?>
                                                required>
                                     </label>
                                     <p class="pl-1">или перетащите файл сюда</p>
                                 </div>
                                 <p class="prx-hint">
-                                    <?php if (isset($allowed_extensions) && is_array($allowed_extensions)): ?>
-                                        Поддерживаемые форматы: <?php echo implode(', ', array_map(function($ext) { return '.' . $ext; }, $allowed_extensions)); ?>
-                                    <?php else: ?>
-                                        Любые файлы
-                                    <?php endif; ?>
+                                    Поддерживаются разрешённые хранилищем типы файлов.
                                     <?php if (isset($max_file_size)): ?>
                                         (макс. <?php echo round($max_file_size / 1024 / 1024, 2); ?> МБ)
                                     <?php endif; ?>
@@ -100,37 +94,13 @@
                         </div>
                     </div>
 
-                    <?php if (isset($storage_options) && is_array($storage_options) && count($storage_options) > 1): ?>
-                        <div>
-                            <label class="prx-label mb-2">
-                                Хранилище
-                            </label>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <?php foreach ($storage_options as $key => $option): ?>
-                                    <label class="relative flex items-center p-4 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                        <input type="radio"
-                                               name="backend_id"
-                                               value="<?php echo HTML::chars($key); ?>"
-                                               class="h-4 w-4 shrink-0 border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
-                                               <?php echo (isset($default_storage) && $default_storage == $key) ? 'checked' : ''; ?>>
-                                        <div class="ml-3">
-                                            <span class="block text-sm font-medium text-gray-900 dark:text-white">
-                                                <?php echo HTML::chars($option['title'] ?? $key); ?>
-                                            </span>
-                                        </div>
-                                    </label>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-                    <?php endif; ?>
-
                     <div class="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
                         <p class="text-sm text-gray-500 dark:text-gray-400">
                             <i class="fas fa-info-circle mr-1"></i>
                             Загрузка выполняется через API
                         </p>
                         <div class="flex space-x-3">
-                            <a href="<?php echo HTML::chars($cancel_url ?? '/prx212_storage'); ?>"
+                            <a href="<?php echo HTML::chars($cancel_url ?? '/prx212_file_storage'); ?>"
                                class="prx-btn-secondary">
                                 Отмена
                             </a>
@@ -268,7 +238,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         fileInput.value = '';
                         fileInfo.classList.add('hidden');
                         setTimeout(() => {
-                            window.location.href = '<?php echo $cancel_url ?? "/prx212_storage"; ?>';
+                            window.location.href = '/prx212_file_storage';
                         }, 1500);
                     } else {
                         showStatus(response.error || 'Ошибка при загрузке');

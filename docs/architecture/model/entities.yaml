@@ -14,9 +14,8 @@ entities:
   - { id: notifications, type: service, title: Уведомления prx597, owner: Платформа PRX, data_class: internal }
   - { id: employee, type: role, title: Сотрудник, owner: HR, data_class: internal }
   - { id: useradmin, type: service, title: Управление пользователями prx595, owner: Администратор, data_class: secret }
-  - { id: docflow, type: service, title: Документооборот prx390–prx394, owner: Делопроизводство, data_class: confidential }
+  - { id: docflow, type: service, title: Стенд документооборота prx390–prx393, owner: Делопроизводство, data_class: confidential }
   - { id: intake, type: service, title: Приём документов prx390, owner: Делопроизводство, data_class: confidential }
   - { id: documents, type: service, title: Реестр документов prx391, owner: Делопроизводство, data_class: confidential }
   - { id: analysis, type: service, title: ИИ-разбор prx392, owner: Делопроизводство, data_class: confidential }
   - { id: workflow, type: service, title: Сроки и маршруты prx393, owner: Делопроизводство, data_class: internal }
-  - { id: drafts, type: service, title: Черновики ответов prx394, owner: Делопроизводство, data_class: confidential }

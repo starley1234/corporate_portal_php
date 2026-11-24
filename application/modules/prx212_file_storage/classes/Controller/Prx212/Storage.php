@@ -31,7 +31,7 @@ class Controller_Prx212_Storage extends Controller_Prx212_Main
      */
     public function action_index()
     {
-        $this->redirect('prx212_index');
+        HTTP::redirect('/prx212_file_storage'.URL::query(), 302);
     }
 
     /**
@@ -108,12 +108,8 @@ class Controller_Prx212_Storage extends Controller_Prx212_Main
             throw new HTTP_Exception_403('Доступ к настройкам ограничен');
         }
 
-        $config = Kohana::$config->load('prx212_storage');
-        $backends = $this->storage_service->get_active_backends();
-
-        $view = View::factory('prx212/storage/settings')
-            ->set('backends', $backends)
-            ->set('config', $config->as_array());
+        $view = View::factory('prx212/storage/settings', $this->storage_service->settings_summary());
+        $this->response->headers('Cache-Control', 'no-store');
 
         $this->_meta['title'] = 'Настройки хранилища';
         $this->template->content = $view;
@@ -127,19 +123,12 @@ class Controller_Prx212_Storage extends Controller_Prx212_Main
      */
     public function action_upload()
     {
-        if (!$this->can('prx212_storage.upload_file')) {
-            $this->auto_render = FALSE;
-            throw new HTTP_Exception_403('Доступ запрещен.');
-        }
-        
+        $this->actor()->require('prx212_storage.upload');
         $config = Kohana::$config->load('prx212_storage');
-        
         $view = View::factory('prx212/storage/upload')
-            ->set('max_size', $config['upload_max_size'])
-            ->set('allowed_types', $config['allowed_mime_types'])
-            ->set('upload_url', URL::site('prx212_api/upload'))
-            ->set('backends', $this->storage_service->get_active_backends());
-        
+            ->set('max_file_size', $this->storage_service->get_max_size())
+            ->set('allowed_types', (array) $config->get('allowed_mime_types'));
+
         $this->_meta['title'] = 'Загрузка файлов - Файловый менеджер';
         $this->template->content = $view;
     }

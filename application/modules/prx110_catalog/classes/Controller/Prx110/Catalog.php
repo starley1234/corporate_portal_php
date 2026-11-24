@@ -21,10 +21,12 @@ class Controller_Prx110_Catalog extends Controller_Base {
     {
         $groups = [];
         $total  = 0;
+        $preview = FALSE;
 
         if (class_exists('Service_Prx110_Catalog'))
         {
             $ctx = Service_Prx110_Catalog::user_context();
+            $preview = ! empty($ctx['preview']);
             $summary = Service_Prx110_Catalog::groups_summary($ctx);
 
             foreach ($summary as $info)
@@ -40,15 +42,16 @@ class Controller_Prx110_Catalog extends Controller_Base {
             }
         }
 
-        $this->set_title('Каталог модулей и сервисов PRX — '.$total.' разделов');
-        $this->set_description('Все подключённые модули с интерфейсом: документы, ИИ, сотрудники, аккаунт и управление платформой. Разделы показываются с учётом прав доступа.');
+        $this->set_title('Каталог сервисов PRX');
+        $this->set_description('Сервисы, одобренные к работе: документы, ИИ, сотрудники, аккаунт и управление платформой. Разделы показываются с учётом прав доступа.');
 
         // На этой странице — своя навигация (группы в теле); чипы раздела в шапку не кладём.
         $this->set_module_nav([]);
 
         $this->template->content = View::factory('prx110/index', [
-            'groups' => $groups,
-            'total'  => $total,
+            'groups'  => $groups,
+            'total'   => $total,
+            'preview' => $preview,
         ]);
     }
 
@@ -59,15 +62,19 @@ class Controller_Prx110_Catalog extends Controller_Base {
 
         $title = '';
         $items = [];
+        $preview = FALSE;
 
         if (class_exists('Service_Prx110_Catalog'))
         {
-            foreach (Service_Prx110_Catalog::groups_summary() as $info)
+            $ctx = Service_Prx110_Catalog::user_context();
+            $preview = ! empty($ctx['preview']);
+
+            foreach (Service_Prx110_Catalog::groups_summary($ctx) as $info)
             {
                 if ((string) $info['slug'] === $slug)
                 {
                     $title = (string) $info['title'];
-                    $items = Service_Prx110_Catalog::group_modules($slug);
+                    $items = Service_Prx110_Catalog::group_modules($slug, $ctx);
                     break;
                 }
             }
@@ -88,6 +95,7 @@ class Controller_Prx110_Catalog extends Controller_Base {
             'gslug'     => $slug,
             'items'     => $items,
             'group_cnt' => count($items),
+            'preview'   => $preview,
         ]);
     }
 }

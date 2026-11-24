@@ -20,9 +20,7 @@ overview:
           - { id: card, at: [700, 110, 210], label: prx391 documents, sub: реестр и карточка, kind: module, info: "{documents}" }
           - { id: analysis, at: [700, 230, 210], label: prx392 analysis, sub: doc.analyze, kind: ai, info: "{analysis}" }
           - { id: workflow, at: [700, 350, 210], label: prx393 workflow, sub: сроки и эскалации, kind: module, info: "{workflow}" }
-          - { id: drafts, at: [1010, 230, 190], label: prx394 drafts, sub: doc.draft, kind: module, info: "{drafts}" }
           - { id: clerk, at: [1010, 110, 190], label: Делопроизводитель, sub: проверяет и решает, kind: user }
-          - { id: manager, at: [1010, 350, 190], label: Руководитель, sub: утверждает ответ, kind: user }
         edges:
           - folder -> intake
           - upload -> intake
@@ -35,13 +33,10 @@ overview:
           - clerk --> analysis: { rel: uses, label: принять или отклонить }
           - analysis -> card: { rel: carries, label: поля }
           - card -> workflow: { rel: uses, label: срок }
-          - workflow -> drafts: { rel: uses, label: шаблон }
-          - drafts -> manager: { rel: carries, label: проект }
-          - manager --> drafts: { rel: uses, label: утвердить }
         routes:
           Новый PDF: folder -> intake -> card
           ИИ-разбор: card -> analysis -> clerk
-          Ответ: card -> workflow -> drafts -> manager
+          Срок: card -> workflow
         hint: Длинные операции идут через prx120. Результат модели — черновик предложения, а не изменение карточки.
     - sequence:
         width: 1160
@@ -53,7 +48,6 @@ overview:
           - { id: d, label: prx391, kind: data }
           - { id: a, label: prx392, kind: ai }
           - { id: s, label: prx393, kind: module }
-          - { id: r, label: prx394, kind: module }
         messages:
           - u -> i: загрузить PDF
           - i -> q: message_id
@@ -66,15 +60,10 @@ overview:
           - w --> a: JSON-предложение
           - u -> a: принять или отклонить
           - d -> s: рассчитать срок
-          - s -> r: создать черновик
-          - r -> q: draft_id
-          - q -> w: doc.draft
-          - w --> r: текст ответа
-          - u -> r: утвердить и отправить
         phases:
           - [1, 5, "Приём и текст"]
           - [6, 10, "ИИ-разбор"]
-          - [11, 16, "Срок и ответ"]
+          - [11, 11, "Срок"]
 detail:
   lead: >-
     **Что проверяется на каждом шаге.** Ошибка и таймаут — это не разрешение:
@@ -93,25 +82,14 @@ detail:
           text: Правило маршрутизации выбирает тип и срок; повторный маршрут возвращает документ в open.
           color: "#6366f1"
           chips: [prx393, SLA]
-        - title: Ответ
-          text: Черновик защищён от позднего результата модели; отправка — только вручную.
-          color: "#e11d48"
-          chips: [prx394, approve, send]
     - table:
-        head: [Событие, Кто слушает, Результат]
+        head: [Данные, Владелец, Граница]
         rows:
-          - - prx390.message.received
-            - prx391
-            - Карточка и провенанс
-          - - prx391.document.created
-            - prx392, prx393
-            - Очередь разбора и расчёт срока
-          - - prx392.analysis.accepted
-            - prx391
-            - Поля карточки обновлены человеком
-          - - prx394.draft.approved
-            - prx597
-            - Уведомление и ручная отправка
+          - [Файл, prx212, Доступ через Storage]
+          - [Входящее и извлечённый текст, prx390, Результат doc.normalize]
+          - [Карточка, prx391, Изменение через сервис владельца]
+          - [Предложение модели, prx392, Применение только по решению пользователя]
+          - [Маршрут и срок, prx393, Читает карточку через сервис prx391]
         center: []
     - warn: >-
         Результат модели не является юридическим решением. Если модель

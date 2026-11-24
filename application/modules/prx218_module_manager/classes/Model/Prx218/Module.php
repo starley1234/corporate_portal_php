@@ -189,20 +189,20 @@ class Model_Prx218_Module extends ORM {
 	 *
 	 * @return string|null Дата и время в формате 'Y-m-d H:i:s' или null, если сканирований не было.
 	 */
-	public static function get_last_scan_date()
+	public static function get_last_activity_date()
 	{
 		$query = "
 			SELECT GREATEST(
-				(SELECT MAX(updated_at) FROM prx_218_modules),
+				(SELECT MAX(COALESCE(updated_at, created_at)) FROM prx_218_modules),
 				(SELECT MAX(last_scan_at) FROM prx_218_llm_analysis)
-			) AS last_scan_date;
+			) AS last_activity_date;
 		";
 
 		$result = DB::query(Database::SELECT, $query)
 			->execute()
 			->as_array();
 
-		return $result[0]['last_scan_date'] ?? null;
+		return $result[0]['last_activity_date'] ?? null;
 	}
 
 	/**

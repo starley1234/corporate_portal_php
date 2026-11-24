@@ -61,7 +61,7 @@ overview:
           chips: [portal.php, planned]
 detail:
   lead: >-
-    **Где что искать.** Полный перечень — `application/config/portal.php`;
+    **Где что искать.** Полный перечень — `application/modules/prx112_portal_plan/config/portal.php`;
     подключение и порядок миграций — `application/config/modules.php`.
   blocks:
     - table:

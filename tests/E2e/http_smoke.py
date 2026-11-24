@@ -24,9 +24,10 @@ jar = http.cookiejar.CookieJar()
 client = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar), NoRedirect())
 count = 0
 
-def request(path, expected, data=None, headers=None):
+def request(path, expected, data=None, headers=None, method=None):
     global count
-    req = urllib.request.Request(BASE + path, data=urllib.parse.urlencode(data).encode() if data is not None else None, headers=headers or {})
+    payload = urllib.parse.urlencode(data).encode() if data is not None and not isinstance(data, bytes) else data
+    req = urllib.request.Request(BASE + path, data=payload, headers=headers or {}, method=method)
     try:
         response = client.open(req, timeout=30)
     except urllib.error.HTTPError as error:
@@ -56,6 +57,8 @@ request('/prx208_events', 403)
 request('/prx208_events/list_subscribers', 403)
 request('/prx100/logs', 403)
 request('/architecture/guide', 403)
+request('/prx212_file_storage/settings', 403)
+request('/prx218_module_manager/scanner', 403)
 for path in ['/prx208_events/api/subscribe', '/prx208_events/api/unsubscribe', '/prx208_events/api/publish_event']:
     request(path, 403, {})
 request('/prx300/admin', 403)
@@ -75,24 +78,55 @@ if not password:
     raise RuntimeError('ADMIN_PASSWORD is required for authenticated smoke; load local .env')
 request('/auth/login?return_url=%2F', 302, {'username': username, 'password': password, 'csrf': token[1]})
 pages = {}
-for path in ['/', '/services', '/dashboard', '/admin', '/prx595/admin', '/account/security', '/prx597', '/prx597/admin', '/prx560', '/prx115', '/tasks', '/prx120/monitor', '/document-extract', '/prx120/workers', '/migrate_pg', '/llm_admin', '/prx218', '/prx100/errors', '/prx100/logs', '/architecture', '/architecture/guide', '/prx208_events', '/prx208_events/list_events', '/employee', '/employee/directory', '/prx300/admin', '/prx300/admin/employees', '/prx300/admin/employee/0', '/prx300/admin/import', '/prx300/admin/import_template']:
+for path in ['/', '/services', '/dashboard', '/admin', '/prx595/admin', '/account/security', '/prx597', '/prx597/admin', '/prx560', '/prx115', '/tasks', '/prx120/monitor', '/document-extract', '/prx120/workers', '/migrate_pg', '/llm_admin', '/prx218_module_manager', '/prx100/errors', '/prx100/logs', '/architecture', '/architecture/guide', '/prx208_events', '/prx208_events/list_events', '/employee', '/employee/directory', '/prx300/admin', '/prx300/admin/employees', '/prx300/admin/employee/0', '/prx300/admin/import', '/prx300/admin/import_template']:
     pages[path] = request(path, 200)
+request('/prx212', 302)
+request('/prx218', 302)
+files_page = request('/prx212_file_storage', 200)
+assert 'href="/prx212_file_storage/upload"' in files_page
+assert 'href="/prx212_file_storage/settings"' in files_page
+settings_page = request('/prx212_file_storage/settings', 200)
+assert 'По умолчанию' in settings_page and 'Ограничения загрузки' in settings_page
+upload_page = request('/prx212_file_storage/upload', 200)
+csrf_upload = html_module.unescape(re.search(r'name="csrf" value="([^"]+)"', upload_page)[1])
+filename = 'prx212-smoke-' + secrets.token_hex(6) + '.txt'
+boundary = 'prx212-' + secrets.token_hex(12)
+multipart = (
+    f'--{boundary}\r\nContent-Disposition: form-data; name="csrf"\r\n\r\n{csrf_upload}\r\n'
+    f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{filename}"\r\n'
+    f'Content-Type: text/plain\r\n\r\nPRX test file.\r\n--{boundary}--\r\n'
+).encode()
+upload = json.loads(request('/prx212_api/upload', 200, multipart,
+                            {'Content-Type': 'multipart/form-data; boundary=' + boundary}))
+assert upload['success'] and int(upload['data']) > 0
+try:
+    assert filename in request('/prx212_file_storage?q=' + filename, 200)
+finally:
+    deleted = json.loads(request('/prx212_api/delete/' + str(upload['data']), 200,
+                                 headers={'X-CSRF-Token': csrf_upload}, method='DELETE'))
+    assert deleted['success']
+assert 'href="/prx218_module_manager/scanner"' in pages['/prx218_module_manager']
+assert 'id="runScannerBtn"' in request('/prx218_module_manager/scanner', 200)
+request('/prx218_module_manager/scanner/run', 405)
+request('/prx218_module_manager/scanner/run', 403, {})
+
 home = pages['/']
-assert '<h1 class="prx-h1">Сервисы-пайплайны предприятия</h1>' in home
-assert 'href="/portal-plan"' in home
+assert 'Рабочий стол' in home and 'href="/portal-plan"' in home
+assert 'Отработка рекламаций' not in home
+archive = request('/portal-plan', 200)
+assert 'План и архив портала' in archive and 'План производственных пайплайнов' not in archive
+assert 'Сервисы домена:' in archive and 'action="/portal-plan/approve"' in archive
+request('/portal-plan/approve', 405)
+request('/portal-plan/approve', 403, {'module': 'prx395_document_extract'})
 for heading in ['Ведение проектов', 'Разработка конструкций', 'Разработка РЭА',
                 'Производство и сборка', 'Отработка рекламаций']:
-    assert f'<h3 class="prx-h3">{heading}</h3>' in home, heading
-archive_title = 'Корпоративный портал: отложенный план и архив'
-assert archive_title not in home and 'Лента новостей' not in home
-archive = request('/portal-plan', 200)
-assert f'<h1 class="prx-h1">{archive_title}</h1>' in archive
+    assert heading in archive, heading
 assert 'Лента новостей' in archive and 'Ответы на письма' in archive
-assert 'href="/employee"' in archive
-assert 'Отработка рекламаций' not in archive
+assert 'Мой профиль сотрудника' in archive and 'Не опубликован' in archive
+assert 'href="/employee"' not in archive
 assert 'value="probe"' in pages['/prx120/monitor'], 'Worker probe button is missing'
 assert 'Распознать пробный PDF' in pages['/document-extract']
-assert 'href="/document-extract"' in pages['/']
+assert 'href="/prx395_document_extract"' in home
 request('/document-extract', 403, {'sample': '1'})
 legacy = os.environ.get('SMOKE_EXPECT_DOCFLOW') == '1'
 worker_token = os.environ.get('WORKER_API_TOKEN')
@@ -110,7 +144,7 @@ if legacy:
 for module in [390, 392, 393]:
     request(f'/prx{module}/api/health', 403 if legacy else 404)
 if legacy:
-    assert 'Документооборот · тестовый режим' in pages['/']
+    assert 'Стенд и диагностика' in pages['/']
     request('/inbox/scan', 405)
     request('/inbox/upload', 403, {'sample': '1'})
 else:
@@ -236,21 +270,21 @@ assert json.loads(request('/prx110/api/favorites?user_id=' + str(account_id + 1)
 
 # Реальное сохранение и первый HTML без JS. Если записи не было, удаляем её
 # в finally; остальные закладки и порядок сохраняются, повторное pin идемпотентно.
-was_pinned = '/employee' in favorite_hrefs
+was_pinned = '/prx597' in favorite_hrefs
 try:
-    saved = json.loads(request('/prx110/api/favorites', 200, {'csrf': nav_csrf, 'account_id': account_id, 'href': '/employee', 'pinned': '1'}))
-    assert [item['href'] for item in saved['items']].count('/employee') == 1
-    saved_again = json.loads(request('/prx110/api/favorites', 200, {'csrf': nav_csrf, 'account_id': account_id, 'href': '/employee', 'pinned': '1'}))
+    saved = json.loads(request('/prx110/api/favorites', 200, {'csrf': nav_csrf, 'account_id': account_id, 'href': '/prx597', 'pinned': '1'}))
+    assert [item['href'] for item in saved['items']].count('/prx597') == 1
+    saved_again = json.loads(request('/prx110/api/favorites', 200, {'csrf': nav_csrf, 'account_id': account_id, 'href': '/prx597', 'pinned': '1'}))
     assert saved_again == saved
     services_pinned = request('/services', 200)
-    card = re.search(r'<button\s+type="button"\s+data-nav-pin-card="/employee"[^>]*>', services_pinned, re.S)
+    card = re.search(r'<button\s+type="button"\s+data-nav-pin-card="/prx597"[^>]*>', services_pinned, re.S)
     assert card and 'aria-pressed="true"' in card[0], 'Card state must be present in HTML'
-    employee_pinned = request('/employee', 200)
-    link = re.search(r'<a href="/employee"[^>]*>', employee_pinned, re.S)
+    notifications_pinned = request('/prx597', 200)
+    link = re.search(r'<a href="/prx597"[^>]*>', notifications_pinned, re.S)
     assert link and 'aria-current="page"' in link[0], 'Favorite must be active in HTML'
 finally:
     if not was_pinned:
-        json.loads(request('/prx110/api/favorites', 200, {'csrf': nav_csrf, 'account_id': account_id, 'href': '/employee', 'pinned': '0'}))
+        json.loads(request('/prx110/api/favorites', 200, {'csrf': nav_csrf, 'account_id': account_id, 'href': '/prx597', 'pinned': '0'}))
 assert json.loads(request('/prx110/api/favorites', 200)) == favorites
 # Мобильный ряд содержит контекстные ссылки, в том числе те, которых нет
 # в каталоге; он отдельный от короткого sidebar и без повторяющихся href.
@@ -269,9 +303,14 @@ json.loads(request('/search/api?q=test', 200))
 catalog = json.loads(request('/prx110/api/catalog', 200))
 assert catalog['user_id'] == account_id, 'Catalog must identify the session account for stale tabs'
 catalog_hrefs = {item['href'] for item in catalog['items']}
-assert {'/architecture', '/prx560', '/employee', '/prx597', '/account/security', '/document-extract'} <= catalog_hrefs
-assert not legacy or legacy_paths <= catalog_hrefs
+assert {'/prx112_portal_plan', '/prx560', '/prx597', '/account/security'} <= catalog_hrefs
+preview_hrefs = {item['href'] for item in json.loads(request('/prx110/api/catalog?agent_preview=1', 200))['items']}
+assert {'/architecture', '/prx395_document_extract'} <= preview_hrefs
+assert not legacy or legacy_paths <= preview_hrefs
+assert {'/architecture', '/prx395_document_extract'}.isdisjoint(catalog_hrefs)
+assert legacy_paths.isdisjoint(catalog_hrefs)
 assert archived_paths.isdisjoint(catalog_hrefs)
+assert '/employee' not in catalog_hrefs and '/employee' not in favorite_hrefs
 assert archived_paths.isdisjoint(favorite_hrefs)
 json.loads(request('/employee/api/me', 404))  # seed-администратор намеренно не сопоставлен с сотрудником
 json.loads(request('/employee/api/directory', 200))

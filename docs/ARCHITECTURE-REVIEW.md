@@ -37,7 +37,7 @@
 | API фундамента (actor, policy, SQL, события, CSRF, page-kit) | `docs/FOUNDATION.md` |
 | создание модуля | `docs/MODULE_GUIDE.md` |
 | дизайн и вёрстка | `docs/DESIGN-SYSTEM.md` |
-| карта сервисов | `application/config/portal.php`, `docs/ROADMAP.md` |
+| карта сервисов | `application/modules/prx112_portal_plan/config/portal.php`, `docs/ROADMAP.md` |
 
 ---
 

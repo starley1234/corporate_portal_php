@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "count": 97,
+  "count": 101,
   "routes": [
     {
       "name": "cookie_consent_close",
@@ -165,6 +165,33 @@
       "file": "application/modules/prx111_migrations/classes/Controller/Prx111/Api.php"
     },
     {
+      "name": "prx112_portal_plan_approve",
+      "uri": "portal-plan/approve",
+      "regex": "",
+      "controller": "Prx112_Plan",
+      "action": "approve",
+      "module": "prx112_portal_plan",
+      "file": "application/modules/prx112_portal_plan/classes/Controller/Prx112/Plan.php"
+    },
+    {
+      "name": "prx112_portal_plan",
+      "uri": "prx112_portal_plan",
+      "regex": "",
+      "controller": "Prx112_Plan",
+      "action": "index",
+      "module": "prx112_portal_plan",
+      "file": "application/modules/prx112_portal_plan/classes/Controller/Prx112/Plan.php"
+    },
+    {
+      "name": "portal_plan",
+      "uri": "portal-plan",
+      "regex": "",
+      "controller": "Prx112_Plan",
+      "action": "index",
+      "module": "prx112_portal_plan",
+      "file": "application/modules/prx112_portal_plan/classes/Controller/Prx112/Plan.php"
+    },
+    {
       "name": "prx115_api",
       "uri": "prx115/api(/<action>(/<id>))",
       "regex": "",
@@ -282,6 +309,24 @@
       "file": "application/modules/prx208_events/classes/Controller/Prx208/Events.php"
     },
     {
+      "name": "prx212_storage_home",
+      "uri": "prx212_file_storage",
+      "regex": "",
+      "controller": "Prx212_Index",
+      "action": "index",
+      "module": "prx212_file_storage",
+      "file": "application/modules/prx212_file_storage/classes/Controller/Prx212/Index.php"
+    },
+    {
+      "name": "prx212_storage_ui",
+      "uri": "prx212_file_storage/<action>(/<id>)",
+      "regex": "",
+      "controller": "Prx212_Storage",
+      "action": "index",
+      "module": "prx212_file_storage",
+      "file": "application/modules/prx212_file_storage/classes/Controller/Prx212/Storage.php"
+    },
+    {
       "name": "prx212_storage",
       "uri": "prx212_storage(/<action>(/<id>))",
       "regex": "",
@@ -339,10 +384,10 @@
       "name": "prx212_storage_root",
       "uri": "prx212",
       "regex": "",
-      "controller": "Prx212_Index",
+      "controller": "ModuleHome",
       "action": "index",
       "module": "prx212_file_storage",
-      "file": "application/modules/prx212_file_storage/classes/Controller/Prx212/Index.php"
+      "file": "application/classes/Controller/ModuleHome.php"
     },
     {
       "name": "prx218_module_manager_api",
@@ -847,15 +892,6 @@
       "action": "index",
       "module": "application",
       "file": "application/classes/Controller/Pages.php"
-    },
-    {
-      "name": "portal_plan",
-      "uri": "portal-plan",
-      "regex": "",
-      "controller": "Welcome",
-      "action": "portal_plan",
-      "module": "application",
-      "file": "application/classes/Controller/Welcome.php"
     },
     {
       "name": "default",

@@ -55,7 +55,9 @@ class Controller_Prx103_Admin extends Controller_Prx102_Base {
 		// 1. Инструменты платформы — реестр prx110 (модуль подключён — пункт показан).
 		$tools = class_exists('Service_Prx110_Catalog') ? Service_Prx110_Catalog::admin_tools() : [];
 
-		// 2. Сервисы группы «Платформа»: включая убранные из панели ('menu' => FALSE).
+		// 2. Сервисы группы «Платформа»: включая убранные из панели ('menu' => FALSE)
+		// и «в работе» (plan_modules): /admin — рабочий инструмент администратора,
+		// а не публичная витрина, поэтому beta/draft здесь нужны.
 		$platform = [];
 		$tools_hrefs = [];
 
@@ -66,7 +68,7 @@ class Controller_Prx103_Admin extends Controller_Prx102_Base {
 
 		if (class_exists('Service_Prx110_Catalog'))
 		{
-			foreach (Service_Prx110_Catalog::visible_modules($ctx) as $m)
+			foreach (Service_Prx110_Catalog::plan_modules($ctx) as $m)
 			{
 				if ((string) $m['group'] !== 'Платформа')
 				{

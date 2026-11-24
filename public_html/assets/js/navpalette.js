@@ -144,6 +144,19 @@
     }
 
     function renderFavorites() {
+        var catalog = document.querySelector('[data-catalog-favorites]');
+        var shortcuts = catalog && catalog.querySelector('[data-catalog-favorites-list]');
+        if (shortcuts) {
+            shortcuts.textContent = '';
+            state.items.forEach(function (item) {
+                var link = document.createElement('a');
+                link.className = 'prx-btn-secondary';
+                link.href = item.href;
+                link.textContent = item.title;
+                shortcuts.appendChild(link);
+            });
+            catalog.hidden = shortcuts.children.length === 0;
+        }
         var list = sidebar && sidebar.querySelector('[data-nav-pinned-list]');
         if (!list) return;
         while (list.firstChild) list.removeChild(list.firstChild);
@@ -463,10 +476,10 @@
                 var group = document.createElement('span');
                 group.className = 'shrink-0 rounded-md bg-gray-100 px-1.5 py-0.5 text-xs font-semibold uppercase text-gray-500 dark:bg-gray-800 dark:text-gray-400';
                 group.textContent = x.it.group; link.appendChild(group);
-                if (x.it.status === 'beta') {
+                if (x.it.state === 'wip' || (!x.it.state && x.it.status === 'beta')) {
                     var beta = document.createElement('span');
                     beta.className = 'shrink-0 rounded-full bg-blue-50 px-1.5 py-0.5 text-xs font-bold uppercase text-blue-600 dark:bg-blue-950/60 dark:text-blue-400';
-                    beta.textContent = 'beta'; link.appendChild(beta);
+                    beta.textContent = 'В работе'; link.appendChild(beta);
                 }
                 var pin = document.createElement('button');
                 pin.type = 'button'; pin.setAttribute('data-palette-pin', x.it.href);
