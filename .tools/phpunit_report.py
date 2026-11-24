@@ -47,7 +47,19 @@ def report(path: Path) -> int:
     return int(failed > 0 or not cases)
 
 
+def report_output(path: Path) -> int:
+    """JUnit не содержит всех risky/warning PHPUnit; сохраняем диагностику процесса."""
+    try:
+        text = path.read_text(errors='replace')[-12000:]
+    except OSError as error:
+        text = f'Вывод PHPUnit недоступен: {error}'
+    print('::error title=PHPUnit process::' + escape(text))
+    return 0  # код PHPUnit остаётся у шага запуска, это только диагностика
+
+
 if __name__ == '__main__':
+    if len(sys.argv) == 3 and sys.argv[1] == '--output':
+        sys.exit(report_output(Path(sys.argv[2])))
     if len(sys.argv) != 2:
-        sys.exit('usage: phpunit_report.py <junit.xml>')
+        sys.exit('usage: phpunit_report.py <junit.xml> | --output <phpunit.log>')
     sys.exit(report(Path(sys.argv[1])))

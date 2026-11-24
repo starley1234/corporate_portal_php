@@ -29,6 +29,11 @@ class PhpunitReportTest(unittest.TestCase):
         self.assertIn('1 tests, 0 failures/errors', output)
         self.assertNotIn('::error', output)
 
+    def test_skipped_is_counted_but_not_failed(self):
+        status, output = self.report('<testsuite><testcase name="optional"><skipped/></testcase></testsuite>')
+        self.assertEqual(status, 0)
+        self.assertIn('1 skipped', output)
+
     def test_failure_and_error(self):
         status, output = self.report('<testsuites><testsuite><testcase classname="A" name="b"><failure>bad</failure></testcase><testcase name="c"><error>broken</error></testcase></testsuite></testsuites>')
         self.assertEqual(status, 1)
@@ -52,6 +57,18 @@ class PhpunitReportTest(unittest.TestCase):
         _, output = self.report('<testsuite><testcase file="/outside/file" line="x"><error>x</error></testcase></testsuite>')
         self.assertNotIn('file=', output)
         self.assertNotIn('line=', output)
+
+    def test_process_output_is_bounded_and_escaped(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'phpunit.log'
+            path.write_text('x' * 15000 + '\n::notice::injected%')
+            output = io.StringIO()
+            with redirect_stdout(output):
+                status = reporter.report_output(path)
+            self.assertEqual(status, 0)
+            self.assertIn('%0A::notice::injected%25', output.getvalue())
+            self.assertNotIn('\n::notice', output.getvalue())
+            self.assertLess(len(output.getvalue()), 12200)
 
     def test_missing_malformed_and_empty_fail(self):
         for xml in [None, '<broken', '<testsuites/>']:

@@ -66,7 +66,16 @@ jobs:
       - run: php public_html/index.php db:migrate
       - run: php public_html/index.php db:migrate
       - name: PHPUnit on PostgreSQL
-        run: bash bin/test --log-junit /tmp/prx-phpunit.xml
+        id: phpunit
+        run: |
+          set -o pipefail
+          bash bin/test --log-junit /tmp/prx-phpunit.xml 2>&1 | tee /tmp/prx-phpunit.log
       - name: Publish PHPUnit failures
         if: always()
-        run: python3 .tools/phpunit_report.py /tmp/prx-phpunit.xml
+        env:
+          PHPUNIT_OUTCOME: ${{ steps.phpunit.outcome }}
+        run: |
+          if [[ "$PHPUNIT_OUTCOME" == failure ]]; then
+            python3 .tools/phpunit_report.py --output /tmp/prx-phpunit.log
+          fi
+          python3 .tools/phpunit_report.py /tmp/prx-phpunit.xml
