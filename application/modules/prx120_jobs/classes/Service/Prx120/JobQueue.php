@@ -266,7 +266,7 @@ class Service_Prx120_JobQueue {
     {
         $ok = $this->heartbeat($job_id, $worker, $note);
 
-        if ($note !== NULL AND trim((string) $note) !== '')
+        if ($ok AND $note !== NULL AND trim((string) $note) !== '')
         {
             $this->_log_event((int) $job_id, 'progress', (string) $note);
         }
@@ -533,7 +533,7 @@ class Service_Prx120_JobQueue {
 
             // pending — отменили до захвата повторного прогона; обработка
             // воркером фактически завершена, но результат уже получен.
-            $this->_db->query(Database::UPDATE,
+            $changed = $this->_db->query(Database::UPDATE,
                 "UPDATE prx_120_jobs SET
                     status = '".self::STATUS_DONE."',
                     result = ".$this->_db->quote($this->_safe_json($result)).",
@@ -542,8 +542,13 @@ class Service_Prx120_JobQueue {
                     heartbeat_at = now(),
                     claimed_by = COALESCE(claimed_by, ".$this->_db->quote((string) $worker).")
                  WHERE id = ".(int) $job_id."
-                   AND status NOT IN ('".self::STATUS_DONE."', '".self::STATUS_FAILED."', '".self::STATUS_CANCELLED."')", FALSE);
+                   AND (status = '".self::STATUS_PENDING."'
+                        OR (status = '".self::STATUS_PROCESSING."'
+                            AND claimed_by = ".$this->_db->quote((string) $worker)."))", FALSE);
 
+            // Проверка владельца обязана быть в самом UPDATE: между get() и
+            // записью строку может захватить другой воркер или отменить админ.
+            if ( ! is_numeric($changed) OR (int) $changed === 0) return FALSE;
             $this->_log_event((int) $job_id, 'done',
                 'Завершено python-воркером '.$worker.' (принудительно из '.$status.')');
             $ok = TRUE;
@@ -616,7 +621,7 @@ class Service_Prx120_JobQueue {
         // «Выполняется» при уже доставленной на сайт статье (prx602).
         if ( ! $ok)
         {
-            $ok = $this->_finalize_force($job_id, self::STATUS_DONE,
+            $ok = $this->_finalize_force($job_id, $worker, self::STATUS_DONE,
                 'не удалась обычная запись complete() — результат уже доставлен на сайт');
         }
 
@@ -627,11 +632,11 @@ class Service_Prx120_JobQueue {
      * Гарантированный terminal-дожим: строка не должна остаться processing.
      *
      * Применяется, когда обычная запись complete()/fail() не сработала
-     * (вернула ok=FALSE или упала): пишем ТОЛЬКО статус+finished_at по id,
+     * (вернула ok=FALSE или упала): пишем минимальный итог по id и владельцу,
      * без result (объёмные/повреждённые payload'ы тут не участвуют — нечему
      * ронять UPDATE). Идемпотентно: done/failed/cancelled не трогаем.
      */
-    protected function _finalize_force($job_id, $status, $message)
+    protected function _finalize_force($job_id, $worker, $status, $message)
     {
         try
         {
@@ -642,11 +647,12 @@ class Service_Prx120_JobQueue {
                     heartbeat_at = now(),
                     error = COALESCE(error, ".$this->_db->quote(mb_substr((string) $message, 0, 500)).")
                  WHERE id = ".(int) $job_id."
+                   AND claimed_by = ".$this->_db->quote((string) $worker)."
                    AND status = '".self::STATUS_PROCESSING."'", FALSE);
 
             if (is_numeric($rows) && (int) $rows > 0)
             {
-                $this->_log_event((int) $job_id, 'done', 'Задача закрыта принудительно: '.(string) $message);
+                $this->_log_event((int) $job_id, (string) $status, 'Задача закрыта принудительно: '.(string) $message);
                 return TRUE;
             }
 
@@ -776,7 +782,8 @@ class Service_Prx120_JobQueue {
     public function fail($job_id, $worker, $error_message, $retry = TRUE, array $usage = NULL)
     {
         $row = $this->get($job_id);
-        if ($row === NULL)
+        if ($row === NULL OR $row['status'] !== self::STATUS_PROCESSING
+            OR (string) $row['claimed_by'] !== (string) $worker)
             return FALSE;
 
         // учёт ресурсов даже при падении — для анализа причин и потребления
@@ -799,6 +806,8 @@ class Service_Prx120_JobQueue {
                     'status'       => $this->_db->quote(self::STATUS_PENDING),
                     'error'        => $this->_db->quote((string) $error_message),
                     'available_at' => "now() + interval '".$delay." seconds'",
+                    'claimed_by'   => 'NULL',
+                    'claimed_at'   => 'NULL',
                 ], ['event' => 'failed', 'message' => 'Попытка '.$attempts.'/'.$max.' не удалась, retry через '.$delay.'s']);
             }
             catch (Throwable $e)
@@ -829,7 +838,7 @@ class Service_Prx120_JobQueue {
             // failed, иначе «источники не нашлись» вечно висит processing.
             if ( ! $ok)
             {
-                $ok = $this->_finalize_force($job_id, self::STATUS_FAILED,
+                $ok = $this->_finalize_force($job_id, $worker, self::STATUS_FAILED,
                     $error_message ?: 'Попытки исчерпаны');
             }
 
@@ -1350,7 +1359,7 @@ class Service_Prx120_JobQueue {
         $sql = "UPDATE prx_120_jobs SET ".implode(', ', $sets)."
                 WHERE id = ".(int) $job_id."
                   AND claimed_by = ".$this->_db->quote((string) $worker)."
-                  AND status IN ('".self::STATUS_PROCESSING."','".self::STATUS_PENDING."')";
+                  AND status = '".self::STATUS_PROCESSING."'";
         // PostgreSQL возвращает число обновлённых строк: > 0 = задача найдена и обновлена.
         $rows = $this->_db->query(Database::UPDATE, $sql, FALSE);
 
