@@ -40,7 +40,7 @@ check('колокольчик от старых флагов писем не з�
 check('старое значение по умолчанию больше не считается согласием', Service_Prx597_Registry::sub_enabled($old_event, 'email', [], []), FALSE);
 check('явное отключение подписки соблюдается', Service_Prx597_Registry::sub_enabled($old_event, 'email', ['on_done' => TRUE], ['prx120.job.done' => ['email' => FALSE]]), FALSE);
 check('уборка: разовое гашение включённых умолчаний объявлено', method_exists('Service_Prx597_Notify', '_defaults_off_once'), TRUE);
-$off_src = file_get_contents(dirname(__DIR__, 3).'/application/modules/prx597_notifications/classes/Service/Prx597/Notify.php');
+$off_src = file_get_contents(dirname(__DIR__, 3).'/application/modules/prx597_notifications/classes/Service/Prx597/Preferences.php');
 check('уборка: трогает только тех, кто ничего не выбирал', strpos($off_src, 'NOT EXISTS (SELECT 1 FROM '.chr(34).'prx_597_subs'.chr(34)) !== FALSE, TRUE);
 check('уборка: закрывается отметкой и не повторяется', strpos($off_src, "prefs.defaults_off") !== FALSE, TRUE);
 

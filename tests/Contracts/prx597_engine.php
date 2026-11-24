@@ -410,6 +410,7 @@ class ORM
 
 require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Notify/Unsubscribe.php';
 require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Notify/Inbox.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Preferences.php';
 require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Notify.php';
 
 check('kind_event: готовая задача', Service_Prx597_Notify::kind_event('job_done'), 'prx120.job.done');
