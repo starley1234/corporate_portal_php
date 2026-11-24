@@ -17,10 +17,10 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
 Ядро фреймворка `system/` и `modules/` не менять.
 
 ## Вход в задачу
-- Реестр подключённых модулей: `application/config/modules.php`.
+- Базовые модули: `application/config/modules.php`; стендовый блок — в bootstrap.
 - Карта сервисов: `application/config/portal.php`, `docs/ROADMAP.md` — 50 из
   отложенного портального плана плюс старый документооборот. `prx390`–`prx393`
-  подключаются только на стенде через `PRX_DOCFLOW_ENABLED=1` в едином реестре. Новый фокус —
+  подключены для проверки явным блоком в `application/bootstrap.php`. Новый фокус —
   API-пайплайны для корпоративных систем: `docs/AI-DOCUMENT-PIPELINES.md`.
 - Архитектура: `docs/ARCHITECTURE.md`, модель и схемы — `docs/architecture/model`
   (`make architecture`, страница `/architecture`); создание: `docs/MODULE_GUIDE.md`.

@@ -50,7 +50,7 @@ cd workers && python3 -m prx_workers
 ### Распознавание документов
 
 `doc.normalize` и `doc.analyze` (пакеты `handlers/prx390_intake/` и `handlers/prx392_analysis/`) включаются только на
-тестовом стенде после включения `PRX_DOCFLOW_ENABLED=1` в окружении PHP.
+тестовом стенде при подключённом блоке документооборота в `application/bootstrap.php`.
 [Быстрая проверка в UI](QUICK-CHECK.md).
 
 Канал `document.extract` поддерживает локальный `tesseract` и `remote` для

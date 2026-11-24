@@ -29,10 +29,6 @@ jobs:
 
   integration:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        docflow: ['0', '1']
     services:
       postgres:
         image: pgvector/pgvector:pg17
@@ -56,7 +52,6 @@ jobs:
       DB_DEFAULT_USER: prx
       DB_DEFAULT_PASS: test-only
       DB_DEFAULT_SCHEMA: public
-      PRX_DOCFLOW_ENABLED: ${{ matrix.docflow }}
       PRX_DEFAULT_ADMIN: '0'
     steps:
       - uses: actions/checkout@v4

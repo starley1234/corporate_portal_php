@@ -192,17 +192,4 @@ foreach ([new ContractSemantic, new ContractQueue] as $api) {
 }
 putenv('WORKER_API_TOKEN=');
 
-// Реестр исполняется с обоими значениями флага, без bootstrap и БД.
-define('APPPATH', $root.'/application/');
-define('MODPATH', $root.'/modules/');
-putenv('PRX_LDAP_ENABLED=0');
-putenv('PRX_DOCFLOW_ENABLED=0');
-$modules = require APPPATH.'config/modules.php';
-verify(isset($modules['prx390_intake']), FALSE, 'docflow opt-in');
-putenv('PRX_DOCFLOW_ENABLED=1');
-$modules = require APPPATH.'config/modules.php';
-foreach (['prx390_intake', 'prx391_documents', 'prx392_analysis', 'prx393_workflow'] as $module) {
-    verify(isset($modules[$module]), TRUE, 'стенд: '.$module);
-}
-putenv('PRX_DOCFLOW_ENABLED=0');
 echo "Foundation contracts: $checks checks OK\n";
