@@ -47,7 +47,7 @@
 class Manifest {
 
     /** Ключ файлового кэша Kohana. */
-    const CACHE_KEY = 'prx.manifest.v1';
+    const CACHE_KEY = 'prx.manifest.v2';
 
     /** Время жизни файлового кэша, секунд. */
     const CACHE_TTL = 3600;
