@@ -103,7 +103,19 @@ class Service_Prx390_Intake
      *
      * @return array{found:int,accepted:int,duplicates:int,errors:int,items:array}
      */
-    public static function scan_folder(array $actor = [], $limit = NULL)
+    public static function scan_folder(?Prx_Actor $actor = NULL, $limit = NULL)
+    {
+        ($actor ?? Prx_Actor::guest())->require('prx390.manage');
+        return self::_scan_folder($actor, $limit);
+    }
+
+    /** Локальный cron, не HTTP и не неявное повышение пустого actor. */
+    public static function scan_folder_automatically($limit = NULL)
+    {
+        return self::_scan_folder(NULL, $limit);
+    }
+
+    private static function _scan_folder(?Prx_Actor $actor, $limit)
     {
         self::ensure_dirs();
         $limit = max(1, (int) ($limit ?: self::config('scan_limit', 50)));
@@ -115,7 +127,7 @@ class Service_Prx390_Intake
         {
             try
             {
-                $res = self::receive_path($file, 'folder', $actor);
+                $res = self::_receive_path($file, 'folder', $actor);
                 $report[$res['state'] === 'duplicate' ? 'duplicates' : 'accepted']++;
                 $report['items'][] = ['file' => basename($file)] + $res;
 
@@ -144,8 +156,9 @@ class Service_Prx390_Intake
      * @param  array $file  элемент $_FILES
      * @return array
      */
-    public static function receive_upload(array $file, array $actor = [])
+    public static function receive_upload(array $file, ?Prx_Actor $actor = NULL)
     {
+        ($actor ?? Prx_Actor::guest())->require('prx390.manage');
         if (empty($file['tmp_name']) OR ! is_uploaded_file($file['tmp_name']))
         {
             Log_Plain::event(Log::WARNING, 'prx390_diag stage=intake result=upload_invalid');
@@ -184,7 +197,13 @@ class Service_Prx390_Intake
     /**
      * Принять один файл по пути. Возвращает state=accepted|duplicate.
      */
-    public static function receive_path($path, $source = 'folder', array $actor = [], $original_name = NULL)
+    public static function receive_path($path, $source = 'folder', ?Prx_Actor $actor = NULL, $original_name = NULL)
+    {
+        ($actor ?? Prx_Actor::guest())->require('prx390.manage');
+        return self::_receive_path($path, $source, $actor, $original_name);
+    }
+
+    private static function _receive_path($path, $source, ?Prx_Actor $actor, $original_name = NULL)
     {
         if ( ! is_file($path))
         {
@@ -227,7 +246,7 @@ class Service_Prx390_Intake
             return ['state' => 'duplicate', 'message_id' => (int) $existing['id'], 'sha256' => $sha];
         }
 
-        $file_id = self::_store_file($path, $name, (int) ($actor['user_id'] ?? 0));
+        $file_id = self::_store_file($path, $name, ($actor ? $actor->id() : 0));
 
         $row = self::_row("
             INSERT INTO prx_390_messages
@@ -236,7 +255,7 @@ class Service_Prx390_Intake
                 (SELECT id FROM prx_390_channels WHERE code = 'folder'),
                 ".self::_q($source).", ".self::_q($name).", ".self::_q($sha).",
                 ".self::_q(pathinfo($name, PATHINFO_FILENAME)).",
-                ".self::_q(self::STATUS_RECEIVED).", ".self::_int_or_null($actor['user_id'] ?? NULL)."
+                ".self::_q(self::STATUS_RECEIVED).", ".self::_int_or_null($actor ? $actor->id() : NULL)."
             )
             RETURNING id, received_at
         ");
@@ -250,7 +269,7 @@ class Service_Prx390_Intake
 
         try
         {
-            self::enqueue_normalize($message_id, (int) ($actor['user_id'] ?? 0));
+            self::enqueue_normalize($message_id, ($actor ? $actor->id() : 0));
             $state = 'accepted';
         }
         catch (Exception $e)
@@ -293,8 +312,9 @@ class Service_Prx390_Intake
         return (int) $job_id;
     }
 
-    public static function retry($message_id, array $actor = [])
+    public static function retry($message_id, ?Prx_Actor $actor = NULL)
     {
+        ($actor ?? Prx_Actor::guest())->require('prx390.manage');
         $message = self::message($message_id);
         if ( ! $message)
         {
@@ -305,12 +325,12 @@ class Service_Prx390_Intake
         if ($text AND (int) $text['chars'] >= (int) self::config('min_text_chars', 40))
         {
             self::_exec("UPDATE prx_390_messages SET status = '".self::STATUS_TEXT_READY."', error = NULL WHERE id = ".(int) $message_id);
-            Event::publish('prx390.text.ready', ['message_id' => (int) $message_id], (int) ($actor['user_id'] ?? 0) ?: NULL);
+            Event::publish('prx390.text.ready', ['message_id' => (int) $message_id], ($actor ? $actor->id() : 0) ?: NULL);
 
             return 'text_ready';
         }
 
-        $job_id = self::enqueue_normalize($message_id, (int) ($actor['user_id'] ?? 0));
+        $job_id = self::enqueue_normalize($message_id, ($actor ? $actor->id() : 0));
         self::_exec("UPDATE prx_390_messages SET status = '".self::STATUS_RECEIVED."', error = NULL WHERE id = ".(int) $message_id);
 
         return $job_id;

@@ -62,8 +62,9 @@ class Service_Prx392_Analysis
     // Постановка в очередь
     // ------------------------------------------------------------------
 
-    public static function queue($document_id, $message_id, array $actor = [], $profile_code = 'classify_extract_v1')
+    public static function queue($document_id, $message_id, ?Prx_Actor $actor = NULL, $profile_code = 'classify_extract_v1')
     {
+        ($actor ?? Prx_Actor::guest())->require('prx392.run');
         $document_id = (int) $document_id;
         $message_id = (int) $message_id;
         $profile = self::profile($profile_code);
@@ -72,7 +73,7 @@ class Service_Prx392_Analysis
             throw new InvalidArgumentException('Профиль анализа не найден: '.$profile_code);
         }
 
-        $document = Service_Prx391_Documents::document($document_id, self::_system_actor($actor));
+        $document = Service_Prx391_Documents::document($document_id, $actor);
         if ( ! $document)
         {
             throw new InvalidArgumentException('Документ не найден');
@@ -105,7 +106,7 @@ class Service_Prx392_Analysis
             VALUES (
                 ".$document_id.", ".$message_id.", ".self::_q($profile_code).", ".self::_q($profile['model']).",
                 ".self::_q($profile['prompt_version']).", ".self::_q($profile['schema_version']).",
-                ".self::_q($input_hash).", 'queued', ".self::_int_or_null($actor['user_id'] ?? NULL)."
+                ".self::_q($input_hash).", 'queued', ".self::_int_or_null($actor ? $actor->id() : NULL)."
             )
             RETURNING id
         ");
@@ -123,7 +124,7 @@ class Service_Prx392_Analysis
                 'priority' => 40,
                 'max_attempts' => 2,
                 'timeout_sec' => 900,
-                'created_by' => (int) ($actor['user_id'] ?? 0),
+                'created_by' => ($actor ? $actor->id() : 0),
             ]);
         }
         catch (Exception $e)
@@ -137,9 +138,10 @@ class Service_Prx392_Analysis
         return $run_id;
     }
 
-    public static function queue_for_document($document_id, array $actor = [])
+    public static function queue_for_document($document_id, ?Prx_Actor $actor = NULL)
     {
-        $document = Service_Prx391_Documents::document($document_id, self::_system_actor($actor));
+        ($actor ?? Prx_Actor::guest())->require('prx392.run');
+        $document = Service_Prx391_Documents::document($document_id, $actor);
         if ( ! $document)
         {
             throw new InvalidArgumentException('Документ не найден');
@@ -175,7 +177,7 @@ class Service_Prx392_Analysis
         }
         self::provider_for_model($run['model']);
 
-        $document = Service_Prx391_Documents::document((int) $run['document_id'], self::_system_actor());
+        $document = Service_Prx391_Documents::document_for_processing((int) $run['document_id']);
         if ( ! $document)
         {
             throw new RuntimeException('Документ не найден');
@@ -297,7 +299,7 @@ class Service_Prx392_Analysis
             }
         }
 
-        $document = Service_Prx391_Documents::document((int) $run['document_id'], self::_system_actor());
+        $document = Service_Prx391_Documents::document_for_processing((int) $run['document_id']);
         Event::publish('prx392.analysis.ready', [
             'document_id' => (int) $run['document_id'],
             'run_id' => (int) $run_id,
@@ -530,8 +532,9 @@ class Service_Prx392_Analysis
         return Service_Prx392_Runs::stats();
     }
 
-    public static function accept($suggestion_id, array $overrides = [], array $actor = [])
+    public static function accept($suggestion_id, array $overrides = [], ?Prx_Actor $actor = NULL)
     {
+        ($actor ?? Prx_Actor::guest())->require('prx392.run');
         $suggestion = self::suggestion($suggestion_id);
         if ( ! $suggestion)
         {
@@ -565,7 +568,7 @@ class Service_Prx392_Analysis
         self::_exec("
             UPDATE prx_392_suggestions
             SET status = ".self::_q(empty($overrides) ? 'accepted' : 'edited').",
-                reviewed_by = ".self::_int_or_null($actor['user_id'] ?? NULL).",
+                reviewed_by = ".self::_int_or_null($actor ? $actor->id() : NULL).",
                 reviewed_at = now()
             WHERE id = ".(int) $suggestion_id."
         ");
@@ -573,17 +576,21 @@ class Service_Prx392_Analysis
         return $result;
     }
 
-    public static function reject($suggestion_id, array $actor = [], $note = '')
+    public static function reject($suggestion_id, ?Prx_Actor $actor = NULL, $note = '')
     {
+        ($actor ?? Prx_Actor::guest())->require('prx392.run');
         $suggestion = self::suggestion($suggestion_id);
         if ( ! $suggestion)
         {
             throw new InvalidArgumentException('Предложение не найдено');
         }
 
+        if ( ! Service_Prx391_Documents::document((int) $suggestion['document_id'], $actor))
+            throw new InvalidArgumentException('Документ не найден');
+
         self::_exec("
             UPDATE prx_392_suggestions
-            SET status = 'rejected', reviewed_by = ".self::_int_or_null($actor['user_id'] ?? NULL).", reviewed_at = now()
+            SET status = 'rejected', reviewed_by = ".self::_int_or_null($actor ? $actor->id() : NULL).", reviewed_at = now()
             WHERE id = ".(int) $suggestion_id."
         ");
 
@@ -615,11 +622,6 @@ class Service_Prx392_Analysis
         }
 
         return round($value, 3);
-    }
-
-    protected static function _system_actor(array $actor = [])
-    {
-        return $actor ? $actor : ['user_id' => 0, 'roles' => ['system'], 'is_system' => TRUE];
     }
 
     // ------------------------------------------------------------------

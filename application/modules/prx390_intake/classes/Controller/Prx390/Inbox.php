@@ -37,7 +37,7 @@ class Controller_Prx390_Inbox extends Controller_Prx39x_Base
         $this->_require('prx390.manage');
 
         $this->_post(function () {
-            $report = Service_Prx390_Intake::scan_folder($this->_actor());
+            $report = Service_Prx390_Intake::scan_folder($this->actor());
 
             return 'Папка: найдено '.$report['found'].', принято '.$report['accepted']
                 .', дублей '.$report['duplicates'].', ошибок '.$report['errors'];
@@ -52,7 +52,7 @@ class Controller_Prx390_Inbox extends Controller_Prx39x_Base
             if ($this->request->post('sample') === '1')
             {
                 $path = dirname(__DIR__, 3).'/demo/01_claim_romashka.pdf';
-                $sample = Service_Prx390_Intake::receive_path($path, 'upload', $this->_actor(), 'Пробное письмо.pdf');
+                $sample = Service_Prx390_Intake::receive_path($path, 'upload', $this->actor(), 'Пробное письмо.pdf');
                 return $sample['state'] === 'duplicate'
                     ? 'Пробное письмо уже принято (#'.$sample['message_id'].'). Обновлять его можно кнопкой повтора в журнале.'
                     : 'Пробное письмо #'.$sample['message_id'].' в очереди. Обновите страницу, затем откройте карточку в реестре.';
@@ -62,7 +62,7 @@ class Controller_Prx390_Inbox extends Controller_Prx39x_Base
                 throw new InvalidArgumentException('Выберите PDF-файл');
             }
 
-            $res = Service_Prx390_Intake::receive_upload($_FILES['file'], $this->_actor());
+            $res = Service_Prx390_Intake::receive_upload($_FILES['file'], $this->actor());
 
             return $res['state'] === 'duplicate'
                 ? 'Этот файл уже принят (#' . $res['message_id'] . ')'
@@ -76,7 +76,7 @@ class Controller_Prx390_Inbox extends Controller_Prx39x_Base
         $id = (int) $this->request->param('id');
 
         $this->_post(function () use ($id) {
-            $res = Service_Prx390_Intake::retry((int) $id, $this->_actor());
+            $res = Service_Prx390_Intake::retry((int) $id, $this->actor());
 
             return is_int($res) ? 'Задача распознавания #'.$res.' поставлена' : 'Текст уже готов — документ зарегистрирован';
         }, '/inbox');

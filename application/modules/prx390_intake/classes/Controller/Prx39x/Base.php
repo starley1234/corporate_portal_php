@@ -8,8 +8,6 @@
  */
 abstract class Controller_Prx39x_Base extends Controller_Base
 {
-    protected $_actor_cache = NULL;
-
     public function before()
     {
         parent::before();
@@ -17,19 +15,6 @@ abstract class Controller_Prx39x_Base extends Controller_Base
         {
             throw HTTP_Exception::factory(403, 'Тестовый документооборот доступен только администратору');
         }
-    }
-
-    protected function _actor()
-    {
-        if ($this->_actor_cache !== NULL)
-        {
-            return $this->_actor_cache;
-        }
-
-        return $this->_actor_cache = [
-            'user_id' => (int) $this->_current_user->id,
-            'roles' => $this->_current_user_roles,
-        ];
     }
 
     protected function _require($ability)
