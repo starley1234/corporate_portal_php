@@ -26,8 +26,9 @@ class Controller_Prx218_Scanner extends Controller_Prx218_Main {
         $config = Kohana::$config->load('prx218_module_manager');
         
         $this->template->content = View::factory('prx218/scanner/index')
-            ->set('scan_path', $config['scan_path'] ?? 'application/modules/')
-            ->set('last_scan', Model_Prx218_Module::get_last_scan_date());
+            ->set('scan_path', $config->get('scanner')['path'])
+            ->set('can_analyze', $this->can('module_manager.ai_analyze'))
+            ->set('last_activity', Model_Prx218_Module::get_last_activity_date());
     }
 
     /**
@@ -35,6 +36,11 @@ class Controller_Prx218_Scanner extends Controller_Prx218_Main {
      */
     public function action_run()
     {
+        if ($this->request->method() !== Request::POST)
+        {
+            throw (HTTP_Exception::factory(405))->allowed('POST');
+        }
+
         if ( ! $this->can('module_manager.scan'))
         {
             $this->_json_response(['status' => 'error', 'message' => __('Forbidden')], 403);
@@ -44,7 +50,16 @@ class Controller_Prx218_Scanner extends Controller_Prx218_Main {
         $service = Service_Prx218_Scanner::instance();
         
         // Выполняем сканирование директорий
-        $result = $service->scan_directory($this->_actor_id() ?: 0);
+        try
+        {
+            $result = $service->scan_directory($this->actor()->id());
+        }
+        catch (Throwable $e)
+        {
+            Kohana_Exception::log($e);
+            $this->_json_response(['status' => 'error', 'message' => 'Не удалось выполнить сканирование. Проверьте журнал ошибок.'], 500);
+            return;
+        }
 
         // Оповещаем систему об обновлении реестра
         Event::publish('prx218.scanner.finished', [
@@ -57,8 +72,10 @@ class Controller_Prx218_Scanner extends Controller_Prx218_Main {
         $this->_json_response([
             'status' => 'ok',
             'found'  => (int) Arr::get($result, 'found', 0),
-            'added'  => (int) Arr::get($result, 'created', 0), // Изменено с 'added' на 'created'
-            'message' => __('Сканирование завершено успешно')
+            'added'  => (int) Arr::get($result, 'created', 0),
+            'updated' => (int) Arr::get($result, 'updated', 0),
+            'skipped' => (int) Arr::get($result, 'skipped', 0),
+            'message' => empty($result['skipped']) ? 'Сканирование завершено' : 'Сканирование завершено с ошибками. Проверьте журнал.'
         ]);
     }
 
@@ -67,6 +84,11 @@ class Controller_Prx218_Scanner extends Controller_Prx218_Main {
      */
     public function action_analyze()
     {
+        if ($this->request->method() !== Request::POST)
+        {
+            throw (HTTP_Exception::factory(405))->allowed('POST');
+        }
+
         $id = (int) $this->request->param('id');
         $module = ORM::factory('Prx218_Module', $id);
 
@@ -111,6 +133,11 @@ class Controller_Prx218_Scanner extends Controller_Prx218_Main {
      */
     public function action_batch_analyze()
     {
+        if ($this->request->method() !== Request::POST)
+        {
+            throw (HTTP_Exception::factory(405))->allowed('POST');
+        }
+
         if ( ! $this->can('module_manager.ai_analyze'))
         {
             $this->_json_response(['status' => 'error', 'message' => __('Access Denied')], 403);

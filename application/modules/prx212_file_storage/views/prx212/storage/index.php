@@ -28,7 +28,7 @@
         <?php endif; ?>
 
         <!-- Форма поиска -->
-        <form action="<?php echo URL::site('prx212_storage/search'); ?>" method="GET" class="relative w-full md:w-64">
+        <form action="<?php echo URL::site('prx212_file_storage'); ?>" method="GET" class="relative w-full md:w-64">
             <input type="text" name="q" value="<?php echo isset($search) ? HTML::chars($search) : ''; ?>"
                    placeholder="Поиск файлов..."
                    class="prx-input w-full pl-10">
@@ -66,18 +66,15 @@
         </div>
 
         <div class="flex flex-wrap gap-2">
-            <?php if (in_array('212_storage_admin', $current_user_roles) || in_array('212_storage_user', $current_user_roles)): ?>
-                <a href="<?php echo URL::site('prx212_storage/upload'); ?>" class="prx-btn-cta">
+            <?php if ($can_upload): ?>
+                <a href="<?php echo URL::site('prx212_file_storage/upload'); ?>" class="prx-btn-cta">
                     <i class="fas fa-cloud-upload-alt mr-2"></i>Загрузить
                 </a>
             <?php endif; ?>
 
-            <?php if (in_array('212_storage_admin', $current_user_roles)): ?>
-                <a href="<?php echo URL::site('prx212_storage/backends'); ?>" class="prx-btn-icon text-sm" title="Настройки хранилищ">
-                    <i class="fas fa-server"></i>
-                </a>
-                <a href="<?php echo URL::site('prx212_storage/logs'); ?>" class="prx-btn-icon text-sm" title="Журнал доступа">
-                    <i class="fas fa-history"></i>
+            <?php if ($can_view_settings): ?>
+                <a href="/prx212_file_storage/settings" class="prx-btn-secondary">
+                    <i class="fas fa-cog mr-2"></i>Настройки хранилища
                 </a>
             <?php endif; ?>
         </div>
@@ -197,7 +194,7 @@
                                             <i class="fas fa-edit"></i>
                                         </a>
 
-                                        <?php if (in_array('212_storage_admin', $current_user_roles) || (isset($current_user) && $file->user_id == $current_user->id)): ?>
+                                        <?php if (isset($current_user) && $file->user_id == $current_user->id): ?>
                                             <button type="button"
                                                     data-prx-arm="Удалить?"
                                                     onclick="fetch('<?php echo URL::site('prx212_api/delete/'.$file->id); ?>', {method: 'DELETE'})

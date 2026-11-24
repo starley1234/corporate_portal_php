@@ -13,10 +13,11 @@ return [
     'kind' => 'module',
     'status' => 'stable',
     'acl' => 'prx212_storage.view_files',
-    'href' => '/prx212',
+    'href' => '/prx212_file_storage',
+    'nav_paths' => ['/prx212', '/prx212_storage'],
     'icon' => 'fas fa-folder-open',
     'group' => 'Платформа',
     'audience' => 'admin',
-    'title' => 'Файловое хранилище (общий модуль)',
+    'title' => 'Файловое хранилище',
     'short' => 'локальный и S3 бэкенды',
 ];

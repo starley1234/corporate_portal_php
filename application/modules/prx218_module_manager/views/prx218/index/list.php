@@ -5,6 +5,7 @@
         'crumbs' => [['Платформа'], ['Реестр модулей']],
         'title'  => 'Реестр модулей',
         'pill'   => ['prx218 · платформа', 'fa-cubes'],
+        'actions' => $can_scan ? [['label' => 'Сканирование системы', 'href' => '/prx218_module_manager/scanner', 'icon' => 'fa-rotate', 'role' => 'process']] : [],
         'lead'   => 'Программные компоненты портала, их публикация, порядок в навигации и техническое состояние.',
     ]); ?>
 
@@ -12,7 +13,7 @@
         <div class="prx-card"><div class="text-xs text-gray-500 dark:text-gray-400">Всего</div><div id="prx218-total" class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">—</div></div>
         <div class="prx-card"><div class="text-xs text-gray-500 dark:text-gray-400">Опубликовано</div><div id="prx218-active" class="mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-400">—</div></div>
         <div class="prx-card"><div class="text-xs text-gray-500 dark:text-gray-400">Стабильных</div><div id="prx218-stable" class="mt-1 text-2xl font-bold text-blue-600 dark:text-blue-400">—</div></div>
-        <div class="prx-card"><div class="text-xs text-gray-500 dark:text-gray-400">Последнее сканирование</div><div id="prx218-scan" class="mt-1 truncate text-sm font-semibold text-gray-700 dark:text-gray-200">—</div></div>
+        <div class="prx-card"><div class="text-xs text-gray-500 dark:text-gray-400">Активность реестра</div><div id="prx218-scan" class="mt-1 truncate text-sm font-semibold text-gray-700 dark:text-gray-200">—</div></div>
     </div>
 
     <!-- Фильтры и Действия -->
@@ -188,7 +189,10 @@
                             <td colspan="8" class="px-6 py-4">
                                 <div class="prx-empty">
                                     <span class="prx-empty-icon"><i class="fas fa-cubes"></i></span>
-                                    <p class="prx-empty-text">Модули не найдены. Запустите сканирование системы.</p>
+                                    <p class="prx-empty-text">Модули не найдены.</p>
+                                    <?php if ($can_scan): ?>
+                                        <a href="/prx218_module_manager/scanner" class="prx-btn-process mt-3">Перейти к сканированию</a>
+                                    <?php endif; ?>
                                 </div>
                             </td>
                         </tr>
@@ -597,10 +601,7 @@ $(document).ready(function() {
         $('#prx218-total').text(st.total ?? 0);
         $('#prx218-active').text(st.active ?? 0);
         $('#prx218-stable').text(st.stable ?? 0);
-        $('#prx218-scan').text(st.last_scan || 'не запускалось');
-    });
-
-</script>�пускалось');
+        $('#prx218-scan').text(st.last_activity || 'нет данных');
     });
 
 </script>

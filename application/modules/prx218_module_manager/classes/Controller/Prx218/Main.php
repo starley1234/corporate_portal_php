@@ -61,13 +61,13 @@ abstract class Controller_Prx218_Main extends Controller_Base {
         $menu = [
             [
                 'title' => __('Список модулей'),
-                'href'  => '/prx218',
+                'href'  => '/prx218_module_manager',
                 'icon'  => 'fas fa-cubes',
                 'acl'   => 'module_manager.view',
             ],
             [
                 'title' => __('Сканер системы'),
-                'href'  => '/prx218/scanner',
+                'href'  => '/prx218_module_manager/scanner',
                 'icon'  => 'fas fa-search',
                 'acl'   => 'module_manager.scan',
             ],

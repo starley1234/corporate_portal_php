@@ -56,13 +56,26 @@ class Controller_Prx212_Api extends Controller_Base
             return;
         }
         
-        $files = $_FILES;
-        
-        if (empty($files['file']) || !is_uploaded_file($files['file']['tmp_name'])) {
-            $this->_error_response(400, 'Файл обязателен для загрузки.');
+        $file = $_FILES['file'] ?? NULL;
+        if (is_array($file) && ($file['error'] ?? NULL) === UPLOAD_ERR_INI_SIZE) {
+            $this->_error_response(413, 'Файл превышает лимит загрузки PHP.');
             return;
         }
-        
+        if ( ! is_array($file) || ($file['error'] ?? NULL) !== UPLOAD_ERR_OK
+            || ! is_string($file['tmp_name'] ?? NULL) || ! is_uploaded_file($file['tmp_name'])) {
+            $this->_error_response(400, 'Не удалось получить файл. Проверьте, что он выбран и не превышает лимит загрузки.');
+            return;
+        }
+        if ($file['size'] > $this->storage_service->get_max_size()) {
+            $this->_error_response(413, 'Файл превышает лимит хранилища.');
+            return;
+        }
+        $file['type'] = (new finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);
+        if ( ! $file['type'] || ! $this->storage_service->validate_mime($file['type'])) {
+            $this->_error_response(415, 'Этот тип файла не разрешён.');
+            return;
+        }
+
         $post = $this->request->post();
         $is_public = isset($post['is_public']) ? (bool)$post['is_public'] : false;
         $backend_id = isset($post['backend_id']) ? (int)$post['backend_id'] : null;
@@ -73,7 +86,7 @@ class Controller_Prx212_Api extends Controller_Base
             // Вызываем сервис для сохранения файла
             // Внутри save() используется структура {module_prefix}/{folder_index}/{filename}
             $file_id = $this->storage_service->save(
-                $files['file'],
+                $file,
                 [
                     'is_public' => $is_public,
                     'backend_id' => $backend_id,
@@ -85,7 +98,8 @@ class Controller_Prx212_Api extends Controller_Base
             $this->_success_response($file_id, 'Файл успешно загружен.');
            
         } catch (Exception $e) {
-            $this->_error_response(500, 'Ошибка при загрузке файла: ' . $e->getMessage());
+            Log_Plain::event(Log::ERROR, 'prx212: ошибка записи загруженного файла (:type)', [':type' => get_class($e)]);
+            $this->_error_response(500, 'Не удалось записать файл. Проверьте настройки и доступность хранилища.');
         }
     }
     

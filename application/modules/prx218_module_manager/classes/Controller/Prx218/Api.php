@@ -104,14 +104,15 @@ class Controller_Prx218_Api extends Controller_Base {
             return $this->_json_response(['status' => 'error', 'message' => 'Access denied'], 403);
         }
 
-        $config = Kohana::$config->load('prx218_module_manager');
+        $last_activity = Model_Prx218_Module::get_last_activity_date();
         
         // Сбор статистики через ORM
         $stats = [
             'total'     => ORM::factory('Prx218_Module')->where('is_deleted', '=', 0)->count_all(),
             'active'    => ORM::factory('Prx218_Module')->where('is_deleted', '=', 0)->where('is_published', '=', 1)->count_all(),
             'stable'    => ORM::factory('Prx218_Module')->where('is_deleted', '=', 0)->where('status', '=', 'stable')->count_all(),
-            'last_scan' => $config->get('last_scan_date', 'Never'),
+            'last_scan' => $last_activity, // legacy key
+            'last_activity' => $last_activity,
         ];
 
         return $this->_json_response([

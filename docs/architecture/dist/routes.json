@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "count": 97,
+  "count": 99,
   "routes": [
     {
       "name": "cookie_consent_close",
@@ -282,6 +282,24 @@
       "file": "application/modules/prx208_events/classes/Controller/Prx208/Events.php"
     },
     {
+      "name": "prx212_storage_home",
+      "uri": "prx212_file_storage",
+      "regex": "",
+      "controller": "Prx212_Index",
+      "action": "index",
+      "module": "prx212_file_storage",
+      "file": "application/modules/prx212_file_storage/classes/Controller/Prx212/Index.php"
+    },
+    {
+      "name": "prx212_storage_ui",
+      "uri": "prx212_file_storage/<action>(/<id>)",
+      "regex": "",
+      "controller": "Prx212_Storage",
+      "action": "index",
+      "module": "prx212_file_storage",
+      "file": "application/modules/prx212_file_storage/classes/Controller/Prx212/Storage.php"
+    },
+    {
       "name": "prx212_storage",
       "uri": "prx212_storage(/<action>(/<id>))",
       "regex": "",
@@ -339,10 +357,10 @@
       "name": "prx212_storage_root",
       "uri": "prx212",
       "regex": "",
-      "controller": "Prx212_Index",
+      "controller": "ModuleHome",
       "action": "index",
       "module": "prx212_file_storage",
-      "file": "application/modules/prx212_file_storage/classes/Controller/Prx212/Index.php"
+      "file": "application/classes/Controller/ModuleHome.php"
     },
     {
       "name": "prx218_module_manager_api",

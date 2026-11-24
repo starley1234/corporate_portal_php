@@ -1,15 +1,22 @@
-<div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
-    <h1 class="prx-h1 mb-6"><?php echo __('Сканирование системы'); ?></h1>
+<?php defined('SYSPATH') or die('No direct script access.'); ?>
 
-    <div class="prx-card">
+<div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Реестр модулей', '/prx218_module_manager'], ['Сканирование системы']],
+        'title' => 'Сканирование системы',
+        'lead' => 'Обновляет реестр по папкам модулей. Не включает и не публикует модули.',
+        'actions' => [['label' => 'К реестру модулей', 'href' => '/prx218_module_manager', 'icon' => 'fa-cubes']],
+    ]); ?>
+
+    <div class="prx-card mt-6">
         <div class="mb-4">
             <p class="text-gray-700 dark:text-gray-300 mb-2">
                 <?php echo __('Путь для сканирования модулей:'); ?> <code class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-sm font-mono"><?php echo HTML::chars($scan_path); ?></code>
             </p>
             <p class="text-gray-700 dark:text-gray-300">
-                <?php echo __('Последнее сканирование:'); ?> 
-                <?php if ($last_scan): ?>
-                    <span class="font-medium"><?php echo date('d.m.Y H:i', strtotime($last_scan)); ?></span>
+                <?php echo __('Последняя активность реестра:'); ?>
+                <?php if ($last_activity): ?>
+                    <span class="font-medium"><?php echo date('d.m.Y H:i', strtotime($last_activity)); ?></span>
                 <?php else: ?>
                     <span class="font-medium"><?php echo __('Никогда'); ?></span>
                 <?php endif; ?>
@@ -17,14 +24,16 @@
         </div>
 
         <div class="flex flex-col sm:flex-row gap-4 mb-6">
-            <button id="runScannerBtn" class="prx-btn-process">
+            <button type="button" id="runScannerBtn" class="prx-btn-process">
                 <i class="fas fa-sync-alt mr-3"></i>
                 <?php echo __('Запустить сканирование'); ?>
             </button>
-            <button id="runBatchAnalyzeBtn" class="prx-btn-secondary">
+            <?php if ($can_analyze): ?>
+            <button type="button" id="runBatchAnalyzeBtn" class="prx-btn-secondary">
                 <i class="fas fa-brain mr-3"></i>
                 <?php echo __('Запустить LLM анализ для всех'); ?>
             </button>
+            <?php endif; ?>
         </div>
 
         <div id="scanResult" class="hidden p-4 rounded-md text-sm" role="alert">
@@ -56,7 +65,7 @@ $(document).ready(function() {
         element.find('p').text(message);
         element.find('ul').empty();
         details.forEach(detail => {
-            element.find('ul').append(`<li>${detail}</li>`);
+            element.find('ul').append($('<li>').text(detail));
         });
     }
 
@@ -65,14 +74,14 @@ $(document).ready(function() {
         scanResult.addClass('hidden');
 
         $.ajax({
-            url: '/prx218/scanner/run',
+            url: '/prx218_module_manager/scanner/run',
             method: 'POST',
             dataType: 'json',
             success: function(response) {
                 if (response.status === 'ok') {
-                    showMessage(scanResult, response.message, 'success', [
-                        `<?php echo __('Найдено новых модулей:'); ?> ${response.found}`,
-                        `<?php echo __('Добавлено в реестр:'); ?> ${response.added}`
+                    showMessage(scanResult, response.message, response.skipped > 0 ? 'error' : 'success', [
+                        `Найдено папок: ${response.found}`,
+                        `Добавлено: ${response.added}. Обновлено: ${response.updated}. Пропущено с ошибкой: ${response.skipped}.`
                     ]);
                 } else {
                     showMessage(scanResult, response.message || '<?php echo __('Произошла ошибка при сканировании.'); ?>', 'error');
@@ -93,7 +102,7 @@ $(document).ready(function() {
         analyzeResult.addClass('hidden');
 
         $.ajax({
-            url: '/prx218/scanner/batch_analyze',
+            url: '/prx218_module_manager/scanner/batch_analyze',
             method: 'POST',
             dataType: 'json',
             success: function(response) {

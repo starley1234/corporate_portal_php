@@ -10,6 +10,12 @@
 // Роуты соглашению: prx212_<controller>/<action>/<params>
 
 
+Route::set('prx212_storage_home', 'prx212_file_storage')
+    ->defaults(['directory' => 'Prx212', 'controller' => 'Index', 'action' => 'index']);
+
+Route::set('prx212_storage_ui', 'prx212_file_storage/<action>(/<id>)')
+    ->defaults(['directory' => 'Prx212', 'controller' => 'Storage']);
+
 Route::set('prx212_storage', 'prx212_storage(/<action>(/<id>))')
     ->defaults(array(
         'directory'  => 'Prx212',
@@ -55,25 +61,6 @@ Route::set('prx212_storage_widget', 'prx212_widget/<action>')
         'action'     => 'uploader',
     ));
 
-// 5. Корневой роут модуля (редирект на интерфейс)
+// Старые закладки сохраняются, но главная ведёт на канонический URL.
 Route::set('prx212_storage_root', 'prx212')
-    ->defaults(array(
-        'directory'  => 'Prx212',
-        'controller' => 'Index',
-        'action'     => 'index',
-    ));
-
-// Инициализация конфигурации модуля
-// Загружаем конфигурационные настройки
-$config = Kohana::$config->load('prx212_storage');
-
-// Проверка обязательных настроек
-/*
-if (!$config->get('allowed_mime_types') || !$config->get('max_file_size')) {
-    Kohana::$log->add(Log::ERROR, 'PRX212 Storage: Не настроены обязательные параметры allowed_mime_types или max_file_size');
-}
-*/
-
-
-// Регистрация кастомного исключения для доступа к файлам
-// HTTP_Exception_403::factory('storage_access_denied');
+    ->defaults(['controller' => 'ModuleHome', 'action' => 'index', 'module_id' => '212']);

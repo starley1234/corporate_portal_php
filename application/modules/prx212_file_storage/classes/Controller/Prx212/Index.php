@@ -11,7 +11,7 @@
  * - Поиск файлов по имени и метаданным
  * - Интерфейс управления (просмотр, загрузка через HMVC)
  * 
- * Требуемые права доступа: prx212_storage.view_files, prx212_storage.upload_files, prx212_storage.manage_files
+ * Требуемые права доступа: prx212_storage.view_files, prx212_storage.upload, prx212_storage.manage_settings
  */
 class Controller_Prx212_Index extends Controller_Prx212_Main
 {
@@ -73,8 +73,6 @@ class Controller_Prx212_Index extends Controller_Prx212_Main
             'with_permissions' => true
         ]);
         
-        $backends = $this->storage_service->get_active_backends();
-        
         $stats = $this->storage_service->get_storage_stats([
             'user_id' => $this->_current_user ? $this->_current_user->id : null
         ]);
@@ -85,10 +83,11 @@ class Controller_Prx212_Index extends Controller_Prx212_Main
             ->set('current_page', $page)
             ->set('per_page', $per_page)
             ->set('total_pages', ceil($result['total'] / $per_page))
-            ->set('backends', $backends)
             ->set('stats', $stats)
             ->set('search', $search)
-            ->set('current_user', $this->_current_user);
+            ->set('current_user', $this->_current_user)
+            ->set('can_upload', $this->can('prx212_storage.upload'))
+            ->set('can_view_settings', $this->can('prx212_storage.manage_settings'));
         
         if ($search) {
             $this->_meta['title'] = 'Поиск: ' . HTML::chars($search) . ' - Файловый менеджер';
@@ -96,68 +95,4 @@ class Controller_Prx212_Index extends Controller_Prx212_Main
         
         $this->template->content = $view;
     }
-    
-    /**
-     * action_upload
-     * Отображает форму загрузки файлов и обрабатывает загрузку.
-     * 
-     * @return void
-     * @throws HTTP_Exception_403 Если нет прав на загрузку файлов
-     */
-    public function action_upload()
-    {
-        if (!$this->can('prx212_storage.upload_files')) {
-            throw new HTTP_Exception_403('Доступ запрещен. У вас нет прав на загрузку файлов.');
-        }
-
-        $this->_meta['title'] = 'Загрузка файлов';
-
-        $errors = [];
-        $success_message = null;
-
-        if ($this->request->method() === Request::POST) {
-            try {
-                $uploaded_files = Arr::get($_FILES, 'files', []);
-                if (empty($uploaded_files['name'][0])) {
-                    throw new Storage_Exception('Не выбраны файлы для загрузки.');
-                }
-
-                $files_data = [];
-                foreach ($uploaded_files['name'] as $key => $name) {
-                    if ($uploaded_files['error'][$key] === UPLOAD_ERR_OK) {
-                        $files_data[] = [
-                            'name' => $name,
-                            'type' => $uploaded_files['type'][$key],
-                            'tmp_name' => $uploaded_files['tmp_name'][$key],
-                            'error' => $uploaded_files['error'][$key],
-                            'size' => $uploaded_files['size'][$key],
-                        ];
-                    } else {
-                        $errors[] = 'Ошибка загрузки файла ' . HTML::chars($name) . ': ' . Upload::error_string($uploaded_files['error'][$key]);
-                    }
-                }
-
-                if (!empty($files_data)) {
-                    $user_id = $this->_current_user ? (int) $this->_current_user->id : NULL;
-                    // save() сам публикует prx212.file.uploaded по каждому файлу.
-                    foreach ($files_data as $item) {
-                        $this->storage_service->save($item, ['user_id' => $user_id, 'module' => 'default']);
-                    }
-                    $success_message = 'Файлы успешно загружены.';
-                }
-            } catch (Storage_Exception $e) {
-                $errors[] = $e->getMessage();
-            } catch (Exception $e) {
-                $errors[] = 'Произошла непредвиденная ошибка: ' . $e->getMessage();
-                Kohana::$log->add(Kohana_Log::ERROR, 'File upload error: ' . $e->getMessage());
-            }
-        }
-
-        $view = View::factory('prx212/storage/upload')
-            ->set('errors', $errors)
-            ->set('success_message', $success_message);
-
-        $this->template->content = $view;
-    }
-
 }

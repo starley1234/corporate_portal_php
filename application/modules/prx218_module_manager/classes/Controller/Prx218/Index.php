@@ -68,6 +68,7 @@ class Controller_Prx218_Index extends Controller_Prx218_Main {
         $this->set_title(__('Управление программными модулями'));
         $this->template->content = View::factory('prx218/index/list')
             ->set('modules', $modules)
+            ->set('can_scan', $this->can('module_manager.scan'))
             ->set('pagination', $pagination)
             ->set('filters', [
                 'status'     => $status,

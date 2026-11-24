@@ -24,9 +24,10 @@ jar = http.cookiejar.CookieJar()
 client = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar), NoRedirect())
 count = 0
 
-def request(path, expected, data=None, headers=None):
+def request(path, expected, data=None, headers=None, method=None):
     global count
-    req = urllib.request.Request(BASE + path, data=urllib.parse.urlencode(data).encode() if data is not None else None, headers=headers or {})
+    payload = urllib.parse.urlencode(data).encode() if data is not None and not isinstance(data, bytes) else data
+    req = urllib.request.Request(BASE + path, data=payload, headers=headers or {}, method=method)
     try:
         response = client.open(req, timeout=30)
     except urllib.error.HTTPError as error:
@@ -56,6 +57,8 @@ request('/prx208_events', 403)
 request('/prx208_events/list_subscribers', 403)
 request('/prx100/logs', 403)
 request('/architecture/guide', 403)
+request('/prx212_file_storage/settings', 403)
+request('/prx218_module_manager/scanner', 403)
 for path in ['/prx208_events/api/subscribe', '/prx208_events/api/unsubscribe', '/prx208_events/api/publish_event']:
     request(path, 403, {})
 request('/prx300/admin', 403)
@@ -75,8 +78,38 @@ if not password:
     raise RuntimeError('ADMIN_PASSWORD is required for authenticated smoke; load local .env')
 request('/auth/login?return_url=%2F', 302, {'username': username, 'password': password, 'csrf': token[1]})
 pages = {}
-for path in ['/', '/services', '/dashboard', '/admin', '/prx595/admin', '/account/security', '/prx597', '/prx597/admin', '/prx560', '/prx115', '/tasks', '/prx120/monitor', '/document-extract', '/prx120/workers', '/migrate_pg', '/llm_admin', '/prx218', '/prx100/errors', '/prx100/logs', '/architecture', '/architecture/guide', '/prx208_events', '/prx208_events/list_events', '/employee', '/employee/directory', '/prx300/admin', '/prx300/admin/employees', '/prx300/admin/employee/0', '/prx300/admin/import', '/prx300/admin/import_template']:
+for path in ['/', '/services', '/dashboard', '/admin', '/prx595/admin', '/account/security', '/prx597', '/prx597/admin', '/prx560', '/prx115', '/tasks', '/prx120/monitor', '/document-extract', '/prx120/workers', '/migrate_pg', '/llm_admin', '/prx218_module_manager', '/prx100/errors', '/prx100/logs', '/architecture', '/architecture/guide', '/prx208_events', '/prx208_events/list_events', '/employee', '/employee/directory', '/prx300/admin', '/prx300/admin/employees', '/prx300/admin/employee/0', '/prx300/admin/import', '/prx300/admin/import_template']:
     pages[path] = request(path, 200)
+request('/prx212', 302)
+request('/prx218', 302)
+files_page = request('/prx212_file_storage', 200)
+assert 'href="/prx212_file_storage/upload"' in files_page
+assert 'href="/prx212_file_storage/settings"' in files_page
+settings_page = request('/prx212_file_storage/settings', 200)
+assert 'По умолчанию' in settings_page and 'Ограничения загрузки' in settings_page
+upload_page = request('/prx212_file_storage/upload', 200)
+csrf_upload = html_module.unescape(re.search(r'name="csrf" value="([^"]+)"', upload_page)[1])
+filename = 'prx212-smoke-' + secrets.token_hex(6) + '.txt'
+boundary = 'prx212-' + secrets.token_hex(12)
+multipart = (
+    f'--{boundary}\r\nContent-Disposition: form-data; name="csrf"\r\n\r\n{csrf_upload}\r\n'
+    f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{filename}"\r\n'
+    f'Content-Type: text/plain\r\n\r\nPRX test file.\r\n--{boundary}--\r\n'
+).encode()
+upload = json.loads(request('/prx212_api/upload', 200, multipart,
+                            {'Content-Type': 'multipart/form-data; boundary=' + boundary}))
+assert upload['success'] and int(upload['data']) > 0
+try:
+    assert filename in request('/prx212_file_storage?q=' + filename, 200)
+finally:
+    deleted = json.loads(request('/prx212_api/delete/' + str(upload['data']), 200,
+                                 headers={'X-CSRF-Token': csrf_upload}, method='DELETE'))
+    assert deleted['success']
+assert 'href="/prx218_module_manager/scanner"' in pages['/prx218_module_manager']
+assert 'id="runScannerBtn"' in request('/prx218_module_manager/scanner', 200)
+request('/prx218_module_manager/scanner/run', 405)
+request('/prx218_module_manager/scanner/run', 403, {})
+
 home = pages['/']
 assert 'Рабочий стол' in home and 'href="/portal-plan"' in home
 assert 'Отработка рекламаций' not in home
