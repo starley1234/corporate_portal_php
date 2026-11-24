@@ -47,10 +47,10 @@ class Controller_Prx395_Ui extends Controller_Base
             $this->response->status(503);
             $error = 'service_unavailable';
         }
-        if (in_array($job['status'] ?? '', ['queued', 'running'], TRUE))
-            $this->add_script('/assets/js/prx395-status.js', TRUE);
+        $progress = $job ? Service_Prx120_JobQueue::instance()->status_of($id) : [];
+        $this->add_script('/assets/js/prx395-status.js', TRUE);
         $this->template->content = View::factory('prx395/index', [
-            'id' => $id, 'job' => $job, 'error' => $error,
+            'id' => $id, 'job' => $job, 'error' => $error, 'progress' => $progress,
             'csrf' => Security::token(), 'can_monitor' => $this->can('prx120.monitor'),
         ]);
     }
