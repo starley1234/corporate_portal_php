@@ -93,6 +93,11 @@ PG- и HTTP-режимы очереди существуют параллель�
   отдельного env-флага нет.
 - `prx395` — асинхронный PDF API. `prx450` — синхронный OCR-шлюз: допустим
   только с ограниченными таймаутами и параллелизмом на целевой инфраструктуре.
+- `prx396` — асинхронное извлечение текста из большого PDF по частям (очередь
+  prx120, канал `pdf.chunks`, текст в prx212). `prx397` — извлечение полей
+  счёта/УПД (OCR → LangChain structured output → проверки). `prx398` —
+  маршрутизация документов (LangGraph, checkpoint postgres/memory, маршруты
+  invoice/contract/letter/other). OCR общий в `workers/prx_workers/ocr/`.
 - `prx560` — технический RAG-кэш, не хранилище HR/корпоративных документов.
   Semantic API не обеспечивает готовый ACL-aware retrieval.
 - В legacy-сервисах ещё встречаются массивы actor, SQL с ручным quoting и

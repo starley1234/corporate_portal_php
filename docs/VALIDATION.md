@@ -1786,3 +1786,26 @@ admin/admin и вход под сессией — на стенде с БД. П�
   не установлена. Живые systemd/journald, Tesseract, внешний OCR и доставка
   уведомлений требуют отдельной проверки. Нельзя распространять общие/SQL-логи
   без ручной проверки: они могут содержать данные документов.
+
+## prx396/prx397/prx398 — OCR, поля счёта, маршрутизация (24.11.2026)
+
+- Ветка `arena/e573d5bb-corporate-portal-php`, коммиты `4ef3bde` (prx396 + общий OCR),
+  `f60c48c` (langchain structured LLM helper), `e0d90f3` (prx397), `73813fa` (prx398),
+  плюс финальный коммит с AGENTS/ACL/доками.
+- Python worker-тесты: `PYTHONPATH=workers python -m pytest workers/tests -q` —
+  **177 passed, 1 skipped**. Отдельно проверены prx395 (12 passed), prx396, prx397,
+  prx398 graph tests (resume after classify, low-confidence retry/manual, contract->legal),
+  langchain fake-LLM test.
+- `python -m py_compile` для изменённых worker-модулей — успешно.
+  `python .tools/manifest_check.py` — **32 манифеста, 0 ошибок** после добавления
+  AGENTS.md и ACL-ключей `prx396.ui/prx397.ui/prx398.ui`.
+- Кодовые проверки по требованиям: prx397 нормализует поля, считает INN checksum,
+  `abs(total-sum(lines))<=0.01`, `0<=vat<=total`, parseable date, required; любой fail -> `review`+reasons.
+  prx398 граф `ocr->classify->extract->validate` с ветвлением route/retry/manual,
+  `thread_id=job_id`, checkpoint postgres/memory, при недоступном postgres -> `failed/graph_unavailable`.
+- **Не проверено в этом sandbox**: PHP не установлен (`php -l`, PHPUnit, `make test-contracts`,
+  `make lint`, `make architecture`, `make check`, `bin/test` не запускались); Node/npm тесты и
+  сборка не запускались; Docker/worker image rebuild/start не выполнялся; PostgreSQL/stand e2e
+  для prx396/prx397/prx398 (реальная загрузка PDF, OCR, LLM, queue, purge, UI в браузере) не выполнялись.
+  Это не подтверждение готовности на стенде; перед релизом нужен прогон по docs/VALIDATION.md/QUICK-CHECK.md
+  на окружении с PHP, PostgreSQL, worker, Tesseract/Poppler/OCR-шлюзом и LLM.
