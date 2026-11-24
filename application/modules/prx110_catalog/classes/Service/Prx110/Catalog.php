@@ -32,16 +32,12 @@
  *   'status'   => draft|beta|stable|deprecated  (beta — фолбэк из badge)
  *   'audience' => public|auth|admin|agent      (auth — фолбэк для hidden)
  *
- * Рабочий каталог /services показывает только ОДОБРЕННЫЕ сервисы (status=stable).
- * beta/draft — это «в работе»: они не попадают на /services, в палитру и
- * сайдбар, но видны на /portal-plan и в режиме предпросмотра ?agent_preview=1
- * для агента/администратора. Отсутствие status больше НЕ означает публикацию:
- * без явного решения модуль считается черновиком (draft).
+ * Рабочий каталог /services показывает только сервисы в состоянии approved.
+ * Одобрение требует явного решения в prx_110_publications. Архив манифеста
+ * не переопределяется. Сервисы в работе видны
+ * на /portal-plan и в API каталога в режиме ?agent_preview=1 для агента/админа.
  *
- * Про эти поля подробнее — в Service_Prx110_Catalog::visible_modules() и
- * user_context(). Манифесты БЕЗ явного status подтягивают статус из prx218
- * (таблица prx_218_modules, system_name = имя папки модуля), где управление ведёт
- * жизненный цикл; при недоступности prx218 — тихий фолбэк на дефолты.
+ * Статус разработки описывает манифест. prx218 — отдельный инвентарь.
  */
 class Service_Prx110_Catalog {
 
@@ -108,7 +104,7 @@ class Service_Prx110_Catalog {
                 'short'    => '',
                 'api'      => [],
                 'family'   => NULL,   // NULL = модуль сам по себе, не часть домена
-                'status'   => NULL,   // NULL = не задан явно (фолбэк brand/badge/prx218)
+                'status'   => NULL,   // NULL = не задан явно (фолбэк legacy badge)
                 'audience' => NULL,   // NULL = не задан явно (фолбэк hidden→auth)
             ];
             $data['module_name'] = $name;
@@ -263,7 +259,7 @@ class Service_Prx110_Catalog {
      *
      * agent   — управление: администратор или роль 'agent' (audience='agent').
      * preview — дополнительный флаг: тот же агент/админ с ?agent_preview=1;
-     *           только он показывает beta/draft («в работе») в рабочем каталоге.
+     *           он разрешает показать wip, но SSR-каталог не включает предпросмотр.
      */
     public static function user_context()
     {
@@ -318,17 +314,7 @@ class Service_Prx110_Catalog {
         ];
     }
 
-    /**
-     * Статус модуля: явный status → badge 'beta' → prx218 (system_name=папка)
-     * → 'draft'.
-     *
-     * prx218 влияет на ВИДИМОСТЬ, только когда там явное решение:
-     *   published=1 → маппим по тексту (alpha→draft, beta/stable, archived→deprecated);
-     *   published=0 → archived/deprecated уходят в архив; другой не-alpha статус (beta,
-     *   stable) — управление снял публикацию → draft. Автосозданные сканером записи
-     *   (alpha + unpublished — дефолт) сигналом «скрыть» не считаются и попадают
-     *   в дефолт 'draft': публикация — это явное решение, а не отсутствие записи.
-     */
+    /** Статус разработки: явный status → legacy badge «beta» → draft. */
     public static function resolve_status(array $m)
     {
         if ( ! empty($m['status']) AND in_array((string) $m['status'], self::$_statuses, TRUE))
@@ -342,69 +328,38 @@ class Service_Prx110_Catalog {
             return 'beta';
         }
 
-        $prx = self::_prx218_meta((string) ($m['module_name'] ?? $m['slug'] ?? ''));
-
-        if ($prx !== NULL)
-        {
-            // published=1 — осознанное решение в prx218: маппим по тексту статуса.
-            if ( ! empty($prx['published']))
-            {
-                switch ($prx['status'])
-                {
-                    case 'alpha':
-                        return 'draft';
-                    case 'beta':
-                        return 'beta';
-                    case 'stable':
-                        return 'stable';
-                    case 'archived':
-                    case 'deprecated':
-                        return 'deprecated';
-                }
-
-                return 'stable';
-            }
-
-            // published=0: уважаем только ЯВНЫЙ архив. Дефолтная запись сканера
-            // (alpha) отдельным решением «скрыть» не считается и уходит в дефолт
-            // 'draft': публикация всё равно требует явного stable.
-            if (in_array((string) $prx['status'], ['archived', 'deprecated'], TRUE))
-            {
-                return 'deprecated';
-            }
-
-            // published=0 у НЕ-alpha модуля — управление осознанно снял публикацию:
-            // такой сервис уходит публике (draft), но доступен агенту/админу.
-            if ((string) $prx['status'] !== 'alpha')
-            {
-                return 'draft';
-            }
-        }
-
-        // дефолт: без явного статуса модуль НЕ публикуется (одобрение — решение,
-        // а не отсутствие поля). Так новый модуль не попадает на /services сам.
         return 'draft';
     }
 
     /**
      * Состояние сервиса для витрин: approved|wip|unpublished|archived.
      *
-     *   approved    — stable и опубликован в рабочем каталоге (/services);
-     *   wip         — beta/draft, «в работе» (/portal-plan, предпросмотр);
+     *   approved    — опубликован в рабочем каталоге (/services);
+     *   wip         — «в работе» (/portal-plan, предпросмотр);
      *   unpublished — catalog:false: реализован, но публикация отложена;
-     *   archived    — deprecated: выведен из работы, остаётся в архиве плана.
+     *   archived    — решение в таблице или deprecated: сервис выведен из работы.
      */
     public static function resolve_state(array $m)
     {
-        $state = self::resolve_manifest_state($m);
-        if ($state !== 'archived' && ! empty($m['module_name'])
-            && class_exists('Service_Prx110_Publication') && Service_Prx110_Publication::eligible($m))
+        if (self::resolve_status($m) === 'deprecated')
         {
-            return Service_Prx110_Publication::decision($m['module_name']) ?? $state;
+            return 'archived';
         }
-        return $state;
+
+        $name = (string) ($m['module_name'] ?? '');
+        if ($name !== '' && class_exists('Service_Prx110_Publication') && Service_Prx110_Publication::eligible($m))
+        {
+            $decision = Service_Prx110_Publication::decision($name);
+            if ($decision !== NULL)
+            {
+                return $decision;
+            }
+        }
+
+        return ($m['catalog'] ?? TRUE) === FALSE ? 'unpublished' : 'wip';
     }
 
+    /** Подсказка для плана, не источник решения о публикации. */
     public static function resolve_manifest_state(array $m)
     {
         $status = self::resolve_status($m);
@@ -462,43 +417,6 @@ class Service_Prx110_Catalog {
         return 'public';
     }
 
-    /** Кеш метаданных prx218 (system_name => [status, published]). */
-    protected static $_prx218 = NULL;
-
-    protected static function _prx218_meta($module_name)
-    {
-        if (self::$_prx218 === NULL)
-        {
-            self::$_prx218 = ['loaded' => FALSE, 'map' => []];
-
-            try
-            {
-                foreach (ORM::factory('Prx218_Module')
-                    ->where('is_deleted', '=', 0)
-                    ->find_all() as $mod)
-                {
-                    self::$_prx218['map'][(string) $mod->system_name] = [
-                        'status'    => (string) $mod->status,
-                        'published' => (int) $mod->is_published === 1,
-                    ];
-                }
-
-                self::$_prx218['loaded'] = TRUE;
-            }
-            catch (Throwable $e)
-            {
-                // prx218 не подключён или таблицы нет — живём на манифестах
-            }
-        }
-
-        if (empty($module_name) OR ! isset(self::$_prx218['map'][$module_name]))
-        {
-            return NULL;
-        }
-
-        return self::$_prx218['map'][$module_name];
-    }
-
     /**
      * Проходит ли сервис по аудитории и ACL манифеста (без статуса).
      * Используется и рабочим каталогом, и планом портала.
@@ -542,8 +460,8 @@ class Service_Prx110_Catalog {
 
     /**
      * Может ли пользователь ВИДЕТЬ сервис (меню/поиск/каталог/карточки/чипы).
-     * Рабочая витрина: публикация, аудитория, ACL и статус ТОЛЬКО stable —
-     * «одобрен». beta/draft («в работе») видны лишь в предпросмотре.
+     * Рабочая витрина: аудитория, ACL и состояние approved.
+     * wip разрешён только вызывающим кодом с контекстом предпросмотра.
      */
     public static function can_see(array $m, array $ctx)
     {
@@ -565,7 +483,7 @@ class Service_Prx110_Catalog {
     /**
      * Манифесты для /portal-plan: все состояния (approved/wip/unpublished/archived)
      * с учётом аудитории и ACL, в порядке каталога. План показывает и одобренные,
-     * и «в работе», и отложенные публикацией; архив контроллер выводит отдельно.
+     * и «в работе», и отложенные публикацией, и архив.
      */
     public static function plan_modules($ctx = NULL)
     {
@@ -599,7 +517,7 @@ class Service_Prx110_Catalog {
         foreach (self::modules() as $m)
         {
             if (self::resolve_audience($m) !== 'public'
-                OR self::resolve_status($m) !== 'stable')
+                OR self::resolve_state($m) !== 'approved')
             {
                 continue;
             }

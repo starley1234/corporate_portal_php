@@ -20,7 +20,19 @@ test('раскладка в обе стороны, регистр, пункту�
 });
 
 test('фильтр каталога находит название при неверной раскладке и сбрасывает поиск', () => {
-    const dom = new JSDOM('<input id="catalog-search"><p id="catalog-search-empty" class="hidden"></p><div id="catalog-groups"><section class="catalog-group" data-search="документы"><div class="catalog-item" data-search="входящие документы">Входящие</div><div class="catalog-item" data-search="исходящие">Исходящие</div></section></div>', { runScripts: 'outside-only' });
+    const dom = new JSDOM(`
+        <div data-service-search hidden><input id="catalog-search"><p id="catalog-search-empty" hidden></p></div>
+        <div id="catalog-groups">
+            <section data-catalog-section><h2>Рабочие сервисы</h2>
+                <section class="catalog-group" data-search="документы">
+                    <div class="catalog-item" data-search="входящие документы">Входящие</div>
+                    <div class="catalog-item" data-search="исходящие">Исходящие</div>
+                </section>
+            </section>
+            <section data-catalog-section><h2>Инструменты платформы</h2>
+                <section class="catalog-group" data-search="платформа"><div class="catalog-item" data-search="реестр">Реестр</div></section>
+            </section>
+        </div>`, { runScripts: 'outside-only' });
     const { window } = dom;
     window.eval(helper);
     window.eval(script);
@@ -30,10 +42,16 @@ test('фильтр каталога находит название при не�
     const items = window.document.querySelectorAll('.catalog-item');
     assert.equal(items[0].classList.contains('hidden'), false);
     assert.equal(items[1].classList.contains('hidden'), true);
+    const sections = window.document.querySelectorAll('[data-catalog-section]');
+    assert.deepEqual(Array.from(sections, (section) => section.hidden), [false, true]);
+    input.value = 'реестр';
+    input.dispatchEvent(new window.Event('input'));
+    assert.deepEqual(Array.from(sections, (section) => section.hidden), [true, false]);
     input.value = 'zxcv';
     input.dispatchEvent(new window.Event('input'));
-    assert.equal(window.document.getElementById('catalog-search-empty').classList.contains('hidden'), false);
+    assert.equal(window.document.getElementById('catalog-search-empty').hidden, false);
     input.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape' }));
     assert.equal(items[1].classList.contains('hidden'), false);
+    assert.deepEqual(Array.from(sections, (section) => section.hidden), [false, false]);
     dom.window.close();
 });

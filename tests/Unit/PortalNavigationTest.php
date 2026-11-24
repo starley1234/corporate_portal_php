@@ -4,6 +4,24 @@ use PHPUnit\Framework\TestCase;
 /** Навигация основного шаблона и доступность сервисов через каталог. */
 class PortalNavigationTest extends TestCase
 {
+    private ReflectionProperty $publication_decisions;
+    private ?array $previous_decisions;
+
+    protected function setUp(): void
+    {
+        $this->publication_decisions = new ReflectionProperty('Service_Prx110_Publication', 'decisions');
+        $this->publication_decisions->setAccessible(TRUE);
+        $this->previous_decisions = $this->publication_decisions->getValue();
+        $this->publication_decisions->setValue(NULL, array_fill_keys([
+            'prx560_knowledge', 'prx597_notifications', 'prx599_account', 'example',
+        ], ['state' => 'approved']));
+    }
+
+    protected function tearDown(): void
+    {
+        $this->publication_decisions->setValue(NULL, $this->previous_decisions);
+    }
+
     public function test_sidebar_contains_only_catalog_even_when_module_navigation_is_supplied(): void
     {
         $items = Service_Prx110_Catalog::menu_items();
@@ -75,6 +93,22 @@ class PortalNavigationTest extends TestCase
         $this->assertNotContains('/employee', $guest_hrefs);
         $this->assertNotContains('/prx560', $guest_hrefs);
         $this->assertSame([], $guest_hrefs);
+    }
+
+    public function test_global_search_is_not_in_the_catalog_or_palette(): void
+    {
+        $search = Service_Prx110_Catalog::get('prx100_search');
+        $this->assertNotNull($search);
+        foreach ([['login', 'admin'], ['login']] as $roles) {
+            $admin = in_array('admin', $roles, TRUE);
+            $ctx = ['logged' => TRUE, 'roles' => $roles, 'admin' => $admin, 'agent' => $admin];
+            $visible = Service_Prx110_Catalog::visible_modules($ctx);
+            $this->assertNotContains('/', array_column($visible, 'href'));
+            $this->assertNotContains('prx100_search', array_column($visible, 'module_name'));
+            $items = Service_Prx110_Catalog::search_json($ctx)['items'];
+            $this->assertNotContains('/', array_column($items, 'href'));
+            $this->assertNotContains($search['title'], array_column($items, 'title'));
+        }
     }
 
     public function test_catalog_passes_only_local_navigation_aliases(): void

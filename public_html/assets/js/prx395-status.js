@@ -3,15 +3,19 @@
     'use strict';
     var input = document.getElementById('pdf-file');
     var info = document.getElementById('prx395-file-info');
+    var maxBytes = input ? Number(input.dataset.maxBytes) : 0;
+    var maxLabel = input ? input.dataset.maxLabel : '';
+    var initialInfo = info ? info.textContent : '';
+    var mib = 1024 ** 2;
     function showFile() {
         if (!input || !info) return;
         var file = input.files && input.files[0];
         input.setCustomValidity('');
-        if (!file) { info.textContent = 'Файл пока не выбран · до 10 МиБ'; return; }
+        if (!file) { info.textContent = initialInfo; return; }
         var error = !/\.pdf$/i.test(file.name) ? 'Выберите PDF-документ.'
-            : file.size > 10485760 ? 'Файл больше 10 МиБ. Выберите документ меньшего размера.' : '';
+            : maxBytes > 0 && file.size > maxBytes ? 'Файл больше ' + maxLabel + '. Выберите документ меньшего размера.' : '';
         input.setCustomValidity(error);
-        info.textContent = error || file.name + ' · ' + (file.size / 1048576).toFixed(2) + ' МиБ · можно выбрать другой файл';
+        info.textContent = error || file.name + ' · ' + (file.size / mib).toFixed(2) + ' МиБ · можно выбрать другой файл';
     }
     if (input) input.addEventListener('change', showFile);
     var drop = document.querySelector('[data-prx395-drop]');

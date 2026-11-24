@@ -57,6 +57,7 @@ $e = function ($value) {
         'pill' => ['Модуль PRX v6.0', 'fa-layer-group'],
         'actions' => [
             // Вторичная серая + зелёная для прямого создания (CTA)
+            ['label' => 'Приём файлов', 'href' => '#file-upload', 'icon' => 'fa-file-arrow-up', 'role' => 'secondary'],
             ['label' => 'База знаний', 'href' => '#article-section', 'icon' => 'fa-book-open', 'role' => 'secondary'],
             ['label' => 'Новая сущность', 'href' => '#editor-section', 'icon' => 'fa-plus', 'role' => 'cta'],
         ],
@@ -211,6 +212,45 @@ $e = function ($value) {
             </div>
 
         </div>
+    </div>
+
+    <!-- ============ 2.1. ПРИЁМ ФАЙЛОВ (локальная демонстрация) ============ -->
+    <div class="mt-6 grid items-start gap-6 md:grid-cols-3">
+        <section id="file-upload" class="prx-card min-w-0 md:col-span-2" aria-labelledby="ds-upload-title">
+            <div class="prx-card-head">
+                <h2 id="ds-upload-title" class="prx-h3"><i class="fas fa-file-arrow-up mr-2 text-blue-500" aria-hidden="true"></i>Приём файлов</h2>
+            </div>
+            <p id="ds-upload-note" class="prx-hint mt-2">Демонстрация: файл проверяется в браузере и не отправляется на сервер.</p>
+            <!-- method=dialog исключает сетевую отправку даже без JS. В рабочей форме: POST, multipart/form-data и CSRF. -->
+            <form id="ds-upload-form" method="dialog" class="mt-4 space-y-4" aria-describedby="ds-upload-note">
+                <div id="ds-upload-drop" class="relative rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-5 text-center transition focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500 data-[dragging=true]:border-blue-500 data-[dragging=true]:ring-2 data-[dragging=true]:ring-blue-500 dark:border-gray-600 dark:bg-gray-800/50">
+                    <i class="fas fa-cloud-arrow-up text-2xl text-blue-500" aria-hidden="true"></i>
+                    <label class="prx-label mt-2 block" for="ds-upload-file">Выбрать файл</label>
+                    <p id="ds-upload-drag-hint" class="prx-hint mt-1" hidden>или перетащите сюда один файл</p>
+                    <p id="ds-upload-limits" class="prx-hint mt-1">PDF, PNG или JPEG · до 10 МиБ</p>
+                    <input id="ds-upload-file" class="absolute inset-0 h-full w-full cursor-pointer opacity-0" type="file" name="file"
+                           accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" required
+                           aria-describedby="ds-upload-limits ds-upload-note ds-upload-status ds-upload-error">
+                </div>
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <p id="ds-upload-status" class="prx-hint min-w-0 break-words" role="status"></p>
+                    <button id="ds-upload-clear" type="button" class="prx-btn-secondary prx-btn-sm hidden">Убрать файл</button>
+                </div>
+                <p id="ds-upload-error" class="prx-hint text-rose-700 dark:text-rose-300" role="alert"></p>
+                <button id="ds-upload-check" type="submit" class="prx-btn-process" disabled>
+                    <i class="fas fa-check" aria-hidden="true"></i>Проверить файл
+                </button>
+            </form>
+        </section>
+
+        <aside class="prx-card min-w-0" aria-labelledby="ds-upload-guide">
+            <h3 id="ds-upload-guide" class="prx-h3">Для рабочей формы</h3>
+            <ul class="prx-hint mt-3 list-disc space-y-2 pl-5">
+                <li>Сразу укажите допустимые форматы и лимит размера.</li>
+                <li>Покажите выбранный файл, но отправляйте его только по кнопке.</li>
+                <li>Даже если браузер уже проверил файл, перепроверьте размер и содержимое на сервере.</li>
+            </ul>
+        </aside>
     </div>
 
     <!-- ============ 3. РЕЕСТР ПРОГОНОВ (ТАБЛИЦА + EMPTY STATE) ============ -->
@@ -681,6 +721,86 @@ $e = function ($value) {
             </div>
         </div>
     </section>
+
+    <script id="ds-upload-demo">
+    (function () {
+        var form = document.getElementById('ds-upload-form');
+        var input = document.getElementById('ds-upload-file');
+        var drop = document.getElementById('ds-upload-drop');
+        var status = document.getElementById('ds-upload-status');
+        var error = document.getElementById('ds-upload-error');
+        var clear = document.getElementById('ds-upload-clear');
+        var sizeFormat = new Intl.NumberFormat('ru', { maximumFractionDigits: 1 });
+        var mib = 1048576;
+        var formats = input.accept.split(',');
+
+        function showError(message) {
+            input.setCustomValidity(message);
+            if (message) input.setAttribute('aria-invalid', 'true');
+            else input.removeAttribute('aria-invalid');
+            error.textContent = message;
+        }
+
+        function showFile() {
+            var file = input.files[0];
+            clear.classList.toggle('hidden', !file);
+            status.textContent = '';
+            var message = '';
+            if (file) {
+                var size = file.size < 1024 ? file.size + ' Б'
+                    : file.size < mib ? sizeFormat.format(file.size / 1024) + ' КиБ' : sizeFormat.format(file.size / mib) + ' МиБ';
+                status.textContent = file.name + ' · ' + size;
+                if (!file.size) message = 'Файл пуст. Выберите другой файл.';
+                else if (file.size > 10 * mib) message = 'Файл больше 10 МиБ. Выберите файл меньшего размера.';
+                else if (!formats.some(function (format) {
+                    return format.charAt(0) === '.' ? file.name.toLowerCase().endsWith(format) : file.type === format;
+                })) message = 'Выберите файл PDF, PNG или JPEG.';
+            }
+            showError(message);
+        }
+
+        input.addEventListener('change', showFile);
+        clear.addEventListener('click', function () {
+            input.value = '';
+            showFile();
+            input.focus();
+        });
+        drop.addEventListener('dragover', function (event) {
+            if (!event.dataTransfer || !Array.from(event.dataTransfer.types).includes('Files')) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'copy';
+            drop.dataset.dragging = 'true';
+        });
+        drop.addEventListener('dragleave', function () { delete drop.dataset.dragging; });
+        drop.addEventListener('drop', function (event) {
+            event.preventDefault();
+            delete drop.dataset.dragging;
+            var files = event.dataTransfer && event.dataTransfer.files;
+            if (!files || !files.length) return;
+            if (files.length === 1) {
+                try {
+                    input.files = files;
+                    showFile();
+                    return;
+                } catch (exception) {
+                    error.textContent = 'Не удалось перетащить файл. Нажмите «Выбрать файл».';
+                }
+            } else {
+                error.textContent = 'Перетащите только один файл.';
+            }
+        });
+        form.addEventListener('submit', function (event) {
+            event.preventDefault();
+            if (input.files.length && input.validity.valid) {
+                showError('');
+                status.textContent = input.files[0].name + ' — проходит проверку формата и размера. Файл не отправлен.';
+            }
+        });
+        showFile();
+        document.getElementById('ds-upload-drag-hint').hidden = false;
+        document.getElementById('ds-upload-check').disabled = false;
+    })();
+    </script>
 
     <!-- ============ ДЕМО-СЦЕНАРИИ (общие помощники — в app.js, здесь только имитация) ============ -->
     <script>

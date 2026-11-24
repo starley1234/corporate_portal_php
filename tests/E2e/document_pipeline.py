@@ -69,6 +69,13 @@ async def main(args) -> None:
             raise AssertionError(f"{url} не завершился; последний статус {previous}")
 
         assert_code(await submit(b"not a PDF", uuid.uuid4().hex), 415, "pdf_required")
+        if args.max_pdf_bytes:
+            fixture = pdf_bytes()
+            assert args.max_pdf_bytes >= len(fixture), 'Use the configured PDF limit of the test server'
+            # Limit + one byte, with a normal multipart envelope. Test the file-size check,
+            # not a rejection from Nginx or the early Content-Length allowance.
+            oversized = fixture.ljust(args.max_pdf_bytes + 1, b' ')
+            assert_code(await submit(oversized, uuid.uuid4().hex), 413, "file_too_large")
         data = args.pdf.read_bytes() if args.pdf else pdf_bytes()
         key = uuid.uuid4().hex
         first, replay = await asyncio.gather(submit(data, key), submit(data, key))
@@ -86,7 +93,7 @@ async def main(args) -> None:
         assert result["status"] == "succeeded", result.get("error")
         assert result["result"]["provider"] == args.expect_provider
         assert args.contains in result["result"]["text"], "Expected marker absent"
-        assert 1 <= result["result"]["pages_total"] <= 20
+        assert 1 <= result["result"]["pages_total"] <= args.max_pages
         assert_code(await client.get(url, headers=other), 404, "not_found")
         client2 = await submit(data, key, headers=other)
         assert client2.status_code == 202 and client2.json()["job_id"] != job["job_id"]
@@ -103,6 +110,8 @@ if __name__ == "__main__":
     parser.add_argument("--url", default="http://127.0.0.1:8080")
     parser.add_argument("--expect-provider", choices=("tesseract", "remote"), default="tesseract")
     parser.add_argument("--wait", type=float, default=45)
+    parser.add_argument("--max-pdf-bytes", type=int, help="Server PRX395_MAX_PDF_BYTES; verify 413 at one byte over")
+    parser.add_argument("--max-pages", type=int, default=20, help="Server PRX395_MAX_PAGES for result validation")
     parser.add_argument("--pdf", type=Path)
     parser.add_argument("--contains", default=MARKER)
     asyncio.run(main(parser.parse_args()))

@@ -6,7 +6,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <p class="text-sm text-gray-500 dark:text-gray-400 font-medium">Всего модулей</p>
-                <h3 class="text-2xl font-bold mt-1"><?php echo count($modules); ?></h3>
+                <h3 class="text-2xl font-bold mt-1"><?php echo $stats['total'] ?? 0; ?></h3>
             </div>
             <div class="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-lg flex items-center justify-center text-blue-600 dark:text-blue-400">
                 <i class="fas fa-cubes text-xl"></i>
@@ -15,7 +15,7 @@
         <div class="mt-4 flex items-center text-xs">
             <span class="text-emerald-500 flex items-center font-medium">
                 <i class="fas fa-check-circle mr-1"></i>
-                <?php echo $stats['active_count'] ?? 0; ?> активных
+                <?php echo $stats['active'] ?? 0; ?> учтены в реестре
             </span>
         </div>
     </div>

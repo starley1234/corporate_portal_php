@@ -24,8 +24,7 @@ class Controller_Prx395_Ui extends Controller_Base
         try {
             if ($method === Request::POST)
             {
-                if ((int) $this->request->headers('Content-Length') > Service_Prx395_Extraction::MAX_PDF + 65536)
-                    throw new Prx395_Error('file_too_large', 413);
+                Service_Prx395_Limits::assert_request_size((int) $this->request->headers('Content-Length'));
                 $service = new Service_Prx395_Extraction;
                 $key = bin2hex(random_bytes(16));
                 $job_id = $this->request->post('sample') === '1'
@@ -48,9 +47,11 @@ class Controller_Prx395_Ui extends Controller_Base
             $error = 'service_unavailable';
         }
         $progress = $job ? Service_Prx120_JobQueue::instance()->status_of($id) : [];
-        $this->add_script('/assets/js/prx395-status.js', TRUE);
+        $this->add_script('/assets/js/prx395-status.js?v=limits', TRUE);
         $this->template->content = View::factory('prx395/index', [
             'id' => $id, 'job' => $job, 'error' => $error, 'progress' => $progress,
+            'limits' => Service_Prx395_Limits::all(),
+            'rate_limit' => (int) Kohana::$config->load('prx150_api_hub.default_rate_limit'),
             'csrf' => Security::token(), 'can_monitor' => $this->can('prx120.monitor'),
         ]);
     }

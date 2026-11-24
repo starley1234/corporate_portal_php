@@ -83,6 +83,11 @@ step "Миграции повторно (идемпотентность)" "$PHP_
 printf '%s\n' "$LAST_STEP_OUT" | grep -qE "применено 0" \
     || { printf '%s\n' "$LAST_STEP_OUT" >&2; fail "повторный прогон что-то применяет — миграции не идемпотентны"; }
 
+step "Заполнение решений о публикации" "$PHP_BIN" "$ROOT/public_html/index.php" prx110:publication:backfill --apply=1
+step "Повторное заполнение решений" "$PHP_BIN" "$ROOT/public_html/index.php" prx110:publication:backfill --apply=1
+printf '%s\n' "$LAST_STEP_OUT" | grep -qE '^would_insert=0 inserted=0 ' \
+    || fail "повторный backfill меняет решения"
+
 step "Тесты против чистой БД" bash bin/test
 
 step "Обслуживание очереди и outbox" bash bin/console portal:maintain

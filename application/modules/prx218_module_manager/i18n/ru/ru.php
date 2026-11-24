@@ -13,7 +13,7 @@ return array(
     'description'     => 'Описание',
     'version'         => 'Версия',
     'status'          => 'Статус',
-    'is_published'    => 'Опубликован',
+    'is_published'    => 'Учтён в реестре',
     'developer_notes' => 'Заметки разработчика',
     'last_update'     => 'Последнее обновление',
     'dependencies'    => 'Зависимости',
@@ -47,8 +47,8 @@ return array(
     'msg_no_dependencies' => 'Зависимости не указаны.',
 
     // Прочее
-    'visibility_on'  => 'Активен',
-    'visibility_off' => 'Скрыт',
+    'visibility_on'  => 'Учтён',
+    'visibility_off' => 'Не учтён',
     'readme_content' => 'Содержимое README.md',
     'semver_format'  => 'Формат SemVer',
 );

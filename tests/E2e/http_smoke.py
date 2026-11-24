@@ -41,6 +41,7 @@ def request(path, expected, data=None, headers=None, method=None):
 
 request('/', 302)
 request('/portal-plan', 302)
+request('/portal-plan/approve', 405)
 login = request('/auth/login', 200)
 request('/auth/register', 404)
 request('/prx100_auth/register', 404)
@@ -72,6 +73,31 @@ request('/auth/login', 403, {'username': 'admin', 'password': 'invalid'})
 login = request('/auth/login', 200)
 token = re.search(r'name="csrf" value="([^"]+)"', login)
 assert token, 'Login form has no CSRF token'
+# No publication permission, even with a valid token (the role itself is covered by the PHP contract).
+request('/portal-plan/approve', 403, {
+    'module': 'prx395_document_extract', 'state': 'archived', 'csrf': html_module.unescape(token[1]),
+})
+# Optional existing login-only account; does not provision users or change permissions.
+staff_username = os.environ.get('SMOKE_STAFF_USERNAME')
+staff_password = os.environ.get('SMOKE_STAFF_PASSWORD')
+if staff_username and staff_password:
+    admin_client = client
+    client = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()), NoRedirect())
+    try:
+        staff_login = request('/auth/login', 200)
+        staff_token = html_module.unescape(re.search(r'name="csrf" value="([^"]+)"', staff_login)[1])
+        request('/auth/login?return_url=%2F', 302, {
+            'username': staff_username, 'password': staff_password, 'csrf': staff_token,
+        })
+        staff_plan = request('/portal-plan?state=approved', 200)
+        assert 'action="/portal-plan/approve"' not in staff_plan
+        staff_sidebar = re.search(r'<[^>]+data-nav-csrf="([^"]+)"', staff_plan)
+        assert staff_sidebar, 'Staff session has no CSRF token'
+        request('/portal-plan/approve', 403, {
+            'module': 'prx395_document_extract', 'state': 'archived', 'csrf': html_module.unescape(staff_sidebar[1]),
+        })
+    finally:
+        client = admin_client
 username = os.environ.get('ADMIN_USERNAME', 'admin')
 password = os.environ.get('ADMIN_PASSWORD', '')
 if not password:
@@ -80,6 +106,7 @@ request('/auth/login?return_url=%2F', 302, {'username': username, 'password': pa
 pages = {}
 for path in ['/', '/services', '/dashboard', '/admin', '/prx595/admin', '/account/security', '/prx597', '/prx597/admin', '/prx560', '/prx115', '/tasks', '/prx120/monitor', '/document-extract', '/prx120/workers', '/migrate_pg', '/llm_admin', '/prx218_module_manager', '/prx100/errors', '/prx100/logs', '/architecture', '/architecture/guide', '/prx208_events', '/prx208_events/list_events', '/employee', '/employee/directory', '/prx300/admin', '/prx300/admin/employees', '/prx300/admin/employee/0', '/prx300/admin/import', '/prx300/admin/import_template']:
     pages[path] = request(path, 200)
+assert 'href="/portal-plan"' in pages['/services']
 request('/prx212', 302)
 request('/prx218', 302)
 files_page = request('/prx212_file_storage', 200)
@@ -115,9 +142,36 @@ assert 'Рабочий стол' in home and 'href="/portal-plan"' in home
 assert 'Отработка рекламаций' not in home
 archive = request('/portal-plan', 200)
 assert 'План и архив портала' in archive and 'План производственных пайплайнов' not in archive
-assert 'Сервисы домена:' in archive and 'action="/portal-plan/approve"' in archive
+assert 'В каталог (/services) попадают только одобренные.' in archive
+assert re.search(r'>Глобальный поиск</span>\s*<span class="prx-badge [^"]+">Не опубликован</span>', archive)
+for module in ['prx100_search', 'prx110_catalog', 'prx112_portal_plan']:
+    assert f'name="module" value="{module}"' not in archive
+assert 'action="/portal-plan/approve"' in archive
+for state in ['approved', 'wip', 'unpublished', 'archived', 'planned']:
+    filtered = request(f'/portal-plan?state={state}', 200)
+    assert re.search(rf'href="/portal-plan\?state={state}"\s+class="[^"]*is-active" aria-current="page"', filtered)
+    if state == 'wip':
+        assert re.search(r'<a class="prx-link [^"]*" href="/prx395_document_extract"', filtered)
+        assert 'id="portal-plan-search"' in filtered
 request('/portal-plan/approve', 405)
-request('/portal-plan/approve', 403, {'module': 'prx395_document_extract'})
+request('/portal-plan/approve', 403, {'module': 'prx395_document_extract', 'state': 'archived'})
+plan_csrf = html_module.unescape(re.search(r'action="/portal-plan/approve"[^>]*>\s*<input type="hidden" name="csrf" value="([^"]+)"', archive)[1])
+request('/portal-plan/approve', 400, {'module': 'prx395_document_extract', 'state': 'unknown', 'csrf': plan_csrf})
+# Mutates publication audit/history: opt in only on a disposable smoke database.
+if os.environ.get('SMOKE_PUBLICATION_WRITE') == '1':
+    module = 'prx395_document_extract'
+    marker = 'data-nav-pin-card="/prx395_document_extract"'
+    assert marker not in pages['/services'], 'Publication fixture must start in wip'
+    try:
+        for state, visible in [('approved', True), ('archived', False), ('wip', False)]:
+            request('/portal-plan/approve', 303, {
+                'module': module, 'state': state, 'csrf': plan_csrf, 'return_state': state,
+            })
+            request(f'/portal-plan?state={state}', 200)
+            assert (marker in request('/services', 200)) is visible, state
+    finally:
+        request('/portal-plan/approve', 303, {'module': module, 'state': 'wip', 'csrf': plan_csrf})
+
 for heading in ['Ведение проектов', 'Разработка конструкций', 'Разработка РЭА',
                 'Производство и сборка', 'Отработка рекламаций']:
     assert heading in archive, heading
@@ -311,6 +365,7 @@ assert {'/architecture', '/prx395_document_extract'}.isdisjoint(catalog_hrefs)
 assert legacy_paths.isdisjoint(catalog_hrefs)
 assert archived_paths.isdisjoint(catalog_hrefs)
 assert '/employee' not in catalog_hrefs and '/employee' not in favorite_hrefs
+assert '/' not in catalog_hrefs and '/' not in preview_hrefs
 assert archived_paths.isdisjoint(favorite_hrefs)
 json.loads(request('/employee/api/me', 404))  # seed-администратор намеренно не сопоставлен с сотрудником
 json.loads(request('/employee/api/directory', 200))

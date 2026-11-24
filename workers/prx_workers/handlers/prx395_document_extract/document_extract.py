@@ -12,10 +12,7 @@ import httpx
 
 from ...base import PermanentJobError
 from ...ocr_client import OcrSettings, TESSERACT_LANGS, provider_name, tesseract_available
-from .pdf_probe import MAX_TEXT
-
-MAX_PDF = 10 * 1024 * 1024
-MAX_REMOTE_RESPONSE = 8 * 1024 * 1024
+from .limits import MIB, limits
 
 
 class DocumentJobError(RuntimeError):
@@ -60,7 +57,7 @@ def _bounded(text: str) -> str:
         size = len(text.encode("utf-8"))
     except UnicodeError:
         raise PermanentJobError("ocr_invalid_response") from None
-    if size > MAX_TEXT:
+    if size > limits()["max_text_bytes"]:
         raise PermanentJobError("result_too_large")
     return text
 
@@ -118,6 +115,9 @@ async def extract_remote(path: Path, pages: int, *, transport=None) -> dict:
     except (RuntimeError, TypeError, ValueError, httpx.InvalidURL):
         raise PermanentJobError("ocr_config") from None
 
+    # Keep the existing envelope at defaults; allow room for JSON escaping and metadata
+    # when the configured text limit grows. _bounded still validates the decoded text.
+    max_response = max(8 * MIB, 8 * limits()["max_text_bytes"])
     try:
         async with httpx.AsyncClient(timeout=settings.timeout, follow_redirects=False, transport=transport) as client:
             with path.open("rb") as pdf:
@@ -137,7 +137,7 @@ async def extract_remote(path: Path, pages: int, *, transport=None) -> dict:
                     raw = bytearray()
                     async for chunk in response.aiter_bytes(chunk_size=65536):
                         raw.extend(chunk)
-                        if len(raw) > MAX_REMOTE_RESPONSE:
+                        if len(raw) > max_response:
                             raise PermanentJobError("result_too_large")
         data = json.loads(raw)
     except httpx.TimeoutException:

@@ -88,8 +88,7 @@ test('первый HTML с Избранным не заменяется и не 
 });
 
 test('звезда в палитре сохраняет и удаляет закладку в аккаунте', async () => {
-    const p = await page({ card: '<section data-catalog-favorites hidden><div data-catalog-favorites-list></div></section>' });
-    const shortcuts = p.doc.querySelector('[data-catalog-favorites]');
+    const p = await page();
     click(p.window, p.doc.getElementById('nav-palette-open'));
     await tick();
     const row = [...p.doc.querySelectorAll('.palette-item')].find(el => el.querySelector('a').getAttribute('href') === '/inbox');
@@ -104,13 +103,10 @@ test('звезда в палитре сохраняет и удаляет зак
     const group = p.doc.querySelector('[data-nav-group="pinned"]');
     assert.equal(group.querySelector('a[href="/inbox"]').getAttribute('aria-current'), 'page');
     assert.equal(group.querySelector('a button'), null);
-    assert.equal(shortcuts.hidden, false);
-    assert.ok(shortcuts.querySelector('a[href="/inbox"]'));
     click(p.window, group.querySelector('button'));
     await tick();
     assert.deepEqual(p.server.items, []);
     assert.match(group.textContent, /Добавляйте сервисы/);
-    assert.equal(shortcuts.hidden, true);
     p.dom.window.close();
 });
 

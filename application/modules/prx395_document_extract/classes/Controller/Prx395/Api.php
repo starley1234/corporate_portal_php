@@ -17,14 +17,13 @@ class Controller_Prx395_Api extends Controller_Prx150_Machine
             $principal = $this->principal();
             $id = (int) $this->request->param('id');
             $this->require_method($id ? Request::GET : Request::POST);
-            $service = new Service_Prx395_Extraction;
             if ($id)
             {
-                $this->_json_response($service->status($principal, $id));
+                $this->_json_response((new Service_Prx395_Extraction)->status($principal, $id));
                 return;
             }
-            if ((int) $this->request->headers('Content-Length') > Service_Prx395_Extraction::MAX_PDF + 65536)
-                throw new Prx395_Error('file_too_large', 413);
+            Service_Prx395_Limits::assert_request_size((int) $this->request->headers('Content-Length'));
+            $service = new Service_Prx395_Extraction;
             $job_id = $service->submit($principal, (string) $this->request->headers('Idempotency-Key'), $_FILES['file'] ?? NULL);
             $url = '/api/v1/document-extractions/'.$job_id;
             // PHP SAPI превращает Location с 202 в redirect. URL статуса — в JSON.

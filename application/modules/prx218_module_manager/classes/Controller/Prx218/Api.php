@@ -4,7 +4,7 @@
  * Controller_Prx218_Api
  * 
  * Обработка AJAX запросов для управления реестром модулей:
- * обновление статусов, публикация и получение статистики.
+ * обновление статусов инвентаря, учёт модулей и статистика.
  * 
  * @package Prx218
  * @version 1.0.0
@@ -60,7 +60,7 @@ class Controller_Prx218_Api extends Controller_Base {
     }
 
     /**
-     * Переключение флага публикации модуля
+     * Переключение учёта в реестре; флаг не публикует модуль в каталоге.
      * POST: id, is_published
      */
     public function action_toggle_published()
@@ -109,6 +109,7 @@ class Controller_Prx218_Api extends Controller_Base {
         // Сбор статистики через ORM
         $stats = [
             'total'     => ORM::factory('Prx218_Module')->where('is_deleted', '=', 0)->count_all(),
+            // Совместимость API: active означает «учтён в реестре».
             'active'    => ORM::factory('Prx218_Module')->where('is_deleted', '=', 0)->where('is_published', '=', 1)->count_all(),
             'stable'    => ORM::factory('Prx218_Module')->where('is_deleted', '=', 0)->where('status', '=', 'stable')->count_all(),
             'last_scan' => $last_activity, // legacy key

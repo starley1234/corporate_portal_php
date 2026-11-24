@@ -36,16 +36,17 @@ final class Storage {
      * @param string     $module    префикс модуля (буквы, цифры, `_`, `-`, до 50)
      * @param int|null   $user_id   владелец; NULL — системный файл без пользователя
      * @param bool       $is_public
+     * @param int|null   $max_bytes  Явный лимит модуля из доверенной конфигурации, иначе общий лимит prx212.
      * @return int ID файла
      * @throws Storage_Exception недопустимый префикс, prx212 не подключён или сбой
      */
-    public static function save(array $file, string $module, ?int $user_id = NULL, bool $is_public = FALSE): int
+    public static function save(array $file, string $module, ?int $user_id = NULL, bool $is_public = FALSE, ?int $max_bytes = NULL): int
     {
         return self::write('save', fn ($service) => (int) $service->save($file, [
             'module'    => $module,
             'user_id'   => $user_id,
             'is_public' => $is_public ? 1 : 0,
-        ]));
+        ], $max_bytes));
     }
 
     /**
