@@ -260,6 +260,7 @@ abstract class Controller_Prx102_Base extends Controller {
      */
     protected function set_module_nav(array $items)
     {
+        $items = Prx_ModuleNavigation::local_items($items, (string) $this->request->controller(), Manifest::all());
         $allowed = [];
 
         foreach ($items as $item) {

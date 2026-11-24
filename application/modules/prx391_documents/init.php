@@ -16,6 +16,8 @@ Route::set('prx391_documents_close', 'prx391_documents/close/<id>', ['id' => '\\
     ->defaults(['controller' => 'Prx391_Documents', 'action' => 'close']);
 Route::set('prx391_documents_reopen', 'prx391_documents/reopen/<id>', ['id' => '\\d+'])
     ->defaults(['controller' => 'Prx391_Documents', 'action' => 'reopen']);
+Route::set('prx391_documents_progress', 'prx391_documents/progress/<id>', ['id' => '\\d+'])
+    ->defaults(['controller' => 'Prx391_Documents', 'action' => 'progress']);
 Route::set('prx391_documents_show', 'prx391_documents/<id>', ['id' => '\\d+'])
     ->defaults(['controller' => 'Prx391_Documents', 'action' => 'show']);
 Route::set('prx391_documents', 'prx391_documents')

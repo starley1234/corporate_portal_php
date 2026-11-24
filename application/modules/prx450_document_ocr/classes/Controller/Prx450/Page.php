@@ -20,8 +20,6 @@ class Controller_Prx450_Page extends Controller_Base
         $this->set_title('Распознавание документов');
         $this->set_module_nav([
             ['title' => 'Проверка', 'href' => '/prx450_document_ocr', 'icon' => 'fas fa-file-lines'],
-            ['title' => 'API-доступ', 'href' => '/prx150_api_hub', 'icon' => 'fas fa-key'],
-            ['title' => 'Логи платформы', 'href' => '/prx100/logs', 'icon' => 'fas fa-terminal'],
         ]);
     }
 

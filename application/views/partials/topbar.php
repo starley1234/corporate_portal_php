@@ -16,7 +16,7 @@
                     <span class="hidden min-[380px]:inline text-gray-900 dark:text-white"><?php echo HTML::chars(isset($site_name) ? $site_name : ''); ?></span>
                 </a>
 
-                <!-- Чипы текущего раздела (prx110_catalog) и меню модуля -->
+                <!-- Чипы только текущего модуля; межмодульные ссылки — в каталоге и теле страницы -->
                 <?php $prx_header = class_exists('Service_Prx110_Catalog') ? Service_Prx110_Catalog::header_nav() : NULL; ?>
                 <?php
                 // href'ы чипов раздела: меню модуля их НЕ повторяет. Иначе на /trends

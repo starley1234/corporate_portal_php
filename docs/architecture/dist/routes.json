@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "count": 93,
+  "count": 94,
   "routes": [
     {
       "name": "cookie_consent_close",
@@ -539,6 +539,15 @@
       "regex": "['id' => '\\\\d+']",
       "controller": "Prx391_Documents",
       "action": "reopen",
+      "module": "prx391_documents",
+      "file": "application/modules/prx391_documents/classes/Controller/Prx391/Documents.php"
+    },
+    {
+      "name": "prx391_documents_progress",
+      "uri": "prx391_documents/progress/<id>",
+      "regex": "['id' => '\\\\d+']",
+      "controller": "Prx391_Documents",
+      "action": "progress",
       "module": "prx391_documents",
       "file": "application/modules/prx391_documents/classes/Controller/Prx391/Documents.php"
     },

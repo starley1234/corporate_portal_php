@@ -138,6 +138,25 @@ class Service_Prx392_Analysis
         return $run_id;
     }
 
+    public static function document_progress(int $id, ?Prx_Actor $actor = NULL): array
+    {
+        if (!Service_Prx391_Documents::document($id, $actor)) throw new InvalidArgumentException('Документ не найден');
+        $runs = self::runs_for_document($id, 1);
+        $run = $runs[0] ?? NULL;
+        if (!$run) return ['found' => FALSE, 'status' => 'none'];
+        $base = ['run_id' => (int) $run['id'], 'run_status' => $run['status']];
+        $queue = Service_Prx120_JobQueue::instance();
+        $job = !empty($run['job_id']) ? $queue->get((int) $run['job_id']) : NULL;
+        $payload = $job['payload'] ?? [];
+        if (is_string($payload)) $payload = json_decode($payload, TRUE);
+        if (!$job || $job['channel'] !== 'doc.analyze' || (int) ($payload['run_id'] ?? 0) !== (int) $run['id'])
+            return $base + ['found' => TRUE, 'status' => 'failed', 'error' => 'Задача анализа отсутствует в очереди. Повторите запуск.'];
+        $status = $queue->status_of((int) $run['job_id']);
+        if (in_array($run['status'], ['queued', 'running'], TRUE) && $status['status'] === 'done')
+            $status = array_merge($status, ['status' => 'failed', 'error' => 'Воркер завершил задачу, но результат анализа не принят. Проверьте callback и токен.']);
+        return $base + $status;
+    }
+
     public static function queue_for_document($document_id, ?Prx_Actor $actor = NULL)
     {
         ($actor ?? Prx_Actor::guest())->require('prx392.run');

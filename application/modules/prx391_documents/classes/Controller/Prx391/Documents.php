@@ -82,9 +82,21 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
             'can_draft' => class_exists('Service_Prx394_Drafts') && $this->can('prx394.draft'),
             'analysis' => $analysis,
             'runs' => $runs,
+            'progress' => class_exists('Service_Prx392_Analysis') ? Service_Prx392_Analysis::document_progress($id, $this->actor()) : ['found' => FALSE],
             'deadline' => $deadline,
             'drafts' => $drafts,
         ]);
+    }
+
+    public function action_progress()
+    {
+        $this->_require('prx391.view');
+        try { $progress = Service_Prx392_Analysis::document_progress((int) $this->request->param('id'), $this->actor()); }
+        catch (InvalidArgumentException $e) { throw HTTP_Exception::factory(404, 'Документ не найден'); }
+        $this->auto_render = FALSE;
+        $this->response->headers('Content-Type', 'application/json; charset=utf-8');
+        $this->response->headers('Cache-Control', 'no-store');
+        $this->response->body(json_encode(['ok' => TRUE] + $progress, JSON_UNESCAPED_UNICODE));
     }
 
     public function action_save()
