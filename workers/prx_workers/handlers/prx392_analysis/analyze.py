@@ -15,6 +15,10 @@ import json
 import re
 import time
 
+import httpx
+
+from ...llm import LlmConfigError
+
 from ... import site
 from ...base import HandlerContext
 
@@ -77,14 +81,39 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
     await ctx.progress("Этап 2 из 3 · Модель думает", model)
     started = time.monotonic()
 
-    text, usage = await ctx.llm.chat_with_usage(
-        messages,
-        model=model,
-        temperature=float(data.get("temperature") or 0.0),
-        max_tokens=int(data.get("max_tokens") or 4000),
-        response_format=data.get("response_format") or {"type": "json_object"},
-        request_timeout=400.0,
-    )
+    options = {
+        "temperature": float(data.get("temperature") or 0.0),
+        "max_tokens": int(data.get("max_tokens") or 4000),
+        "request_timeout": 400.0,
+    }
+    # JSON задан промптом и проверяется parse_json_reply + схемой сайта.
+    # Не навязываем json_object: часть локальных серверов поддерживает только
+    # json_schema либо обычную генерацию и отвечает 400 на json_object.
+    if data.get("response_format"):
+        options["response_format"] = data["response_format"]
+    try:
+        try:
+            text, usage = await ctx.llm.chat_with_usage(messages, model=model, **options)
+        except httpx.HTTPStatusError as exc:
+            detail = exc.response.text.lower()
+            if (exc.response.status_code == 400 and "response_format" in options
+                    and any(key in detail for key in ("response_format", "json_object", "json_schema"))):
+                options.pop("response_format")
+                text, usage = await ctx.llm.chat_with_usage(messages, model=model, **options)
+            else:
+                raise
+    except httpx.HTTPStatusError as exc:
+        status = exc.response.status_code
+        if status in (400, 404, 413, 422):
+            # Повтор того же некорректного запроса не исправляет параметры.
+            # Не включаем заголовки/запрос с текстом документа в диагностику.
+            detail = exc.response.text.strip()[:800]
+            raise LlmConfigError(
+                f"LLM отклонила запрос: HTTP {status}, модель {model}. "
+                f"Ответ сервера: {detail or 'без пояснения'}. "
+                "Проверьте поддержку модели, формат ответа и размер контекста."
+            ) from None
+        raise
 
     duration_ms = int((time.monotonic() - started) * 1000)
     result = parse_json_reply(text)

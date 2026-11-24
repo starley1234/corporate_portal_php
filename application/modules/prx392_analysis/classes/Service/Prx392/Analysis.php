@@ -264,7 +264,6 @@ class Service_Prx392_Analysis
             'model' => $run['model'],
             'temperature' => (float) $profile['temperature'],
             'max_tokens' => (int) $profile['max_tokens'],
-            'response_format' => ['type' => 'json_object'],
             'messages' => [
                 ['role' => 'system', 'content' => $profile['system']],
                 ['role' => 'user', 'content' => $user],

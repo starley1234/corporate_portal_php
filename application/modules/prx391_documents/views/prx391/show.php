@@ -52,27 +52,30 @@ echo View::factory('partials/docflow_flash', ['flash' => $flash]);
         <?php endif; ?>
     </section>
 
-    <div class="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div class="min-w-0 space-y-6">
-<?php include __DIR__.'/partials/analysis.php'; ?>
-
+    <div class="mt-5 grid items-start gap-4 xl:grid-cols-2">
+        <section aria-label="Реквизиты документа" class="order-2 min-w-0 xl:order-1">
 <?php include __DIR__.'/partials/card.php'; ?>
-
-<?php include __DIR__.'/partials/attachments.php'; ?>
-
-<?php include __DIR__.'/partials/field_events.php'; ?>
-        </div>
-
-        <aside class="min-w-0 w-full max-w-md space-y-6 lg:max-w-none">
+        </section>
+        <aside class="order-1 min-w-0 space-y-4 xl:order-2">
+            <div class="grid items-start gap-4 md:grid-cols-2">
+                <div class="min-w-0 space-y-4">
 <?php include __DIR__.'/partials/process.php'; ?>
-
 <?php include __DIR__.'/partials/ai_sidebar.php'; ?>
-
+                </div>
+                <div class="min-w-0 space-y-4">
 <?php include __DIR__.'/partials/sla_sidebar.php'; ?>
-
 <?php if ($can_draft) include __DIR__.'/partials/drafts_sidebar.php'; ?>
-
+                </div>
+            </div>
+<?php include __DIR__.'/partials/analysis.php'; ?>
+            <details class="group rounded-xl border border-gray-200 dark:border-gray-700">
+                <summary class="cursor-pointer px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200">Вложения и история документа</summary>
+                <div class="space-y-4 p-3 pt-0">
+<?php include __DIR__.'/partials/attachments.php'; ?>
 <?php include __DIR__.'/partials/journal_sidebar.php'; ?>
+<?php include __DIR__.'/partials/field_events.php'; ?>
+                </div>
+            </details>
         </aside>
     </div>
 </div>
