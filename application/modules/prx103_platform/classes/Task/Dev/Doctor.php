@@ -171,13 +171,12 @@ class Task_Dev_Doctor extends Minion_Task {
         $db = Database::instance();
         try
         {
-            $row = $db->query(Database::SELECT,
-                "SELECT status, COUNT(*) AS c FROM prx_120_jobs GROUP BY status", FALSE);
+            $row = Service_Prx120_JobQueue::instance()->stats();
 
             $parts = [];
-            foreach ($row as $r)
+            foreach ($row as $status => $count)
             {
-                $parts[] = $r['status'].': '.$r['c'];
+                if ($count > 0) $parts[] = $status.': '.$count;
             }
             $this->_ok('очередь prx_120_jobs'.($parts ? ' ('.implode(', ', $parts).')' : ' (пуста)'));
         }

@@ -11,12 +11,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2] / 'application/modules'
 BASELINE = {
-    'prx103_platform/classes/Controller/Prx103/Errors.php': {('FROM', 'prx_120_jobs'): 2},
-    'prx103_platform/classes/Service/Prx103/Health.php': {
-        ('FROM', 'prx_120_jobs'): 3, ('FROM', 'prx_120_usage'): 1},
-    'prx103_platform/classes/Task/Dev/Doctor.php': {('FROM', 'prx_120_jobs'): 1},
-    'prx115_semantic/classes/Service/Prx115/Semantic.php': {('FROM', 'prx_120_jobs'): 3},
-    'prx595_useradmin/classes/Controller/Prx595/Admin.php': {('FROM', 'prx_120_jobs'): 3},
     # Самый опасный долг: DDL и отметка notified_at принадлежат prx120, не Notify.
     'prx597_notifications/classes/Service/Prx597/Notify.php': {
         ('TABLE', 'prx_120_jobs'): 1, ('FROM', 'prx_120_jobs'): 1, ('UPDATE', 'prx_120_jobs'): 1},

@@ -30,6 +30,13 @@ class Service_Prx103_Health {
 		}
 	}
 
+	/** Диагностический экран остаётся доступен при отключённой/недоступной очереди. */
+	protected static function _queue_report($method)
+	{
+		try { return Service_Prx120_JobQueue::instance()->$method(); }
+		catch (Throwable $e) { return []; }
+	}
+
 	public static function fmt($n)
 	{
 		$n = (int) $n;
@@ -72,12 +79,7 @@ class Service_Prx103_Health {
 			return NULL;
 		}
 
-		$r = self::_one("SELECT count(*) FILTER (WHERE status = 'pending')    AS pending,
-		                        count(*) FILTER (WHERE status = 'processing') AS processing,
-		                        count(*) FILTER (WHERE status = 'failed' AND coalesce(finished_at, created_at) > now() - interval '24 hours') AS failed24,
-		                        count(*) FILTER (WHERE status = 'done'   AND coalesce(finished_at, created_at) > now() - interval '24 hours') AS done24,
-		                        count(*) FILTER (WHERE status = 'processing' AND coalesce(heartbeat_at, claimed_at, created_at) < now() - interval '15 minutes') AS stuck
-		                   FROM prx_120_jobs");
+		$r = self::_queue_report('platform_metrics');
 
 		if ( ! $r)
 		{
@@ -113,10 +115,7 @@ class Service_Prx103_Health {
 			return NULL;
 		}
 
-		$r = self::_one("SELECT count(DISTINCT claimed_by) FILTER (WHERE coalesce(heartbeat_at, finished_at, created_at) > now() - interval '24 hours') AS day,
-		                        count(DISTINCT claimed_by) FILTER (WHERE coalesce(heartbeat_at, finished_at, created_at) > now() - interval '10 minutes') AS live,
-		                        extract(epoch FROM now() - max(coalesce(heartbeat_at, finished_at)))::int AS ago
-		                   FROM prx_120_jobs WHERE claimed_by IS NOT NULL AND claimed_by <> ''");
+		$r = self::_queue_report('worker_activity');
 
 		if ( ! $r)
 		{
@@ -150,8 +149,7 @@ class Service_Prx103_Health {
 			return NULL;
 		}
 
-		$r = self::_one("SELECT coalesce(sum(prompt_tokens + completion_tokens), 0) AS tokens, count(*) AS jobs
-		                   FROM prx_120_usage WHERE created_at >= date_trunc('day', now())");
+		$r = self::_queue_report('usage_today');
 
 		$over = 0;
 		$warn = 0;
@@ -189,7 +187,7 @@ class Service_Prx103_Health {
 	public static function errors()
 	{
 		$n_log = self::_log_errors_today();
-		$fails = (int) (self::_one("SELECT count(*) AS c FROM prx_120_jobs WHERE status = 'failed' AND coalesce(finished_at, created_at) > now() - interval '24 hours'")['c'] ?? 0);
+		$fails = (int) (self::_queue_report('platform_metrics')['failed24'] ?? 0);
 
 		return [
 			'key'   => 'errors',

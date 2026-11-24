@@ -191,24 +191,14 @@ class Controller_Prx103_Errors extends Controller_Prx102_Base {
     /** Счётчики для шапки: проваленные задачи и статьи в ошибке. */
     protected function _stats()
     {
-        $db = Database::instance();
-        $one = function (string $sql) use ($db) {
-            try
-            {
-                $row = $db->query(Database::SELECT, $sql, FALSE)->current();
-
-                return $row ? (array) $row : [];
-            }
-            catch (Exception $e)
-            {
-                return [];
-            }
-        };
-
-        return [
-            'jobs_failed' => (int) ($one("SELECT COUNT(*) AS c FROM prx_120_jobs WHERE status = 'failed'")['c'] ?? 0),
-            'jobs_stuck'  => (int) ($one("SELECT COUNT(*) AS c FROM prx_120_jobs WHERE status = 'processing'
-                                          AND heartbeat_at < now() - interval '15 minutes'")['c'] ?? 0),
-        ];
+        try
+        {
+            $metrics = Service_Prx120_JobQueue::instance()->platform_metrics();
+            return ['jobs_failed' => $metrics['failed'], 'jobs_stuck' => $metrics['heartbeat_stuck']];
+        }
+        catch (Throwable $e)
+        {
+            return ['jobs_failed' => 0, 'jobs_stuck' => 0];
+        }
     }
 }

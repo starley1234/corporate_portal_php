@@ -346,22 +346,10 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
 
         try
         {
-            $kpi = $db->query(Database::SELECT,
-                'SELECT count(*) FILTER (WHERE created_at > now() - interval \'24 hours\') AS d1,
-                        count(*) FILTER (WHERE created_at > now() - interval \'24 hours\' AND visitor_id LIKE \'u:%\') AS d1_users,
-                        count(*) FILTER (WHERE created_at > now() - interval \'24 hours\' AND visitor_id LIKE \'g:%\') AS d1_guests,
-                        count(DISTINCT visitor_id) FILTER (WHERE created_at > now() - interval \'24 hours\') AS d1_visitors
-                 FROM prx_120_jobs', FALSE)->current();
-
-            $channels = $db->query(Database::SELECT,
-                'SELECT channel, count(*) AS c,
-                        count(*) FILTER (WHERE visitor_id LIKE \'g:%\') AS guests
-                 FROM prx_120_jobs WHERE created_at > now() - interval \'24 hours\'
-                 GROUP BY channel ORDER BY c DESC LIMIT 12', FALSE)->as_array();
-
-            $jobs = $db->query(Database::SELECT,
-                'SELECT id, channel, status, visitor_id, created_at, finished_at
-                 FROM prx_120_jobs ORDER BY id DESC LIMIT 120', FALSE)->as_array();
+            $activity = Service_Prx120_JobQueue::instance()->admin_activity();
+            $kpi = $activity['kpi'];
+            $channels = $activity['channels'];
+            $jobs = $activity['jobs'];
 
             $new_users = $db->query(Database::SELECT,
                 'SELECT id, email, username, created_at FROM users

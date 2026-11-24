@@ -1026,38 +1026,9 @@ class Service_Prx115_Semantic {
 
                 $queue['ok'] = TRUE;
 
-                $counts = $db->query(Database::SELECT,
-                    "SELECT status, COUNT(*) AS c FROM prx_120_jobs
-                      WHERE channel = 'semantic.index' AND created_at > now() - interval '24 hours'
-                      GROUP BY status", FALSE)->as_array();
-
-                foreach ($counts as $row)
-                {
-                    $row = (array) $row;
-
-                    if ($row['status'] === 'pending')     $queue['pending']     = (int) $row['c'];
-                    if ($row['status'] === 'processing')  $queue['processing']  = (int) $row['c'];
-                    if ($row['status'] === 'done')        $queue['done_24h']   = (int) $row['c'];
-                    if ($row['status'] === 'failed')      $queue['failed_24h'] = (int) $row['c'];
-                }
-
-                // Сколько задач завершились БЕЗ индексации (http-режим воркера):
-                // «Готово: skipped» — вежливое слово, а поиск при этом пустой.
-                $row = $db->query(Database::SELECT,
-                    "SELECT COUNT(*) AS c FROM prx_120_jobs
-                      WHERE channel = 'semantic.index'
-                        AND (result ->> 'skipped' IS NOT NULL OR result ->> 'mode' = 'http-bridge')
-                        AND created_at > now() - interval '7 days'", FALSE)->current();
-
-                $bridge = $row ? (int) $row['c'] : 0;
-                $queue['bridge'] = $bridge;
-
-                $row = $db->query(Database::SELECT,
-                    "SELECT COUNT(*) AS c FROM prx_120_jobs
-                      WHERE channel = 'semantic.index' AND status IN ('pending', 'processing')
-                        AND created_at > now() - interval '24 hours'", FALSE)->current();
-
-                $queue['queued_recent'] = $row ? (int) $row['c'] : 0;
+                $metrics = $q->channel_metrics('semantic.index');
+                foreach ($metrics as $key => $value) $queue[$key] = $value;
+                $bridge = $metrics['bridge'];
             }
             catch (Throwable $e) { /* очередь недоступна — панель всё равно открывается */ }
         }
