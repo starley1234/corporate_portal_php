@@ -62,7 +62,7 @@ class Service_Prx392_Analysis
     // Постановка в очередь
     // ------------------------------------------------------------------
 
-    public static function queue($document_id, $message_id, ?Prx_Actor $actor = NULL, $profile_code = 'classify_extract_v1')
+    public static function queue($document_id, $message_id, ?Prx_Actor $actor = NULL, $profile_code = 'classify_extract_v1', bool $restart = FALSE)
     {
         ($actor ?? Prx_Actor::guest())->require('prx392.run');
         $document_id = (int) $document_id;
@@ -97,7 +97,7 @@ class Service_Prx392_Analysis
             $existing = self::_row("
                 SELECT * FROM prx_392_runs
                 WHERE document_id = ".$document_id." AND profile = ".self::_q($profile_code)."
-                  AND input_hash = ".self::_q($input_hash)."
+                  ".($restart ? '' : 'AND input_hash = '.self::_q($input_hash))."
                 ORDER BY id DESC LIMIT 1
             ");
             if ($existing)
@@ -105,13 +105,17 @@ class Service_Prx392_Analysis
                 $job = !empty($existing['job_id']) ? Service_Prx120_JobQueue::instance()->get((int) $existing['job_id']) : NULL;
                 $payload = $job['payload'] ?? [];
                 if (is_string($payload)) $payload = json_decode($payload, TRUE);
-                if ($existing['status'] === 'ready' || ($job && $job['channel'] === 'doc.analyze'
+                if ((!$restart && $existing['status'] === 'ready') || ($job && $job['channel'] === 'doc.analyze'
                     && (int) ($payload['run_id'] ?? 0) === (int) $existing['id']
                     && in_array($job['status'], ['pending', 'processing'], TRUE)))
                 {
                     self::_db()->commit();
                     return (int) $existing['id'];
                 }
+                if ($restart) $existing = NULL;
+            }
+            if ($existing)
+            {
                 self::_exec("UPDATE prx_392_runs SET status = 'queued', job_id = NULL, error = NULL,
                     started_at = NULL, finished_at = NULL WHERE id = ".(int) $existing['id']);
                 $run = $existing;
@@ -119,6 +123,8 @@ class Service_Prx392_Analysis
 
             else
             {
+                // Явный повтор — отдельный прогон, старое предложение не перезаписывается.
+                if ($restart) $input_hash = md5($input_hash.'|'.bin2hex(random_bytes(16)));
                 $run = self::_row("
                     INSERT INTO prx_392_runs
                         (document_id, message_id, profile, model, prompt_version, schema_version, input_hash, status, created_by)
@@ -178,7 +184,7 @@ class Service_Prx392_Analysis
         return $base + $status;
     }
 
-    public static function queue_for_document($document_id, ?Prx_Actor $actor = NULL)
+    public static function queue_for_document($document_id, ?Prx_Actor $actor = NULL, bool $restart = FALSE)
     {
         ($actor ?? Prx_Actor::guest())->require('prx392.run');
         $document = Service_Prx391_Documents::document($document_id, $actor);
@@ -191,7 +197,7 @@ class Service_Prx392_Analysis
             throw new RuntimeException('У документа нет конверта prx390');
         }
 
-        return self::queue($document_id, (int) $document['source_message_id'], $actor);
+        return self::queue($document_id, (int) $document['source_message_id'], $actor, 'classify_extract_v1', $restart);
     }
 
     // ------------------------------------------------------------------

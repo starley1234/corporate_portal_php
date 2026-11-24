@@ -81,3 +81,14 @@ test('polling failure retries rather than disabling stopwatch', async () => {
         assert.ok(p.timers.some(t => t.ms === 3000));
     } finally { p.dom.window.close(); }
 });
+
+
+test('analysis card has a single frame and one process status without repeated metadata', () => {
+    const card = readFileSync(new URL('application/modules/prx391_documents/views/prx391/partials/ai_sidebar.php', root), 'utf8');
+    const process = readFileSync(new URL('application/modules/prx391_documents/views/prx391/partials/process.php', root), 'utf8');
+    assert.equal((card.match(/class="prx-card"/g) || []).length, 1);
+    assert.doesNotMatch(card, /prx-badge|<dl/);
+    assert.match(card, /disabled aria-disabled/);
+    assert.match(process, /'embedded' => TRUE/);
+    assert.doesNotMatch(process, /'standalone' => TRUE/);
+});

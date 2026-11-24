@@ -26,7 +26,7 @@ class Controller_Prx392_Analysis extends Controller_Prx39x_Base
         $document_id = (int) $this->request->param('id');
 
         $this->_post(function () use ($document_id) {
-            Service_Prx392_Analysis::queue_for_document($document_id, $this->actor());
+            Service_Prx392_Analysis::queue_for_document($document_id, $this->actor(), TRUE);
 
             return ''; // Состояние показывает карточка процесса, без дублирующего уведомления.
         }, '/prx391_documents/'.$document_id);
