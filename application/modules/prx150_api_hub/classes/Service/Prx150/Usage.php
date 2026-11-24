@@ -21,7 +21,7 @@ class Service_Prx150_Usage
         try
         {
             $config = Kohana::$config->load('prx150_api_hub');
-            $ip = trim((string) $request->client_ip());
+            $ip = trim((string) Request::$client_ip);
             $key = (string) $config->get('ip_hash_key');
             $ip_hash = ($key !== '' AND $ip !== '' AND $ip !== '0.0.0.0')
                 ? hash_hmac('sha256', $ip, $key) : NULL;

@@ -39,9 +39,10 @@ abstract class Controller_Prx150_Machine extends Controller_Base
      * Отдаётся сервису вместо массива ролей: у внешнего потребителя нет ни
      * сессии, ни ACL сотрудника. Доступен только внутри respond().
      */
-    public function principal(): ?Prx150_Principal
+    public function principal(): Prx150_Principal
     {
-        return $this->api_client === NULL ? NULL : Service_Prx150_Keys::principal($this->api_client);
+        if ($this->api_client === NULL) throw new LogicException('Machine principal is available only inside respond()');
+        return Service_Prx150_Keys::principal($this->api_client);
     }
 
     /**
@@ -53,6 +54,7 @@ abstract class Controller_Prx150_Machine extends Controller_Base
      */
     protected function respond(callable $action): void
     {
+        $this->api_client = NULL;
         $this->response->headers('Cache-Control', 'no-store');
         $start = microtime(TRUE);
         $status = 500;
@@ -91,6 +93,7 @@ abstract class Controller_Prx150_Machine extends Controller_Base
         }
         finally
         {
+            $this->api_client = NULL;
             if ($client !== NULL)
             {
                 $usage_id = Service_Prx150_Usage::log(

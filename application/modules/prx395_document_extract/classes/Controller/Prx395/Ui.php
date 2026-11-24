@@ -18,28 +18,24 @@ class Controller_Prx395_Ui extends Controller_Base
         {
             throw (HTTP_Exception::factory(405))->allowed($id ? 'GET' : 'GET, POST');
         }
-        // Владелец заданий админки — отрицательный ID пользователя: положительные
-        // заняты ключами prx150, поэтому чужое задание не видно даже по ID.
-        $client = -(int) $this->_current_user->id;
+        $actor = $this->actor();
         $job = NULL;
         $error = NULL;
         try {
             if ($method === Request::POST)
             {
-                $csrf = $this->request->post('csrf');
-                if ( ! is_string($csrf) || ! Security::check($csrf)) throw HTTP_Exception::factory(403);
                 if ((int) $this->request->headers('Content-Length') > Service_Prx395_Extraction::MAX_PDF + 65536)
                     throw new Prx395_Error('file_too_large', 413);
                 $service = new Service_Prx395_Extraction;
                 $key = bin2hex(random_bytes(16));
                 $job_id = $this->request->post('sample') === '1'
-                    ? $service->submit_sample($client, $key)
-                    : $service->submit($client, $key, $_FILES['file'] ?? NULL);
+                    ? $service->submit_sample($actor, $key)
+                    : $service->submit($actor, $key, $_FILES['file'] ?? NULL);
                 HTTP::redirect('/prx395_document_extract/'.$job_id, 303);
             }
             if ($id)
             {
-                $job = (new Service_Prx395_Extraction)->status($client, $id);
+                $job = (new Service_Prx395_Extraction)->status($actor, $id);
             }
         } catch (HTTP_Exception $e) {
             throw $e;

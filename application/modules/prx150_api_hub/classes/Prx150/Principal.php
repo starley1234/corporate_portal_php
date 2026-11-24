@@ -51,6 +51,13 @@ final class Prx150_Principal implements Prx_Principal
         return $this->scopes;
     }
 
+    /** Scope API, не пользовательский ACL. Пустое требование закрыто даже для `*`. */
+    public function hasScope(string $scope): bool
+    {
+        return $this->id > 0 && $scope !== ''
+            && (in_array($scope, $this->scopes, TRUE) || in_array('*', $this->scopes, TRUE));
+    }
+
     public function toArray(): array
     {
         return [

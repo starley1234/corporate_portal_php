@@ -115,10 +115,7 @@ class Service_Prx150_Keys
     /** Право на конкретный scope; `*` — все scope (для внутренних задач). */
     public static function require_scope(array $client, string $scope): void
     {
-        $scopes = json_decode((string) ($client['scopes'] ?? '[]'), TRUE);
-        $scopes = is_array($scopes) ? $scopes : [];
-
-        if ( ! in_array($scope, $scopes, TRUE) AND ! in_array('*', $scopes, TRUE))
+        if ( ! self::principal($client)->hasScope($scope))
         {
             throw new Prx150_Error('forbidden', 403, ['required_scope' => $scope]);
         }
