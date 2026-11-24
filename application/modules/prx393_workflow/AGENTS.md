@@ -1,6 +1,6 @@
 # prx393_workflow — маршруты, календарь и сроки
 
-> Тестовый контур: раскомментируйте общий блок в `application/bootstrap.php`; UI только для администратора. См. `docs/QUICK-CHECK.md`.
+> Тестовый контур: подключение — явный общий блок в `application/bootstrap.php`; UI только для администратора. См. `docs/QUICK-CHECK.md`.
 
 ## Состояние
 
@@ -13,7 +13,9 @@ MVP: правила маршрутизации, производственный
 
 Владеет `prx_393_rules`, `prx_393_calendars`, `prx_393_assignments`,
 `prx_393_deadlines`, `prx_393_escalations`. Читает карточку через
-`Service_Prx391_Documents::document()`. Не читает таблицы prx391 напрямую.
+публичный сервис prx391. Служебные чтения используют `document_for_processing()`;
+пользовательский route — `document($id, $actor)`. Исторический `recalculate_all`
+пока выбирает ID из таблицы prx391 напрямую — это оставшийся межмодульный долг.
 
 ## Маршруты
 
@@ -24,8 +26,11 @@ MVP: правила маршрутизации, производственный
 
 ## Права
 
-`prx393.view` — `login`; `prx393.manage` — `docflow_manager`. `/sla`
-показывает только карточки, разрешённые `prx391`: из 60 ближайших сроков и
+Текущий `acl.php` — admin-only. `route($id, $actor)` принимает `Prx_Actor`,
+требует `prx393.manage` и доступ к карточке. Пустой actor не считается system.
+Для события/cron — явный `route_automatically($id, $initiator_id)`; инициатор
+берётся из аргумента Event, а не payload/роли. Системных actor-массивов нет.
+`/sla` показывает только карточки, разрешённые `prx391`: из 60 ближайших сроков и
 20 последних эскалаций. Общие показатели скрыты, если актор не может видеть
 все грифы; нефильтрованные `deadlines/escalations/stats` — для доверенного
 внутреннего кода, UI использует `visible_*` с актором. `/prx393/api/health`
@@ -57,8 +62,8 @@ MVP: правила маршрутизации, производственный
 
 ## События
 
-- Слушает `prx391.document.registered` → `route()`.
-- Слушает `prx391.document.updated` с `recalc=true` или `reason=closed` → `route()`.
+- Слушает `prx391.document.registered` → `route_automatically()`.
+- Слушает `prx391.document.updated` с `recalc=true` или `reason=closed` → `route_automatically()`.
 - Публикует `prx393.document.assigned`, `prx393.deadline.approaching`,
   `prx393.deadline.overdue`.
 
@@ -78,3 +83,7 @@ MVP: правила маршрутизации, производственный
 ## Проверки
 
 `python3 .tools/portal_check.py`, `bash .tools/php_check_all.sh`.
+
+`DocflowAccessTest` проверяет маршрутизацию из события, закрытие срока,
+различие пользовательского и автоматического route и actor_id в истории.
+`tests/Tooling/test_docflow_access.py` запрещает служебные entry points в HTTP-контроллерах.

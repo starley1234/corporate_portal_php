@@ -1,6 +1,6 @@
 # prx390_intake — приём входящих документов
 
-> Тестовый контур: раскомментируйте общий блок в `application/bootstrap.php`; UI только для администратора. См. `docs/QUICK-CHECK.md`.
+> Тестовый контур: подключение — явный общий блок в `application/bootstrap.php`; UI только для администратора. См. `docs/QUICK-CHECK.md`.
 
 <!-- context-index:begin -->
 <!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index application/modules/prx390_intake/AGENTS.md --write. Руками не править. -->
@@ -9,10 +9,10 @@
 |   Состояние | 17 | 0,4 КБ |
 |   Границы | 23 | 0,3 КБ |
 |   Маршруты | 29 | 0,5 КБ |
-|   Права | 38 | 0,2 КБ |
-|   Конвейер | 43 | 1,2 КБ |
-|   Настройки и данные | 60 | 1,0 КБ |
-|   Проверки | 72 | 0,2 КБ |
+|   Права | 38 | 0,7 КБ |
+|   Конвейер | 48 | 1,2 КБ |
+|   Настройки и данные | 65 | 1,0 КБ |
+|   Проверки | 77 | 0,5 КБ |
 <!-- context-index:end -->
 ## Состояние
 
@@ -37,8 +37,13 @@ prx212, канал `doc.normalize`, текст и событие `prx390.text.re
 
 ## Права
 
-`prx390.view` — `login`, `prx390.manage` — `docflow_clerk`,
-`docflow_manager`. Роли создаёт миграция этого модуля.
+Текущий `acl.php` ограничивает контур администратором; роли docflow,
+созданные миграциями, сами по себе доступ не открывают.
+`scan_folder/receive_upload/receive_path/retry` принимают `Prx_Actor` и
+проверяют `prx390.manage` в сервисе. Пустой actor — гость, не система.
+CLI `prx390:scan` использует явный `scan_folder_automatically()`:
+это доверенная локальная cron-операция, инициатор в БД — NULL, не фиктивный admin.
+Публичный HTTP-контроллер этот метод не вызывает; массивов `is_system` нет.
 
 ## Конвейер
 
@@ -73,3 +78,7 @@ API и регистрации использует `prx390_diag`; Python-эта�
 
 `python3 .tools/portal_check.py`, `bash .tools/php_check_all.sh`,
 `python3 -m pytest workers/tests/handlers/prx390_intake/test_docflow.py`.
+
+Типы/отказы без БД: `tests/Contracts/docflow_access.php`.
+На PostgreSQL `DocflowAccessTest` проверяет скан временной папки, дедупликацию,
+сохранение синтетического текста и события регистрации/маршрутизации. OCR не запускается.

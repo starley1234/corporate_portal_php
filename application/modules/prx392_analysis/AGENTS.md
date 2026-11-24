@@ -1,6 +1,6 @@
 # prx392_analysis — ИИ-разбор входящих
 
-> Тестовый контур: раскомментируйте общий блок в `application/bootstrap.php`; UI только для администратора. См. `docs/QUICK-CHECK.md`.
+> Тестовый контур: подключение — явный общий блок в `application/bootstrap.php`; UI только для администратора. См. `docs/QUICK-CHECK.md`.
 
 <!-- context-index:begin -->
 <!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index application/modules/prx392_analysis/AGENTS.md --write. Руками не править. -->
@@ -9,12 +9,12 @@
 |   Состояние | 19 | 0,3 КБ |
 |   Границы | 25 | 0,4 КБ |
 |   Маршруты | 32 | 0,4 КБ |
-|   Права | 41 | 0,1 КБ |
-|   Структура сервиса | 46 | 0,3 КБ |
-|   Контракт предложения | 52 | 0,6 КБ |
-|   Очередь и надёжность | 65 | 0,5 КБ |
-|   Ограничения | 72 | 0,4 КБ |
-|   Проверки | 78 | 0,2 КБ |
+|   Права | 41 | 0,6 КБ |
+|   Структура сервиса | 49 | 0,3 КБ |
+|   Контракт предложения | 55 | 0,6 КБ |
+|   Очередь и надёжность | 68 | 0,5 КБ |
+|   Ограничения | 75 | 0,4 КБ |
+|   Проверки | 81 | 0,4 КБ |
 <!-- context-index:end -->
 ## Состояние
 
@@ -40,8 +40,11 @@ prx391. Модель — только `local::…`; проверка выпол�
 
 ## Права
 
-`prx392.view` — `login`; `prx392.run` — `docflow_clerk`, `docflow_lawyer`,
-`docflow_manager`; `prx392.admin` — `docflow_manager`.
+Текущий `acl.php` ограничивает контур admin. Пользовательские queue/accept/reject
+принимают `Prx_Actor`, требуют `prx392.run`; карточку проверяет prx391 по actor.
+`reject` тоже проверяет видимость документа до записи статуса и reviewed_by.
+Пустой actor не повышается до system. Worker input/result читают карточку через
+явный `document_for_processing()`; это не HTTP-read API для пользователей.
 
 ## Структура сервиса
 
@@ -79,3 +82,6 @@ summary отклоняется, прогон получает `failed`.
 
 `python3 -m pytest workers/tests/handlers/prx390_intake/test_docflow.py` (нормализация/парсер JSON),
 `python3 .tools/portal_check.py`, `bash .tools/php_check_all.sh`.
+
+Контракт типов/отказов — `tests/Contracts/docflow_access.php`; PostgreSQL-регрессия
+скрытого предложения и reviewed_by — `DocflowAccessTest`. Это не проверка реального LLM.

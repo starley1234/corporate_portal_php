@@ -46,6 +46,13 @@ UI/API principal, scope и время жизни машинного контек
 проверяет изоляцию владельцев, ключи, лимит и журнал. Сетевой HTTP, загрузку
 PDF, внешнюю OCR-службу и браузер такой внутренний dispatch не проверяет.
 
+`Contracts/docflow_access.php` проверяет, что NULL/guest/старые actor-массивы
+не дают системных прав в prx390–393. `Smoke/DocflowAccessTest.php` проверяет
+ролевую матрицу, гриф, историю, reject и явную автоматизацию на PostgreSQL;
+сканирование временного PDF и синтетический результат worker проходят через
+события регистрации/срока. Реальный OCR/LLM в этом тесте не запускается.
+`Tooling/test_docflow_access.py` удерживает служебные entry points вне контроллеров.
+
 ## CI с PostgreSQL
 
 Workflow `.github/workflows/ci.yml` разделяет изолированные проверки и
