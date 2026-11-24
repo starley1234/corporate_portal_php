@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Проверка обеих кнопок на тестовом стенде с работающим воркером.
 
-ADMIN_PASSWORD=... python3 tests/document_ui_e2e.py [--legacy]
+ADMIN_PASSWORD=... python3 tests/E2e/document_ui.py [--legacy]
 Создаёт реальные задачи с синтетическими PDF. Не запускать на production.
 """
 from __future__ import annotations
@@ -14,7 +14,7 @@ import time
 
 import httpx
 
-from document_pipeline_e2e import pdf_bytes
+from document_pipeline import pdf_bytes
 
 
 def csrf(page: httpx.Response, path: str) -> str:
@@ -46,18 +46,18 @@ def main(args):
             'password': os.environ['ADMIN_PASSWORD'],
         })
         assert result.status_code == 302
-        assert 'href="/document-extract"' in client.get('/').text
-        page = client.get('/document-extract')
+        assert 'href="/prx395_document_extract"' in client.get('/').text
+        page = client.get('/prx395_document_extract')
         assert 'Распознать пробный PDF' in page.text
-        assert client.post('/document-extract', data={'sample': '1'}).status_code == 403
+        assert client.post('/prx395_document_extract', data={'sample': '1'}).status_code == 403
         for sample, marker in [(True, 'PRX - PDF recognition is working.'), (False, 'PDF uploaded from the UI')]:
-            payload = {'csrf': csrf(page, '/document-extract')}
+            payload = {'csrf': csrf(page, '/prx395_document_extract')}
             files = None
             if sample:
                 payload['sample'] = '1'
             else:
                 files = {'file': ('ui-test.pdf', pdf_bytes(marker), 'application/pdf')}
-            created = client.post('/document-extract', data=payload, files=files)
+            created = client.post('/prx395_document_extract', data=payload, files=files)
             assert created.status_code == 303, created.status_code
             page_with_text = wait(client, created.headers['Location'], lambda text: marker in text and 'Текст готов' in text)
             assert 'no-store' in page_with_text.headers['Cache-Control']

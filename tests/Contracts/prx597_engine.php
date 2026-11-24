@@ -9,12 +9,12 @@
  * ночью разбудят, а лимит не сработает. Здесь проверяем то, что можно
  * проверить без базы: чистые функции и разборщики.
  *
- * Запуск: PRX_ROOT=/path/to/prx.ru node phpwasm_stand.mjs .tools/prx597_engine_stand.php
+ * Запуск: PRX_ROOT=/path/to/prx.ru node phpwasm.mjs tests/Contracts/prx597_engine.php
  */
 
 if ( ! defined('SYSPATH'))
 {
-	define('SYSPATH', dirname(__DIR__).'/system/');
+	define('SYSPATH', dirname(__DIR__, 2).'/system/');
 }
 
 // ---------------------------------------------------------------- заглушки
@@ -54,11 +54,11 @@ Kohana::$config = new class {
 	public function load($name)
 	{
 		// config/prx597_notifications.php — настоящий файл модуля
-		$path = dirname(__DIR__).'/application/modules/'.$name.'/config/'.$name.'.php';
+		$path = dirname(__DIR__, 2).'/application/modules/'.$name.'/config/'.$name.'.php';
 
 		if ( ! is_file($path))
 		{
-			$path = dirname(__DIR__).'/application/config/'.$name.'.php';
+			$path = dirname(__DIR__, 2).'/application/config/'.$name.'.php';
 		}
 
 		$data = is_file($path) ? (array) require $path : [];
@@ -138,19 +138,19 @@ class Database
 }
 
 // Настоящий код модуля.
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Base.php';
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Render.php';
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Limits.php';
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Channel.php';
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Channel/Email.php';
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Channel/Telegram.php';
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Channel/Max.php';
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Channel/Inapp.php';
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Registry.php';
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Bind.php';
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Engine.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Base.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Render.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Limits.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Channel.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Channel/Email.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Channel/Telegram.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Channel/Max.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Channel/Inapp.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Registry.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Bind.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Engine.php';
 // ИИ-помощник по шаблонам (пункт «составление шаблона с помощью ИИ»):
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Ai.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Ai.php';
 
 // ---------------------------------------------------------------- проверки
 $ok  = 0;
@@ -408,9 +408,9 @@ class ORM
 	}
 }
 
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Notify/Unsubscribe.php';
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Notify/Inbox.php';
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Notify.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Notify/Unsubscribe.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Notify/Inbox.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Notify.php';
 
 check('kind_event: готовая задача', Service_Prx597_Notify::kind_event('job_done'), 'prx120.job.done');
 check('kind_event: ошибка задачи', Service_Prx597_Notify::kind_event('job_failed'), 'prx120.job.failed');
@@ -467,9 +467,9 @@ check('тема канала: правило применяется', call_hidde
 check('подпись канала из сообщения', call_hidden('Service_Prx597_Channel_Email', '_subject', [['subject' => 'Тема', 'body' => 'Тело']]), 'Тема');
 check('подпись из первой строки', call_hidden('Service_Prx597_Channel_Email', '_subject', [['subject' => '', 'body' => "Первая строка\nВторая"]]), 'Первая строка');
 
-require dirname(__DIR__).'/.tools/prx597_queue_cases.php';
-require dirname(__DIR__).'/.tools/prx597_settings_cases.php';
-require dirname(__DIR__).'/.tools/prx597_admin_cases.php';
+require __DIR__.'/fixtures/prx597_queue.php';
+require __DIR__.'/fixtures/prx597_settings.php';
+require __DIR__.'/fixtures/prx597_admin.php';
 
 // --- итог -----------------------------------------------------------------
 echo "\nитог: $ok ок, $bad фейл\n";

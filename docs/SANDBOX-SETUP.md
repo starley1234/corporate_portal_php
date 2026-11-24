@@ -27,7 +27,7 @@ bash bin/test                          # 46/46 дымовые+юнит (мини
 | Схема БД | `bin/console db:migrate` (32 миграции) | `bin/console db:migrate --status` |
 | Админ | миграция prx102_004: `admin` / `admin` (только на пустой базе) | вход `/auth/login` |
 | Сайт | `PORT=8080 bash bin/serve` (0.0.0.0 — виден в превью) | `curl -I localhost:8080/auth/login` |
-| Тесты | `bash bin/test` (fallback на tests/mini_runner.php — без composer) | 46/46 |
+| Тесты | `bash bin/test` (fallback на tests/Support/mini_runner.php — без composer) | 46/46 |
 
 ---
 
@@ -49,7 +49,7 @@ curl -s -o /dev/null -w "%{http_code}\n" https://repo.packagist.org  # 000 (не
 | re2c | PyPI-wheel `pip download re2c` → в wheel лежит бинарник `re2c/data/bin/re2c` |
 | cmake/ninja/meson/pkgconf | pip install (cmake/ninja/meson — колёса; pkgconf — исходники с codeload) |
 | PostgreSQL | PyPI `pgserver` (полный сервер + libpq + заголовки — против него собираем ext/pgsql) |
-| composer/phpunit | НЕдоступны (packagist закрыт) → vendor-заглушка setup.sh + tests/mini_runner.php |
+| composer/phpunit | НЕдоступны (packagist закрыт) → vendor-заглушка setup.sh + tests/Support/mini_runner.php |
 
 ---
 

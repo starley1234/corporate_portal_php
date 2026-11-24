@@ -27,7 +27,10 @@ Controller → Service → PostgreSQL
 | `workers/prx_workers/` | Общий runtime: очередь, heartbeat, retry, cancel, usage |
 | `services/` | Отдельные внешние процессы, например OCR-шлюз |
 | `system/`, `modules/` | Исторический фреймворк Konine/Kohana и его библиотеки |
-| `tests/`, `workers/tests/` | Проверки поведения; `tests/Contracts/` запускаются без БД |
+| `tests/` | Unit/Smoke, Contracts без БД, E2e со стендом, Tooling; карта — [tests/README](../tests/README.md) |
+| `workers/tests/` | Python-тесты runtime, обработчиков и клиентов |
+| `bin/` | Запуск, установка, эксплуатация и единый вход PHP-тестов |
+| `.tools/` | Статические проверки, генераторы, сборка CSS и архитектуры; не тестовые стенды |
 | `docs/architecture/model/` | Машиночитаемая карта и ADR, не второй реестр подключения |
 
 ## Один модуль — один владелец данных
@@ -79,6 +82,9 @@ Controller → Service → PostgreSQL
 ADR и transactional outbox, а не изменение смысла существующего `Event`.
 PG- и HTTP-режимы очереди существуют параллельно: их полная эквивалентность
 при гонках пока не доказана. Правила эксплуатации — [WORKERS](WORKERS.md).
+
+Обслуживание очереди и уведомлений запускается явно: `bin/console portal:maintain`
+по таймеру. Общий HTTP-контроллер и semantic status не запускают уборку.
 
 ## Границы и исключения
 

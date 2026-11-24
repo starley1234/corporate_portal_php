@@ -40,7 +40,7 @@ check('колокольчик от старых флагов писем не з�
 check('старое значение по умолчанию больше не считается согласием', Service_Prx597_Registry::sub_enabled($old_event, 'email', [], []), FALSE);
 check('явное отключение подписки соблюдается', Service_Prx597_Registry::sub_enabled($old_event, 'email', ['on_done' => TRUE], ['prx120.job.done' => ['email' => FALSE]]), FALSE);
 check('уборка: разовое гашение включённых умолчаний объявлено', method_exists('Service_Prx597_Notify', '_defaults_off_once'), TRUE);
-$off_src = file_get_contents(dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Notify.php');
+$off_src = file_get_contents(dirname(__DIR__, 3).'/application/modules/prx597_notifications/classes/Service/Prx597/Notify.php');
 check('уборка: трогает только тех, кто ничего не выбирал', strpos($off_src, 'NOT EXISTS (SELECT 1 FROM '.chr(34).'prx_597_subs'.chr(34)) !== FALSE, TRUE);
 check('уборка: закрывается отметкой и не повторяется', strpos($off_src, "prefs.defaults_off") !== FALSE, TRUE);
 
@@ -63,9 +63,9 @@ check('важность: категория из реестра событий',
 check('важность: категория с пробелами читается', Service_Prx597_Registry::priority_for(['category' => ' social ']), 7);
 
 // Фасад действительно спрашивает важность у реестра, а не берёт её из воздуха.
-$notify_src = file_get_contents(dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Notify.php');
+$notify_src = file_get_contents(dirname(__DIR__, 3).'/application/modules/prx597_notifications/classes/Service/Prx597/Notify.php');
 check('важность: emit спрашивает у реестра', strpos($notify_src, 'Service_Prx597_Registry::priority_for(') !== FALSE, TRUE);
-check('важность: правило описано в конфиге', strpos(file_get_contents(dirname(__DIR__).'/application/modules/prx597_notifications/config/prx597_notifications.php'), "'by_category'") !== FALSE, TRUE);
+check('важность: правило описано в конфиге', strpos(file_get_contents(dirname(__DIR__, 3).'/application/modules/prx597_notifications/config/prx597_notifications.php'), "'by_category'") !== FALSE, TRUE);
 
 $d1 = call_hidden('Service_Prx597_Notify', '_delivery_dedup', [7, 'email', str_repeat('x', 160)]);
 $d2 = call_hidden('Service_Prx597_Notify', '_delivery_dedup', [8, 'email', str_repeat('x', 160)]);
@@ -212,8 +212,8 @@ class Request
     public function query($key = NULL, $default = NULL) { return $key === NULL ? $this->get : ($this->get[$key] ?? $default); }
 }
 class Service_Prx597_Schema { public static function ensure() { return []; } }
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Controller/Prx597/Notifications.php';
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Controller/Prx597/Unsub.php';
+require dirname(__DIR__, 3).'/application/modules/prx597_notifications/classes/Controller/Prx597/Notifications.php';
+require dirname(__DIR__, 3).'/application/modules/prx597_notifications/classes/Controller/Prx597/Unsub.php';
 class Prx597_Test_Controller extends Controller_Prx597_Notifications
 {
     public function __construct($data) { $this->_user_id = 7; $this->request = new Request($data); }
@@ -225,7 +225,7 @@ function prx597_render($tab, $channels, $binding = [], $items = [])
     $prefs = Service_Prx597_Notify::prefs_default(7);
     $matrix = ['jobs' => [['alias' => 'test', 'title' => 'Готово', 'description' => '', 'mandatory' => FALSE, 'channels' => array_keys($channels), 'state' => array_fill_keys(array_keys($channels), TRUE)]]];
     ob_start();
-    include dirname(__DIR__).'/application/modules/prx597_notifications/views/prx597/index.php';
+    include dirname(__DIR__, 3).'/application/modules/prx597_notifications/views/prx597/index.php';
     return ob_get_clean();
 }
 set_error_handler(function ($code, $message) { throw new RuntimeException($message); }, E_WARNING | E_NOTICE);
@@ -340,8 +340,8 @@ check('отказ: без кода события не отключаем', Serv
 check('отказ: выключенное событие всё равно отключается', Service_Prx597_Notify::unsub_apply(7, 'email', 'prx593.review.done', 'event')['ok'], TRUE);
 
 // Страница отказа: без входа, маршрут зарегистрирован раньше страницы prx597.
-$un_ctrl = file_get_contents(dirname(__DIR__).'/application/modules/prx597_notifications/classes/Controller/Prx597/Unsub.php');
-$un_init = file_get_contents(dirname(__DIR__).'/application/modules/prx597_notifications/init.php');
+$un_ctrl = file_get_contents(dirname(__DIR__, 3).'/application/modules/prx597_notifications/classes/Controller/Prx597/Unsub.php');
+$un_init = file_get_contents(dirname(__DIR__, 3).'/application/modules/prx597_notifications/init.php');
 check('страница отказа: сессию не требует', strpos($un_ctrl, 'logged_in') === FALSE, TRUE);
 check('страница отказа: пропуск — подпись ссылки', strpos($un_ctrl, 'unsub_verify') !== FALSE, TRUE);
 check('страница отказа: умеет ответить почтовому клиенту', strpos($un_ctrl, 'Request::POST') !== FALSE, TRUE);

@@ -226,7 +226,7 @@ make new-module id=312 slug=claims name="Заявки" entity=Claim
 | `route_registry.py` | маршруты → контроллеры, реестр в `docs/architecture/dist/routes.json` |
 | `doc_links_check.py` | мёртвые ссылки в документации |
 | `js_csrf_lint.py` | CSRF на клиенте |
-| `test_*.py` | файловое хранилище; правило «события — только через фасад» (`tests/test_event_lint.py`) |
+| `test_*.py` | файловое хранилище; правило «события — только через фасад» (`tests/Tooling/test_event_lint.py`) |
 
 `bash .tools/php_check_all.sh` — PHP-синтаксис и линтеры (без PHP в окружении
 работает tree-sitter-разбор).

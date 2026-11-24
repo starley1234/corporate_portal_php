@@ -132,26 +132,6 @@ abstract class Controller_Prx102_Base extends Controller {
             $this->_current_user_roles = [];
         }
 
-        // prx120 «Очередь задач»: дешёвое САМОобслуживание без крона. Раньше
-        // зависшие processing разбирал только cron «Пиналки» (/prx603/kick) или
-        // заход админа в /prx120/monitor — без cron'а строка висела в
-        // «Выполняется» вечно, и монитор всегда показывал зависший процесс
-        // (жалоба владельца 28.09). maybe_maintain() сначала делает один COUNT
-        // по индексу: нет зависших — выходим сразу, ничего не пишем.
-        if ($this->request->method() === Request::GET
-            AND $this->request === Request::initial()
-            AND class_exists('Service_Prx120_JobQueue'))
-        {
-            try
-            {
-                Service_Prx120_JobQueue::instance()->maybe_maintain();
-            }
-            catch (Throwable $e)
-            {
-                Kohana::$log->add(Log::WARNING, 'prx120: hook обслуживания очереди: :e', [':e' => $e->getMessage()]);
-            }
-        }
-
         View::bind_global('current_user', $this->_current_user);
         View::bind_global('current_user_roles', $this->_current_user_roles);
 
@@ -374,9 +354,6 @@ abstract class Controller_Prx102_Base extends Controller {
             $this->template->nav_favorites = $nav_favorites;
             $this->response->body($this->template->render());
         }
-		
-		// ! В продакшене убрать
-		// $this->action_update_declared_classes_cache();
 
         parent::after();
     }
@@ -453,62 +430,6 @@ abstract class Controller_Prx102_Base extends Controller {
 
 		return FALSE;
 	}
-	
-    /**
-     * Обновляет кэш объявленных классов и возвращает его в формате JSON.
-     * Этот метод полезен для получения актуального списка всех классов,
-     * доступных в приложении, что может быть использовано для дальнейшей рефлексии.
-	 * ! В продакшене убрать
-     *
-     * @return void
-     */
-    private function action_update_declared_classes_cache()
-    {
-        // Собираем информацию о классах старт
-        $file_path = APPPATH . 'cache' . DIRECTORY_SEPARATOR . 'declared_classes.json';
-        $current_declared_classes = get_declared_classes();
-
-        $existing_cached_classes = [];
-        if (file_exists($file_path)) {
-            $json_content = file_get_contents($file_path);
-            if ($json_content !== false) {
-                $decoded_classes = json_decode($json_content, true);
-                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded_classes)) {
-                    $existing_cached_classes = $decoded_classes;
-                }
-            }
-        }
-
-        $all_classes = array_unique(array_merge($existing_cached_classes, $current_declared_classes));
-        sort($all_classes);
-
-        $json_content_to_write = json_encode($all_classes, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-
-        $response_data = [
-            'status' => 'error',
-            'message' => 'Failed to update cache.',
-            'file_path' => $file_path,
-            'class_count' => count($all_classes),
-        ];
-
-        if ($json_content_to_write === false) {
-            $response_data['message'] = 'Failed to encode class list to JSON.';
-            //$this->response->status(500);
-        } else {
-            if (file_put_contents($file_path, $json_content_to_write, LOCK_EX) !== false) {
-                $response_data['status'] = 'success';
-                $response_data['message'] = 'Declared classes cache successfully updated.';
-                //$this->response->status(200);
-            } else {
-                $response_data['message'] = 'Failed to write class list to cache file.';
-                //$this->response->status(500);
-            }
-        }
-        // Собираем информацию о классах end
-
-        //$this->response->headers('Content-Type', 'application/json');
-        //$this->response->body(json_encode($response_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-    }
 	
     /**
      * Серверный контекст доступа (Prx_Actor): кто действует, с какими ролями

@@ -1,13 +1,13 @@
 <?php
-/** Проверка worker gate без БД: php .tools/gate_stand.php. */
-if ( ! defined('SYSPATH')) define('SYSPATH', __DIR__.'/../system/');
+/** Проверка worker gate без БД: php tests/Contracts/gate.php. */
+if ( ! defined('SYSPATH')) define('SYSPATH', dirname(__DIR__, 2).'/system/');
 class Request {
     public $header = NULL;
     public $token = NULL;
     public function headers($key) { return $this->header; }
     public function query($key) { return $this->token; }
 }
-require dirname(__DIR__).'/application/classes/Prx/Gate.php';
+require dirname(__DIR__, 2).'/application/classes/Prx/Gate.php';
 $request = new Request;
 $ok = 0;
 function verify_gate($label, $actual, $expected) {

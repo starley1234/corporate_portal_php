@@ -81,7 +81,7 @@ JSON (`extract`), tool-calling, MCP, промпты-шаблоны, эмбедд
   был известен фабрике: в лог лило «Unknown LLM provider configured», а
   get_embedding() молча уходил на провайдера local. embedding_model
   переключается на embedding_server:: только при заданном EMBEDDING_API_URL.
-  Проверяет .tools/llm_providers_stand.php.
+  Проверяет tests/Contracts/llm_providers.php.
 - Формат логов llm_requests используют отчёты — не менять схему без миграции.
 - `embedding_model` в конфиге — строка `провайдер::модель`; правится согласованно
   с секцией `embedding`.

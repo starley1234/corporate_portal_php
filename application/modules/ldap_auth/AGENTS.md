@@ -12,5 +12,5 @@ login; роли и TOTP остаются в портале. Автосоздан
 локальные пароли нет. Только LDAPS или StartTLS, проверка сертификата обязательна,
 сервисный bind без пустого пароля, экранированный фильтр и ровно одна запись.
 Запомненные ORM-cookie в LDAP-режиме не используются. Тест:
-`php .tools/ldap_auth_stand.php`; Docker-extension собирается с build-arg
+`php tests/Contracts/ldap_auth.php`; Docker-extension собирается с build-arg
 `INSTALL_LDAP=1`; требуется также реальный LDAP/FPM/БД стенд.

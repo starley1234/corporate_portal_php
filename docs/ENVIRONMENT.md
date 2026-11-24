@@ -1,6 +1,6 @@
 # Окружение PRX
 
-Граница внешних сервисов и обработчиков очереди — в [архитектуре](ARCHITECTURE.md#граница-процессов).
+Граница внешних сервисов и обработчиков очереди — в [архитектуре](ARCHITECTURE.md#где-что-находится).
 
 ## Требования
 PHP 8.4 CLI/FPM с pgsql, pdo_pgsql, mbstring, curl, openssl, JSON, session;
@@ -303,7 +303,7 @@ location ^~ /storage/ {
   обслуживания. Требует у dev-роли право CREATE DATABASE; не для production.
 - `SMOKE_URL=http://localhost:8080 bash bin/check-fresh.sh` — дополнительно HTTP
   уже работающего сайта с админом из локального .env (не временной БД).
-- `source bin/_env.sh; prx_load_env .env; python3 tests/http_smoke.py` — только HTTP.
+- `source bin/_env.sh; prx_load_env .env; python3 tests/E2e/http_smoke.py` — только HTTP.
 - `npm ci && npm run build:css && npm test` — локальные assets и общий UI.
 - `PYTHONPATH=workers python3 -m pytest workers/tests -q` — worker regression.
 

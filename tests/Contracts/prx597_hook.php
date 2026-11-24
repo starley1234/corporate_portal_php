@@ -11,12 +11,12 @@
  *   - любое исключение внутри — всё равно 200: иначе мессенджер будет
  *     присылать одно и то же обновление бесконечно.
  *
- *   PRX_ROOT=/path/to/prx.ru node phpwasm_stand.mjs .tools/prx597_hook_stand.php
+ *   PRX_ROOT=/path/to/prx.ru node phpwasm.mjs tests/Contracts/prx597_hook.php
  */
 
 if ( ! defined('SYSPATH'))
 {
-	define('SYSPATH', dirname(__DIR__).'/system/');
+	define('SYSPATH', dirname(__DIR__, 2).'/system/');
 }
 
 // ---------------------------------------------------------------- заглушки
@@ -159,7 +159,7 @@ class Log
 }
 
 // Настоящий контроллер вебхуков.
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Controller/Prx597/Hook.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Controller/Prx597/Hook.php';
 
 // ---------------------------------------------------------------- проверки
 $ok  = 0;

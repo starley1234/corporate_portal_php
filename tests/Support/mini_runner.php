@@ -8,8 +8,8 @@
  * реализует используемые тестами ассерты PHPUnit и запускает классы
  * tests/Smoke и tests/Unit. Результат: список проверок + код возврата.
  *
- *   php tests/mini_runner.php            # все тесты
- *   php tests/mini_runner.php VatService # по подстроке имени класса
+ *   php tests/Support/mini_runner.php            # все тесты
+ *   php tests/Support/mini_runner.php VatService # по подстроке имени класса
  *
  * В обычной среде используйте bin/test (phpunit) — этот файл только fallback.
  */
@@ -188,31 +188,11 @@ namespace PHPUnit\Framework {
 
 namespace {
 
-	// --- бустрап приложения (как tests/bootstrap.php) --------------------------
-	$root = realpath(__DIR__ . '/..') . DIRECTORY_SEPARATOR;
-
-	require $root . 'application/env.php';
-	prx_env_load($root);
-
-	error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
-
-	define('EXT', '.php');
-	define('DOCROOT', $root . 'public_html' . DIRECTORY_SEPARATOR);
-	define('APPPATH', $root . 'application' . DIRECTORY_SEPARATOR);
-	define('MODPATH', $root . 'modules' . DIRECTORY_SEPARATOR);
-	define('SYSPATH', $root . 'system' . DIRECTORY_SEPARATOR);
-
-	if ( ! defined('KOHANA_START_TIME'))
-	{
-		define('KOHANA_START_TIME', microtime(TRUE));
-		define('KOHANA_START_MEMORY', memory_get_usage());
-	}
-
-	require APPPATH . 'bootstrap' . EXT;
+	require dirname(__DIR__).'/bootstrap.php';
 
 	// --- прогон -----------------------------------------------------------------
 	$filter = $argv[1] ?? '';
-	$files = array_merge(glob(__DIR__.'/Smoke/*.php'), glob(__DIR__.'/Unit/*.php'));
+	$files = array_merge(glob(dirname(__DIR__).'/Smoke/*.php'), glob(dirname(__DIR__).'/Unit/*.php'));
 	$passed = $failed = $skipped = 0;
 
 	/**

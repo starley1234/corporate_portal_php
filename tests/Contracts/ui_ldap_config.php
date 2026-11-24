@@ -1,8 +1,8 @@
 <?php
 /** Проверка конфигурации LDAP и отображения очереди без БД. */
-if ( ! defined('SYSPATH')) define('SYSPATH', dirname(__DIR__).'/system/');
-if ( ! defined('APPPATH')) define('APPPATH', dirname(__DIR__).'/application/');
-if ( ! defined('MODPATH')) define('MODPATH', dirname(__DIR__).'/modules/');
+if ( ! defined('SYSPATH')) define('SYSPATH', dirname(__DIR__, 2).'/system/');
+if ( ! defined('APPPATH')) define('APPPATH', dirname(__DIR__, 2).'/application/');
+if ( ! defined('MODPATH')) define('MODPATH', dirname(__DIR__, 2).'/modules/');
 class Session { public static $default = 'native'; }
 class HTML { public static function chars($s) { return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8'); } }
 class Security { public static function token() { return 'test-token'; } }

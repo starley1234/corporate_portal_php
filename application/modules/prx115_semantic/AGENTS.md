@@ -127,8 +127,8 @@ $results = Service_Prx115_Semantic::search('prx401_tasks', 'задачи по б
   processing, а пульс не идёт (процесс воркера умер или задача осиротела при
   рестарте). Закрывают её: python-воркер (`release_own_orphans` при старте,
   фоновый `PgQueue.sweep_stale_standalone`) и сайтовый
-  `Service_Prx120_JobQueue::requeue_stale` (уборка идёт и без крона —
-  `maybe_maintain()` на каждом заходе на сайт).
+  `Service_Prx120_JobQueue::requeue_stale` из `portal:maintain` по таймеру.
+  Открытие страницы и опрос статуса больше не запускают уборку.
 - Пульс задачи — `coalesce(heartbeat_at, claimed_at, started_at, created_at)`:
   так его считают и правила уборки, и монитор. Предельный возраст задачи —
   `GREATEST(timeout_sec * 3, PRX_JOB_MAX_AGE_SEC=3600)` секунд.

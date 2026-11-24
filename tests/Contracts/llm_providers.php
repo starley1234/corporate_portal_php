@@ -13,12 +13,12 @@
  *     только при заданном EMBEDDING_API_URL (иначе — local::);
  *   - карта провайдеров не потеряла openai/openrouter/local.
  *
- *   PRX_ROOT=/path/to/prx.ru node phpwasm_stand.mjs .tools/llm_providers_stand.php
+ *   PRX_ROOT=/path/to/prx.ru node phpwasm.mjs tests/Contracts/llm_providers.php
  */
 
 if ( ! defined('SYSPATH'))
 {
-	define('SYSPATH', dirname(__DIR__).'/system/');
+	define('SYSPATH', dirname(__DIR__, 2).'/system/');
 }
 
 // ---------------------------------------------------------------- заглушки
@@ -38,8 +38,8 @@ class Config
 	public function load($name)
 	{
 		foreach ([
-			dirname(__DIR__).'/application/config/'.$name.'.php',
-			dirname(__DIR__).'/application/modules/llm/config/'.$name.'.php',
+			dirname(__DIR__, 2).'/application/config/'.$name.'.php',
+			dirname(__DIR__, 2).'/application/modules/llm/config/'.$name.'.php',
 		] as $file)
 		{
 			if (is_file($file))
@@ -83,12 +83,12 @@ Kohana::$log    = new Kohana_Log_Stub;
 class Kohana_Exception extends Exception {}
 
 // Классы модуля llm: интерфейс, провайдеры, сервис.
-require dirname(__DIR__).'/application/modules/llm/classes/Interface/LlmProvider.php';
-require dirname(__DIR__).'/application/modules/llm/classes/Llm/Provider/Abstract.php';
-require dirname(__DIR__).'/application/modules/llm/classes/Llm/Provider/OpenAICompatible.php';
-require dirname(__DIR__).'/application/modules/llm/classes/Llm/Provider/ToolforgeLocal.php';
-require dirname(__DIR__).'/application/modules/llm/classes/Llm/Provider/Toolforge.php';
-require dirname(__DIR__).'/application/modules/llm/classes/Llm/Service.php';
+require dirname(__DIR__, 2).'/application/modules/llm/classes/Interface/LlmProvider.php';
+require dirname(__DIR__, 2).'/application/modules/llm/classes/Llm/Provider/Abstract.php';
+require dirname(__DIR__, 2).'/application/modules/llm/classes/Llm/Provider/OpenAICompatible.php';
+require dirname(__DIR__, 2).'/application/modules/llm/classes/Llm/Provider/ToolforgeLocal.php';
+require dirname(__DIR__, 2).'/application/modules/llm/classes/Llm/Provider/Toolforge.php';
+require dirname(__DIR__, 2).'/application/modules/llm/classes/Llm/Service.php';
 
 // ---------------------------------------------------------------- проверки
 $ok  = 0;
@@ -143,15 +143,15 @@ check('неизвестный провайдер по-прежнему руга�
 // --- конфиг: embedding_model переключается по EMBEDDING_API_URL --------------
 putenv('EMBEDDING_API_URL=');
 putenv('EMBEDDING_MODEL=');
-$cfg = require dirname(__DIR__).'/application/config/llm.php';
+$cfg = require dirname(__DIR__, 2).'/application/config/llm.php';
 check('конфиг без EMBEDDING_API_URL → local::', $cfg['embedding_model'], 'local::text-embedding-qwen3-embedding-0.6b');
 
 putenv('EMBEDDING_API_URL=http://emb:7999');
-$cfg = require dirname(__DIR__).'/application/config/llm.php';
+$cfg = require dirname(__DIR__, 2).'/application/config/llm.php';
 check('конфиг с EMBEDDING_API_URL → embedding_server::', $cfg['embedding_model'], 'embedding_server::text-embedding-qwen3-embedding-0.6b');
 
 putenv('EMBEDDING_MODEL=my-embed-v2');
-$cfg = require dirname(__DIR__).'/application/config/llm.php';
+$cfg = require dirname(__DIR__, 2).'/application/config/llm.php';
 check('EMBEDDING_MODEL переопределяет модель', $cfg['embedding_model'], 'embedding_server::my-embed-v2');
 
 putenv('EMBEDDING_MODEL=');

@@ -75,6 +75,6 @@ FPM — вернётся исходный `Auth_ORM` с локальными п�
 
 ## Проверка
 
-`make check`, `bash .tools/php_check_all.sh`, `php .tools/ldap_auth_stand.php`.
+`make check`, `bash .tools/php_check_all.sh`, `php tests/Contracts/ldap_auth.php`.
 Стенд использует фальшивый LDAP и не заменяет проверку с настоящим сервером,
 сертификатами, PHP-FPM и портальной БД.

@@ -325,10 +325,6 @@ class Controller_Prx115_Api extends Controller_Base {
         {
             $queue = Service_Prx120_JobQueue::instance();
 
-            // Заходим на панель — заодно разбираем зависшие задачи канала
-            // (та же самолечебная логика, что в мониторе воркеров).
-            $queue->maybe_maintain();
-
             // Поля статус-ряда — НА ВЕРХНЕМ уровне: так устроен общий
             // partials/live_status_js (он читает s.status/s.stage/s.stages).
             return $this->_respond($queue->last_status('semantic.index') + ['ok' => TRUE]);

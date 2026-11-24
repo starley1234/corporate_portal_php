@@ -16,7 +16,7 @@
 #   2. PostgreSQL — переносимый, из PyPI-пакета pgserver (как в restore-env.sh),
 #      порт 5432, роль/база prx.
 #   3. Приложение: .env (bin/setup.sh) + vendor-заглушка + миграции + админ.
-#   4. Тесты: php tests/mini_runner.php (phpunit в такой сети недоступен).
+#   4. Тесты: php tests/Support/mini_runner.php (phpunit в такой сети недоступен).
 #
 # Проверено 21.09.2026 на Debian 12 (bookworm), gcc 12, PHP 8.4.25.
 # Системные требования: gcc/g++, make, python3+pip, perl, curl, git.
@@ -288,7 +288,7 @@ case "${PRX_DEFAULT_ADMIN:-1}" in
 esac
 
 msg "Дымовые тесты (мини-раннер, phpunit в закрытой сети недоступен)"
-php tests/mini_runner.php | tail -1
+php tests/Support/mini_runner.php | tail -1
 
 if [[ $SERVE -eq 1 ]]; then
     PORT="${PORT:-8080}" bash bin/serve

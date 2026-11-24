@@ -5,7 +5,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Ключи и реестр scope внешнего API.
  *
- * Запуск: php tests/mini_runner.php Prx150Keys
+ * Запуск: php tests/Support/mini_runner.php Prx150Keys
  */
 class Prx150KeysTest extends TestCase
 {

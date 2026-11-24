@@ -16,12 +16,12 @@
  *   - настройки: /prefs, /sub (обязательное событие — 403), /events,
  *     /bind, /unbind, /archive, /clear — и везде проверка CSRF.
  *
- *   PRX_ROOT=/path/to/prx.ru node phpwasm_stand.mjs .tools/prx597_api_stand.php
+ *   PRX_ROOT=/path/to/prx.ru node phpwasm.mjs tests/Contracts/prx597_api.php
  */
 
 if ( ! defined('SYSPATH'))
 {
-	define('SYSPATH', dirname(__DIR__).'/system/');
+	define('SYSPATH', dirname(__DIR__, 2).'/system/');
 }
 
 // ---------------------------------------------------------------- заглушки
@@ -232,8 +232,8 @@ class Log
 }
 
 // Настоящий контроллер API уведомлений.
-require dirname(__DIR__).'/application/classes/Prx/Gate.php';
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Controller/Prx597/Api.php';
+require dirname(__DIR__, 2).'/application/classes/Prx/Gate.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Controller/Prx597/Api.php';
 
 // ---------------------------------------------------------------- проверки
 $ok  = 0;

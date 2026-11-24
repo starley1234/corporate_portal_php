@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / '.tools'))
 spec = importlib.util.spec_from_file_location('classes_lint', ROOT / '.tools/classes_lint.py')
 lint = importlib.util.module_from_spec(spec)

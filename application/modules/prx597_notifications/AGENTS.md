@@ -5,11 +5,11 @@
 | Раздел | Строка | Размер |
 |---|---|---|
 |   Состояние (16.11.2026) | 40 | 1,2 КБ |
-|   Проверки модуля | 54 | 2,4 КБ |
-|   Как модулю попасть в центр уведомлений | 79 | 0,4 КБ |
-|   Что где лежит | 87 | 1,7 КБ |
-|   Грабли, на которые уже наступали | 105 | 1,5 КБ |
-|   Вьюхи админки | 122 | 0,5 КБ |
+|   Проверки модуля | 54 | 2,1 КБ |
+|   Как модулю попасть в центр уведомлений | 77 | 0,4 КБ |
+|   Что где лежит | 85 | 1,7 КБ |
+|   Грабли, на которые уже наступали | 103 | 1,5 КБ |
+|   Вьюхи админки | 120 | 0,5 КБ |
 <!-- context-index:end -->
 * Центр уведомлений платформы. Единственный слой доставки пользователю:
   колокольчик (опрос `/prx597/api/unread`), почта, Telegram, MAX.
@@ -28,7 +28,7 @@
   ставит `$_halt`, но Kohana выполняет действие ВСЁ РАВНО — каждое действие
   обязано начинаться с `if ($this->_halt) return;` (06.10.2026 анонимный
   опрос колокольчика падал EMERGENCY «read property id on null»). Стенд
-  `.tools/prx597_api_stand.php`.
+  `tests/Contracts/prx597_api.php`.
 * Опасные действия — двойное нажатие (`data-prx-arm`): чистка, сброс лимитов,
   возврат DLQ.
 * Вёрстка по эталону: крошки + h1, KPI, 2/3 + 1/3, ничего мельче `text-xs`.
@@ -53,13 +53,11 @@
 
 ## Проверки модуля
 
-- PHP-WASM: `.tools/prx597_{engine,delivery,api,hook}_stand.php` — движковый стенд
-  один даёт 447 проверок. Engine включает `.tools/prx597_settings_cases.php`,
-  `prx597_admin_cases.php` (настоящие сервисы/вьюхи/POST; все вкладки управления,
-  права и ошибки записи) и `prx597_notify_contract_cases.php` (контракт
-  `notify` в манифестах модулей-источников, миграции, идемпотентность синхронизации).
-- JS: `node --test tests/Js/prx597_notifications.test.mjs` и
-  `node --test tests/Js/prx597_ai_template.test.mjs` (13 проверок вместе).
+- `make test-contracts` — все изолированные PHP-контракты, включая
+  `tests/Contracts/prx597_{engine,delivery,api,hook}.php`. Engine включает
+  `tests/Contracts/fixtures/prx597_{queue,settings,admin}.php`.
+- Без PHP CLI — WASM по инструкции `tests/README.md`.
+- JS: `npm test` — существующий общий набор UI/CSRF-тестов.
 - `bash .tools/php_check_all.sh application/modules/prx597_notifications`.
 - Полное соответствие драйверов — только `Base::channel_driver()`, не ucfirst.
   `channels()` — настроенные транспорты, `user_channels()` — пользовательский

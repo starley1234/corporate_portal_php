@@ -1,7 +1,7 @@
 <?php
 namespace LdapStand;
 /** Изолированный контракт LDAP-драйвера. Не заменяет тест с LDAP-сервером. */
-if ( ! defined('SYSPATH')) define('SYSPATH', __DIR__.'/../system/');
+if ( ! defined('SYSPATH')) define('SYSPATH', dirname(__DIR__, 2).'/system/');
 foreach (['LDAP_OPT_PROTOCOL_VERSION'=>1, 'LDAP_OPT_REFERRALS'=>2, 'LDAP_OPT_NETWORK_TIMEOUT'=>3,
           'LDAP_OPT_X_TLS_REQUIRE_CERT'=>4, 'LDAP_OPT_X_TLS_DEMAND'=>5, 'LDAP_ESCAPE_FILTER'=>1] as $key=>$value) {
     if ( ! defined($key)) define($key, $value);
@@ -44,7 +44,7 @@ function ldap_search($conn, $base, $filter, $attrs, $only, $limit, $timeout) {
 function ldap_escape($input, $ignore, $flags) { return str_replace(['\\','*','(',')',"\0"], ['\\5c','\\2a','\\28','\\29','\\00'], $input); }
 function ldap_get_entries($conn, $result) { return ['count' => $GLOBALS['ldap_test']['count'], 0 => ['dn' => 'uid=alice,dc=example']]; }
 function ldap_unbind($conn) { $GLOBALS['ldap_test']['calls'][] = 'unbind'; return TRUE; }
-eval('namespace LdapStand; ?>'.file_get_contents(dirname(__DIR__).'/application/modules/ldap_auth/classes/Auth/Ldap.php'));
+eval('namespace LdapStand; ?>'.file_get_contents(dirname(__DIR__, 2).'/application/modules/ldap_auth/classes/Auth/Ldap.php'));
 class Test_Ldap extends Auth_Ldap {
     public function login_test($name, $password, $remember = FALSE) { return $this->_login($name, $password, $remember); }
     public function verify_test($name, $password) { return $this->verify_ldap($name, $password); }

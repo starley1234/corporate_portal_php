@@ -2,13 +2,10 @@
  * PHP-in-WASM стенд: запускает PHP-сценарий из репозитория без PHP в системе.
  *
  * Зачем: в песочницах Arena PHP CLI нет, а сервисный слой модулей проверять
- * нужно. Здесь PHP 8.3 собирается в WebAssembly (@php-wasm) и выполняет файл
+ * нужно. Здесь PHP 8.4 собирается в WebAssembly (@php-wasm) и выполняет файл
  * стенда в памяти — с исходниками репозитория, доступными как /app/....
  *
- *   mkdir -p /tmp/phpwasm && cd /tmp/phpwasm
- *   npm i @php-wasm/node @php-wasm/universal
- *   cp <repo>/.tools/phpwasm_stand.mjs .
- *   node phpwasm_stand.mjs .tools/prx597_engine_stand.php
+ * Установка и запуск: tests/README.md (зависимости остаются вне репозитория).
  *
  * Стенды читают исходники по путям из базы /app (root репозитория).
  */
@@ -21,14 +18,14 @@ import { dirname, resolve } from 'node:path';
 const stand = process.argv[2];
 
 if (!stand || !existsSync(stand) && !existsSync(resolve(process.env.PRX_ROOT || '.', stand || ''))) {
-    console.error('использование: node phpwasm_stand.mjs <файл-стенда.php>');
+    console.error('использование: node phpwasm.mjs <файл-стенда.php>');
     process.exit(2);
 }
 
 const root = (process.env.PRX_ROOT
     || spawnSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8' }).stdout.trim()
     || process.cwd()).trim();
-const rt = await loadNodeRuntime('8.3', { emscriptenOptions: { processId: 8001 } });
+const rt = await loadNodeRuntime('8.4', { emscriptenOptions: { processId: 8001 } });
 const php = new PHP(rt);
 
 php.mkdir('/app');

@@ -18,7 +18,7 @@ import urllib.request
 from pathlib import Path
 from unittest import mock
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 SPEC = importlib.util.spec_from_file_location("prx_storage_migration", ROOT / "bin/migrate-storage.py")
 assert SPEC and SPEC.loader
 migration = importlib.util.module_from_spec(SPEC)

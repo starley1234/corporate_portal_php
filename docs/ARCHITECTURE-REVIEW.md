@@ -201,7 +201,7 @@ tests/Unit/PrxNNN*Test.php   # политика: гость и чужая орг
 когда выполнен его критерий.
 
 1. **PHP-стенд — первый запуск всего, что не выполняется в песочнице.**
-   phpunit (включая `tests/Unit/PrxFoundationTest.php`), `tests/http_smoke.py`,
+   phpunit (включая `tests/Unit/PrxFoundationTest.php`), `tests/E2e/http_smoke.py`,
    `make new-module id=…` вживую с удалением результата; новые страницы
    (`/prx100/logs`, `/prx208_events`, `/architecture/guide`, `/prx597/admin`)
    глазами — светлая/тёмная, 390 px. Критерий: ни одной красной строки.

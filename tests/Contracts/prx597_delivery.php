@@ -1,13 +1,13 @@
 <?php
 /** Настоящие Engine/Base/Registry/Render. БД и транспорт подменены: сеть не вызывается. */
-defined('SYSPATH') OR define('SYSPATH', dirname(__DIR__).'/system/');
+defined('SYSPATH') OR define('SYSPATH', dirname(__DIR__, 2).'/system/');
 class Arr
 {
     public static function get($a, $key, $default = NULL) { return $a[$key] ?? $default; }
     public static function path($a, $path, $default = NULL) { foreach (explode('.', $path) as $key) { if (!isset($a[$key])) return $default; $a = $a[$key]; } return $a; }
 }
 class Kohana { public static $config; public static $log; }
-class Kohana_Config_Group { public function as_array() { return require dirname(__DIR__).'/application/modules/prx597_notifications/config/prx597_notifications.php'; } }
+class Kohana_Config_Group { public function as_array() { return require dirname(__DIR__, 2).'/application/modules/prx597_notifications/config/prx597_notifications.php'; } }
 Kohana::$config = new class {
     public function load($name) { return new Kohana_Config_Group; }
 };
@@ -63,10 +63,10 @@ class Test_Db
         throw new RuntimeException('Неожиданный SQL: '.$sql);
     }
 }
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Base.php';
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Registry.php';
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Render.php';
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Service/Prx597/Engine.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Base.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Registry.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Render.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Engine.php';
 class Service_Prx597_Notify
 {
     public static $prefs = [];
@@ -228,7 +228,7 @@ check('одно сообщение: in_app действительно вызва
 // Прочитано на сайте — наружу не шлём (владелец, 16.10.2026: «уведомление
 // наружу — просьба о действии, а не отчёт»). Сообщение не теряется: уходит в
 // журнал с причиной, чтобы администратор видел, почему письма не было.
-$notif_cfg = require dirname(__DIR__).'/application/modules/prx597_notifications/config/prx597_notifications.php';
+$notif_cfg = require dirname(__DIR__, 2).'/application/modules/prx597_notifications/config/prx597_notifications.php';
 check('тишина: правило включено умолчанием', (bool) $notif_cfg['delivery']['skip_when_read'], TRUE);
 check('своё: правило включено умолчанием', (bool) $notif_cfg['presence']['skip_self'], TRUE);
 
@@ -318,7 +318,7 @@ check('своё: причина видна в очереди', sql_has('Своё
 // ---------------------------------------------------------------------------
 // Сводка — раз в сутки, и одинаковые события одной строкой (владелец,
 // 16.10.2026: «я за лаконичность и разумные решения»).
-$digest_cfg = require dirname(__DIR__).'/application/modules/prx597_notifications/config/prx597_notifications.php';
+$digest_cfg = require dirname(__DIR__, 2).'/application/modules/prx597_notifications/config/prx597_notifications.php';
 check('сводка: правило «одно письмо в сутки» включено', (int) $digest_cfg['digest']['per_day'], 1);
 
 reset_delivery([fixture(1, 11)]);

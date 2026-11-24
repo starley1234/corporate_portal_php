@@ -5,7 +5,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Юнит-тесты Log_Plain — плоского ротируемого лога сайта.
  *
- * Запуск: php tests/mini_runner.php LogPlain
+ * Запуск: php tests/Support/mini_runner.php LogPlain
  *
  * Повод (03.10.2026): прогон «фото этикетки» падал на приёмке результат с 500,
  * а на сайте не оставалось ни одной записи о том, что приёмка вообще была.

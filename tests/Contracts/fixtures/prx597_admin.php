@@ -1,7 +1,7 @@
 <?php
 /** Дополнение engine_stand: реальные контракты реестра/вьюхи и адресное сообщение. */
 echo "\n-- админка: шаблоны и сообщение пользователю --\n";
-require dirname(__DIR__).'/application/modules/prx597_notifications/classes/Controller/Prx597/Admin.php';
+require dirname(__DIR__, 3).'/application/modules/prx597_notifications/classes/Controller/Prx597/Admin.php';
 class HTTP_Exception { public static function factory($code, $message) { return new RuntimeException($message, $code); } }
 class Prx597_Admin_Controller extends Controller_Prx597_Admin
 {
@@ -102,7 +102,7 @@ function prx597_admin_render($tab, $placeholders = NULL, array $extra = [])
     $source_alert = NULL;
     extract($extra, EXTR_OVERWRITE);
     ob_start();
-    try { include dirname(__DIR__).'/application/modules/prx597_notifications/views/prx597/admin.php'; return ob_get_contents(); }
+    try { include dirname(__DIR__, 3).'/application/modules/prx597_notifications/views/prx597/admin.php'; return ob_get_contents(); }
     finally { ob_end_clean(); }
 }
 set_error_handler(function ($code, $message) { throw new RuntimeException($message); }, E_WARNING | E_NOTICE);
