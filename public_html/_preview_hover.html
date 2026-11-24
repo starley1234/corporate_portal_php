@@ -1,0 +1,83 @@
+﻿<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Каталог — наведение (до/после)</title>
+<link rel="stylesheet" href="/assets/vendor/fontawesome/css/all.min.css">
+<link rel="stylesheet" href="/assets/css/app.css">
+<style>
+body{background:#f9fafb}
+/* фиксируем состояние :hover для снимка */
+.fh{background:#f3f4f6}
+.fh>a{color:#2563eb}
+.fh i.fa-solid{color:#3b82f6}
+</style>
+</head>
+<body class="prx-ds">
+<div class="mx-auto max-w-3xl px-6 py-8">
+  <p class="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-400">БЫЛО — полоска py-0.5, переход 150 мс</p>
+  <section class="prx-card mb-10">
+    <a href="#" class="group flex items-center gap-2.5">
+      <span class="rounded-lg bg-blue-50 p-2 text-sm font-bold text-blue-600"><i class="fas fa-file-invoice"></i></span>
+      <h2 class="prx-h3 min-w-0 truncate">Документы и файлы</h2>
+      <span class="prx-count ml-auto shrink-0">4</span>
+    </a>
+    <ul class="mt-3.5 space-y-1 text-sm leading-snug text-gray-600">
+      <li class="catalog-item group/item flex items-center gap-1 fh">
+        <a href="#" class="inline-flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-0.5 -mx-1.5 transition bg-gray-50 text-blue-600">
+          <i class="fas fa-paperclip w-4 shrink-0 text-center text-sm text-gray-400"></i>
+          <span class="truncate">Хранилище файлов</span>
+        </a>
+        <button type="button" class="prx-btn-icon nav-pin-card h-10 w-10 shrink-0 text-sm text-gray-400"><i class="fas fa-star"></i></button>
+      </li>
+      <li class="catalog-item group/item flex items-center gap-1">
+        <a href="#" class="inline-flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-0.5 -mx-1.5 transition hover:bg-gray-50 hover:text-blue-600">
+          <i class="fas fa-file-lines w-4 shrink-0 text-center text-sm text-gray-400"></i>
+          <span class="truncate">Шаблоны документов</span>
+        </a>
+        <button type="button" class="prx-btn-icon nav-pin-card h-10 w-10 shrink-0 text-sm text-gray-400"><i class="fas fa-star"></i></button>
+      </li>
+      <li class="catalog-item group/item flex items-center gap-1">
+        <a href="#" class="inline-flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-0.5 -mx-1.5 transition hover:bg-gray-50 hover:text-blue-600">
+          <i class="fas fa-book w-4 shrink-0 text-center text-sm text-gray-400"></i>
+          <span class="truncate">База знаний</span>
+        </a>
+        <button type="button" class="prx-btn-icon nav-pin-card h-10 w-10 shrink-0 text-sm text-gray-400"><i class="fas fa-star"></i></button>
+      </li>
+    </ul>
+  </section>
+
+  <p class="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-400">СТАЛО — подсветка всей строки, без задержки</p>
+  <section class="prx-card">
+    <a href="#" class="group flex items-center gap-2.5">
+      <span class="rounded-lg bg-blue-50 p-2 text-sm font-bold text-blue-600"><i class="fas fa-file-invoice"></i></span>
+      <h2 class="prx-h3 min-w-0 truncate transition-colors group-hover:text-blue-600">Документы и файлы</h2>
+      <span class="ml-auto shrink-0 text-xs font-semibold tabular-nums text-gray-400">4</span>
+    </a>
+    <ul class="mt-2 space-y-0.5 text-sm leading-snug text-gray-600">
+      <li class="catalog-item group/item -mx-2 flex items-center rounded-lg hover:bg-gray-100 fh">
+        <a href="#" class="inline-flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:text-blue-600">
+          <i class="fas fa-paperclip w-4 shrink-0 text-center text-sm text-gray-400 transition-colors group-hover/item:text-blue-500"></i>
+          <span class="truncate">Хранилище файлов</span>
+        </a>
+        <button type="button" class="prx-btn-icon nav-pin-card h-9 w-9 shrink-0 text-sm text-gray-400"><i class="fas fa-star"></i></button>
+      </li>
+      <li class="catalog-item group/item -mx-2 flex items-center rounded-lg hover:bg-gray-100">
+        <a href="#" class="inline-flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:text-blue-600">
+          <i class="fas fa-file-lines w-4 shrink-0 text-center text-sm text-gray-400 transition-colors group-hover/item:text-blue-500"></i>
+          <span class="truncate">Шаблоны документов</span>
+        </a>
+        <button type="button" class="prx-btn-icon nav-pin-card h-9 w-9 shrink-0 text-sm text-gray-400"><i class="fas fa-star"></i></button>
+      </li>
+      <li class="catalog-item group/item -mx-2 flex items-center rounded-lg hover:bg-gray-100">
+        <a href="#" class="inline-flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:text-blue-600">
+          <i class="fas fa-book w-4 shrink-0 text-center text-sm text-gray-400 transition-colors group-hover/item:text-blue-500"></i>
+          <span class="truncate">База знаний</span>
+        </a>
+        <button type="button" class="prx-btn-icon nav-pin-card h-9 w-9 shrink-0 text-sm text-gray-400"><i class="fas fa-star"></i></button>
+      </li>
+    </ul>
+  </section>
+</div>
+</body>
+</html>
