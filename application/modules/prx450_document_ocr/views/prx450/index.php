@@ -54,14 +54,14 @@ $old = $old ?? [];
                         </div>
                     </div>
                     <p class="prx-hint mt-2">Файл: <?php echo HTML::chars($result['file']); ?> · <?php echo $fmt(strlen($result['content'])); ?> текста</p>
-                    <div class="mt-3 flex flex-wrap gap-2">
+                    <div class="no-print mt-3 flex flex-wrap gap-2">
                         <button type="button" class="prx-btn-secondary prx-btn-sm" data-prx-copy="#prx450-content">Копировать</button>
                         <button type="button" class="prx-btn-secondary prx-btn-sm" id="prx450-download">Скачать .md</button>
                         <button type="button" class="prx-btn-secondary prx-btn-sm" id="prx450-print">Печать</button>
                     </div>
-                    <pre id="prx450-content" class="mt-3 max-h-[32rem] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-gray-900 p-4 text-xs leading-5 text-gray-100" dir="auto"><?php echo HTML::chars($result['content']); ?></pre>
+                    <pre id="prx450-content" class="mt-3 max-h-[32rem] overflow-auto print:max-h-none print:overflow-visible whitespace-pre-wrap break-words rounded-lg bg-gray-900 p-4 text-xs leading-5 text-gray-100" dir="auto"><?php echo HTML::chars($result['content']); ?></pre>
                     <?php if ( ! empty($result['raw_result'])): ?>
-                        <details class="mt-3">
+                        <details class="no-print mt-3">
                             <summary class="cursor-pointer text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">Сырой JSON шлюза</summary>
                             <pre class="mt-2 max-h-72 overflow-auto rounded-lg bg-gray-900 p-3 text-xs leading-4 text-gray-100"><?php echo HTML::chars(json_encode($result['raw_result'], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)); ?></pre>
                         </details>

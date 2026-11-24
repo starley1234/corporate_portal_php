@@ -37,4 +37,20 @@ foreach ([413=>['file_too_large',413],415=>['unsupported_file',415],401=>['ocr_a
 error450('ocr_invalid_response',502,fn()=>call450('_result',200,'not json',$config,'md'));
 error450('file_required',400,fn()=>call450('_validate_upload',NULL,$config));
 error450('file_too_large',413,fn()=>call450('_validate_upload',['error'=>UPLOAD_ERR_INI_SIZE],$config));
+// Method errors precede key/rate checks and retain JSON + Allow + no-store.
+class Request {const POST='POST'; function method() {return 'GET';}}
+class OcrResponseProbe {
+ public $values=[];
+ function headers($key,$value) {$this->values[$key]=$value;}
+}
+class Controller_Prx150_Machine {
+ public $request,$response,$answer;
+ protected function respond(callable $fn): void {throw new LogicException('GET must not authenticate or invoke OCR');}
+ protected function _json_response($data,$status) {$this->answer=[$data,$status];}
+}
+require $root.'/application/modules/prx450_document_ocr/classes/Controller/Prx450/Api.php';
+$api=new Controller_Prx450_Api;
+$api->request=new Request; $api->response=new OcrResponseProbe; $api->action_parse();
+verify450($api->answer[1]===405 && $api->answer[0]['error']['code']==='method_not_allowed');
+verify450($api->response->values===['Cache-Control'=>'no-store','Allow'=>'POST']);
 echo "OCR contract: $n checks OK\n";
