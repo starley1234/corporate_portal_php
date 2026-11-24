@@ -40,7 +40,8 @@ def report(path: Path) -> int:
                         properties.append('line=' + line)
             message = (problem.text or problem.get('message') or problem.tag).strip()
             print('::error ' + ','.join(properties) + '::' + escape(message[:6000]))
-    print(f'PHPUnit JUnit: {len(cases)} tests, {failed} failures/errors')
+    skipped = sum(1 for case in cases if case.find('skipped') is not None)
+    print(f'::notice title=PHPUnit::PHPUnit JUnit: {len(cases)} tests, {failed} failures/errors, {skipped} skipped')
     if not cases:
         print('::error title=PHPUnit report::JUnit не содержит тестов')
     return int(failed > 0 or not cases)

@@ -240,6 +240,71 @@ class EmployeeDirectoryTest extends TestCase
         });
     }
 
+    public function test_cli_uses_real_operator_and_applies_only_explicitly(): void
+    {
+        $operator = $this->_make_user('cli');
+        $org = 't300cli'.$this->suffix;
+        $this->org_codes[] = $org;
+        $path = tempnam(sys_get_temp_dir(), 'prx300cli');
+        try
+        {
+            $handle = fopen($path, 'wb');
+            $headers = Service_Prx300_Import::allowed_headers();
+            $row = $this->_row($org, 'CLI-'.$this->suffix);
+            fputcsv($handle, $headers, ';', '"', '');
+            fputcsv($handle, array_map(function ($key) use ($row) { return $row[$key] ?? ''; }, $headers), ';', '"', '');
+            fclose($handle);
+            $args = ['--file='.$path, '--source='.$this->source];
+
+            [$status, $output] = $this->_import_cli($args);
+            $this->assertNotSame(0, $status, $output);
+            $this->assertStringContainsString('--user=', $output);
+            [$status, $output] = $this->_import_cli(array_merge($args, ['--user='.$operator->id]));
+            $this->assertNotSame(0, $status, $output); // реальный аккаунт, но без права импорта
+            $db = Database::instance();
+            $count = $db->query(Database::SELECT, 'SELECT count(*) AS n FROM prx_300_import_batches WHERE source_system = '.$db->quote($this->source), FALSE)->current();
+            $this->assertSame(0, (int) $count['n']);
+
+            $operator->add('roles', ORM::factory('Role', ['name' => 'admin']));
+            $args[] = '--user='.$operator->id;
+            [$status, $output] = $this->_import_cli($args);
+            $this->assertSame(0, $status, $output);
+            $batches = Service_Prx300_Import::batches($this->_global_actor());
+            $batch = array_values(array_filter($batches, function ($batch) {
+                return $batch['source_system'] === $this->source;
+            }))[0];
+            $this->assertSame('validated', $batch['status']);
+            $this->assertNull(Service_Prx300_Identity::employee_id_for_external($this->source, 'CLI-'.$this->suffix));
+            $db = Database::instance();
+            $stored = $db->query(Database::SELECT, 'SELECT created_by_user_id FROM prx_300_import_batches WHERE id = '.(int) $batch['id'], FALSE)->current();
+            $this->assertSame((int) $operator->id, (int) $stored['created_by_user_id']);
+
+            [$status, $output] = $this->_import_cli(array_merge($args, ['--apply=1']));
+            $this->assertSame(0, $status, $output);
+            $batch = Service_Prx300_Import::batch($this->_global_actor(), $batch['id'], FALSE);
+            $this->assertSame('applied', $batch['status']);
+            $this->assertNotNull(Service_Prx300_Identity::employee_id_for_external($this->source, 'CLI-'.$this->suffix));
+            $audit = $db->query(Database::SELECT, "SELECT actor_user_id FROM prx_300_audit_log WHERE action = 'import.applied' AND entity_id = ".(int) $batch['id'], FALSE)->current();
+            $this->assertSame((int) $operator->id, (int) $audit['actor_user_id']);
+        }
+        finally
+        {
+            unlink($path);
+        }
+    }
+
+    protected function _import_cli(array $args): array
+    {
+        $root = dirname(__DIR__, 2);
+        $process = proc_open(array_merge([PHP_BINARY, $root.'/public_html/index.php', 'prx300:import'], $args),
+            [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['redirect', 1]], $pipes, $root);
+        if ( ! is_resource($process)) throw new RuntimeException('CLI process could not start');
+        fclose($pipes[0]);
+        $output = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        return [proc_close($process), $output];
+    }
+
     public function test_csv_parser_accepts_template_and_rejects_unknown_columns(): void
     {
         $path = tempnam(sys_get_temp_dir(), 'prx300csv');

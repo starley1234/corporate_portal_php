@@ -39,7 +39,7 @@ class Event {
         self::assert_name($name);
         self::assert_payload($payload, $name);
 
-        $bus = self::bus();
+        $bus = static::bus();
         if ($bus === NULL)
         {
             Kohana::$log->add(Log::WARNING, 'prx208_events не подключён, событие пропущено: :event', [
@@ -62,7 +62,7 @@ class Event {
     {
         self::assert_name($name);
 
-        $bus = self::bus();
+        $bus = static::bus();
         if ($bus !== NULL)
         {
             $bus->listen($name, $callback);
@@ -77,7 +77,7 @@ class Event {
      */
     public static function has(string $name): bool
     {
-        $bus = self::bus();
+        $bus = static::bus();
         return $bus !== NULL AND $bus->has_listeners($name);
     }
 

@@ -40,7 +40,7 @@ class PhpunitReportTest(unittest.TestCase):
         self.assertEqual(status, 1)
         self.assertIn('a%2Cb%0A', output)
         self.assertIn('first%0A::notice::bad%250A', output)
-        self.assertNotIn('\n::notice', output)
+        self.assertNotIn('\n::notice::bad', output)
 
     def test_source_location(self):
         file = ROOT / 'tests/Smoke/EmployeeDirectoryTest.php'
