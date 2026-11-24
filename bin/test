@@ -39,6 +39,12 @@ if [[ "${1:-}" == "--contracts" ]]; then
     exit "$failed"
 fi
 
+# Только для БД тестового стенда после db:migrate; обычный запуск не пишет решения.
+if [[ "${1:-}" == "--backfill-publications" ]]; then
+    shift
+    "$PHP_BIN" "$ROOT/public_html/index.php" prx110:publication:backfill --apply=1
+fi
+
 if [[ -f vendor/bin/phpunit ]]; then
     exec "$PHP_BIN" vendor/bin/phpunit -c phpunit.xml.dist "$@"
 fi

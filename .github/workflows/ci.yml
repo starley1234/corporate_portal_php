@@ -69,7 +69,7 @@ jobs:
         id: phpunit
         run: |
           set -o pipefail
-          bash bin/test --log-junit /tmp/prx-phpunit.xml 2>&1 | tee /tmp/prx-phpunit.log
+          bash bin/test --backfill-publications --log-junit /tmp/prx-phpunit.xml 2>&1 | tee /tmp/prx-phpunit.log
       - name: Publish PHPUnit failures
         if: always()
         env:

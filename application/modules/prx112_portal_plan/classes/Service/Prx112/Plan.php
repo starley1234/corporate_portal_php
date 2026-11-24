@@ -101,6 +101,11 @@ class Service_Prx112_Plan
 
     private static function module_item(array $module, array $ctx, bool $can_approve): array
     {
+        $meta = Service_Prx110_Publication::decision_meta($module['module_name']);
+        if (($meta['state'] ?? NULL) !== $module['state'])
+        {
+            $meta = NULL; // Технический архив манифеста не является решением администратора.
+        }
         return [
             'title' => $module['title'],
             'description' => $module['short'],
@@ -108,6 +113,9 @@ class Service_Prx112_Plan
             'manifest_state' => Service_Prx110_Catalog::resolve_manifest_state($module),
             'href' => Service_Prx110_Catalog::can_see($module, $ctx) ? $module['href'] : NULL,
             'icon' => $module['icon'],
+            'decided_at' => $meta['decided_at'] ?? NULL,
+            'decided_by_name' => $meta['decided_by_name'] ?? NULL,
+            'note' => $meta['note'] ?? '',
             'publication_module' => $can_approve && Service_Prx110_Publication::eligible($module)
                 ? $module['module_name'] : NULL,
         ];

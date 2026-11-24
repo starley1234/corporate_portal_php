@@ -1,4 +1,9 @@
-<?php defined('SYSPATH') or die('No direct script access.'); ?>
+<?php defined('SYSPATH') or die('No direct script access.');
+
+$manifest = class_exists('Service_Prx110_Catalog') ? Service_Prx110_Catalog::get((string) $module->system_name) : NULL;
+$publication = $manifest === NULL ? NULL : Service_Prx110_Catalog::resolve_state($manifest);
+$inventory_state = ['stable' => 'approved', 'alpha' => 'wip', 'beta' => 'wip', 'archived' => 'archived'][$module->status] ?? NULL;
+?>
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
     <!-- Header Section -->
@@ -63,11 +68,14 @@
             <div class="prx-panel overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
                     <h3 class="prx-h3">Описание и назначение</h3>
-                    <button class="toggle-published relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none <?php echo $module->is_published ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'; ?>"
+                    <button title="Активен в реестре; публикация — в /portal-plan" aria-label="Активен в реестре; публикация — в /portal-plan" class="toggle-published relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none <?php echo $module->is_published ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'; ?>"
                             data-module-id="<?php echo $module->id; ?>"
                             data-is-published="<?php echo $module->is_published ? '1' : '0'; ?>">
                         <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow dark:bg-white ring-0 transition duration-200 ease-in-out <?php echo $module->is_published ? 'translate-x-5' : 'translate-x-0'; ?>"></span>
                     </button>
+                    <?php if ($publication !== NULL && $inventory_state !== $publication): ?>
+                        <span class="prx-hint">Реестр: <?php echo HTML::chars($module->status); ?>, публикация: <?php echo HTML::chars($publication); ?></span>
+                    <?php endif; ?>
                 </div>
                 <div class="p-6">
                     <div class="prx-prose text-gray-600 dark:text-gray-300">

@@ -47,7 +47,12 @@ class Controller_Prx112_Plan extends Controller_Base
         {
             throw HTTP_Exception::factory(400, 'Некорректное состояние публикации');
         }
-        Service_Prx110_Publication::set_state($name, $state, $actor);
+        $note = $this->request->post('note') ?? '';
+        if ( ! is_string($note) || strlen($note) > 4000 || strpos($note, "\0") !== FALSE)
+        {
+            throw HTTP_Exception::factory(400, 'Некорректный комментарий');
+        }
+        Service_Prx110_Publication::set_state($name, $state, $actor, $note);
         Session::instance()->set('prx112_publication', $state);
         $return_state = self::filter_state($this->request->post('return_state'));
         HTTP::redirect('/portal-plan'.($return_state === 'all' ? '' : '?state='.$return_state), 303);

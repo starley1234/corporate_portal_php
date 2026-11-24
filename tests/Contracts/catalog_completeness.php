@@ -25,8 +25,70 @@ class Manifest {
  }
 }
 require APPPATH.'modules/prx110_catalog/classes/Service/Prx110/Catalog.php';
+class HTTP_Exception extends RuntimeException
+{
+ public static function factory($status, $message) { return new self($message, $status); }
+}
+class ORM
+{
+ public static int $calls = 0;
+ public static function factory($name) { self::$calls++; return new self; }
+ public function where(...$args) { return $this; }
+ public function find_all() {
+  return [(object) ['system_name' => 'prx987_scanned', 'status' => 'alpha', 'is_published' => 0]];
+ }
+}
+class Prx_Db
+{
+ public static array $rows = [];
+ public static function select($sql) { return array_values(self::$rows); }
+ public static function insert($sql, $params) {
+  if (!str_contains($sql, 'ON CONFLICT (module_name) DO NOTHING')) throw new RuntimeException('Backfill must preserve decisions');
+  return [NULL, isset(self::$rows[$params[':name']]) ? 0 : self::write($params)];
+ }
+ public static function execute($sql, $params) {
+  if (!str_contains($sql, 'state IS DISTINCT FROM EXCLUDED.state') || !str_contains($sql, 'note IS DISTINCT FROM EXCLUDED.note')) {
+   throw new RuntimeException('Decision write is not idempotent');
+  }
+  $old = self::$rows[$params[':name']] ?? [];
+  return ($old['state'] ?? NULL) === $params[':state'] && ($old['note'] ?? NULL) === $params[':note'] ? 0 : self::write($params);
+ }
+ private static function write($params) {
+  $name = $params[':name'];
+  self::$rows[$name] = ['module_name' => $name, 'state' => $params[':state'], 'decided_by' => $params[':actor'] ?? NULL,
+   'note' => $params[':note'], 'decided_at' => '2026-11-24 11:25:00+00', 'decided_by_name' => 'admin'];
+  return 1;
+ }
+}
+class Service_Prx208_EventBus
+{
+ public static array $events = [];
+ public static function instance() { return new self; }
+ public function publish($name, $payload, $actor) { self::$events[] = [$name, $payload, $actor]; }
+}
+require APPPATH.'classes/Event.php';
+require APPPATH.'modules/prx110_catalog/classes/Service/Prx110/Publication.php';
 $admin=['guest'=>FALSE,'logged'=>TRUE,'user_id'=>1,'admin'=>TRUE,'agent'=>TRUE,'roles'=>['admin']];
 $user=['guest'=>FALSE,'logged'=>TRUE,'user_id'=>1,'admin'=>FALSE,'agent'=>FALSE,'roles'=>['login']];
+$stable = Service_Prx110_Catalog::get('prx597_notifications');
+$scanned = ['module_name'=>'prx987_scanned', 'href'=>'/scanned', 'title'=>'Scanned'];
+if (Service_Prx110_Catalog::resolve_state($stable) !== 'wip'
+ || Service_Prx110_Catalog::can_see($stable, $admin)
+ || Service_Prx110_Catalog::resolve_status($scanned) !== 'draft'
+ || Service_Prx110_Catalog::resolve_state($scanned) !== 'wip'
+ || Service_Prx110_Catalog::visible_modules($admin) !== [] || ORM::$calls !== 0) {
+ throw new RuntimeException('Publication inferred from a stable manifest or inventory');
+}
+$unpublished = Service_Prx110_Catalog::get('prx100_search');
+if (Service_Prx110_Catalog::resolve_state($unpublished) !== 'unpublished') throw new RuntimeException('Missing no-decision fallback');
+$dry = Service_Prx110_Publication::backfill();
+if (Prx_Db::$rows || !$dry['insert'] || $dry['inserted']) throw new RuntimeException('Dry run wrote decisions or omitted the plan');
+$applied = Service_Prx110_Publication::backfill(TRUE);
+$repeated = Service_Prx110_Publication::backfill(TRUE);
+if ($applied['inserted'] !== array_keys($dry['insert']) || $repeated['insert'] || $repeated['inserted']
+ || Service_Prx110_Catalog::resolve_state($stable) !== 'approved') {
+ throw new RuntimeException('Backfill must publish previous stable services once');
+}
 $visible=array_column(Service_Prx110_Catalog::visible_modules($admin),NULL,'module_name');
 $regular=array_column(Service_Prx110_Catalog::visible_modules($user),NULL,'module_name');
 $plan=array_column(Service_Prx110_Catalog::plan_modules($admin),NULL,'module_name');
@@ -43,7 +105,7 @@ foreach (Manifest::all() as $name=>$manifest) {
   continue;
  }
  if (($manifest['kind'] ?? '')==='library' || in_array($name,$no_ui,TRUE)) continue;
- $state=Service_Prx110_Catalog::resolve_state($manifest);
+ $state=$plan[$name]['state'] ?? Service_Prx110_Catalog::resolve_state($manifest);
  if ($state==='wip') {
   if (isset($visible[$name]) || isset($regular[$name])) throw new RuntimeException('WIP module leaked into /services: '.$name);
   if (!isset($plan[$name])) throw new RuntimeException('WIP module missing from the plan: '.$name);
@@ -61,7 +123,7 @@ foreach ($links as $name=>$href) {
  if ($visible[$name]['href']!==$href) throw new RuntimeException('Wrong catalog route: '.$name);
  if ($name!=='prx110_catalog' && isset($regular[$name])) throw new RuntimeException('Admin module leaked: '.$name);
 }
-$acl_probe = ['audience'=>'auth', 'status'=>'stable', 'acl'=>'prx120.monitor'];
+$acl_probe = ['audience'=>'auth', 'acl'=>'prx120.monitor'] + $stable;
 if (!Service_Prx110_Catalog::can_see($acl_probe,$admin) || Service_Prx110_Catalog::can_see($acl_probe,$user)) throw new RuntimeException('Catalog does not enforce manifest ACL');
 if (Service_Prx110_Catalog::can_see(['status'=>'draft','audience'=>'admin'],$admin)) throw new RuntimeException('Draft leaked into the working catalog');
 $preview=$admin;
@@ -78,34 +140,19 @@ foreach (Service_Prx110_Catalog::groups_summary($admin) as $group) {
 if (count($grouped)!==count($visible) || count(array_unique($grouped))!==count($visible)) throw new RuntimeException('Catalog grouping lost/duplicated entries');
 echo "Catalog completeness: $count approved modules, $wip in progress, unpublished and planning OK\n";
 
-class HTTP_Exception extends RuntimeException
-{
- public static function factory($status, $message) { return new self($message, $status); }
-}
-class Prx_Db
-{
- public static $approved = [];
- public static function select($sql) { return array_values(self::$approved); }
- public static function execute($sql, $params) {
-  if (strpos($sql, 'WHERE prx_110_publications.state <> EXCLUDED.state') === FALSE) throw new RuntimeException('Approval insert is not idempotent');
-  if ((self::$approved[$params[':name']]['state'] ?? NULL) !== $params[':state']) {
-   self::$approved[$params[':name']] = ['module_name' => $params[':name'], 'state' => $params[':state'], 'approved_by' => $params[':actor']];
-  }
- }
-}
-require APPPATH.'modules/prx110_catalog/classes/Service/Prx110/Publication.php';
 $publisher = Prx_Actor::fromArray($admin);
+$before = Prx_Db::$rows;
 try {
  Service_Prx110_Publication::approve('prx395_document_extract', Prx_Actor::fromArray($user));
  throw new RuntimeException('Non-admin could approve a module');
 } catch (HTTP_Exception $e) {
- if ($e->getCode() !== 403 || Prx_Db::$approved) throw $e;
+ if ($e->getCode() !== 403 || Prx_Db::$rows !== $before) throw $e;
 }
 try {
  Service_Prx110_Publication::approve('prx301_onboarding', $publisher);
  throw new RuntimeException('A plan-only service was approved');
 } catch (HTTP_Exception $e) {
- if ($e->getCode() !== 404 || Prx_Db::$approved) throw $e;
+ if ($e->getCode() !== 404 || Prx_Db::$rows !== $before) throw $e;
 }
 Service_Prx110_Publication::approve('prx395_document_extract', $publisher);
 Service_Prx110_Publication::approve('prx395_document_extract', new Prx_Actor(2, ['admin']));
@@ -113,11 +160,11 @@ $approved_pdf = Service_Prx110_Catalog::get('prx395_document_extract');
 if (Service_Prx110_Catalog::resolve_manifest_state($approved_pdf) !== 'wip'
  || !Service_Prx110_Catalog::can_see($approved_pdf, $admin)
  || Service_Prx110_Catalog::can_see($approved_pdf, $user)
- || Prx_Db::$approved['prx395_document_extract']['approved_by'] !== 1) {
+ || Prx_Db::$rows['prx395_document_extract']['decided_by'] !== 1) {
  throw new RuntimeException('Approval mutated the manifest, ACL or original approver');
 }
 $approved_pdf['status'] = 'deprecated';
-if (Service_Prx110_Catalog::can_see($approved_pdf, $admin)) throw new RuntimeException('Archived module retained visibility');
+if (Service_Prx110_Catalog::resolve_state($approved_pdf) !== 'archived' || Service_Prx110_Catalog::can_see($approved_pdf, $admin)) throw new RuntimeException('Archived module retained visibility');
 Service_Prx110_Publication::approve('prx300_employee', $publisher);
 if (!in_array('/employee', array_column(Service_Prx110_Catalog::search_json($user)['items'], 'href'), TRUE)) {
  throw new RuntimeException('Approved employee profile did not enter regular catalog');
@@ -146,7 +193,7 @@ foreach (['prx100_search', 'prx110_catalog', 'prx112_portal_plan'] as $name) {
   Service_Prx110_Publication::set_state($name, 'archived', $publisher);
   throw new RuntimeException('Non-manageable module accepted a publication decision: '.$name);
  } catch (HTTP_Exception $e) {
-  if ($e->getCode() !== 404) throw $e;
+  if ($e->getCode() !== ($name === 'prx100_search' ? 404 : 403)) throw $e;
  }
 }
 try {
@@ -173,3 +220,16 @@ if (Service_Prx110_Catalog::resolve_state($notifications) !== 'approved'
  throw new RuntimeException('Restored service could not be republished');
 }
 echo "Publication archive: hidden from the catalog and preview, reversible through work\n";
+
+$events_before = count(Service_Prx208_EventBus::$events);
+Service_Prx110_Publication::set_state('prx597_notifications', 'unpublished', $publisher, 'На проверке');
+Service_Prx110_Publication::set_state('prx597_notifications', 'unpublished', new Prx_Actor(2, ['admin']), 'На проверке');
+if (Service_Prx110_Catalog::resolve_state($notifications) !== 'unpublished'
+ || Service_Prx110_Catalog::can_see($notifications, $preview)
+ || Service_Prx110_Publication::decision_meta('prx597_notifications')['note'] !== 'На проверке'
+ || Prx_Db::$rows['prx597_notifications']['decided_by'] !== 1
+ || array_slice(Service_Prx208_EventBus::$events, $events_before) !== [
+  ['prx110.publication.changed', ['module' => 'prx597_notifications', 'state' => 'unpublished'], 1],
+ ]) throw new RuntimeException('Unpublished decision or change-only audit is incorrect');
+Service_Prx110_Publication::set_state('prx597_notifications', 'unpublished', $publisher, 'Новый комментарий');
+if (count(Service_Prx208_EventBus::$events) !== $events_before + 2) throw new RuntimeException('Note-only change did not publish an event');

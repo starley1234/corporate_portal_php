@@ -33,14 +33,11 @@
  *   'audience' => public|auth|admin|agent      (auth — фолбэк для hidden)
  *
  * Рабочий каталог /services показывает только сервисы в состоянии approved.
- * Для управляемых модулей решение из prx_110_publications имеет приоритет
- * над состоянием манифеста, кроме архива манифеста. Сервисы в работе видны
+ * Одобрение требует явного решения в prx_110_publications. Архив манифеста
+ * не переопределяется. Сервисы в работе видны
  * на /portal-plan и в API каталога в режиме ?agent_preview=1 для агента/админа.
  *
- * Про эти поля подробнее — в Service_Prx110_Catalog::visible_modules() и
- * user_context(). Манифесты БЕЗ явного status подтягивают статус из prx218
- * (таблица prx_218_modules, system_name = имя папки модуля), где управление ведёт
- * жизненный цикл; при недоступности prx218 — тихий фолбэк на дефолты.
+ * Статус разработки описывает манифест. prx218 — отдельный инвентарь.
  */
 class Service_Prx110_Catalog {
 
@@ -107,7 +104,7 @@ class Service_Prx110_Catalog {
                 'short'    => '',
                 'api'      => [],
                 'family'   => NULL,   // NULL = модуль сам по себе, не часть домена
-                'status'   => NULL,   // NULL = не задан явно (фолбэк brand/badge/prx218)
+                'status'   => NULL,   // NULL = не задан явно (фолбэк legacy badge)
                 'audience' => NULL,   // NULL = не задан явно (фолбэк hidden→auth)
             ];
             $data['module_name'] = $name;
@@ -317,17 +314,7 @@ class Service_Prx110_Catalog {
         ];
     }
 
-    /**
-     * Статус модуля: явный status → badge 'beta' → prx218 (system_name=папка)
-     * → 'draft'.
-     *
-     * prx218 влияет на ВИДИМОСТЬ, только когда там явное решение:
-     *   published=1 → маппим по тексту (alpha→draft, beta/stable, archived→deprecated);
-     *   published=0 → archived/deprecated уходят в архив; другой не-alpha статус (beta,
-     *   stable) — управление снял публикацию → draft. Автосозданные сканером записи
-     *   (alpha + unpublished — дефолт) сигналом «скрыть» не считаются и попадают
-     *   в дефолт 'draft': публикация — это явное решение, а не отсутствие записи.
-     */
+    /** Статус разработки: явный status → legacy badge «beta» → draft. */
     public static function resolve_status(array $m)
     {
         if ( ! empty($m['status']) AND in_array((string) $m['status'], self::$_statuses, TRUE))
@@ -341,47 +328,6 @@ class Service_Prx110_Catalog {
             return 'beta';
         }
 
-        $prx = self::_prx218_meta((string) ($m['module_name'] ?? $m['slug'] ?? ''));
-
-        if ($prx !== NULL)
-        {
-            // published=1 — осознанное решение в prx218: маппим по тексту статуса.
-            if ( ! empty($prx['published']))
-            {
-                switch ($prx['status'])
-                {
-                    case 'alpha':
-                        return 'draft';
-                    case 'beta':
-                        return 'beta';
-                    case 'stable':
-                        return 'stable';
-                    case 'archived':
-                    case 'deprecated':
-                        return 'deprecated';
-                }
-
-                return 'stable';
-            }
-
-            // published=0: уважаем только ЯВНЫЙ архив. Дефолтная запись сканера
-            // (alpha) отдельным решением «скрыть» не считается и уходит в дефолт
-            // 'draft': публикация всё равно требует явного stable.
-            if (in_array((string) $prx['status'], ['archived', 'deprecated'], TRUE))
-            {
-                return 'deprecated';
-            }
-
-            // published=0 у НЕ-alpha модуля — управление осознанно снял публикацию:
-            // такой сервис уходит публике (draft), но доступен агенту/админу.
-            if ((string) $prx['status'] !== 'alpha')
-            {
-                return 'draft';
-            }
-        }
-
-        // дефолт: без явного статуса модуль НЕ публикуется (одобрение — решение,
-        // а не отсутствие поля). Так новый модуль не попадает на /services сам.
         return 'draft';
     }
 
@@ -395,15 +341,25 @@ class Service_Prx110_Catalog {
      */
     public static function resolve_state(array $m)
     {
-        $state = self::resolve_manifest_state($m);
-        if ($state !== 'archived' && ! empty($m['module_name'])
-            && class_exists('Service_Prx110_Publication') && Service_Prx110_Publication::eligible($m))
+        if (self::resolve_status($m) === 'deprecated')
         {
-            return Service_Prx110_Publication::decision($m['module_name']) ?? $state;
+            return 'archived';
         }
-        return $state;
+
+        $name = (string) ($m['module_name'] ?? '');
+        if ($name !== '' && class_exists('Service_Prx110_Publication') && Service_Prx110_Publication::eligible($m))
+        {
+            $decision = Service_Prx110_Publication::decision($name);
+            if ($decision !== NULL)
+            {
+                return $decision;
+            }
+        }
+
+        return ($m['catalog'] ?? TRUE) === FALSE ? 'unpublished' : 'wip';
     }
 
+    /** Подсказка для плана, не источник решения о публикации. */
     public static function resolve_manifest_state(array $m)
     {
         $status = self::resolve_status($m);
@@ -459,43 +415,6 @@ class Service_Prx110_Catalog {
         }
 
         return 'public';
-    }
-
-    /** Кеш метаданных prx218 (system_name => [status, published]). */
-    protected static $_prx218 = NULL;
-
-    protected static function _prx218_meta($module_name)
-    {
-        if (self::$_prx218 === NULL)
-        {
-            self::$_prx218 = ['loaded' => FALSE, 'map' => []];
-
-            try
-            {
-                foreach (ORM::factory('Prx218_Module')
-                    ->where('is_deleted', '=', 0)
-                    ->find_all() as $mod)
-                {
-                    self::$_prx218['map'][(string) $mod->system_name] = [
-                        'status'    => (string) $mod->status,
-                        'published' => (int) $mod->is_published === 1,
-                    ];
-                }
-
-                self::$_prx218['loaded'] = TRUE;
-            }
-            catch (Throwable $e)
-            {
-                // prx218 не подключён или таблицы нет — живём на манифестах
-            }
-        }
-
-        if (empty($module_name) OR ! isset(self::$_prx218['map'][$module_name]))
-        {
-            return NULL;
-        }
-
-        return self::$_prx218['map'][$module_name];
     }
 
     /**
@@ -598,7 +517,7 @@ class Service_Prx110_Catalog {
         foreach (self::modules() as $m)
         {
             if (self::resolve_audience($m) !== 'public'
-                OR self::resolve_status($m) !== 'stable')
+                OR self::resolve_state($m) !== 'approved')
             {
                 continue;
             }

@@ -6,12 +6,12 @@
         'title'  => 'Реестр модулей',
         'pill'   => ['prx218 · платформа', 'fa-cubes'],
         'actions' => $can_scan ? [['label' => 'Сканирование системы', 'href' => '/prx218_module_manager/scanner', 'icon' => 'fa-rotate', 'role' => 'process']] : [],
-        'lead'   => 'Программные компоненты портала, их публикация, порядок в навигации и техническое состояние.',
+        'lead'   => 'Инвентарь программных компонентов и их техническое состояние. Публикацией сервисов управляют в /portal-plan.',
     ]); ?>
 
     <div id="prx218-stats" class="mt-6 mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
         <div class="prx-card"><div class="text-xs text-gray-500 dark:text-gray-400">Всего</div><div id="prx218-total" class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">—</div></div>
-        <div class="prx-card"><div class="text-xs text-gray-500 dark:text-gray-400">Опубликовано</div><div id="prx218-active" class="mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-400">—</div></div>
+        <div class="prx-card"><div class="text-xs text-gray-500 dark:text-gray-400">Учтены в реестре</div><div id="prx218-active" class="mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-400">—</div></div>
         <div class="prx-card"><div class="text-xs text-gray-500 dark:text-gray-400">Стабильных</div><div id="prx218-stable" class="mt-1 text-2xl font-bold text-blue-600 dark:text-blue-400">—</div></div>
         <div class="prx-card"><div class="text-xs text-gray-500 dark:text-gray-400">Активность реестра</div><div id="prx218-scan" class="mt-1 truncate text-sm font-semibold text-gray-700 dark:text-gray-200">—</div></div>
     </div>
@@ -28,11 +28,11 @@
             </div>
 
             <div class="flex items-center gap-2">
-                <label for="visibilityFilter" class="prx-label">Видимость:</label>
+                <label for="visibilityFilter" class="prx-label">Учёт в реестре:</label>
                 <select id="visibilityFilter" onchange="location = this.value;" class="prx-input prx-select w-full pr-10">
                     <option value="<?php echo URL::site(Request::current()->uri()) . URL::query(['visibility' => 'all']); ?>" <?php echo (!isset($filters['visibility']) || $filters['visibility'] == 'all') ? 'selected' : ''; ?>>Все</option>
-                    <option value="<?php echo URL::site(Request::current()->uri()) . URL::query(['visibility' => 'published']); ?>" <?php echo (isset($filters['visibility']) && $filters['visibility'] == 'published') ? 'selected' : ''; ?>>Опубликованные</option>
-                    <option value="<?php echo URL::site(Request::current()->uri()) . URL::query(['visibility' => 'hidden']); ?>" <?php echo (isset($filters['visibility']) && $filters['visibility'] == 'hidden') ? 'selected' : ''; ?>>Скрытые</option>
+                    <option value="<?php echo URL::site(Request::current()->uri()) . URL::query(['visibility' => 'published']); ?>" <?php echo (isset($filters['visibility']) && $filters['visibility'] == 'published') ? 'selected' : ''; ?>>Учтённые</option>
+                    <option value="<?php echo URL::site(Request::current()->uri()) . URL::query(['visibility' => 'hidden']); ?>" <?php echo (isset($filters['visibility']) && $filters['visibility'] == 'hidden') ? 'selected' : ''; ?>>Не учтённые</option>
                 </select>
             </div>
 
@@ -142,7 +142,7 @@
                                     </button>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <button class="toggle-published relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none <?php echo $module->is_published ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'; ?>"
+                                    <button title="Активен в реестре; публикация — в /portal-plan" aria-label="Активен в реестре; публикация — в /portal-plan" class="toggle-published relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none <?php echo $module->is_published ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'; ?>"
                                             data-module-id="<?php echo $module->id; ?>"
                                             data-is-published="<?php echo $module->is_published ? '1' : '0'; ?>">
                                         <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow dark:bg-white ring-0 transition duration-200 ease-in-out <?php echo $module->is_published ? 'translate-x-5' : 'translate-x-0'; ?>"></span>
@@ -333,7 +333,7 @@ $(document).ready(function() {
         });
     });
 
-    // Переключение публикации модуля
+    // Переключение учёта в реестре
     $(document).on('click', '.toggle-published', function() {
         const button = $(this);
         const moduleId = button.data('module-id');
@@ -361,7 +361,7 @@ $(document).ready(function() {
                 }
             },
             error: function(xhr) {
-                PRX.toast('Произошла ошибка при обновлении статуса публикации.', 0, 'err');
+                PRX.toast('Произошла ошибка при обновлении учёта в реестре.', 0, 'err');
                 console.error(xhr.responseText);
             }
         });

@@ -77,6 +77,27 @@ assert token, 'Login form has no CSRF token'
 request('/portal-plan/approve', 403, {
     'module': 'prx395_document_extract', 'state': 'archived', 'csrf': html_module.unescape(token[1]),
 })
+# Optional existing login-only account; does not provision users or change permissions.
+staff_username = os.environ.get('SMOKE_STAFF_USERNAME')
+staff_password = os.environ.get('SMOKE_STAFF_PASSWORD')
+if staff_username and staff_password:
+    admin_client = client
+    client = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()), NoRedirect())
+    try:
+        staff_login = request('/auth/login', 200)
+        staff_token = html_module.unescape(re.search(r'name="csrf" value="([^"]+)"', staff_login)[1])
+        request('/auth/login?return_url=%2F', 302, {
+            'username': staff_username, 'password': staff_password, 'csrf': staff_token,
+        })
+        staff_plan = request('/portal-plan?state=approved', 200)
+        assert 'action="/portal-plan/approve"' not in staff_plan
+        staff_sidebar = re.search(r'<[^>]+data-nav-csrf="([^"]+)"', staff_plan)
+        assert staff_sidebar, 'Staff session has no CSRF token'
+        request('/portal-plan/approve', 403, {
+            'module': 'prx395_document_extract', 'state': 'archived', 'csrf': html_module.unescape(staff_sidebar[1]),
+        })
+    finally:
+        client = admin_client
 username = os.environ.get('ADMIN_USERNAME', 'admin')
 password = os.environ.get('ADMIN_PASSWORD', '')
 if not password:
@@ -132,6 +153,21 @@ request('/portal-plan/approve', 405)
 request('/portal-plan/approve', 403, {'module': 'prx395_document_extract', 'state': 'archived'})
 plan_csrf = html_module.unescape(re.search(r'action="/portal-plan/approve">\s*<input type="hidden" name="csrf" value="([^"]+)"', archive)[1])
 request('/portal-plan/approve', 400, {'module': 'prx395_document_extract', 'state': 'unknown', 'csrf': plan_csrf})
+# Mutates publication audit/history: opt in only on a disposable smoke database.
+if os.environ.get('SMOKE_PUBLICATION_WRITE') == '1':
+    module = 'prx395_document_extract'
+    marker = 'data-nav-pin-card="/prx395_document_extract"'
+    assert marker not in pages['/services'], 'Publication fixture must start in wip'
+    try:
+        for state, visible in [('approved', True), ('archived', False), ('wip', False)]:
+            request('/portal-plan/approve', 303, {
+                'module': module, 'state': state, 'csrf': plan_csrf, 'return_state': state,
+            })
+            request(f'/portal-plan?state={state}', 200)
+            assert (marker in request('/services', 200)) is visible, state
+    finally:
+        request('/portal-plan/approve', 303, {'module': module, 'state': 'wip', 'csrf': plan_csrf})
+
 for heading in ['Ведение проектов', 'Разработка конструкций', 'Разработка РЭА',
                 'Производство и сборка', 'Отработка рекламаций']:
     assert heading in archive, heading

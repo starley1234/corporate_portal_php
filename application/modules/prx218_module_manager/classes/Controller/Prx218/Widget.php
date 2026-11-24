@@ -31,8 +31,9 @@ class Controller_Prx218_Widget extends Controller_Base {
         // В данном случае получаем агрегированные данные по модулям
         $stats = [
             'total'     => (int) ORM::factory('Prx218_Module')->where('is_deleted', '=', 0)->count_all(),
+            // active — число учтённых в реестре, не опубликованных сервисов.
             'active'    => (int) ORM::factory('Prx218_Module')->where('is_published', '=', 1)->where('is_deleted', '=', 0)->count_all(),
-            'stable'    => (int) OR_factory('Prx218_Module')->where('status', '=', 'stable')->where('is_deleted', '=', 0)->count_all(),
+            'stable'    => (int) ORM::factory('Prx218_Module')->where('status', '=', 'stable')->where('is_deleted', '=', 0)->count_all(),
             'critical'  => (int) $service->get_dependency_errors_count(), // Пример метода в сервисе
         ];
 
@@ -76,14 +77,14 @@ class Controller_Prx218_Widget extends Controller_Base {
         }
 
         $total = (int) ORM::factory('Prx218_Module')->where('is_deleted', '=', 0)->count_all();
-        $published = (int) ORM::factory('Prx218_Module')->where('is_published', '=', 1)->where('is_deleted', '=', 0)->count_all();
+        $included = (int) ORM::factory('Prx218_Module')->where('is_published', '=', 1)->where('is_deleted', '=', 0)->count_all();
 
         $this->_json_response([
             'status' => 'ok',
             'data'   => [
                 'total' => $total,
-                'published' => $published,
-                'percent' => $total > 0 ? round(($published / $total) * 100, 2) : 0
+                'published' => $included,
+                'percent' => $total > 0 ? round(($included / $total) * 100, 2) : 0
             ]
         ]);
     }

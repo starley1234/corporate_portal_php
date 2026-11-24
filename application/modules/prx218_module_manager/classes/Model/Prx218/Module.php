@@ -15,7 +15,7 @@
  * @property string     $icon            Иконка модуля (например, fa-cogs)
  * @property string     $version         Версия в формате SemVer (например, 1.0.0)
  * @property string     $status          Статус жизненного цикла (alpha, beta, stable, archived)
- * @property int        $is_published    Флаг доступности модуля в системе (0/1)
+ * @property int        $is_published    Участие в инвентаре (0/1), не публикация в каталоге
  * @property string     $developer_notes Технические заметки и особенности внедрения
  * @property string     $path            Путь к директории модуля
  * @property string     $main_page_uri   URI главной страницы модуля
@@ -127,7 +127,7 @@ class Model_Prx218_Module extends ORM {
 			'icon'            => 'Иконка',
 			'version'         => 'Версия',
 			'status'          => 'Статус',
-			'is_published'    => 'Опубликован',
+			'is_published'    => 'Учтён в реестре',
 			'developer_notes' => 'Заметки разработчика',
 			'path'            => 'Путь к файлам',
 			'main_page_uri'   => 'URI главной страницы',

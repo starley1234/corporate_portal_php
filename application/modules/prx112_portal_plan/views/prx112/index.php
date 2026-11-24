@@ -10,8 +10,13 @@ $badges = [
 $filter_labels = ['all' => 'Все', 'approved' => 'Одобрено', 'unpublished' => 'Не опубликовано'];
 $messages = [
     'approved' => 'Сервис одобрен для каталога.',
+    'unpublished' => 'Сервис не опубликован в каталоге.',
     'wip' => 'Сервис переведён в работу. В каталоге он не отображается.',
     'archived' => 'Сервис отправлен в архив. В каталоге он не отображается.',
+];
+$decision_labels = [
+    'approved' => 'Одобрено', 'wip' => 'В работе с',
+    'unpublished' => 'Не опубликовано с', 'archived' => 'В архиве с',
 ];
 $actions = [
     'approved' => ['Одобрить', 'fa-check', ''],
@@ -105,6 +110,14 @@ $transitions = [
                         </div>
                         <?php endif; ?>
                     </div>
+                    <?php if ( ! empty($service['decided_at'])): ?>
+                        <p class="prx-hint pl-6"><?php echo HTML::chars($decision_labels[$service_state]); ?>
+                            <?php echo (new DateTimeImmutable($service['decided_at']))->format('d.m.Y'); ?><?php
+                            echo empty($service['decided_by_name']) ? '' : ', '.HTML::chars($service['decided_by_name']); ?></p>
+                        <?php if ($service['note'] !== ''): ?>
+                            <p class="prx-hint break-words pl-6"><?php echo HTML::chars($service['note']); ?></p>
+                        <?php endif; ?>
+                    <?php endif; ?>
                     <?php if (isset($service['manifest_state']) && $service['manifest_state'] !== $service_state): ?>
                         <p class="prx-hint pl-6">По манифесту: <?php echo HTML::chars(Service_Prx110_Catalog::state_label($service['manifest_state'])); ?></p>
                     <?php endif; ?>

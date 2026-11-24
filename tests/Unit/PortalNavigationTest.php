@@ -4,6 +4,24 @@ use PHPUnit\Framework\TestCase;
 /** Навигация основного шаблона и доступность сервисов через каталог. */
 class PortalNavigationTest extends TestCase
 {
+    private ReflectionProperty $publication_decisions;
+    private ?array $previous_decisions;
+
+    protected function setUp(): void
+    {
+        $this->publication_decisions = new ReflectionProperty('Service_Prx110_Publication', 'decisions');
+        $this->publication_decisions->setAccessible(TRUE);
+        $this->previous_decisions = $this->publication_decisions->getValue();
+        $this->publication_decisions->setValue(NULL, array_fill_keys([
+            'prx560_knowledge', 'prx597_notifications', 'prx599_account', 'example',
+        ], ['state' => 'approved']));
+    }
+
+    protected function tearDown(): void
+    {
+        $this->publication_decisions->setValue(NULL, $this->previous_decisions);
+    }
+
     public function test_sidebar_contains_only_catalog_even_when_module_navigation_is_supplied(): void
     {
         $items = Service_Prx110_Catalog::menu_items();
