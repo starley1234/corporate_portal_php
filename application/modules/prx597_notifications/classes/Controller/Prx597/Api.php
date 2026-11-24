@@ -21,7 +21,7 @@
  *
  * ВАЖНО (06.10.2026): before() отвечает 401/403 и ставит $_halt, но Kohana
  * выполняет действие ВСЁ РАВНО — каждое пользовательское действие обязано
- * начинаться с `if ($this->_halt) return;`. Проверяет .tools/prx597_api_stand.php.
+ * начинаться с `if ($this->_halt) return;`. Проверяет tests/Contracts/prx597_api.php.
  */
 class Controller_Prx597_Api extends Controller {
 

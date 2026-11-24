@@ -739,34 +739,10 @@ class PgQueue:
                     worker,
                 )
                 if row is None:
-                    # Строка уже не в processing у этого воркера — не должен
-                    # случиться «зависший processing»: либо уже terminal, либо
-                    # ушла в pending (тогда пусть ретраится штатно).
-                    state = await conn.fetchrow(
-                        "SELECT status, claimed_by FROM prx_120_jobs WHERE id = $1 FOR UPDATE",
-                        job_id,
-                    )
-                    if state is None or state["status"] in ("done", "failed", "cancelled"):
-                        return False
-                    # processing чужого воркера — не трогаем
-                    if state["status"] == "processing":
-                        return False
-                    # pending (ранее вернулась в очередь) — назад в processing,
-                    # чтобы из неё корректно уйти в terminal ниже по коду
-                    if state["status"] == "pending":
-                        await conn.execute(
-                            "UPDATE prx_120_jobs SET status = 'processing', "
-                            "claimed_by = $2, heartbeat_at = now() WHERE id = $1",
-                            job_id, worker,
-                        )
-                        row = await conn.fetchrow(
-                            "SELECT attempts, max_attempts, status FROM prx_120_jobs "
-                            "WHERE id = $1 FOR UPDATE", job_id,
-                        )
-                        if row is None:
-                            return False
-                    else:
-                        return False
+                    # Отчёт об ошибке относится только к текущему захвату.
+                    # Запоздавший fail не должен присваивать себе pending
+                    # после свипера/retry или портить захват другого воркера.
+                    return False
                 will_retry = retry and int(row["attempts"]) < int(row["max_attempts"])
                 if will_retry:
                     delay = 15 * int(row["attempts"]) ** 2

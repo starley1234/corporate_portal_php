@@ -3,7 +3,7 @@
             <section class="prx-card">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <h2 class="text-base font-semibold text-gray-900 dark:text-white"><i class="fas fa-file-pen mr-2 text-blue-500"></i>Карточка документа</h2>
-                    <span class="text-xs text-gray-500 dark:text-gray-400">Изменения полей пишутся в провенанс</span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">Реквизиты и содержание</span>
                 </div>
 
                 <?php if ($can_edit): ?>
@@ -36,6 +36,9 @@
                             <label class="prx-label" for="doc-inn">ИНН</label>
                             <input id="doc-inn" name="sender_inn" type="text" inputmode="numeric" maxlength="12" value="<?php echo HTML::chars($doc['sender_inn']); ?>" class="prx-input mt-1 w-full">
                         </div>
+                        <details class="md:col-span-2 rounded-lg border border-gray-200 px-3 py-2 dark:border-gray-700">
+                            <summary class="cursor-pointer text-sm font-medium text-gray-600 dark:text-gray-300">Исходящий документ, договор и сумма</summary>
+                            <div class="mt-3 grid gap-3 sm:grid-cols-2">
                         <div>
                             <label class="prx-label" for="doc-out-no">Исходящий №</label>
                             <input id="doc-out-no" name="outbound_no" type="text" value="<?php echo HTML::chars($doc['outbound_no']); ?>" class="prx-input mt-1 w-full">
@@ -52,9 +55,11 @@
                             <label class="prx-label" for="doc-amount">Сумма, ₽</label>
                             <input id="doc-amount" name="amount" type="text" inputmode="decimal" value="<?php echo $doc['amount'] !== NULL ? HTML::chars($doc['amount']) : ''; ?>" class="prx-input mt-1 w-full">
                         </div>
+                            </div>
+                        </details>
                         <div class="md:col-span-2">
                             <label class="prx-label" for="doc-summary">Краткое содержание</label>
-                            <textarea id="doc-summary" name="summary" rows="4" class="prx-input mt-1 w-full"><?php echo HTML::chars($doc['summary']); ?></textarea>
+                            <textarea id="doc-summary" name="summary" rows="3" class="prx-input mt-1 w-full"><?php echo HTML::chars($doc['summary']); ?></textarea>
                         </div>
                         <div>
                             <label class="prx-label" for="doc-priority">Приоритет</label>

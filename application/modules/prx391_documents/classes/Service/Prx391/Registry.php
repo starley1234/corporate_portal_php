@@ -33,10 +33,11 @@ class Service_Prx391_Registry
     // Чтение
     // ------------------------------------------------------------------
 
-    public static function list_documents(array $filters = [], array $actor = [])
+    public static function list_documents(array $filters = [], ?Prx_Actor $actor = NULL)
     {
+        ($actor ?? Prx_Actor::guest())->require('prx391.view');
         $where = ['d.status <> \'archived\''];
-        if ( ! self::_can_admin($actor))
+        if ( ! Policy_Prx391_Document::canViewAll($actor))
         {
             $where[] = "d.sensitivity IN ('public', 'internal')";
         }
@@ -98,7 +99,56 @@ class Service_Prx391_Registry
         ];
     }
 
-    public static function document($id, array $actor = [])
+    public static function document($id, ?Prx_Actor $actor = NULL)
+    {
+        if ( ! ($actor ?? Prx_Actor::guest())->can('prx391.view')) return NULL;
+        return self::_document($id, $actor);
+    }
+
+    /**
+     * Минимальные заголовки для доверенного межсервисного конвейера, не UI-read API.
+     * @return array<int, array{id: int, reg_no: mixed, subject: mixed}> По ID; пропавшие ID отсутствуют.
+     */
+    public static function headers_for_processing(array $ids): array
+    {
+        $candidates = [];
+        foreach ($ids as $id)
+        {
+            if ((is_int($id) OR (is_string($id) AND ctype_digit($id))) AND (int) $id > 0)
+            {
+                $candidates[(int) $id] = (int) $id;
+            }
+        }
+        if ( ! $candidates) return [];
+
+        $headers = [];
+        foreach (self::_all('SELECT id, reg_no, subject FROM prx_391_documents WHERE id IN ('.implode(',', $candidates).')') as $row)
+        {
+            $row['id'] = (int) $row['id'];
+            $headers[$row['id']] = $row;
+        }
+        return $headers;
+    }
+
+    /** ID незакрытых карточек для доверенного пакетного пересчёта; не пользовательская выдача. */
+    public static function open_ids_for_processing(int $limit = 200): array
+    {
+        if ($limit <= 0) return [];
+        $rows = Prx_Db::select(
+            "SELECT id FROM prx_391_documents WHERE status NOT IN ('closed', 'archived') "
+            .'ORDER BY received_at DESC, id DESC LIMIT :limit',
+            [':limit' => $limit]
+        );
+        return array_map('intval', array_column($rows, 'id'));
+    }
+
+    /** Служебное чтение для конвейера, не принимает пользовательский actor. */
+    public static function document_for_processing($id)
+    {
+        return self::_document($id, NULL, TRUE);
+    }
+
+    private static function _document($id, ?Prx_Actor $actor, bool $processing = FALSE)
     {
         $row = self::_row("
             SELECT d.*, t.code AS type_code, t.title AS type_title, t.icon AS type_icon,
@@ -116,7 +166,7 @@ class Service_Prx391_Registry
             WHERE d.id = ".(int) $id."
         ");
 
-        if ( ! $row OR ! Service_Prx391_Documents::can_view($row, $actor))
+        if ( ! $row OR ( ! $processing && ! Service_Prx391_Documents::can_view($row, $actor)))
         {
             return NULL;
         }
@@ -150,10 +200,11 @@ class Service_Prx391_Registry
         return self::_all("SELECT * FROM prx_391_correspondents ORDER BY lower(name) LIMIT ".(int) $limit);
     }
 
-    public static function stats(array $actor = [])
+    public static function stats(?Prx_Actor $actor = NULL)
     {
+        ($actor ?? Prx_Actor::guest())->require('prx391.view');
         $where = ['1=1'];
-        if ( ! self::_can_admin($actor))
+        if ( ! Policy_Prx391_Document::canViewAll($actor))
         {
             $where[] = "sensitivity IN ('public', 'internal')";
         }
@@ -182,8 +233,9 @@ class Service_Prx391_Registry
     }
 
     /** Проверяет только переданные ID; порядок и уникальность сохраняются. */
-    public static function visible_ids(array $ids, array $actor = [])
+    public static function visible_ids(array $ids, ?Prx_Actor $actor = NULL)
     {
+        if ( ! ($actor ?? Prx_Actor::guest())->can('prx391.view')) return [];
         $candidates = [];
         foreach ($ids as $id)
         {
@@ -216,7 +268,7 @@ class Service_Prx391_Registry
         }));
     }
 
-    public static function recent_history($limit = 20, array $actor = [])
+    public static function recent_history($limit = 20, ?Prx_Actor $actor = NULL)
     {
         if ( ! Service_Prx391_Documents::can_view(['sensitivity' => 'public'], $actor))
         {
@@ -238,16 +290,6 @@ class Service_Prx391_Registry
     // ------------------------------------------------------------------
     // Внутреннее: права и мини-слой БД
     // ------------------------------------------------------------------
-
-    protected static function _can_admin(array $actor)
-    {
-        if ( ! empty($actor['is_system']) OR in_array('system', $actor['roles'] ?? [], TRUE))
-        {
-            return TRUE;
-        }
-
-        return Prx_Actor::fromArray($actor)->can('prx391.admin');
-    }
 
     protected static function _db()
     {

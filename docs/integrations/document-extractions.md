@@ -137,7 +137,7 @@ curl --fail-with-body "$PRX_URL/api/v1/document-extractions/42" \
 и воркера:
 
 ```bash
-python3 tests/document_pipeline_e2e.py --url http://127.0.0.1:8080
+python3 tests/E2e/document_pipeline.py --url http://127.0.0.1:8080
 # Для remote: --expect-provider remote
 # Для безопасного скана: --pdf synthetic-scan.pdf --contains 'ожидаемый текст'
 ```

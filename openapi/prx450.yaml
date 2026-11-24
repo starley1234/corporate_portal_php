@@ -1,0 +1,230 @@
+openapi: 3.1.0
+info:
+  title: PRX document OCR
+  version: 1.0.0
+  description: Stateless synchronous OCR proxy. Requires prx450.parse scope.
+    Repeating a file may use the gateway cache; force=true requests
+    recalculation. No portal storage or cancellation. Defaults are
+    deployment-configurable; only client_overrides are accepted.
+paths:
+  /api/v1/document-ocr/parse:
+    post:
+      operationId: parseDocument
+      security:
+        - ApiKey: []
+      parameters:
+        - name: engine
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - auto
+              - docling-cpu
+              - mineru
+              - paddleocr-vl
+            default: auto
+        - name: output_format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - md
+              - full
+            default: md
+        - name: max_image_side
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 512
+            maximum: 8192
+            default: 2048
+        - name: llm_model
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 64
+            pattern: ^[A-Za-z0-9._:/-]{1,64}$
+            default: default
+        - name: llm_prompt
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 4000
+        - name: extra_config
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 4000
+            description: JSON object or array encoded as a string
+        - name: preprocess
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+        - name: ocr
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+        - name: extract_images
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: vlm_pictures
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: extract_tables
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+        - name: llm_fix
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: force
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: PDF, PNG, JPEG, TIFF, WEBP, BMP. Default maximum 25 MiB; PHP/proxy
+                    upload limits also apply. MIME and signature are checked.
+      responses:
+        "200":
+          description: "Recognized document. Limits are bytes: content 4 MiB, raw_result 4
+            MiB, total upstream response 16 MiB by default; deployment may
+            override them."
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+            X-Request-Id:
+              description: API usage record id for authenticated requests.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Result"
+        "400":
+          $ref: "#/components/responses/Error"
+        "401":
+          $ref: "#/components/responses/Error"
+        "403":
+          $ref: "#/components/responses/Error"
+        "405":
+          $ref: "#/components/responses/Error"
+        "413":
+          $ref: "#/components/responses/Error"
+        "415":
+          $ref: "#/components/responses/Error"
+        "422":
+          $ref: "#/components/responses/Error"
+        "429":
+          $ref: "#/components/responses/Error"
+        "502":
+          $ref: "#/components/responses/Error"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+        "504":
+          $ref: "#/components/responses/Unavailable"
+components:
+  securitySchemes:
+    ApiKey:
+      type: http
+      scheme: bearer
+      description: prx150 key with prx450.parse scope and per-key rate limit.
+  schemas:
+    Result:
+      type: object
+      required:
+        - file
+        - content
+        - cached
+        - cache_source
+        - engine_used
+        - llm_fixed
+        - raw_result
+      properties:
+        file:
+          type: string
+          description: Gateway filename; upload uses neutral document.<extension>.
+        content:
+          type: string
+        cached:
+          type: boolean
+        cache_source:
+          type:
+            - string
+            - "null"
+        engine_used:
+          type:
+            - string
+            - "null"
+        llm_fixed:
+          type: boolean
+        raw_result:
+          description: Gateway JSON value only for full; null for md.
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+          properties:
+            code:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+  responses:
+    Error:
+      description: Stable public error code; upstream bodies, document text and
+        credentials are not included.
+      content: &a1
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unavailable:
+      description: Stable public error code; upstream bodies, document text and
+        credentials are not included.
+      content: *a1
+      headers:
+        Retry-After:
+          description: Seconds before retry.
+          schema:
+            type: integer
+            const: 5

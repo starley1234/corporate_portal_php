@@ -20,11 +20,7 @@ Event::listen('prx391.document.registered', function ($payload, $event_name, $in
 
     try
     {
-        Service_Prx393_Workflow::route((int) $payload['document_id'], [
-            'user_id' => 0,
-            'roles' => ['system'],
-            'is_system' => TRUE,
-        ]);
+        Service_Prx393_Workflow::route_automatically((int) $payload['document_id'], $initiator_id);
     }
     catch (Throwable $e)
     {
@@ -46,11 +42,7 @@ Event::listen('prx391.document.updated', function ($payload, $event_name, $initi
 
     try
     {
-        Service_Prx393_Workflow::route((int) $payload['document_id'], [
-            'user_id' => (int) ($payload['actor_id'] ?? 0),
-            'roles' => ['system'],
-            'is_system' => TRUE,
-        ]);
+        Service_Prx393_Workflow::route_automatically((int) $payload['document_id'], $initiator_id);
     }
     catch (Throwable $e)
     {

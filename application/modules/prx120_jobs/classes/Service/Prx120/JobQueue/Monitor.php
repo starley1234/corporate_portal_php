@@ -9,6 +9,77 @@
  */
 trait Service_Prx120_JobQueue_Monitor
 {
+    /** Серверная сводка для административных экранов, не пользовательский список. Только SELECT. */
+    public function platform_metrics(): array
+    {
+        return $this->_report_row("SELECT
+            count(*) FILTER (WHERE status = 'pending') AS pending,
+            count(*) FILTER (WHERE status = 'processing') AS processing,
+            count(*) FILTER (WHERE status = 'failed') AS failed,
+            count(*) FILTER (WHERE status = 'failed' AND coalesce(finished_at, created_at) > now() - interval '24 hours') AS failed24,
+            count(*) FILTER (WHERE status = 'done' AND coalesce(finished_at, created_at) > now() - interval '24 hours') AS done24,
+            count(*) FILTER (WHERE status = 'processing' AND coalesce(heartbeat_at, claimed_at, created_at) < now() - interval '15 minutes') AS stuck,
+            count(*) FILTER (WHERE status = 'processing' AND heartbeat_at < now() - interval '15 minutes') AS heartbeat_stuck
+            FROM prx_120_jobs");
+    }
+
+    /** Наблюдавшиеся имена воркеров, не доказательство запущенных процессов. */
+    public function worker_activity(): array
+    {
+        return $this->_report_row("SELECT
+            count(DISTINCT claimed_by) FILTER (WHERE coalesce(heartbeat_at, finished_at, created_at) > now() - interval '24 hours') AS day,
+            count(DISTINCT claimed_by) FILTER (WHERE coalesce(heartbeat_at, finished_at, created_at) > now() - interval '10 minutes') AS live,
+            extract(epoch FROM now() - max(coalesce(heartbeat_at, finished_at)))::int AS ago
+            FROM prx_120_jobs WHERE claimed_by IS NOT NULL AND claimed_by <> ''");
+    }
+
+    public function usage_today(): array
+    {
+        return $this->_report_row("SELECT coalesce(sum(prompt_tokens + completion_tokens), 0) AS tokens, count(*) AS jobs
+            FROM prx_120_usage WHERE created_at >= date_trunc('day', now())");
+    }
+
+    /** Ограниченная административная проекция: без payload/result/error/callback/worker-токенов. */
+    public function admin_activity(): array
+    {
+        $kpi = $this->_report_row("SELECT
+            count(*) FILTER (WHERE created_at > now() - interval '24 hours') AS d1,
+            count(*) FILTER (WHERE created_at > now() - interval '24 hours' AND visitor_id LIKE 'u:%') AS d1_users,
+            count(*) FILTER (WHERE created_at > now() - interval '24 hours' AND visitor_id LIKE 'g:%') AS d1_guests,
+            count(DISTINCT visitor_id) FILTER (WHERE created_at > now() - interval '24 hours') AS d1_visitors
+            FROM prx_120_jobs");
+        $channels = $this->_db->query(Database::SELECT, "SELECT channel, count(*) AS c,
+            count(*) FILTER (WHERE visitor_id LIKE 'g:%') AS guests
+            FROM prx_120_jobs WHERE created_at > now() - interval '24 hours'
+            GROUP BY channel ORDER BY c DESC LIMIT 12", FALSE)->as_array();
+        $jobs = $this->_db->query(Database::SELECT, 'SELECT id, channel, status, visitor_id, created_at, finished_at
+            FROM prx_120_jobs ORDER BY id DESC LIMIT 120', FALSE)->as_array();
+        return ['kpi' => $kpi, 'channels' => $channels, 'jobs' => $jobs];
+    }
+
+    /** Счётчики одного канала, без возврата payload/result. Канал всегда квотирован. */
+    public function channel_metrics(string $channel): array
+    {
+        return $this->_report_row("SELECT
+            count(*) FILTER (WHERE status = 'pending' AND created_at > now() - interval '24 hours') AS pending,
+            count(*) FILTER (WHERE status = 'processing' AND created_at > now() - interval '24 hours') AS processing,
+            count(*) FILTER (WHERE status = 'done' AND created_at > now() - interval '24 hours') AS done_24h,
+            count(*) FILTER (WHERE status = 'failed' AND created_at > now() - interval '24 hours') AS failed_24h,
+            count(*) FILTER (WHERE status IN ('pending', 'processing') AND created_at > now() - interval '24 hours') AS queued_recent,
+            count(*) FILTER (WHERE (result ->> 'skipped' IS NOT NULL OR result ->> 'mode' = 'http-bridge')
+                AND created_at > now() - interval '7 days') AS bridge
+            FROM prx_120_jobs WHERE channel = ".$this->_db->quote($channel));
+    }
+
+    /** Ошибка БД распространяется вызывающему экрану; нулевые значения не маскируют сбой. */
+    protected function _report_row(string $sql): array
+    {
+        $row = $this->_db->query(Database::SELECT, $sql, FALSE)->current();
+        $out = [];
+        foreach ((array) $row as $key => $value) $out[$key] = $value === NULL ? NULL : (int) $value;
+        return $out;
+    }
+
     /**
      * Здоровье воркерного контура: счётчики по статусам, пульс воркера
      * (heartbeat исполняющихся задач), «застрявшие», имена воркеров за 24 ч,

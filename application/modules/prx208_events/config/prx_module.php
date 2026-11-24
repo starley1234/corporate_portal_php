@@ -5,16 +5,21 @@
  *
  * Создан 28.09.2026 вместе с пятым контрактом (application/classes/Manifest.php):
  * модуль объявляет свои реестровые записи сам, а не строкой в чужом конфиге.
- * Полей title/href здесь нет намеренно — это не карточка витрины.
+ * Страница управления опубликована в каталоге с ограничением по аудитории.
  */
 
 return [
     'id' => 208,
     'slug' => 'prx208_events',
-    'kind' => 'platform',
+    'kind' => 'module',
+    'status' => 'stable',
+    'acl' => 'prx208_events.view',
+    'href' => '/prx208_events',
+    'icon' => 'fas fa-bolt',
+    'group' => 'Платформа',
+    'audience' => 'admin',
     // Назначение модуля: отсюда его берёт реестр в docs/ARCHITECTURE.md §2
-    // (bin/console module:list --markdown). Без `href` в меню и на /services
-    // модуль не показывается.
+    // (bin/console module:list --markdown).
     'title' => 'Шина событий (общий модуль)',
     'short' => 'журнал и слушатели доменных событий (`Event::publish`)',
 

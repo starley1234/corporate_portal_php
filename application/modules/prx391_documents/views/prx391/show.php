@@ -28,6 +28,9 @@ if ($can_draft)
 }
 $actions[] = ['label' => 'К реестру', 'href' => '/prx391_documents', 'icon' => 'fa-arrow-left', 'role' => 'secondary'];
 
+?>
+<div class="prx-ds w-full px-3.5 pt-4 pb-20 sm:px-6 lg:px-8">
+<?php
 echo View::factory('partials/page_header', [
     'crumbs' => [['Кабинет', '/dashboard'], ['Реестр', '/prx391_documents'], [$doc['reg_no']]],
     'title' => $doc['subject'] ?: 'Без темы',
@@ -38,7 +41,7 @@ echo View::factory('partials/page_header', [
 echo View::factory('partials/docflow_flash', ['flash' => $flash]);
 ?>
 
-<div class="prx-ds w-full px-3.5 pb-16 sm:px-6 lg:px-8">
+
     <section class="mt-4 flex flex-wrap items-center gap-2">
         <span class="prx-badge prx-badge-<?php echo $status_badge[0]; ?>"><span class="prx-dot"></span><?php echo HTML::chars($status_badge[1]); ?></span>
         <span class="prx-badge prx-badge-<?php echo $priority_badge; ?>"><?php echo HTML::chars($priorities[$doc['priority']] ?? $doc['priority']); ?></span>
@@ -49,25 +52,41 @@ echo View::factory('partials/docflow_flash', ['flash' => $flash]);
         <?php endif; ?>
     </section>
 
-    <div class="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div class="min-w-0 space-y-5">
+    <aside aria-label="Управление документом" class="mt-5 grid items-start gap-4 md:grid-cols-2">
+        <div class="min-w-0">
+<?php include __DIR__.'/partials/ai_sidebar.php'; ?>
+        </div>
+        <div class="min-w-0">
+<?php include __DIR__.'/partials/sla_sidebar.php'; ?>
+        </div>
+    </aside>
+
+    <div class="mt-5 grid items-start gap-4 xl:grid-cols-2">
+        <section aria-label="Реквизиты документа" class="min-w-0">
 <?php include __DIR__.'/partials/card.php'; ?>
-
+        </section>
+        <section aria-label="Результат разбора" class="min-w-0 space-y-4">
 <?php include __DIR__.'/partials/analysis.php'; ?>
-
+<?php if (!$analysis): ?>
+            <div class="prx-card">
+                <h2 class="text-base font-semibold text-gray-900 dark:text-white"><i class="fas fa-wand-magic-sparkles mr-2 text-blue-500" aria-hidden="true"></i>Предложение ИИ</h2>
+                <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">После успешного разбора здесь появятся извлечённые реквизиты и краткое содержание для проверки. Запуск и состояние процесса — выше.</p>
+            </div>
+<?php endif; ?>
+<?php if ($can_draft) include __DIR__.'/partials/drafts_sidebar.php'; ?>
+        </section>
+    </div>
+    <section aria-label="Вложения и история документа" class="mt-5 grid items-start gap-4 xl:grid-cols-2">
+        <div class="min-w-0 space-y-4">
 <?php include __DIR__.'/partials/attachments.php'; ?>
-
+        </div>
+        <div class="min-w-0 space-y-4">
+<?php include __DIR__.'/partials/journal_sidebar.php'; ?>
+        </div>
+        <div class="min-w-0 xl:col-span-2">
 <?php include __DIR__.'/partials/field_events.php'; ?>
         </div>
-
-        <aside class="space-y-4">
-<?php include __DIR__.'/partials/ai_sidebar.php'; ?>
-
-<?php include __DIR__.'/partials/sla_sidebar.php'; ?>
-
-<?php if ($can_draft) include __DIR__.'/partials/drafts_sidebar.php'; ?>
-
-<?php include __DIR__.'/partials/journal_sidebar.php'; ?>
-        </aside>
-    </div>
+    </section>
 </div>
+
+<?php echo View::factory('partials/live_status_js'); ?>

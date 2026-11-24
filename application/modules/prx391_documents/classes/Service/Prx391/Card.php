@@ -13,14 +13,14 @@ class Service_Prx391_Card
     // Ручное редактирование
     // ------------------------------------------------------------------
 
-    public static function save_card($id, array $input, array $actor = [])
+    public static function save_card($id, array $input, ?Prx_Actor $actor = NULL)
     {
         $doc = Service_Prx391_Documents::document($id, $actor);
         if ( ! $doc)
         {
             throw new InvalidArgumentException('Документ не найден');
         }
-        if ( ! self::_can_edit($actor))
+        if ( ! Service_Prx391_Documents::can_edit($actor))
         {
             throw new RuntimeException('Недостаточно прав на редактирование карточки');
         }
@@ -29,11 +29,11 @@ class Service_Prx391_Card
         // решение руководителя (`prx391.admin`), а не право редактора.
         if (array_key_exists('sensitivity', $input)
             && (string) $input['sensitivity'] !== (string) $doc['sensitivity']
-            && ! self::_can_admin($actor))
+            && ! Policy_Prx391_Document::canAdmin($actor))
         {
             throw new RuntimeException('Менять гриф документа может только руководитель');
         }
-        if (isset($input['status']) && $input['status'] === 'archived' && ! self::_can_admin($actor))
+        if (isset($input['status']) && $input['status'] === 'archived' && ! Policy_Prx391_Document::canAdmin($actor))
         {
             throw new RuntimeException('Архивировать документ может только руководитель');
         }
@@ -125,9 +125,9 @@ class Service_Prx391_Card
             self::_exec("UPDATE prx_391_documents SET ".implode(', ', $sets).", updated_at = now() WHERE id = ".(int) $id);
             foreach ($events as $e)
             {
-                self::_field_event($id, $e[0], $e[1], $e[2], 'manual', NULL, $actor['user_id'] ?? NULL);
+                self::_field_event($id, $e[0], $e[1], $e[2], 'manual', NULL, $actor ? $actor->id() : NULL);
             }
-            self::_history($id, 'card_updated', 'Карточка изменена вручную: '.count($events).' пол.', $actor['user_id'] ?? NULL, [
+            self::_history($id, 'card_updated', 'Карточка изменена вручную: '.count($events).' пол.', $actor ? $actor->id() : NULL, [
                 'fields' => array_column($events, 0),
             ]);
         }
@@ -136,52 +136,52 @@ class Service_Prx391_Card
             'document_id' => (int) $id,
             'recalc' => TRUE,
             'reason' => 'card',
-            'actor_id' => (int) ($actor['user_id'] ?? 0),
-        ], (int) ($actor['user_id'] ?? 0) ?: NULL);
+            'actor_id' => ($actor ? $actor->id() : 0),
+        ], ($actor ? $actor->id() : 0) ?: NULL);
 
         return ['changed' => count($events), 'fields' => array_column($events, 0)];
     }
 
-    public static function close($id, array $actor = [])
+    public static function close($id, ?Prx_Actor $actor = NULL)
     {
         $doc = Service_Prx391_Documents::document($id, $actor);
         if ( ! $doc)
         {
             throw new InvalidArgumentException('Документ не найден');
         }
-        if ( ! self::_can_edit($actor))
+        if ( ! Service_Prx391_Documents::can_edit($actor))
         {
             throw new RuntimeException('Недостаточно прав');
         }
 
         self::_exec("UPDATE prx_391_documents SET status = 'closed', closed_at = now(), updated_at = now() WHERE id = ".(int) $id);
-        self::_history($id, 'closed', 'Документ закрыт', $actor['user_id'] ?? NULL);
+        self::_history($id, 'closed', 'Документ закрыт', $actor ? $actor->id() : NULL);
         Event::publish('prx391.document.updated', [
             'document_id' => (int) $id, 'recalc' => FALSE, 'reason' => 'closed',
-            'actor_id' => (int) ($actor['user_id'] ?? 0),
-        ], (int) ($actor['user_id'] ?? 0) ?: NULL);
+            'actor_id' => ($actor ? $actor->id() : 0),
+        ], ($actor ? $actor->id() : 0) ?: NULL);
 
         return TRUE;
     }
 
-    public static function reopen($id, array $actor = [])
+    public static function reopen($id, ?Prx_Actor $actor = NULL)
     {
         $doc = Service_Prx391_Documents::document($id, $actor);
         if ( ! $doc)
         {
             throw new InvalidArgumentException('Документ не найден');
         }
-        if ( ! self::_can_edit($actor))
+        if ( ! Service_Prx391_Documents::can_edit($actor))
         {
             throw new RuntimeException('Недостаточно прав');
         }
 
         self::_exec("UPDATE prx_391_documents SET status = 'in_work', closed_at = NULL, updated_at = now() WHERE id = ".(int) $id);
-        self::_history($id, 'reopened', 'Документ возвращён в работу', $actor['user_id'] ?? NULL);
+        self::_history($id, 'reopened', 'Документ возвращён в работу', $actor ? $actor->id() : NULL);
         Event::publish('prx391.document.updated', [
             'document_id' => (int) $id, 'recalc' => TRUE, 'reason' => 'reopened',
-            'actor_id' => (int) ($actor['user_id'] ?? 0),
-        ], (int) ($actor['user_id'] ?? 0) ?: NULL);
+            'actor_id' => ($actor ? $actor->id() : 0),
+        ], ($actor ? $actor->id() : 0) ?: NULL);
 
         return TRUE;
     }
@@ -195,17 +195,17 @@ class Service_Prx391_Card
      *
      * @param array $payload нормализованное предложение
      * @param int   $suggestion_id провенанс
-     * @param array $actor кто применил
+     * @param ?Prx_Actor $actor кто применил
      * @param bool  $overwrite перезаписывать ли уже заполненные поля
      */
-    public static function apply_analysis($id, array $payload, $suggestion_id, array $actor = [], $overwrite = FALSE)
+    public static function apply_analysis($id, array $payload, $suggestion_id, ?Prx_Actor $actor = NULL, $overwrite = FALSE)
     {
         $doc = Service_Prx391_Documents::document($id, $actor);
         if ( ! $doc)
         {
             throw new InvalidArgumentException('Документ не найден');
         }
-        if ( ! self::_can_edit($actor))
+        if ( ! Service_Prx391_Documents::can_edit($actor))
         {
             throw new RuntimeException('Недостаточно прав на применение предложений');
         }
@@ -336,9 +336,9 @@ class Service_Prx391_Card
             self::_exec("UPDATE prx_391_documents SET ".implode(', ', $sets).", updated_at = now() WHERE id = ".(int) $id);
             foreach ($events as $e)
             {
-                self::_field_event($id, $e[0], $e[1], $e[2], 'llm', $suggestion_id, $actor['user_id'] ?? NULL);
+                self::_field_event($id, $e[0], $e[1], $e[2], 'llm', $suggestion_id, $actor ? $actor->id() : NULL);
             }
-            self::_history($id, 'analysis_applied', 'Применено предложение ИИ #'.(int) $suggestion_id, $actor['user_id'] ?? NULL, [
+            self::_history($id, 'analysis_applied', 'Применено предложение ИИ #'.(int) $suggestion_id, $actor ? $actor->id() : NULL, [
                 'fields' => array_column($events, 0),
                 'skipped' => array_values(array_unique($skipped)),
             ]);
@@ -348,8 +348,8 @@ class Service_Prx391_Card
             'document_id' => (int) $id,
             'recalc' => TRUE,
             'reason' => 'analysis',
-            'actor_id' => (int) ($actor['user_id'] ?? 0),
-        ], (int) ($actor['user_id'] ?? 0) ?: NULL);
+            'actor_id' => ($actor ? $actor->id() : 0),
+        ], ($actor ? $actor->id() : 0) ?: NULL);
 
         return [
             'changed' => count($events),
@@ -420,31 +420,6 @@ class Service_Prx391_Card
     // ------------------------------------------------------------------
     // Права и внутреннее
     // ------------------------------------------------------------------
-
-    protected static function _can_edit(array $actor)
-    {
-        if (self::_is_system($actor))
-        {
-            return TRUE;
-        }
-
-        return Prx_Actor::fromArray($actor)->can('prx391.edit');
-    }
-
-    protected static function _can_admin(array $actor)
-    {
-        if (self::_is_system($actor))
-        {
-            return TRUE;
-        }
-
-        return Prx_Actor::fromArray($actor)->can('prx391.admin');
-    }
-
-    protected static function _is_system(array $actor)
-    {
-        return ! empty($actor['is_system']) OR in_array('system', $actor['roles'] ?? [], TRUE);
-    }
 
     protected static function _field_event($document_id, $field, $old, $new, $source, $suggestion_id, $actor_id)
     {

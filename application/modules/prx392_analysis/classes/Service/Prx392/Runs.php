@@ -37,36 +37,48 @@ class Service_Prx392_Runs
 
     public static function proposals($limit = 50)
     {
-        return self::_all("
-            SELECT s.*, r.profile, r.model, r.tokens, r.duration_ms, r.finished_at,
-                   d.reg_no, d.subject
+        return self::_with_headers(self::_all("
+            SELECT s.*, r.profile, r.model, r.tokens, r.duration_ms, r.finished_at
             FROM prx_392_suggestions s
             JOIN prx_392_runs r ON r.id = s.run_id
-            JOIN prx_391_documents d ON d.id = s.document_id
             WHERE s.status IN ('proposed', 'edited')
-            ORDER BY s.created_at DESC LIMIT ".(int) $limit."
-        ");
+            ORDER BY s.created_at DESC, s.id DESC LIMIT ".max(0, (int) $limit)."
+        "), TRUE);
     }
 
     public static function runs_for_document($document_id, $limit = 10)
     {
-        return self::_all("
-            SELECT r.*, d.reg_no, d.subject
+        return self::_with_headers(self::_all("
+            SELECT r.*
             FROM prx_392_runs r
-            LEFT JOIN prx_391_documents d ON d.id = r.document_id
             WHERE r.document_id = ".(int) $document_id."
-            ORDER BY r.created_at DESC LIMIT ".(int) $limit."
-        ");
+            ORDER BY r.created_at DESC, r.id DESC LIMIT ".max(0, (int) $limit)."
+        "));
     }
 
     public static function runs($limit = 50)
     {
-        return self::_all("
-            SELECT r.*, d.reg_no, d.subject
+        return self::_with_headers(self::_all("
+            SELECT r.*
             FROM prx_392_runs r
-            LEFT JOIN prx_391_documents d ON d.id = r.document_id
-            ORDER BY r.created_at DESC LIMIT ".(int) $limit."
-        ");
+            ORDER BY r.created_at DESC, r.id DESC LIMIT ".max(0, (int) $limit)."
+        "));
+    }
+
+    /** Один batch lookup вместо JOIN к чужой таблице или N+1 карточек. */
+    private static function _with_headers(array $rows, bool $require_document = FALSE): array
+    {
+        $headers = Service_Prx391_Documents::headers_for_processing(array_column($rows, 'document_id'));
+        $out = [];
+        foreach ($rows as $row)
+        {
+            $header = $headers[(int) $row['document_id']] ?? NULL;
+            if ($require_document AND $header === NULL) continue;
+            $row['reg_no'] = $header['reg_no'] ?? NULL;
+            $row['subject'] = $header['subject'] ?? NULL;
+            $out[] = $row;
+        }
+        return $out;
     }
 
     public static function run($id)

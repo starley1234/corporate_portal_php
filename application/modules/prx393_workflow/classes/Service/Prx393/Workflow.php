@@ -31,10 +31,20 @@ class Service_Prx393_Workflow
     // Маршрутизация
     // ------------------------------------------------------------------
 
-    public static function route($document_id, array $actor = [])
+    public static function route($document_id, ?Prx_Actor $actor = NULL)
     {
-        $document_id = (int) $document_id;
-        $document = Service_Prx391_Documents::document($document_id, self::_system_actor($actor));
+        ($actor ?? Prx_Actor::guest())->require('prx393.manage');
+        return self::_route((int) $document_id, Service_Prx391_Documents::document($document_id, $actor), $actor->id());
+    }
+
+    /** Событие/cron: не принимает роли или флаги из пользовательского запроса. */
+    public static function route_automatically($document_id, $initiator_id = NULL)
+    {
+        return self::_route((int) $document_id, Service_Prx391_Documents::document_for_processing($document_id), $initiator_id);
+    }
+
+    private static function _route(int $document_id, ?array $document, $initiator_id)
+    {
         if ( ! $document)
         {
             throw new InvalidArgumentException('Документ не найден');
@@ -149,31 +159,27 @@ class Service_Prx393_Workflow
             'role' => $role,
             'due_at' => $due,
             'rule' => $matched['code'] ?? NULL,
-        ], (int) ($actor['user_id'] ?? 0) ?: NULL);
+        ], $initiator_id > 0 ? (int) $initiator_id : NULL);
 
         return self::deadline_for($document_id);
     }
 
     public static function recalculate_all($limit = 200)
     {
-        $ids = self::_all("
-            SELECT id FROM prx_391_documents
-            WHERE status NOT IN ('closed', 'archived')
-            ORDER BY received_at DESC LIMIT ".(int) $limit."
-        ");
+        $ids = Service_Prx391_Documents::open_ids_for_processing((int) $limit);
 
         $n = 0;
-        foreach ($ids as $row)
+        foreach ($ids as $id)
         {
             try
             {
-                self::route((int) $row['id']);
+                self::route_automatically($id);
                 $n++;
             }
             catch (Throwable $e)
             {
                 Log_Plain::event(Log::WARNING, 'prx393_diag stage=recalculate result=error document_id=:id error_type=:type', [
-                    ':id' => (int) $row['id'], ':type' => get_class($e),
+                    ':id' => $id, ':type' => get_class($e),
                 ]);
             }
         }
@@ -283,24 +289,24 @@ class Service_Prx393_Workflow
     }
 
     /** Показать только доступные карточки среди ближайших $limit сроков. */
-    public static function visible_deadlines(array $actor, $limit = 60, $only_open = TRUE)
+    public static function visible_deadlines(?Prx_Actor $actor, $limit = 60, $only_open = TRUE)
     {
         return self::_visible_rows(self::deadlines($limit, $only_open), $actor);
     }
 
     /** Показать только доступные карточки среди последних $limit эскалаций. */
-    public static function visible_escalations(array $actor, $limit = 30)
+    public static function visible_escalations(?Prx_Actor $actor, $limit = 30)
     {
         return self::_visible_rows(self::escalations($limit), $actor);
     }
 
     /** Общие показатели нельзя раскрывать тем, кто видит не все документы. */
-    public static function visible_stats(array $actor)
+    public static function visible_stats(?Prx_Actor $actor)
     {
         return Service_Prx391_Documents::can_view_all($actor) ? self::stats() : NULL;
     }
 
-    protected static function _visible_rows(array $rows, array $actor)
+    protected static function _visible_rows(array $rows, ?Prx_Actor $actor)
     {
         if ( ! $rows)
         {
@@ -406,7 +412,7 @@ class Service_Prx393_Workflow
             // до записи эскалации; при сбое не помечаем её обработанной.
             try
             {
-                $document = Service_Prx391_Documents::document((int) $row['document_id'], self::_system_actor());
+                $document = Service_Prx391_Documents::document_for_processing((int) $row['document_id']);
                 if ( ! $document)
                 {
                     Log_Plain::event(Log::WARNING, 'prx393_diag stage=escalation_targets result=missing document_id=:id', [
@@ -574,44 +580,16 @@ class Service_Prx393_Workflow
 
     protected static function _role_users($role, array $document)
     {
-        // Читаем полный набор ролей кандидатов, а не только роль назначения:
-        // clerk может одновременно быть юристом и иметь доступ к карточке.
-        $actors = [];
-        foreach (self::_all("
-            SELECT DISTINCT ru.user_id, r.name
-            FROM roles_users ru
-            JOIN roles r ON r.id = ru.role_id
-            WHERE EXISTS (
-                SELECT 1 FROM roles_users candidate
-                JOIN roles target_role ON target_role.id = candidate.role_id
-                WHERE candidate.user_id = ru.user_id AND target_role.name = ".self::_q($role)."
-            )
-            ORDER BY ru.user_id, r.name
-        ") as $row)
-        {
-            $id = (int) $row['user_id'];
-            if ($id > 0)
-            {
-                $actors[$id]['user_id'] = $id;
-                $actors[$id]['roles'][] = (string) $row['name'];
-            }
-        }
-
         $out = [];
-        foreach ($actors as $id => $actor)
+        foreach (Service_Prx102_Users::actors_with_role((string) $role) as $actor)
         {
             if (Service_Prx391_Documents::can_view($document, $actor))
             {
-                $out[] = (int) $id;
+                $out[] = $actor->id();
             }
         }
 
         return $out;
-    }
-
-    protected static function _system_actor(array $actor = [])
-    {
-        return $actor ? $actor : ['user_id' => 0, 'roles' => ['system'], 'is_system' => TRUE];
     }
 
     protected static function _db()

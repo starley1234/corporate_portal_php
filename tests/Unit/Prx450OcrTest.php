@@ -5,7 +5,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Настройки OCR-шлюза: контракт и белый список overrides.
  *
- * Запуск: php tests/mini_runner.php Prx450Ocr
+ * Запуск: php tests/Support/mini_runner.php Prx450Ocr
  */
 class Prx450OcrTest extends TestCase
 {

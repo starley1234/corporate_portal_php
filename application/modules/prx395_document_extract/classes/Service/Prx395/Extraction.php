@@ -26,16 +26,17 @@ class Service_Prx395_Extraction
         $this->queue = Service_Prx120_JobQueue::instance();
     }
 
-    /** @param int $client ID ключа prx150; админка передаёт отрицательный ID пользователя */
-    public function submit(int $client, string $key, $upload): int
+    public function submit(Prx_Principal $principal, string $key, $upload): int
     {
-        return $this->register($client, $key, self::validated_upload($upload));
+        $owner = Policy_Prx395_Extraction::ownerId($principal);
+        return $this->register($owner, $key, self::validated_upload($upload));
     }
 
-    public function submit_sample(int $client, string $key): int
+    public function submit_sample(Prx_Actor $actor, string $key): int
     {
+        $owner = Policy_Prx395_Extraction::ownerId($actor);
         $path = dirname(__DIR__, 3).'/fixtures/sample.pdf';
-        return $this->register($client, $key, [
+        return $this->register($owner, $key, [
             'tmp_name' => $path, 'name' => 'document.pdf', 'size' => filesize($path), 'type' => 'application/pdf',
         ]);
     }
@@ -125,8 +126,9 @@ class Service_Prx395_Extraction
         return ['tmp_name' => $path, 'name' => 'document.pdf', 'size' => $size, 'type' => 'application/pdf'];
     }
 
-    public function status(int $client, int $id): array
+    public function status(Prx_Principal $principal, int $id): array
     {
+        $client = Policy_Prx395_Extraction::ownerId($principal);
         $row = $this->one('SELECT expires_at FROM prx_395_extractions WHERE job_id = '.$id
             .' AND api_client_id = '.(int) $client.' AND expires_at > now()');
         if ( ! $row) throw new Prx395_Error('not_found', 404);

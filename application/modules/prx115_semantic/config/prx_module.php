@@ -5,17 +5,21 @@
  *
  * Создан 28.09.2026 вместе с пятым контрактом (см. application/classes/Manifest.php):
  * модуль объявляет свои каналы очереди сам, а не строкой в чужом конфиге.
- * Полей title/href здесь нет намеренно — это не карточка витрины, в меню и на
- * /services модуль не показывается.
+ * Страница управления опубликована в каталоге для администратора.
  */
 
 return [
     'id' => 115,
     'slug' => 'prx115_semantic',
-    'kind' => 'platform',
+    'kind' => 'module',
+    'status' => 'stable',
+    'acl' => 'prx115.admin',
+    'href' => '/prx115',
+    'icon' => 'fas fa-brain',
+    'group' => 'Платформа',
+    'audience' => 'admin',
     // Назначение модуля: отсюда его берёт реестр в docs/ARCHITECTURE.md §2
-    // (bin/console module:list --markdown). Без `href` в меню и на /services
-    // модуль не показывается.
+    // (bin/console module:list --markdown).
     'title' => 'Семантический индекс',
     'short' => 'эмбеддинги и семантический поиск (pgvector / real[]-фолбэк)',
 

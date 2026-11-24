@@ -7,8 +7,6 @@
  */
 class Controller_Prx300_Admin extends Controller_Base
 {
-    protected $_actor_cache;
-
     public function before()
     {
         parent::before();
@@ -30,8 +28,8 @@ class Controller_Prx300_Admin extends Controller_Base
     {
         try
         {
-            $dashboard = Service_Prx300_Admin::dashboard($this->_actor());
-            $options = Service_Prx300_Admin::form_options($this->_actor());
+            $dashboard = Service_Prx300_Admin::dashboard($this->actor());
+            $options = Service_Prx300_Admin::form_options($this->actor());
         }
         catch (DomainException $e)
         {
@@ -59,7 +57,7 @@ class Controller_Prx300_Admin extends Controller_Base
     {
         $this->_post(function () {
             $id = (int) $this->request->post('id');
-            Service_Prx300_Admin::save_organization($this->_actor(), $this->request->post(), $id ?: NULL);
+            Service_Prx300_Admin::save_organization($this->actor(), $this->request->post(), $id ?: NULL);
             return 'Организация сохранена';
         }, '/prx300/admin');
     }
@@ -68,7 +66,7 @@ class Controller_Prx300_Admin extends Controller_Base
     {
         $this->_post(function () {
             $id = (int) $this->request->post('id');
-            Service_Prx300_Admin::save_site($this->_actor(), $this->request->post(), $id ?: NULL);
+            Service_Prx300_Admin::save_site($this->actor(), $this->request->post(), $id ?: NULL);
             return 'Площадка сохранена';
         }, '/prx300/admin');
     }
@@ -77,7 +75,7 @@ class Controller_Prx300_Admin extends Controller_Base
     {
         $this->_post(function () {
             $id = (int) $this->request->post('id');
-            Service_Prx300_Admin::save_department($this->_actor(), $this->request->post(), $id ?: NULL);
+            Service_Prx300_Admin::save_department($this->actor(), $this->request->post(), $id ?: NULL);
             return 'Подразделение сохранено';
         }, '/prx300/admin');
     }
@@ -96,8 +94,8 @@ class Controller_Prx300_Admin extends Controller_Base
         ];
         try
         {
-            $result = Service_Prx300_Admin::employees($this->_actor(), $filters);
-            $options = Service_Prx300_Admin::form_options($this->_actor());
+            $result = Service_Prx300_Admin::employees($this->actor(), $filters);
+            $options = Service_Prx300_Admin::form_options($this->actor());
         }
         catch (DomainException $e)
         {
@@ -124,11 +122,11 @@ class Controller_Prx300_Admin extends Controller_Base
         $id = (int) $this->request->param('id');
         try
         {
-            $options = Service_Prx300_Admin::form_options($this->_actor());
-            $employee = $id ? Service_Prx300_Admin::employee_detail($this->_actor(), $id) : $this->_blank_employee($options);
-            $identities = $id ? Service_Prx300_Identity::identities_for_employee($this->_actor(), $id) : [];
-            $active_link = $id ? Service_Prx300_Identity::active_link($this->_actor(), $id) : NULL;
-            $link_history = $id ? Service_Prx300_Identity::link_history($this->_actor(), $id) : [];
+            $options = Service_Prx300_Admin::form_options($this->actor());
+            $employee = $id ? Service_Prx300_Admin::employee_detail($this->actor(), $id) : $this->_blank_employee($options);
+            $identities = $id ? Service_Prx300_Identity::identities_for_employee($this->actor(), $id) : [];
+            $active_link = $id ? Service_Prx300_Identity::active_link($this->actor(), $id) : NULL;
+            $link_history = $id ? Service_Prx300_Identity::link_history($this->actor(), $id) : [];
             $selected_identity = $this->_selected($identities, (int) $this->request->query('identity_id'));
         }
         catch (DomainException $e)
@@ -156,7 +154,7 @@ class Controller_Prx300_Admin extends Controller_Base
         $id = (int) $this->request->param('id');
         $saved_id = $id;
         $this->_post(function () use ($id, &$saved_id) {
-            $saved_id = Service_Prx300_Admin::save_employee($this->_actor(), $this->request->post(), $id ?: NULL);
+            $saved_id = Service_Prx300_Admin::save_employee($this->actor(), $this->request->post(), $id ?: NULL);
             return 'Профиль сотрудника сохранён';
         }, '/prx300/admin/employees', function () use (&$saved_id, $id) {
             return '/prx300/admin/employee/'.(int) ($saved_id ?: $id);
@@ -169,7 +167,7 @@ class Controller_Prx300_Admin extends Controller_Base
         $this->_post(function () use ($employee_id) {
             $identity_id = (int) $this->request->post('identity_id');
             Service_Prx300_Identity::save_identity(
-                $this->_actor(), $employee_id, $this->request->post(), $identity_id ?: NULL
+                $this->actor(), $employee_id, $this->request->post(), $identity_id ?: NULL
             );
             return 'Внешний идентификатор сохранён';
         }, '/prx300/admin/employee/'.$employee_id);
@@ -180,7 +178,7 @@ class Controller_Prx300_Admin extends Controller_Base
         $identity_id = (int) $this->request->param('id');
         $employee_id = (int) $this->request->post('employee_id');
         $this->_post(function () use ($identity_id) {
-            Service_Prx300_Identity::disable_identity($this->_actor(), $identity_id);
+            Service_Prx300_Identity::disable_identity($this->actor(), $identity_id);
             return 'Внешний идентификатор отключён';
         }, '/prx300/admin/employee/'.$employee_id);
     }
@@ -190,7 +188,7 @@ class Controller_Prx300_Admin extends Controller_Base
         $employee_id = (int) $this->request->param('id');
         $this->_post(function () use ($employee_id) {
             Service_Prx300_Identity::link_user(
-                $this->_actor(),
+                $this->actor(),
                 $employee_id,
                 (string) $this->request->post('user_identifier'),
                 (string) ($this->request->post('linked_via') ?: 'manual'),
@@ -205,7 +203,7 @@ class Controller_Prx300_Admin extends Controller_Base
         $employee_id = (int) $this->request->param('id');
         $this->_post(function () use ($employee_id) {
             Service_Prx300_Identity::unlink_user(
-                $this->_actor(), $employee_id, (string) $this->request->post('reason')
+                $this->actor(), $employee_id, (string) $this->request->post('reason')
             );
             return 'Связь аккаунта и сотрудника отозвана';
         }, '/prx300/admin/employee/'.$employee_id);
@@ -222,7 +220,7 @@ class Controller_Prx300_Admin extends Controller_Base
         }
         try
         {
-            $batches = Service_Prx300_Import::batches($this->_actor(), 30);
+            $batches = Service_Prx300_Import::batches($this->actor(), 30);
         }
         catch (DomainException $e)
         {
@@ -245,7 +243,7 @@ class Controller_Prx300_Admin extends Controller_Base
         $batch_id = 0;
         $this->_post(function () use (&$batch_id) {
             $batch_id = Service_Prx300_Import::stage_upload(
-                $this->_actor(),
+                $this->actor(),
                 (array) Arr::get($_FILES, 'csv', []),
                 (string) ($this->request->post('source_system') ?: 'hris')
             );
@@ -259,7 +257,7 @@ class Controller_Prx300_Admin extends Controller_Base
     {
         $id = (int) $this->request->param('id');
         $this->_post(function () use ($id) {
-            $batch = Service_Prx300_Import::apply_batch($this->_actor(), $id);
+            $batch = Service_Prx300_Import::apply_batch($this->actor(), $id);
             return 'Пакет применён: создано '.$batch['created_count'].', обновлено '.$batch['updated_count']
                 .', пропущено '.$batch['skipped_count'];
         }, '/prx300/admin/import/'.$id);
@@ -278,7 +276,7 @@ class Controller_Prx300_Admin extends Controller_Base
     {
         try
         {
-            $batch = Service_Prx300_Import::batch($this->_actor(), (int) $id, TRUE);
+            $batch = Service_Prx300_Import::batch($this->actor(), (int) $id, TRUE);
         }
         catch (DomainException $e)
         {
@@ -371,27 +369,8 @@ class Controller_Prx300_Admin extends Controller_Base
         ];
     }
 
-    protected function _actor()
-    {
-        if ($this->_actor_cache !== NULL)
-        {
-            return $this->_actor_cache;
-        }
-
-        return $this->_actor_cache = [
-            'user_id' => (int) $this->_current_user->id,
-            'roles' => $this->_current_user_roles,
-            'can_admin_view' => $this->can('prx300.admin.view'),
-            'can_manage' => $this->can('prx300.manage'),
-            'can_import' => $this->can('prx300.import'),
-            'can_identity' => $this->can('prx300.identity'),
-            'can_directory' => $this->can('prx300.directory'),
-        ];
-    }
-
     protected function _can_admin()
     {
-        return $this->can('prx300.admin.view') OR $this->can('prx300.manage')
-            OR $this->can('prx300.import') OR $this->can('prx300.identity');
+        return Policy_Prx300_Employee::canReadAdministration($this->actor());
     }
 }

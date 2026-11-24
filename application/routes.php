@@ -1,5 +1,9 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
+// Predictable entry for every connected numbered module with a UI manifest.
+Route::set('module_home_alias', 'prx<module_id>_index', ['module_id' => '[0-9]{3}'])
+    ->defaults(['controller' => 'ModuleHome', 'action' => 'index']);
+
 
 
 

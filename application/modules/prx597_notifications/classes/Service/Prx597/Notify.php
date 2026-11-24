@@ -141,8 +141,8 @@ SQL
      * OUTBOX-доставка (21.09): python-воркеры в режиме pg завершают задачи
      * ПРЯМО в БД, мимо PHP JobQueue::complete() — хук уведомлений там мёртв.
      * Поэтому: сгребаем завершённые задачи без маркера notified_at и шлём
-     * уведомления. Вызывается из «Пиналки» (каждые 10 минут), Minion-задачи
-     * Prx120:NotifyOutbox и страницы «Мои задачи».
+     * уведомления. Вызывается обслуживанием portal:maintain/NotifyOutbox,
+     * не общим HTTP-контроллером и не посещением страницы задач.
      */
     /**
      * PostgreSQL возвращает BOOLEAN строками 't'/'f' — (bool)'f' в PHP это
@@ -155,25 +155,9 @@ SQL
 
     public static function sweep_jobs($limit = 40)
     {
-        try
-        {
-            // маркер доставки живёт в prx_120_jobs (ленивая миграция, идемпотентно)
-            DB::query(NULL, 'ALTER TABLE "prx_120_jobs" ADD COLUMN IF NOT EXISTS "notified_at" TIMESTAMPTZ NULL')->execute();
-        }
-        catch (Throwable $e)
-        {
-            Kohana::$log->add(Log::WARNING, 'prx597: sweep alter: :e', [':e' => $e->getMessage()]);
-
-            return 0;
-        }
-
-        $db = self::_db();
-        $rows = $db->query(Database::SELECT,
-            "SELECT id, channel, status, payload, error, created_by, visitor_id
-             FROM prx_120_jobs
-             WHERE notified_at IS NULL AND status IN ('done', 'failed')
-               AND (created_by IS NOT NULL OR visitor_id LIKE 'u:%')
-             ORDER BY id DESC LIMIT ".(int) $limit, FALSE)->as_array();
+        // Схема/соединение очереди принадлежат prx120. Runtime DDL здесь нет.
+        $queue = Service_Prx120_JobQueue::instance();
+        $rows = $queue->pending_notifications((int) $limit);
 
         $sent = 0;
 
@@ -188,13 +172,12 @@ SQL
             catch (Throwable $e)
             {
                 Kohana::$log->add(Log::WARNING, 'prx597: sweep job :j: :e', [':j' => (int) $r['id'], ':e' => $e->getMessage()]);
+                continue; // исключение при обработке не подтверждает задачу
             }
 
             try
             {
-                $db->query(Database::INSERT,
-                    'UPDATE prx_120_jobs SET notified_at = now() WHERE id = '.(int) $r['id'], FALSE);
-                $sent++;
+                if ($queue->mark_notification_processed((int) $r['id'])) $sent++;
             }
             catch (Throwable $e)
             {
@@ -212,187 +195,29 @@ SQL
 
     // --------------------------------------------------------------- prefs
 
-    /** Поля настроек пользователя и их умолчания (тип: bool | int | str). */
-    const PREF_FIELDS = [
-        'email_enabled'    => 'bool',
-        'on_done'          => 'bool',
-        'on_failed'        => 'bool',
-        'in_app_enabled'   => 'bool',
-        'telegram_enabled' => 'bool',
-        'max_enabled'      => 'bool',
-        'digest_mode'      => 'str',
-        'quiet_from'       => 'int',
-        'quiet_to'         => 'int',
-        'tz'               => 'str',
-        'locale'           => 'str',
-    ];
+    /** Совместимый публичный список полей; источник истины — Preferences. */
+    const PREF_FIELDS = Service_Prx597_Preferences::FIELDS;
 
-    /**
-     * Умолчания настроек: если человек ничего не настраивал.
-     *
-     * Владелец (16.10.2026): «По умолчанию у пользователей должны быть
-     * отключены уведомления», и он же уточнил (выбор из вариантов): колокольчик
-     * на сайте остаётся включённым. Поэтому наружу центр не шлёт НИЧЕГО, пока
-     * человек сам не отметит нужное на /prx597?tab=settings, а лента на сайте
-     * работает всегда — она не беспокоит и не требует адреса.
-     *
-     * Исключения, которые не «умолчания», а правила платформы: обязательные
-     * события (безопасность, деньги) всегда оставляют след в колокольчике
-     * (см. Registry::plan_for) и адресное сообщение администратора
-     * (Notify::system_message) — оно уходит ровно получателю.
-     */
     public static function prefs_default($user_id = 0)
     {
-        return [
-            'user_id'          => (int) $user_id,
-            'email_enabled'    => FALSE,
-            'on_done'          => FALSE,
-            'on_failed'        => FALSE,
-            'in_app_enabled'   => TRUE,
-            'telegram_enabled' => FALSE,
-            'max_enabled'      => FALSE,
-            'digest_mode'      => (string) self::cfg('digest.default', 'off'),
-            'quiet_from'       => -1,
-            'quiet_to'         => -1,
-            'tz'               => (string) self::cfg('quiet.tz', 'Europe/Moscow'),
-            'locale'           => 'ru',
-        ];
+        return Service_Prx597_Preferences::defaults($user_id);
     }
 
-    /** Настройки пользователя (defaults, если не менял). */
     public static function prefs($user_id)
     {
         self::ensure_tables();
-        $row = self::_db()->query(Database::SELECT,
-            'SELECT * FROM prx_597_prefs WHERE user_id = '.(int) $user_id, FALSE)->current();
-
-        if ( ! $row)
-        {
-            return self::prefs_default($user_id);
-        }
-
-        $row  = (array) $row;
-        $out  = self::prefs_default((int) $row['user_id']);
-
-        // PG отдаёт BOOLEAN строками 't'/'f' — приводим к настоящему bool,
-        // иначе (bool)'f' === TRUE и проверки «выключено» работают наоборот.
-        foreach (self::PREF_FIELDS as $field => $type)
-        {
-            if ( ! array_key_exists($field, $row))
-            {
-                continue;   // колонки нет (база старее миграции 002) — берём умолчание
-            }
-
-            $value = $row[$field];
-
-            if ($type === 'bool')
-            {
-                $out[$field] = self::_bool($value);
-            }
-            elseif ($type === 'int')
-            {
-                $out[$field] = (int) $value;
-            }
-            else
-            {
-                $out[$field] = (string) $value;
-            }
-        }
-
-        return $out;
+        return Service_Prx597_Preferences::get($user_id);
     }
 
-    /** Поля пользовательской формы/API: скрытые каналы и отсутствующие поля не меняем. */
     public static function user_pref_fields(array $p)
     {
-        $channels = Service_Prx597_Base::user_channels();
-        $fields = [];
-        foreach (self::PREF_FIELDS as $field => $type)
-        {
-            if ( ! array_key_exists($field, $p)) { continue; }
-            if (substr($field, -8) === '_enabled' AND ! isset($channels[substr($field, 0, -8)])) { continue; }
-            $fields[$field] = $type === 'bool' ? self::_bool($p[$field])
-                : ($type === 'int' ? (int) $p[$field] : trim((string) $p[$field]));
-        }
-        return $fields;
+        return Service_Prx597_Preferences::form_fields($p);
     }
 
-    /** Сохранить настройки (только известные ключи-булевы). Атомарный upsert. */
     public static function save_prefs($user_id, array $p)
     {
         self::ensure_tables();
-        $db = self::_db();
-
-        $values = [];
-
-        foreach (self::PREF_FIELDS as $field => $type)
-        {
-            if ( ! array_key_exists($field, $p))
-            {
-                continue;   // не пришло — не трогаем (форма могла выслать часть полей)
-            }
-
-            if ($type === 'bool')
-            {
-                $values[$field] = ! empty($p[$field]);
-            }
-            elseif ($type === 'int')
-            {
-                $values[$field] = (int) $p[$field];
-            }
-            else
-            {
-                $values[$field] = trim((string) $p[$field]);
-            }
-        }
-
-        if ( ! $values)
-        {
-            return self::prefs($user_id);
-        }
-
-        // Режим дайджеста — из белого списка: что не знаем, то off.
-        if (isset($values['digest_mode']) AND ! in_array($values['digest_mode'], ['off', 'hourly', 'daily'], TRUE))
-        {
-            $values['digest_mode'] = 'off';
-        }
-
-        $columns = array_keys($values);
-        $insert  = [];
-        $update  = [];
-
-        foreach ($values as $field => $value)
-        {
-            $literal = is_bool($value) ? ($value ? 'TRUE' : 'FALSE')
-                : (is_int($value) ? (string) $value : $db->quote((string) $value));
-
-            $insert[] = $literal;
-            $update[] = $field.' = EXCLUDED.'.$field;
-        }
-
-        // Один атомарный запрос вместо UPDATE-then-INSERT (гонки двух вкладок).
-        // ВАЖНО: у этого драйвера query(Database::INSERT) возвращает массив —
-        // никакого ->execute() поверх.
-        $db->query(Database::INSERT,
-            'INSERT INTO prx_597_prefs (user_id, '.implode(', ', $columns).', updated_at)
-             VALUES ('.(int) $user_id.', '.implode(', ', $insert).', now())
-             ON CONFLICT (user_id) DO UPDATE SET '.implode(', ', $update).', updated_at = now()', FALSE);
-
-        $saved = self::prefs($user_id);
-
-        foreach ($values as $key => $value)
-        {
-            $got    = $saved[$key] ?? NULL;
-            $equals = is_bool($value) ? ((bool) $got === $value) : ((string) $got === (string) $value);
-
-            if ( ! $equals)
-            {
-                Kohana::$log->add(Log::ERROR, 'prx597: настройки пользователя :u не подтвердились после записи (:k)', [':u' => (int) $user_id, ':k' => (string) $key]);
-                throw new RuntimeException('Настройки уведомлений не подтвердились в базе данных');
-            }
-        }
-
-        return $saved;
+        return Service_Prx597_Preferences::save($user_id, $p);
     }
 
     // -------------------------------------------------------------- notify
@@ -1366,24 +1191,11 @@ SQL
 
     protected static function _email_text($title, $body, $href)
     {
-        $url = self::_base_url().self::_safe_href($href);
-
-        return $title."\n"
-            .($body !== '' ? "\n".$body."\n" : '')
-            ."\nОткрыть: ".$url."\n\n"
-            ."Вы получили это письмо, потому что подписаны на уведомления PRX.ru.\n"
-            ."Настройки: ".self::_base_url()."/prx597";
+        return Service_Prx597_EmailContent::text($title, $body, self::_safe_href($href));
     }
 
-    /**
-     * Обёртка письма: шапка с логотипом + карточка + подвал.
-     * Таблично-инлайновая вёрстка — почтовые клиенты (Gmail, Mail.ru) режут
-     * flex/grid и <style>. Тёмная тема не нужна: письма рендерим светлыми.
-     */
     public static function email_shell($title, $inner_html, array $unsub = [])
     {
-        $h = htmlspecialchars((string) $title, ENT_QUOTES, 'UTF-8');
-
         // Подвал с отказом: у каждого письма должен быть способ выключить
         // именно его, иначе человек выключит всё и потеряет важное.
         $footer = 'Вы получили это письмо, потому что подписаны на уведомления PRX.ru.<br>';
@@ -1408,139 +1220,23 @@ SQL
             .'Все уведомления и настройки</a> · '
             .'<a href="'.self::_base_url().'" style="color:#2563eb;text-decoration:underline;">на главную</a>';
 
-        return '<!DOCTYPE html>'
-            .'<html lang="ru"><head><meta charset="utf-8">'
-            .'<meta name="viewport" content="width=device-width, initial-scale=1"></head>'
-            .'<body style="margin:0;padding:0;background:#f3f4f6;">'
-            .'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:24px 12px;">'
-            .'<tr><td align="center">'
-            .'<table role="presentation" width="600" cellpadding="0" cellspacing="0" '
-            .'style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;'
-            .'border:1px solid #e5e7eb;">'
-            // шапка
-            .'<tr><td style="background:#111827;padding:18px 28px;">'
-            .'<table role="presentation" width="100%"><tr>'
-            .'<td style="color:#ffffff;font:bold 18px Arial,Helvetica,sans-serif;">'
-            .'<span style="color:#60a5fa;">PRX</span>.ru</td>'
-            .'<td align="right" style="color:#9ca3af;font:12px Arial,Helvetica,sans-serif;">'
-            .$h.'</td>'
-            .'</tr></table></td></tr>'
-            // тело
-            .'<tr><td style="padding:24px 28px;font:15px/1.55 Arial,Helvetica,sans-serif;color:#111827;">'
-            .(string) $inner_html
-            .'</td></tr>'
-            // подвал
-            .'<tr><td style="padding:16px 28px;background:#f9fafb;border-top:1px solid #e5e7eb;'
-            .'color:#6b7280;font:12px/1.5 Arial,Helvetica,sans-serif;">'
-            .$footer
-            .'</td></tr>'
-            .'</table></td></tr></table></body></html>';
+        return Service_Prx597_EmailContent::shell($title, $inner_html, $footer);
     }
 
-    /** Экранированный короткий текст → HTML. */
     protected static function _esc($s)
     {
         return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8');
     }
 
-    /** База ссылок в письмах: APP_URL из .env, по умолчанию — прод. */
     protected static function _base_url()
     {
-        $u = rtrim(trim((string) getenv('APP_URL')), '/');
-
-        // ВАЖНО: при пустом APP_URL раньше стоял `self::_base_url()` — самовызов
-        // без изменения состояния = бесконечная рекурсия. Cron `Prx603:Kick` с
-        // pending-уведомлениями вызывал `_base_url()` из digest/pdf-путей, PHP
-        // растил VM-стек на куче, пока ядро не убивало процесс по OOM (~2.4 ГБ
-        // total-vm на сервере с 1 ГБ RAM). Фолбэк — прод-адрес, как в .env.example.
-        return ($u !== '') ? $u : 'http://localhost:8080';
+        return Service_Prx597_EmailContent::base_url();
     }
 
-    /** Цвет маркера события: зелёный — успех, красный — ошибка, синий — прочее. */
-    protected static function _kind_color($kind)
-    {
-        if (strpos((string) $kind, 'failed') !== FALSE OR strpos((string) $kind, 'error') !== FALSE)
-        {
-            return '#dc2626'; // красный
-        }
-
-        if (strpos((string) $kind, 'done') !== FALSE OR strpos((string) $kind, 'prx605') !== FALSE)
-        {
-            return '#059669'; // зелёный
-        }
-
-        return '#2563eb'; // синий
-    }
-
-    /**
-     * HTML сводки уведомлений: карточки событий + кнопки «Открыть».
-     * $rows — строки prx_597_notifications, $extra — сколько ещё не вошло.
-     */
     public static function digest_html(array $rows, $extra = 0)
     {
-        $cards = '';
-
-        foreach ($rows as $r)
-        {
-            $title = (string) $r['title'];
-            $body  = preg_replace('~\s+~u', ' ', (string) $r['body']);
-            $url   = self::_base_url().self::_safe_href((string) $r['href']);
-            $dot   = '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;'
-                .'background:'.self::_kind_color($r['kind'] ?? '').';margin-right:7px;"></span>';
-            $when  = '';
-
-            if ( ! empty($r['created_at']))
-            {
-                try
-                {
-                    $when = Date::formatted_time((string) $r['created_at'], 'd.m.Y H:i');
-                }
-                catch (Throwable $e)
-                {
-                    $when = '';
-                }
-            }
-
-            $title_html = self::_esc($title);
-
-            // заголовок-ссылка: событие ведёт на страницу результата
-            if (trim((string) $r['href']) !== '')
-            {
-                $title_html = '<a href="'.self::_esc($url).'" '
-                    .'style="color:#111827;text-decoration:none;">'.$title_html.'</a>';
-            }
-
-            $cards .= '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
-                .'style="margin:0 0 12px 0;border:1px solid #e5e7eb;border-radius:12px;">'
-                .'<tr><td style="padding:14px 16px;">'
-                .'<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>'
-                .'<td style="font:bold 15px/1.4 Arial,Helvetica,sans-serif;color:#111827;">'
-                .$dot.$title_html.'</td>'
-                .($when !== '' ? '<td align="right" style="color:#9ca3af;font:12px Arial,Helvetica,sans-serif;'
-                    .'white-space:nowrap;">'.$when.'</td>' : '')
-                .'</tr></table>'
-                .($body !== '' ? '<div style="margin-top:6px;color:#4b5563;'
-                    .'font:14px/1.55 Arial,Helvetica,sans-serif;">'.self::_esc($body).'</div>' : '')
-                .(trim((string) $r['href']) !== ''
-                    ? '<div style="margin-top:10px;"><a href="'.self::_esc($url).'" '
-                        .'style="display:inline-block;background:#2563eb;color:#ffffff;'
-                        .'font:bold 13px Arial,Helvetica,sans-serif;padding:8px 16px;'
-                        .'border-radius:8px;text-decoration:none;">Открыть &rarr;</a></div>'
-                    : '')
-                .'</td></tr></table>';
-        }
-
-        if ($extra > 0)
-        {
-            $cards .= '<p style="margin:14px 0;color:#374151;font:14px Arial,Helvetica,sans-serif;">'
-                .'И ещё уведомлений: <b>'.(int) $extra.'</b> — '
-                .'<a href="'.self::_base_url().'/prx597" style="color:#2563eb;">смотреть все</a></p>';
-        }
-
-        return self::email_shell(
-            'Сводка уведомлений',
-            '<p style="margin:0 0 16px 0;font:15px Arial,Helvetica,sans-serif;color:#374151;">'
-            .'В центре уведомлений накопились события:</p>'.$cards);
+        foreach ($rows as $i => $row) $rows[$i]['_email_href'] = self::_safe_href((string) $row['href']);
+        return Service_Prx597_EmailContent::digest($rows, $extra);
     }
 
     /**
@@ -1726,47 +1422,10 @@ SQL
         return (strpos($vid, 'u:') === 0) ? (int) substr($vid, 2) : 0;
     }
 
-    /**
-     * Разовая уборка «включений по умолчанию».
-     *
-     * До 16.10.2026 внешние каналы были включены сами собой, поэтому TRUE в
-     * настройках чаще всего означал не выбор человека, а значение по умолчанию
-     * из формы. Правило узкое и безопасное: гасим строки только тех людей, у
-     * кого НЕТ ни одной явной клетки матрицы (prx_597_subs) — тот, кто сам
-     * что-то отмечал, неприкосновенен. Колокольчик (in_app) не трогаем: он и
-     * должен быть включён всегда. Отметка в настройках закрывает уборку
-     * навсегда: второй раз она не сработает и чужих решений не тронет.
-     */
+    /** Совместимая точка запуска legacy-уборки при подготовке схемы. */
     protected static function _defaults_off_once()
     {
-        if (self::setting('prefs.defaults_off', '') === '1')
-        {
-            return 0;
-        }
-
-        $db = self::_db();
-
-        try
-        {
-            $db->query(Database::UPDATE,
-                'UPDATE "prx_597_prefs" p
-                    SET "email_enabled" = FALSE, "telegram_enabled" = FALSE,
-                        "max_enabled" = FALSE, "on_done" = FALSE, "on_failed" = FALSE,
-                        "updated_at" = now()
-                  WHERE ("email_enabled" IS TRUE OR "telegram_enabled" IS TRUE
-                         OR "max_enabled" IS TRUE OR "on_done" IS TRUE OR "on_failed" IS TRUE)
-                    AND NOT EXISTS (SELECT 1 FROM "prx_597_subs" s WHERE s."user_id" = p."user_id")',
-                FALSE);   // драйвер отдаёт число, а не объект результата
-
-            self::set_setting('prefs.defaults_off', '1');
-        }
-        catch (Throwable $e)
-        {
-            // Нет таблицы настроек или база старее правки — не мешаем работать.
-            return 0;
-        }
-
-        return 0;
+        return Service_Prx597_Preferences::disable_legacy_defaults_once();
     }
 
     /**

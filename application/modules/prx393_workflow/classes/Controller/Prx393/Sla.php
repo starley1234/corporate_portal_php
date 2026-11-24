@@ -18,7 +18,7 @@ class Controller_Prx393_Sla extends Controller_Prx39x_Base
             Log::instance()->add(Log::WARNING, 'prx393: эскалации не проверены: :e', [':e' => $e->getMessage()]);
         }
 
-        $actor = $this->_actor();
+        $actor = $this->actor();
         $this->template->content = View::factory('prx393/index', [
             'flash' => $this->_flash(),
             'csrf' => $this->_csrf(),
@@ -36,7 +36,7 @@ class Controller_Prx393_Sla extends Controller_Prx39x_Base
         $document_id = (int) $this->request->param('id');
 
         $this->_post(function () use ($document_id) {
-            $deadline = Service_Prx393_Workflow::route($document_id, $this->_actor());
+            $deadline = Service_Prx393_Workflow::route($document_id, $this->actor());
 
             if ($deadline AND $deadline['status'] === 'met')
             {

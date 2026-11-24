@@ -143,12 +143,12 @@ class Service_Prx391_Documents
     // Чтение (делегирует в Registry — см. Service/Prx391/Registry.php)
     // ------------------------------------------------------------------
 
-    public static function list_documents(array $filters = [], array $actor = [])
+    public static function list_documents(array $filters = [], ?Prx_Actor $actor = NULL)
     {
         return Service_Prx391_Registry::list_documents($filters, $actor);
     }
 
-    public static function document($id, array $actor = [])
+    public static function document($id, ?Prx_Actor $actor = NULL)
     {
         return Service_Prx391_Registry::document($id, $actor);
     }
@@ -163,18 +163,18 @@ class Service_Prx391_Documents
         return Service_Prx391_Registry::correspondents($limit);
     }
 
-    public static function stats(array $actor = [])
+    public static function stats(?Prx_Actor $actor = NULL)
     {
         return Service_Prx391_Registry::stats($actor);
     }
 
     /** ID из предложенного списка, чьи карточки доступны актору. */
-    public static function visible_ids(array $ids, array $actor = [])
+    public static function visible_ids(array $ids, ?Prx_Actor $actor = NULL)
     {
         return Service_Prx391_Registry::visible_ids($ids, $actor);
     }
 
-    public static function recent_history($limit = 20, array $actor = [])
+    public static function recent_history($limit = 20, ?Prx_Actor $actor = NULL)
     {
         return Service_Prx391_Registry::recent_history($limit, $actor);
     }
@@ -183,22 +183,22 @@ class Service_Prx391_Documents
     // Ручное редактирование (делегирует в Card — см. Service/Prx391/Card.php)
     // ------------------------------------------------------------------
 
-    public static function save_card($id, array $input, array $actor = [])
+    public static function save_card($id, array $input, ?Prx_Actor $actor = NULL)
     {
         return Service_Prx391_Card::save_card($id, $input, $actor);
     }
 
-    public static function close($id, array $actor = [])
+    public static function close($id, ?Prx_Actor $actor = NULL)
     {
         return Service_Prx391_Card::close($id, $actor);
     }
 
-    public static function reopen($id, array $actor = [])
+    public static function reopen($id, ?Prx_Actor $actor = NULL)
     {
         return Service_Prx391_Card::reopen($id, $actor);
     }
 
-    public static function apply_analysis($id, array $payload, $suggestion_id, array $actor = [], $overwrite = FALSE)
+    public static function apply_analysis($id, array $payload, $suggestion_id, ?Prx_Actor $actor = NULL, $overwrite = FALSE)
     {
         return Service_Prx391_Card::apply_analysis($id, $payload, $suggestion_id, $actor, $overwrite);
     }
@@ -217,56 +217,37 @@ class Service_Prx391_Documents
     // Права
     // ------------------------------------------------------------------
 
-    public static function can_view(array $doc, array $actor = [])
+    public static function can_view(array $doc, ?Prx_Actor $actor = NULL)
     {
-        if (self::_is_system($actor))
-        {
-            return TRUE;
-        }
-        if ( ! Prx_Actor::fromArray($actor)->can('prx391.view'))
-        {
-            return FALSE;
-        }
-        if (in_array($doc['sensitivity'] ?? 'internal', ['public', 'internal'], TRUE))
-        {
-            return TRUE;
-        }
-
-        return self::can_view_all($actor);
+        return (new Policy_Prx391_Document)->view($actor ?? Prx_Actor::guest(), $doc);
     }
 
-    /** Может ли актор видеть карточки с любым грифом, включая персональные. */
-    public static function can_view_all(array $actor = [])
+    public static function can_view_all(?Prx_Actor $actor = NULL)
     {
-        if (self::_is_system($actor))
-        {
-            return TRUE;
-        }
-        $roles = $actor['roles'] ?? [];
-        return Prx_Actor::fromArray($actor)->can('prx391.view')
-            && (in_array('docflow_lawyer', $roles, TRUE)
-                || in_array('docflow_manager', $roles, TRUE)
-                || in_array('admin', $roles, TRUE));
+        return Policy_Prx391_Document::canViewAll($actor);
     }
 
-    public static function can_edit(array $actor = [])
+    public static function can_edit(?Prx_Actor $actor = NULL)
     {
-        return self::_is_system($actor) OR self::_can_edit($actor);
+        return Policy_Prx391_Document::canEdit($actor);
     }
 
-    protected static function _can_edit(array $actor)
+    /** Минимальные заголовки по ID для серверного конвейера, без пользовательского ACL. */
+    public static function headers_for_processing(array $ids): array
     {
-        if (self::_is_system($actor))
-        {
-            return TRUE;
-        }
-
-        return Prx_Actor::fromArray($actor)->can('prx391.edit');
+        return Service_Prx391_Registry::headers_for_processing($ids);
     }
 
-    protected static function _is_system(array $actor)
+    /** Доверенный пакетный конвейер, не список для пользовательского UI. */
+    public static function open_ids_for_processing(int $limit = 200): array
     {
-        return ! empty($actor['is_system']) OR in_array('system', $actor['roles'] ?? [], TRUE);
+        return Service_Prx391_Registry::open_ids_for_processing($limit);
+    }
+
+    /** Только серверный конвейер: worker, маршрутизация, эскалации. Не HTTP-read API. */
+    public static function document_for_processing($id)
+    {
+        return Service_Prx391_Registry::document_for_processing($id);
     }
 
     // ------------------------------------------------------------------

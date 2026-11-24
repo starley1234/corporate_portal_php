@@ -11,19 +11,26 @@ class Controller_Prx450_Api extends Controller_Prx150_Machine
 {
     protected const SCOPE = Service_Prx450_Ocr::SCOPE;
 
+    public function after()
+    {
+        if (in_array($this->response->status(), [503, 504], TRUE)) $this->response->headers('Retry-After', '5');
+        parent::after();
+    }
+
     public function action_parse(): void
     {
+        if ($this->request->method() !== Request::POST)
+        {
+            $this->response->headers('Cache-Control', 'no-store');
+            $this->response->headers('Allow', 'POST');
+            $this->_json_response((new Prx450_Error('method_not_allowed', 405))->payload(), 405);
+            return;
+        }
         $this->respond(function () {
-            if ($this->request->method() !== Request::POST)
-            {
-                $this->response->headers('Allow', 'POST');
-                throw new Prx150_Error('method_not_allowed', 405);
-            }
-
             $result = Service_Prx450_Ocr::parse(
                 $_FILES['file'] ?? NULL,
                 $this->request->query(),
-                NULL
+                NULL, $this->principal()->id()
             );
 
             $this->_json_response($result, 200);

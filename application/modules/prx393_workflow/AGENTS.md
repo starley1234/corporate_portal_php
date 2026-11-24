@@ -1,6 +1,6 @@
 # prx393_workflow — маршруты, календарь и сроки
 
-> Тестовый контур: раскомментируйте общий блок в `application/bootstrap.php`; UI только для администратора. См. `docs/QUICK-CHECK.md`.
+> Тестовый контур: подключение — явный общий блок в `application/bootstrap.php`; UI только для администратора. См. `docs/QUICK-CHECK.md`.
 
 ## Состояние
 
@@ -13,7 +13,12 @@ MVP: правила маршрутизации, производственный
 
 Владеет `prx_393_rules`, `prx_393_calendars`, `prx_393_assignments`,
 `prx_393_deadlines`, `prx_393_escalations`. Читает карточку через
-`Service_Prx391_Documents::document()`. Не читает таблицы prx391 напрямую.
+публичный сервис prx391. Служебные чтения используют `document_for_processing()`;
+пользовательский route — `document($id, $actor)`. `recalculate_all` получает
+порцию ID через `Service_Prx391_Documents::open_ids_for_processing($limit)`.
+Кандидаты роли — `Service_Prx102_Users::actors_with_role($role)` с полными
+актуальными ролями; затем здесь проверяется `prx391::can_view()`.
+SQL workflow обращается только к собственным таблицам `prx_393_*`.
 
 ## Маршруты
 
@@ -24,8 +29,11 @@ MVP: правила маршрутизации, производственный
 
 ## Права
 
-`prx393.view` — `login`; `prx393.manage` — `docflow_manager`. `/sla`
-показывает только карточки, разрешённые `prx391`: из 60 ближайших сроков и
+Текущий `acl.php` — admin-only. `route($id, $actor)` принимает `Prx_Actor`,
+требует `prx393.manage` и доступ к карточке. Пустой actor не считается system.
+Для события/cron — явный `route_automatically($id, $initiator_id)`; инициатор
+берётся из аргумента Event, а не payload/роли. Системных actor-массивов нет.
+`/sla` показывает только карточки, разрешённые `prx391`: из 60 ближайших сроков и
 20 последних эскалаций. Общие показатели скрыты, если актор не может видеть
 все грифы; нефильтрованные `deadlines/escalations/stats` — для доверенного
 внутреннего кода, UI использует `visible_*` с актором. `/prx393/api/health`
@@ -57,8 +65,8 @@ MVP: правила маршрутизации, производственный
 
 ## События
 
-- Слушает `prx391.document.registered` → `route()`.
-- Слушает `prx391.document.updated` с `recalc=true` или `reason=closed` → `route()`.
+- Слушает `prx391.document.registered` → `route_automatically()`.
+- Слушает `prx391.document.updated` с `recalc=true` или `reason=closed` → `route_automatically()`.
 - Публикует `prx393.document.assigned`, `prx393.deadline.approaching`,
   `prx393.deadline.overdue`.
 
@@ -66,7 +74,7 @@ MVP: правила маршрутизации, производственный
 
 `maybe_escalate()` вызывается на `/sla` и из CLI `prx393:escalate` (cron).
 Уровни: `t24`, `t4`, `overdue`; уникальный индекс `(deadline_id, level)`
-защищает от дублей. Получатели — пользователи роли исполнителя/менеджера,
+защищает от дублей. Получатели — существующие пользователи роли исполнителя/менеджера с `login`,
 которые в момент формирования события также проходят `prx391::can_view()` для
 конкретной карточки. Ошибка проверки адресатов не записывает эскалацию; пустой
 список всё равно может дать запись без доставки. Дальнейшая смена прав после
@@ -78,3 +86,14 @@ MVP: правила маршрутизации, производственный
 ## Проверки
 
 `python3 .tools/portal_check.py`, `bash .tools/php_check_all.sh`.
+
+`DocflowAccessTest` проверяет маршрутизацию из события, закрытие срока,
+различие пользовательского и автоматического route и actor_id в истории.
+`tests/Tooling/test_docflow_access.py` запрещает служебные entry points в HTTP-контроллерах.
+
+`WorkflowBoundariesTest` проверяет лимит/порядок ID для массового пересчёта,
+полные роли кандидатов, исключение заблокированных/посторонних пользователей,
+фильтр грифа, снятие роли между обходами и отсутствие повторной эскалации.
+Ошибки Auth/документов не превращаются в список всех пользователей.
+`test_docflow_access.py` запрещает SQL к чужим таблицам в workflow; общий SQL-
+линтер всего проекта в этот спринт не добавлялся.

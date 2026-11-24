@@ -15,6 +15,11 @@ import json
 import re
 import time
 
+import httpx
+
+from ...llm import LlmConfigError
+from .diagnostics import save_reply
+
 from ... import site
 from ...base import HandlerContext
 
@@ -58,6 +63,7 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
     if not run_id:
         raise ValueError("payload.run_id обязателен")
 
+    await ctx.progress("Этап 1 из 3 · Получение документа", f"прогон #{run_id}")
     ok, reason, data = await site.get_json(_PREFIX, f"/input/{run_id}", base=_api_base(), timeout=90.0)
     if not ok:
         raise RuntimeError(f"задание #{run_id} не получено: {reason}")
@@ -73,20 +79,50 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
     if ctx.llm is None:
         raise RuntimeError("LLM-провайдеры не настроены в workers/.env")
 
-    await ctx.progress("Модель думает", model)
+    await ctx.progress("Этап 2 из 3 · Модель думает", model)
     started = time.monotonic()
 
-    text, usage = await ctx.llm.chat_with_usage(
-        messages,
-        model=model,
-        temperature=float(data.get("temperature") or 0.0),
-        max_tokens=int(data.get("max_tokens") or 4000),
-        response_format=data.get("response_format") or {"type": "json_object"},
-        request_timeout=400.0,
-    )
+    options = {
+        "temperature": float(data.get("temperature") or 0.0),
+        "max_tokens": int(data.get("max_tokens") or 4000),
+        "request_timeout": 400.0,
+    }
+    # JSON задан промптом и проверяется parse_json_reply + схемой сайта.
+    # Не навязываем json_object: часть локальных серверов поддерживает только
+    # json_schema либо обычную генерацию и отвечает 400 на json_object.
+    if data.get("response_format"):
+        options["response_format"] = data["response_format"]
+    try:
+        try:
+            text, usage = await ctx.llm.chat_with_usage(messages, model=model, **options)
+        except httpx.HTTPStatusError as exc:
+            detail = exc.response.text.lower()
+            if (exc.response.status_code == 400 and "response_format" in options
+                    and any(key in detail for key in ("response_format", "json_object", "json_schema"))):
+                options.pop("response_format")
+                text, usage = await ctx.llm.chat_with_usage(messages, model=model, **options)
+            else:
+                raise
+    except httpx.HTTPStatusError as exc:
+        status = exc.response.status_code
+        if status in (400, 404, 413, 422):
+            # Повтор того же некорректного запроса не исправляет параметры.
+            # Не включаем заголовки/запрос с текстом документа в диагностику.
+            detail = exc.response.text.strip()[:800]
+            raise LlmConfigError(
+                f"LLM отклонила запрос: HTTP {status}, модель {model}. "
+                f"Ответ сервера: {detail or 'без пояснения'}. "
+                "Проверьте поддержку модели, формат ответа и размер контекста."
+            ) from None
+        raise
 
     duration_ms = int((time.monotonic() - started) * 1000)
-    result = parse_json_reply(text)
+    save_reply(run_id, model, text, 'received')
+    try:
+        result = parse_json_reply(text)
+    except ValueError as exc:
+        save_reply(run_id, model, text, 'invalid_json', str(exc))
+        raise
 
     tokens = 0
     if isinstance(usage, dict):
@@ -94,7 +130,7 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
         if not tokens:
             tokens = int(usage.get("prompt_tokens") or 0) + int(usage.get("completion_tokens") or 0)
 
-    await ctx.progress("Сохранение", f"тип: {result.get('type') or '—'}")
+    await ctx.progress("Этап 3 из 3 · Сохранение", f"тип: {result.get('type') or '—'}")
 
     ok, reason, _res = await site.post_json(
         _PREFIX,
@@ -105,7 +141,9 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
         timeout=120.0,
     )
     if not ok:
+        save_reply(run_id, model, text, 'delivery_failed', reason)
         raise RuntimeError(f"сайт не принял результат: {reason}")
+    save_reply(run_id, model, text, 'delivered')
 
     await ctx.progress("Готово", f"{duration_ms} мс · токенов {tokens}")
 

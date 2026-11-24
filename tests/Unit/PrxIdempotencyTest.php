@@ -5,7 +5,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * Идемпотентность: контракт без базы + smoke на PostgreSQL.
  *
- * Запуск: php tests/mini_runner.php PrxIdempotency
+ * Запуск: php tests/Support/mini_runner.php PrxIdempotency
  * Для smoke нужна применённая миграция prx_110_005; без базы тест пропускается.
  */
 class PrxIdempotencyTest extends TestCase

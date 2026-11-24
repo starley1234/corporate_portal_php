@@ -26,6 +26,12 @@ Route::set('prx218_module_manager_scanner', 'prx218/scanner(/<action>(/<id>))')
         'action'     => 'index',
     ));
 
+// Canonical module slug, retaining old /prx218 subroutes for existing links.
+Route::set('prx218_module_manager_home', 'prx218_module_manager(/<controller>(/<action>(/<id>)))')
+    ->defaults(['directory' => 'Prx218', 'controller' => 'Index', 'action' => 'index']);
+Route::set('prx218_module_manager_legacy_home', 'prx218')
+    ->defaults(['controller' => 'ModuleHome', 'action' => 'index', 'module_id' => '218']);
+
 // Основной роут для интерфейса (Index)
 Route::set('prx218_module_manager_admin', 'prx218(/<controller>(/<action>(/<id>)))')
     ->defaults(array(

@@ -21,6 +21,12 @@ abstract class Controller_Prx39x_Api extends Controller_Prx39x_Base
     /** Префикс модуля для site-токена: PRX390, PRX392, PRX393, PRX394. */
     abstract protected function _token_prefix();
 
+    protected function machine_request(): bool
+    {
+        // POST защищён X-Worker-Token в before(), а не браузерной сессией.
+        return TRUE;
+    }
+
     public function before()
     {
         parent::before();

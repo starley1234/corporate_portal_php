@@ -70,9 +70,9 @@ $live_esc = function ($text) {
 };
 ?>
 <?php /* вид — карточка процесса эталона v6: спиннер · название · секундомер, этап строкой ниже */ ?>
-<div class="mt-3 rounded-xl border <?php echo $live_terminal
+<div class="<?php echo !empty($embedded) ? 'mt-3' : ((!empty($standalone) ? 'prx-card w-full border ' : 'mt-3 rounded-xl border p-4 ').($live_terminal
         ? 'border-gray-200 dark:border-gray-700'
-        : 'border-blue-200/90 bg-blue-50/40 dark:border-blue-900/60 dark:bg-blue-950/20'; ?> p-4"
+        : 'border-blue-200/90 bg-blue-50/40 dark:border-blue-900/60 dark:bg-blue-950/20')); ?>"
      role="status" aria-live="polite"
      data-prx-live
      <?php if ($live_terminal): ?>data-live-terminal="1" <?php endif; ?>

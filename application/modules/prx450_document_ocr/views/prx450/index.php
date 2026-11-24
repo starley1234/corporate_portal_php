@@ -8,7 +8,7 @@
 $fmt = function (int $bytes): string {
     return $bytes >= 1048576 ? number_format($bytes / 1048576, 0, ',', ' ').' МБ' : number_format($bytes / 1024, 0, ',', ' ').' КБ';
 };
-$old = $_POST ?? [];
+$old = $old ?? [];
 ?>
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
     <?php echo View::factory('partials/page_header', [
@@ -25,18 +25,26 @@ $old = $_POST ?? [];
     <div class="mt-5 gap-6 space-y-6 lg:grid lg:grid-cols-3 lg:items-start lg:space-y-0">
         <div class="space-y-6 lg:col-span-2">
             <?php if ($error): ?>
-                <section class="prx-card border-rose-300 dark:border-rose-800" role="alert">
+                <section id="prx450-feedback" tabindex="-1" class="prx-card border-rose-300 dark:border-rose-800" role="alert">
                     <h2 class="prx-h3 text-rose-700 dark:text-rose-300"><i class="fas fa-triangle-exclamation mr-1.5"></i>Запрос не прошёл</h2>
                     <p class="mt-2 text-sm text-gray-700 dark:text-gray-200">Код: <code><?php echo HTML::chars($error['code']); ?></code> · HTTP <?php echo (int) $error['status']; ?></p>
                     <?php if ( ! empty($error['details'])): ?>
                         <pre class="mt-2 overflow-auto rounded-lg bg-gray-900 p-3 text-xs text-gray-100"><?php echo HTML::chars(json_encode($error['details'], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)); ?></pre>
                     <?php endif; ?>
-                    <p class="prx-hint mt-2">Проверьте адрес и ключ шлюза в <code>.env</code> (<code>PRX450_OCR_BASE_URL</code>, <code>PRX450_OCR_API_KEY</code>) и логи платформы.</p>
+                    <p class="prx-hint mt-2"><?php echo HTML::chars([
+                        413 => 'Выберите файл меньшего размера: учитывается также лимит загрузки PHP.',
+                        415 => 'Загрузите настоящий PDF или поддерживаемое изображение.',
+                        422 => 'Проверьте параметры и документ: шлюз не смог обработать запрос.',
+                        502 => 'Шлюз вернул некорректный или слишком большой ответ. Проверьте его настройки и лимиты результата.',
+                        503 => 'Проверьте PRX450_OCR_BASE_URL, PRX450_OCR_API_KEY и доступность шлюза.',
+                        504 => 'Шлюз не успел ответить. Повторите позже или используйте меньший документ.',
+                    ][$error['status']] ?? 'Выберите документ и проверьте параметры запроса.'); ?></p>
+                    <a href="#prx450-form" class="prx-btn-secondary prx-btn-sm mt-3">Выбрать файл и повторить</a>
                 </section>
             <?php endif; ?>
 
             <?php if ($result): ?>
-                <section class="prx-card" aria-label="Результат распознавания">
+                <section id="prx450-feedback" tabindex="-1" class="prx-card prx-print-area" aria-label="Результат распознавания" aria-live="polite">
                     <div class="flex flex-wrap items-center justify-between gap-2">
                         <h2 class="prx-h3"><i class="fas fa-circle-check mr-1.5 text-emerald-500"></i>Результат</h2>
                         <div class="flex flex-wrap gap-1.5">
@@ -46,9 +54,14 @@ $old = $_POST ?? [];
                         </div>
                     </div>
                     <p class="prx-hint mt-2">Файл: <?php echo HTML::chars($result['file']); ?> · <?php echo $fmt(strlen($result['content'])); ?> текста</p>
-                    <pre class="mt-3 max-h-[32rem] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-gray-900 p-4 text-xs leading-5 text-gray-100" dir="auto"><?php echo HTML::chars($result['content']); ?></pre>
+                    <div class="no-print mt-3 flex flex-wrap gap-2">
+                        <button type="button" class="prx-btn-secondary prx-btn-sm" data-prx-copy="#prx450-content">Копировать</button>
+                        <button type="button" class="prx-btn-secondary prx-btn-sm" id="prx450-download">Скачать .md</button>
+                        <button type="button" class="prx-btn-secondary prx-btn-sm" id="prx450-print">Печать</button>
+                    </div>
+                    <pre id="prx450-content" class="mt-3 max-h-[32rem] overflow-auto print:max-h-none print:overflow-visible whitespace-pre-wrap break-words rounded-lg bg-gray-900 p-4 text-xs leading-5 text-gray-100" dir="auto"><?php echo HTML::chars($result['content']); ?></pre>
                     <?php if ( ! empty($result['raw_result'])): ?>
-                        <details class="mt-3">
+                        <details class="no-print mt-3">
                             <summary class="cursor-pointer text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">Сырой JSON шлюза</summary>
                             <pre class="mt-2 max-h-72 overflow-auto rounded-lg bg-gray-900 p-3 text-xs leading-4 text-gray-100"><?php echo HTML::chars(json_encode($result['raw_result'], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)); ?></pre>
                         </details>
@@ -58,7 +71,7 @@ $old = $_POST ?? [];
 
             <section class="prx-card" aria-labelledby="prx450-form">
                 <h2 id="prx450-form" class="prx-h3"><i class="fas fa-upload mr-1.5 text-gray-400"></i>Пробный запрос</h2>
-                <form method="post" action="/prx450_document_ocr" enctype="multipart/form-data" class="mt-4">
+                <form method="post" action="/prx450_document_ocr" enctype="multipart/form-data" class="mt-4" id="prx450-upload">
                     <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
                     <label class="block">
                         <span class="prx-label">Документ</span>
@@ -66,7 +79,7 @@ $old = $_POST ?? [];
                         <span class="prx-hint mt-1">До <?php echo $fmt((int) $config['max_bytes']); ?> · PDF, PNG, JPEG, TIFF, WEBP, BMP. Файл уходит во внешний шлюз, на сайте не хранится.</span>
                     </label>
 
-                    <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div class="mt-4 grid gap-4 sm:grid-cols-2">
                         <label class="block">
                             <span class="prx-label">Движок</span>
                             <select class="prx-select mt-1 w-full" name="engine">
@@ -83,11 +96,13 @@ $old = $_POST ?? [];
                                 <?php endforeach; ?>
                             </select>
                         </label>
-                        <label class="block">
+                    </div>
+                    <details class="mt-4">
+                        <summary class="cursor-pointer text-sm font-semibold text-gray-600 dark:text-gray-300">Дополнительные параметры</summary>
+                        <label class="mt-4 block">
                             <span class="prx-label">Макс. сторона картинки</span>
                             <input class="prx-input mt-1 w-full" type="number" name="max_image_side" min="512" max="8192" step="64" value="<?php echo (int) ($old['max_image_side'] ?? $config['defaults']['max_image_side']); ?>">
                         </label>
-                    </div>
 
                     <div class="mt-4 flex flex-wrap gap-x-5 gap-y-2">
                         <?php
@@ -98,10 +113,12 @@ $old = $_POST ?? [];
                             'extract_images' => 'Извлечь картинки',
                             'vlm_pictures'   => 'Описать картинки (VLM)',
                             'llm_fix'        => 'LLM-коррекция',
+                            'force'          => 'Пересчитать без кэша шлюза',
                         ];
                         foreach ($flags as $name => $label): ?>
                             <label class="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                                <input type="checkbox" name="<?php echo $name; ?>" value="1"<?php echo ! empty($old[$name]) ? ' checked' : (! empty($config['defaults'][$name]) ? ' checked' : ''); ?> class="h-4 w-4 accent-blue-600">
+                                <input type="hidden" name="<?php echo $name; ?>" value="0">
+                                <input type="checkbox" name="<?php echo $name; ?>" value="1"<?php echo !empty($old[$name] ?? $config['defaults'][$name]) ? ' checked' : ''; ?> class="h-4 w-4 accent-blue-600">
                                 <?php echo $label; ?>
                             </label>
                         <?php endforeach; ?>
@@ -112,11 +129,20 @@ $old = $_POST ?? [];
                         <input class="prx-input mt-1 w-full" name="llm_model" maxlength="64" value="<?php echo HTML::chars((string) ($old['llm_model'] ?? $config['defaults']['llm_model'])); ?>">
                     </label>
                     <label class="mt-4 block">
+                        <span class="prx-label">Инструкция LLM (необязательно)</span>
+                        <textarea class="prx-input mt-1 w-full" name="llm_prompt" rows="2" maxlength="4000"><?php echo HTML::chars((string) ($old['llm_prompt'] ?? '')); ?></textarea>
+                    </label>
+                    <label class="mt-4 block">
                         <span class="prx-label">Нативные параметры шлюза (JSON, необязательно)</span>
                         <input class="prx-input mt-1 w-full" name="extra_config" maxlength="4000" placeholder='{"lang":"ru","table_mode":"accurate"}' value="<?php echo HTML::chars((string) ($old['extra_config'] ?? '')); ?>">
                     </label>
 
-                    <button class="prx-btn-process mt-4" type="submit"><i class="fas fa-wand-magic-sparkles"></i>Распознать</button>
+                    </details>
+                    <button class="prx-btn-process mt-4" type="submit" data-prx-busy-show="#prx450-busy">
+                        <span data-prx-idle><i class="fas fa-wand-magic-sparkles mr-1"></i>Распознать</span>
+                        <span data-prx-busy class="hidden"><i class="fas fa-circle-notch prx-spin mr-1" aria-hidden="true"></i>Распознавание · <span data-prx-clock>0:00</span></span>
+                    </button>
+                    <p id="prx450-busy" class="prx-hint mt-2 hidden" role="status" aria-live="polite">Ждём шлюз, до <?php echo (int) $config['timeout']; ?> с. Запрос синхронный; остановка на сервере из этой формы недоступна.</p>
                 </form>
             </section>
         </div>
@@ -156,3 +182,5 @@ file=@document.pdf</code></pre>
         </aside>
     </div>
 </div>
+
+<?php echo View::factory('prx450/script'); ?>

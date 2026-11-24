@@ -144,6 +144,12 @@ window.PRXLive = (function () {
             if (box) box.textContent = fmt(b.__sec);
         }
 
+        b.setAttribute('data-live-status', s.status);
+        var liveTitle = b.querySelector('[data-live-title]');
+        if (liveTitle && (s.status === 'queued' || s.status === 'running')) {
+            liveTitle.textContent = s.status === 'queued' ? 'В очереди' : 'В работе';
+        }
+
         var stage = b.querySelector('[data-live-stage]');
         if (stage && s.stage && s.stage !== b.__last) {
             b.__last = s.stage;
@@ -215,7 +221,7 @@ window.PRXLive = (function () {
 
                 if (prev && Date.now() - prev < 30000) {
                     if (stage) {
-                        stage.textContent = done
+                        stage.textContent = s.status === 'done'
                             ? 'Результат готов — обновите страницу, чтобы увидеть итог.'
                             : 'Задача завершилась ошибкой — обновите страницу.';
                     }

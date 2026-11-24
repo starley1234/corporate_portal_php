@@ -4,14 +4,19 @@
  * Манифест модуля prx111_migrations.
  *
  * Создан 28.09.2026: реестр модулей в docs/ARCHITECTURE.md §2 теперь
- * генерируется из манифестов, а не пишется руками. Инфраструктурный модуль —
- * без `href`, поэтому в меню и на /services он не показывается.
+ * генерируется из манифестов. Страница модуля доступна также в /services.
  */
 
 return [
     'id' => 111,
     'slug' => 'prx111_migrations',
-    'kind' => 'platform',
+    'kind' => 'module',
+    'status' => 'stable',
+    'acl' => 'prx111.view',
+    'href' => '/migrate_pg',
+    'icon' => 'fas fa-database',
+    'group' => 'Платформа',
+    'audience' => 'admin',
     'title' => 'Миграции PostgreSQL',
     'short' => 'система миграций (`db:migrate`, веб-консоль `/migrate_pg`, таблица `migrations_pg`)',
 ];

@@ -53,6 +53,12 @@ class Controller_Prx115_Api extends Controller_Base {
     /** @var array тело запроса (JSON) */
     protected $_body = [];
 
+    protected function machine_request(): bool
+    {
+        // vectors проверяет worker-токен в before(); остальные POST — UI + CSRF.
+        return $this->request->action() === 'vectors';
+    }
+
     public function before()
     {
         parent::before();
@@ -319,10 +325,6 @@ class Controller_Prx115_Api extends Controller_Base {
         {
             $queue = Service_Prx120_JobQueue::instance();
 
-            // Заходим на панель — заодно разбираем зависшие задачи канала
-            // (та же самолечебная логика, что в мониторе воркеров).
-            $queue->maybe_maintain();
-
             // Поля статус-ряда — НА ВЕРХНЕМ уровне: так устроен общий
             // partials/live_status_js (он читает s.status/s.stage/s.stages).
             return $this->_respond($queue->last_status('semantic.index') + ['ok' => TRUE]);
@@ -574,11 +576,6 @@ class Controller_Prx115_Api extends Controller_Base {
 
         if ($token === '')
         {
-            if (Kohana::$environment === Kohana::DEVELOPMENT)
-            {
-                return TRUE;
-            }
-
             return $quiet
                 ? FALSE
                 : $this->_auth_fail('WORKER_API_TOKEN не задан в .env сайта — приём векторов закрыт. Добавьте токен и повторите.');

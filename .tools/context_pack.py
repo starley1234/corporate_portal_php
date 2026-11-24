@@ -699,12 +699,19 @@ def _touches(files, precise, names, mid, limit=8, own_names=None):
     return hits
 
 
-def _listdir(rel, exts):
+def _listdir(rel, exts, recursive=False):
     """Файлы каталога с нужными расширениями (относительные пути)."""
     base = os.path.join(ROOT, rel)
 
     if not os.path.isdir(base):
         return []
+
+    if recursive:
+        return sorted(os.path.relpath(os.path.join(folder, fn), ROOT)
+                      for folder, dirs, files in os.walk(base)
+                      for fn in files
+                      if '__pycache__' not in folder.split(os.sep)
+                      and fn.endswith(exts) and not fn.startswith('__'))
 
     return [rel + '/' + fn for fn in sorted(os.listdir(base))
             if fn.endswith(exts) and not fn.startswith('__')]
@@ -758,12 +765,14 @@ def checks(name):
                      precise, names, mid, own_names=own_names)
     # В python-тесте нет ни наших классов, ни таблиц, поэтому кроме содержимого
     # работает имя файла: test_prx643_cad.py, test_semantic_index.py, test_trends_*.
-    worker_tests = _touches(_listdir('workers/tests', ('.py',)), precise, names, mid,
-                            own_names=own_names)
+    worker_tests = sorted(set(
+        _listdir('workers/tests/handlers/' + name, ('.py',), recursive=True)
+        + _touches(_listdir('workers/tests', ('.py',), recursive=True), precise, names, mid,
+                   own_names=own_names)))[:8]
 
     stands = []
 
-    for rel in _listdir('.tools', ('.php', '.py', '.mjs')):
+    for rel in _listdir('tests/Contracts', ('.php',)) + _listdir('tests/E2e', ('.py',)):
         stem = os.path.basename(rel)
 
         # Линтеры упоминают модули в пояснениях к проверкам (история инцидентов),
@@ -1226,7 +1235,7 @@ def _block_checks(name):
 
     php_stands = [rel for rel in c['stands'] if rel.endswith('.php')]
     if php_stands:
-        lines.append('* PHP-стенды: %s → через `.tools/phpwasm_stand.mjs` (PHP-in-WASM)'
+        lines.append('* PHP-контракты: %s → `make test-contracts`; без PHP CLI см. `tests/README.md`'
                      % ', '.join('`%s`' % rel for rel in php_stands))
 
     for rel in c['stands']:
@@ -1241,7 +1250,7 @@ def _block_checks(name):
     if not lines:
         lines.append('* **Своего покрытия нет** (ни тестов, ни стендов, ни страницы в '
                      'HTTP-дыме). Значит первый шаг работы — стенд '
-                     '`.tools/<модуль>_<тема>_stand.php` или проверка страницы руками: '
+                     '`tests/Contracts/<модуль>.php` или проверка страницы руками: '
                      'править вслепую модуль без страховки нельзя.')
 
     return '\n'.join(lines)

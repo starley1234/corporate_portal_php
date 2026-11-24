@@ -1,0 +1,94 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { JSDOM } from 'jsdom';
+
+const root = new URL('../../', import.meta.url);
+const partial = readFileSync(new URL('application/views/partials/live_status_js.php', root), 'utf8');
+const script = partial.split('<script>')[1].split('</script>')[0];
+
+function page() {
+    const dom = new JSDOM(`<div data-prx-live data-live-url="/prx391_documents/progress/1" data-live-status="queued" data-live-elapsed="0" data-live-keep>
+        <i class="fas"></i><span data-live-title>В очереди</span><span data-live-elapsed>0:00</span>
+        <p data-live-stage>Ожидание</p><p data-live-note></p><ol data-live-steps></ol>
+        <span data-live-silent class="hidden"></span></div>`, {
+        runScripts: 'outside-only', url: 'https://portal.example/prx391_documents/1',
+    });
+    const { window } = dom;
+    const timers = [];
+    window.setTimeout = (fn, ms) => timers.push({ fn, ms, repeat: false });
+    window.setInterval = (fn, ms) => timers.push({ fn, ms, repeat: true });
+    const requests = [];
+    let reply = { status: 'running', stage: 'Этап 2 из 3 · Модель думает', elapsed_sec: 10 };
+    window.fetch = async (url, options) => {
+        requests.push({ url, options });
+        return { ok: true, json: async () => reply };
+    };
+    window.eval(script);
+    return { dom, window, timers, requests, reply: (value) => { reply = value; } };
+}
+
+async function runTimer(p, ms) {
+    const timer = p.timers.find(t => t.ms === ms);
+    assert.ok(timer, `timer ${ms} registered`);
+    timer.fn();
+    await new Promise(resolve => setImmediate(resolve));
+}
+
+test('document controls precede equal document and proposal columns on desktop and mobile', () => {
+    const view = readFileSync(new URL('application/modules/prx391_documents/views/prx391/show.php', root), 'utf8');
+    assert.ok(view.indexOf('<aside') < view.indexOf("/partials/ai_sidebar.php"));
+    assert.ok(view.indexOf("/partials/ai_sidebar.php") < view.indexOf("partials/live_status_js"));
+    assert.match(view, /xl:grid-cols-2/);
+    const controls = view.indexOf('aria-label="Управление документом"');
+    const card = view.indexOf("/partials/card.php");
+    const proposal = view.indexOf("/partials/analysis.php");
+    const attachments = view.indexOf("/partials/attachments.php");
+    assert.ok(controls < view.indexOf("/partials/ai_sidebar.php"));
+    assert.ok(view.indexOf("/partials/sla_sidebar.php") < card);
+    assert.ok(card < proposal && proposal < attachments);
+    assert.match(view, /aria-label="Результат разбора"/);
+    assert.doesNotMatch(view, /order-[12]|xl:order-/);
+    assert.match(view, /md:grid-cols-2/);
+});
+
+test('SSR process ticks, polls authenticated endpoint and updates title and stage', async () => {
+    const p = page();
+    try {
+        await runTimer(p, 1000);
+        assert.equal(p.window.document.querySelector('span[data-live-elapsed]').textContent, '0:01');
+        await runTimer(p, 2000);
+        assert.equal(p.requests[0].url, '/prx391_documents/progress/1');
+        assert.equal(p.requests[0].options.credentials, 'same-origin');
+        assert.equal(p.window.document.querySelector('[data-live-title]').textContent, 'В работе');
+        assert.equal(p.window.document.querySelector('[data-live-stage]').textContent, 'Этап 2 из 3 · Модель думает');
+        assert.equal(p.window.document.querySelector('span[data-live-elapsed]').textContent, '0:10');
+        p.reply({ status: 'done', elapsed_sec: 12 });
+        await runTimer(p, 3000);
+        assert.equal(p.window.document.querySelector('[data-live-title]').textContent, 'Готово');
+        await runTimer(p, 1000);
+        assert.equal(p.window.document.querySelector('span[data-live-elapsed]').textContent, '0:12');
+    } finally { p.dom.window.close(); }
+});
+
+test('polling failure retries rather than disabling stopwatch', async () => {
+    const p = page();
+    try {
+        p.window.fetch = async () => { throw new Error('offline'); };
+        await runTimer(p, 2000);
+        await runTimer(p, 1000);
+        assert.equal(p.window.document.querySelector('span[data-live-elapsed]').textContent, '0:01');
+        assert.ok(p.timers.some(t => t.ms === 3000));
+    } finally { p.dom.window.close(); }
+});
+
+
+test('analysis card has a single frame and one process status without repeated metadata', () => {
+    const card = readFileSync(new URL('application/modules/prx391_documents/views/prx391/partials/ai_sidebar.php', root), 'utf8');
+    const process = readFileSync(new URL('application/modules/prx391_documents/views/prx391/partials/process.php', root), 'utf8');
+    assert.equal((card.match(/class="prx-card"/g) || []).length, 1);
+    assert.doesNotMatch(card, /prx-badge|<dl/);
+    assert.match(card, /disabled aria-disabled/);
+    assert.match(process, /'embedded' => TRUE/);
+    assert.doesNotMatch(process, /'standalone' => TRUE/);
+});

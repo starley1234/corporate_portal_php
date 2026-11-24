@@ -26,9 +26,9 @@ class Controller_Prx392_Analysis extends Controller_Prx39x_Base
         $document_id = (int) $this->request->param('id');
 
         $this->_post(function () use ($document_id) {
-            $run_id = Service_Prx392_Analysis::queue_for_document($document_id, $this->_actor());
+            Service_Prx392_Analysis::queue_for_document($document_id, $this->actor(), TRUE);
 
-            return 'Разбор поставлен в очередь (прогон #'.$run_id.')';
+            return ''; // Состояние показывает карточка процесса, без дублирующего уведомления.
         }, '/prx391_documents/'.$document_id);
     }
 
@@ -59,7 +59,7 @@ class Controller_Prx392_Analysis extends Controller_Prx39x_Base
                 $overrides['fields'] = array_map('strval', $fields);
             }
 
-            $res = Service_Prx392_Analysis::accept($suggestion_id, $overrides, $this->_actor());
+            $res = Service_Prx392_Analysis::accept($suggestion_id, $overrides, $this->actor());
 
             return $res['changed']
                 ? 'Применено полей: '.$res['changed'].($res['skipped'] ? '; уже заполнено: '.implode(', ', $res['skipped']) : '')
@@ -79,7 +79,7 @@ class Controller_Prx392_Analysis extends Controller_Prx39x_Base
         $document_id = (int) $suggestion['document_id'];
 
         $this->_post(function () use ($suggestion_id) {
-            Service_Prx392_Analysis::reject($suggestion_id, $this->_actor());
+            Service_Prx392_Analysis::reject($suggestion_id, $this->actor());
 
             return 'Предложение отклонено';
         }, '/prx391_documents/'.$document_id);

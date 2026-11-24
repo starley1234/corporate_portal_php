@@ -14,27 +14,33 @@ source "$(dirname "${BASH_SOURCE[0]}")/_env.sh"
 # Окружение главнее файла: DB_DEFAULT_NAME от bin/check-fresh.sh переживает .env
 prx_load_env .env
 
+if [[ "${1:-}" == "--pdf" ]]; then
+    echo "ERROR: --pdf удалён вместе с prx634; действующие PDF-проверки — tests/README.md" >&2
+    exit 2
+fi
+
 PHP_BIN="$(prx_php_bin)" || { echo "ERROR: PHP не найден (bin/restore-env.sh)" >&2; exit 1; }
+
+# Изолированные контракты выполняются отдельно: каждый определяет свои заглушки.
+if [[ "${1:-}" == "--contracts" ]]; then
+    shopt -s nullglob
+    contracts=(tests/Contracts/*.php)
+    if [[ ${#contracts[@]} -eq 0 ]]; then
+        echo "ERROR: PHP-контракты не найдены в tests/Contracts" >&2
+        exit 1
+    fi
+    failed=0
+    for test in "${contracts[@]}"; do
+        echo "==> $test"
+        if ! "$PHP_BIN" "$test"; then
+            failed=1
+        fi
+    done
+    exit "$failed"
+fi
 
 if [[ -f vendor/bin/phpunit ]]; then
     exec "$PHP_BIN" vendor/bin/phpunit -c phpunit.xml.dist "$@"
-fi
-
-# Опциональная независимая валидация PDF-выхода (bin/test --pdf):
-# свой PHP-парсер не должен оставаться единственным судьёй своих же файлов —
-# прогоняем генерацию/сплит/мерж через pypdf (если он доступен). Пропускается
-# тихо, когда python3/pypdf нет — это не обязательный этап для дефолтного
-# прогона, а «canary» для сред с pypdf (песочница агентов).
-if [[ "${1:-}" == "--pdf" ]]; then
-    if ! command -v python3 >/dev/null 2>&1; then
-        echo "SKIP: python3 не найден — pypdf-валидация пропущена" >&2
-        exit 0
-    fi
-    if ! python3 -c "import pypdf" >/dev/null 2>&1; then
-        echo "SKIP: pypdf не установлен (pip3 install pypdf) — валидация пропущена" >&2
-        exit 0
-    fi
-    exec python3 tests/pdf_external_check.py
 fi
 
 # Статическая проверка приоритетов `= … AND …`. Это не «ещё один линтер ради
@@ -59,8 +65,8 @@ fi
 
 # Fallback для сред без composer/packagist (закрытая сеть): мини-раннер
 # прогоняет tests/Smoke и tests/Unit без phpunit.
-if [[ -f tests/mini_runner.php ]]; then
-    exec "$PHP_BIN" tests/mini_runner.php "$@"
+if [[ -f tests/Support/mini_runner.php ]]; then
+    exec "$PHP_BIN" tests/Support/mini_runner.php "$@"
 fi
 
 echo "phpunit не установлен (нет vendor/). Варианты:"

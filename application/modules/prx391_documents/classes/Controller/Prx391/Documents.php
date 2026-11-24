@@ -16,20 +16,20 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
             'page' => max(1, (int) $this->request->query('page')),
         ];
 
-        $list = Service_Prx391_Documents::list_documents($filters, $this->_actor());
+        $list = Service_Prx391_Documents::list_documents($filters, $this->actor());
 
         $this->template->content = View::factory('prx391/index', [
             'flash' => $this->_flash(),
             'csrf' => $this->_csrf(),
             'can_edit' => $this->can('prx391.edit'),
-            'stats' => Service_Prx391_Documents::stats($this->_actor()),
+            'stats' => Service_Prx391_Documents::stats($this->actor()),
             'types' => Service_Prx391_Documents::types(),
             'rows' => $list['rows'],
             'total' => $list['total'],
             'page' => $list['page'],
             'pages' => $list['pages'],
             'filters' => $filters,
-            'history' => Service_Prx391_Documents::recent_history(12, $this->_actor()),
+            'history' => Service_Prx391_Documents::recent_history(12, $this->actor()),
             'ai_stats' => class_exists('Service_Prx392_Analysis') ? Service_Prx392_Analysis::stats() : [],
             'sla_stats' => class_exists('Service_Prx393_Workflow') ? Service_Prx393_Workflow::stats() : [],
         ]);
@@ -39,7 +39,7 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
     {
         $this->_require('prx391.view');
         $id = (int) $this->request->param('id');
-        $document = Service_Prx391_Documents::document($id, $this->_actor());
+        $document = Service_Prx391_Documents::document($id, $this->actor());
         if ( ! $document)
         {
             throw HTTP_Exception::factory(404, 'Документ не найден');
@@ -82,9 +82,21 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
             'can_draft' => class_exists('Service_Prx394_Drafts') && $this->can('prx394.draft'),
             'analysis' => $analysis,
             'runs' => $runs,
+            'progress' => class_exists('Service_Prx392_Analysis') ? Service_Prx392_Analysis::document_progress($id, $this->actor()) : ['found' => FALSE],
             'deadline' => $deadline,
             'drafts' => $drafts,
         ]);
+    }
+
+    public function action_progress()
+    {
+        $this->_require('prx391.view');
+        try { $progress = Service_Prx392_Analysis::document_progress((int) $this->request->param('id'), $this->actor()); }
+        catch (InvalidArgumentException $e) { throw HTTP_Exception::factory(404, 'Документ не найден'); }
+        $this->auto_render = FALSE;
+        $this->response->headers('Content-Type', 'application/json; charset=utf-8');
+        $this->response->headers('Cache-Control', 'no-store');
+        $this->response->body(json_encode(['ok' => TRUE] + $progress, JSON_UNESCAPED_UNICODE));
     }
 
     public function action_save()
@@ -110,7 +122,7 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
                 }
             }
 
-            $res = Service_Prx391_Documents::save_card($id, $input, $this->_actor());
+            $res = Service_Prx391_Documents::save_card($id, $input, $this->actor());
 
             return $res['changed'] ? 'Сохранено полей: '.$res['changed'] : 'Изменений нет';
         }, '/prx391_documents/'.$id);
@@ -122,7 +134,7 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
         $id = (int) $this->request->param('id');
 
         $this->_post(function () use ($id) {
-            Service_Prx391_Documents::close($id, $this->_actor());
+            Service_Prx391_Documents::close($id, $this->actor());
 
             return 'Документ закрыт';
         }, '/prx391_documents/'.$id);
@@ -134,7 +146,7 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
         $id = (int) $this->request->param('id');
 
         $this->_post(function () use ($id) {
-            Service_Prx391_Documents::reopen($id, $this->_actor());
+            Service_Prx391_Documents::reopen($id, $this->actor());
 
             return 'Документ возвращён в работу';
         }, '/prx391_documents/'.$id);
@@ -152,7 +164,7 @@ class Controller_Prx391_Documents extends Controller_Prx39x_Base
 
         $message = Service_Prx390_Intake::message((int) $file['message_id']);
         $document_id = $message['document_id'] ?? 0;
-        if ( ! $document_id OR ! Service_Prx391_Documents::document((int) $document_id, $this->_actor()))
+        if ( ! $document_id OR ! Service_Prx391_Documents::document((int) $document_id, $this->actor()))
         {
             throw HTTP_Exception::factory(403, 'Нет доступа к файлу');
         }

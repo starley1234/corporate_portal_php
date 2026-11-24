@@ -149,8 +149,8 @@ class EventBusIntegrationTest extends TestCase
                 'subscriber' => $invalid, 'available_events' => [], 'available_modules' => [],
                 'errors' => $errors, 'db_subscribers_enabled' => FALSE, 'csrf' => 'test',
             ])->render();
-            preg_match('/<input\\b[^>]*\\bid="is_active"[^>]*>/s', $html, $active);
-            preg_match('/<input\\b[^>]*\\bid="is_notification"[^>]*>/s', $html, $notification);
+            preg_match('/<input\\b[^>]*\\bname="is_active"[^>]*>/s', $html, $active);
+            preg_match('/<input\\b[^>]*\\bname="is_notification"[^>]*>/s', $html, $notification);
             $this->assertNotEmpty($active);
             $this->assertNotEmpty($notification);
             $this->assertStringNotContainsString('checked', $active[0]);

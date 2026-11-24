@@ -47,9 +47,9 @@ class Service_Prx300_Identity extends Service_Prx300_Store
         return $row ? self::_format_identity($row) : NULL;
     }
 
-    public static function identities_for_employee(array $actor, $employee_id)
+    public static function identities_for_employee(Prx_Actor $actor, $employee_id)
     {
-        self::_require_admin_read($actor);
+        Policy_Prx300_Employee::requireAdministration($actor);
         self::_employee_or_fail((int) $employee_id, $actor);
         $rows = self::_all('SELECT * FROM prx_300_external_identities
                             WHERE employee_id = '.(int) $employee_id.'
@@ -58,9 +58,9 @@ class Service_Prx300_Identity extends Service_Prx300_Store
         return array_map(function ($row) { return self::_format_identity($row); }, $rows);
     }
 
-    public static function save_identity(array $actor, $employee_id, array $data, $identity_id = NULL)
+    public static function save_identity(Prx_Actor $actor, $employee_id, array $data, $identity_id = NULL)
     {
-        self::_require_can($actor, 'can_identity', 'Нужна роль hr_admin для внешних идентификаторов');
+        Policy_Prx300_Employee::requireAbility($actor, 'prx300.identity', 'Нужна роль hr_admin для внешних идентификаторов');
         $employee = self::_employee_or_fail((int) $employee_id, $actor);
         $system = self::_code($data['system_code'] ?? '', 'Код системы');
         $external_id = self::_text($data['external_id'] ?? '', 'Внешний идентификатор', 191, TRUE);
@@ -158,9 +158,9 @@ class Service_Prx300_Identity extends Service_Prx300_Store
         }
     }
 
-    public static function disable_identity(array $actor, $identity_id)
+    public static function disable_identity(Prx_Actor $actor, $identity_id)
     {
-        self::_require_can($actor, 'can_identity', 'Нужна роль hr_admin для внешних идентификаторов');
+        Policy_Prx300_Employee::requireAbility($actor, 'prx300.identity', 'Нужна роль hr_admin для внешних идентификаторов');
         $identity = self::_row('SELECT * FROM prx_300_external_identities WHERE id = '.(int) $identity_id);
         if ( ! $identity)
         {
@@ -174,9 +174,9 @@ class Service_Prx300_Identity extends Service_Prx300_Store
             'external_identity.disabled', ['employee_id' => (int) $identity['employee_id'], 'system_code' => (string) $identity['system_code']]);
     }
 
-    public static function active_link(array $actor, $employee_id)
+    public static function active_link(Prx_Actor $actor, $employee_id)
     {
-        self::_require_admin_read($actor);
+        Policy_Prx300_Employee::requireAdministration($actor);
         self::_employee_or_fail((int) $employee_id, $actor);
         $row = self::_row("SELECT * FROM prx_300_user_links
                            WHERE employee_id = ".(int) $employee_id." AND status = 'active' LIMIT 1");
@@ -184,9 +184,9 @@ class Service_Prx300_Identity extends Service_Prx300_Store
         return $row ? self::_format_link($row) : NULL;
     }
 
-    public static function link_history(array $actor, $employee_id)
+    public static function link_history(Prx_Actor $actor, $employee_id)
     {
-        self::_require_admin_read($actor);
+        Policy_Prx300_Employee::requireAdministration($actor);
         self::_employee_or_fail((int) $employee_id, $actor);
         $rows = self::_all('SELECT * FROM prx_300_user_links
                             WHERE employee_id = '.(int) $employee_id.'
@@ -215,9 +215,9 @@ class Service_Prx300_Identity extends Service_Prx300_Store
         return $user->loaded() ? self::_user_info($user) : NULL;
     }
 
-    public static function link_user(array $actor, $employee_id, $user_identifier, $via = 'manual', $note = '')
+    public static function link_user(Prx_Actor $actor, $employee_id, $user_identifier, $via = 'manual', $note = '')
     {
-        self::_require_can($actor, 'can_identity', 'Нужна роль hr_admin для сопоставления аккаунтов');
+        Policy_Prx300_Employee::requireAbility($actor, 'prx300.identity', 'Нужна роль hr_admin для сопоставления аккаунтов');
         $employee = self::_employee_or_fail((int) $employee_id, $actor);
         $user = self::resolve_user($user_identifier);
         if ($user === NULL)
@@ -248,7 +248,7 @@ class Service_Prx300_Identity extends Service_Prx300_Store
             throw new DomainException('Пользователь уже сопоставлен с другим сотрудником');
         }
 
-        $actor_id = self::_actor_id($actor);
+        $actor_id = $actor->id();
         $row = self::_row('INSERT INTO prx_300_user_links
             (employee_id, user_id, linked_via, linked_by_user_id, note)
             VALUES ('.(int) $employee_id.', '.(int) $user['id'].', '.self::_q($via).', '
@@ -269,9 +269,9 @@ class Service_Prx300_Identity extends Service_Prx300_Store
         return $id;
     }
 
-    public static function unlink_user(array $actor, $employee_id, $reason = '')
+    public static function unlink_user(Prx_Actor $actor, $employee_id, $reason = '')
     {
-        self::_require_can($actor, 'can_identity', 'Нужна роль hr_admin для сопоставления аккаунтов');
+        Policy_Prx300_Employee::requireAbility($actor, 'prx300.identity', 'Нужна роль hr_admin для сопоставления аккаунтов');
         $employee = self::_employee_or_fail((int) $employee_id, $actor);
         $row = self::_row("SELECT * FROM prx_300_user_links
                            WHERE employee_id = ".(int) $employee_id." AND status = 'active' LIMIT 1");
@@ -295,15 +295,6 @@ class Service_Prx300_Identity extends Service_Prx300_Store
         ], $actor);
 
         return TRUE;
-    }
-
-    protected static function _require_admin_read(array $actor)
-    {
-        if ( ! self::_can($actor, 'can_admin_view') AND ! self::_can($actor, 'can_manage')
-            AND ! self::_can($actor, 'can_import') AND ! self::_can($actor, 'can_identity'))
-        {
-            throw new DomainException('Нужен HR-доступ к кадровым данным');
-        }
     }
 
     protected static function _format_identity(array $row)

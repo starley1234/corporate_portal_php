@@ -4,12 +4,16 @@
 <!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index application/modules/prx597_notifications/AGENTS.md --write. Руками не править. -->
 | Раздел | Строка | Размер |
 |---|---|---|
-|   Состояние (16.11.2026) | 40 | 1,2 КБ |
-|   Проверки модуля | 54 | 2,4 КБ |
-|   Как модулю попасть в центр уведомлений | 79 | 0,4 КБ |
-|   Что где лежит | 87 | 1,7 КБ |
-|   Грабли, на которые уже наступали | 105 | 1,5 КБ |
-|   Вьюхи админки | 122 | 0,5 КБ |
+|   Состояние (16.11.2026) | 44 | 1,2 КБ |
+|   Проверки модуля | 58 | 2,1 КБ |
+|   Как модулю попасть в центр уведомлений | 81 | 0,4 КБ |
+|   Что где лежит | 89 | 1,9 КБ |
+|   Грабли, на которые уже наступали | 108 | 1,5 КБ |
+|   Вьюхи админки | 125 | 0,5 КБ |
+|   Граница очереди и marker (23.11.2026) | 133 | 1,5 КБ |
+|   Preferences: первая выделенная обязанность Notify | 151 | 2,3 КБ |
+|   EngineReports: административное чтение отдельно от доставки | 177 | 2,0 КБ |
+|   EmailContent: оформление отдельно от транспорта | 199 | 2,1 КБ |
 <!-- context-index:end -->
 * Центр уведомлений платформы. Единственный слой доставки пользователю:
   колокольчик (опрос `/prx597/api/unread`), почта, Telegram, MAX.
@@ -28,7 +32,7 @@
   ставит `$_halt`, но Kohana выполняет действие ВСЁ РАВНО — каждое действие
   обязано начинаться с `if ($this->_halt) return;` (06.10.2026 анонимный
   опрос колокольчика падал EMERGENCY «read property id on null»). Стенд
-  `.tools/prx597_api_stand.php`.
+  `tests/Contracts/prx597_api.php`.
 * Опасные действия — двойное нажатие (`data-prx-arm`): чистка, сброс лимитов,
   возврат DLQ.
 * Вёрстка по эталону: крошки + h1, KPI, 2/3 + 1/3, ничего мельче `text-xs`.
@@ -53,13 +57,11 @@
 
 ## Проверки модуля
 
-- PHP-WASM: `.tools/prx597_{engine,delivery,api,hook}_stand.php` — движковый стенд
-  один даёт 447 проверок. Engine включает `.tools/prx597_settings_cases.php`,
-  `prx597_admin_cases.php` (настоящие сервисы/вьюхи/POST; все вкладки управления,
-  права и ошибки записи) и `prx597_notify_contract_cases.php` (контракт
-  `notify` в манифестах модулей-источников, миграции, идемпотентность синхронизации).
-- JS: `node --test tests/Js/prx597_notifications.test.mjs` и
-  `node --test tests/Js/prx597_ai_template.test.mjs` (13 проверок вместе).
+- `make test-contracts` — все изолированные PHP-контракты, включая
+  `tests/Contracts/prx597_{engine,delivery,api,hook}.php`. Engine включает
+  `tests/Contracts/fixtures/prx597_{queue,settings,admin}.php`.
+- Без PHP CLI — WASM по инструкции `tests/README.md`.
+- JS: `npm test` — существующий общий набор UI/CSRF-тестов.
 - `bash .tools/php_check_all.sh application/modules/prx597_notifications`.
 - Полное соответствие драйверов — только `Base::channel_driver()`, не ucfirst.
   `channels()` — настроенные транспорты, `user_channels()` — пользовательский
@@ -91,7 +93,8 @@
 | `classes/Service/Prx597/Notify.php` | публичный вход: `emit()`, `notify()`, настройки, сводки |
 | `classes/Service/Prx597/Notify/{Inbox,Unsubscribe}.php` | трейты: чтение ленты и отписка по ссылке; публичные методы те же |
 | `classes/Service/Prx597/Registry.php` | реестр событий, шаблоны, подписки, роли |
-| `classes/Service/Prx597/Engine.php` | проход доставки, склейка сводок, журнал, DLQ, чистка |
+| `classes/Service/Prx597/Engine.php` | проход доставки, склейка сводок, мутации DLQ/чистки; совместимый фасад отчётов |
+| `classes/Service/Prx597/EngineReports.php` | внутренние SELECT-отчёты очереди/журнала/статистики/ленты, объяснение ожидания |
 | `classes/Service/Prx597/Limits.php` | лимиты, дедупликация, тихие часы |
 | `classes/Service/Prx597/Render.php` | подстановки `{{поле}}`, text/html/md |
 | `classes/Service/Prx597/Channel/*.php` | драйверы каналов: Email, Telegram, Max, Inapp |
@@ -126,3 +129,93 @@
 message, templates, channels, limits, journal) и подключается через
 `include __DIR__`. Новую вкладку добавляйте парой «каркас + partial», чтобы
 файл админки не рос обратно.
+
+## Граница очереди и marker (23.11.2026)
+
+sweep_jobs использует только JobQueue::pending_notifications и
+mark_notification_processed. SQL/DDL к чужой prx_120_jobs удалены, исключений
+в ratchet для prx597 больше нет. Сначала выполнить миграцию prx120/007; она
+сохраняет старые timestamps notified_at. Внутренний NotificationJobs очереди
+не становится публичной зависимостью Notify — используется фасад JobQueue.
+
+Выброшенная ошибка job_update не ставит отметку. Повторная отметка не меняет
+время; sweep считает новые отметки, не подтверждённую доставку. Конкурентные
+сборщики и сбой после создания уведомления до marker остаются at-least-once
+риском; один maintenance-процесс/lock обязателен. Подавленные job_update
+ошибки/отказы внутри канала этим переносом не переработаны.
+
+План разделения Notify/Engine по обязанностям — docs/ROADMAP.md. Это план,
+не выполненная декомпозиция: не выносить произвольные части в новые traits
+только ради размера файлов.
+
+## Preferences: первая выделенная обязанность Notify
+
+`Service_Prx597_Preferences` — внутренний класс настроек (не trait): defaults,
+get, form_fields, save, disable_legacy_defaults_once. Владеет FIELDS и SQL
+prx_597_prefs, использует существующий Base для config/DB/legacy settings.
+Notify сохраняет prefs_default/prefs/user_pref_fields/save_prefs и PREF_FIELDS
+как совместимый фасад. Контроллеры и межмодульные потребители не меняются.
+
+Подготовка схемы/$_tables_ensured остаётся у Notify: prefs/save_prefs сначала
+вызывают ensure_tables и только затем внутренний класс. Preferences не зовёт
+Notify обратно, не делает DDL, не имеет отдельного static-кэша. Legacy-уборка
+умолчаний перенесена вместе с настройками; прежний protected wrapper остаётся
+в точке инициализации схемы. Существующие opt-in, частичный upsert, PG bool,
+фильтрация скрытых каналов и проверка read-after-write сохранены.
+
+Пустой PATCH не затирает настройки. Нормализация API/формы и низкоуровневое
+save различаются, как раньше: form_fields понимает PG 'f', save ожидает уже
+нормализованные bool и использует !empty. Не расширять этот рефакторинг до
+новой валидации значений/изменения SQL-defaults без отдельного теста/решения.
+
+Проверки: прежний prx597_engine/settings контракт (явно загружает Preferences),
+NotificationPreferencesIntegrationTest (PostgreSQL) и
+Tooling/test_notification_preferences.py (делегирование/нет обратного вызова).
+Notify всё ещё крупный: перенос одной обязанности не завершает декомпозицию
+доставки/получателей/оформления писем. Дальнейший план — ROADMAP.
+
+## EngineReports: административное чтение отдельно от доставки
+
+Внутренний `Service_Prx597_EngineReports` (не trait) содержит journal, queue,
+waiting_reason, recent_sent, recent_inbox, stats, dead, feed_events. Engine
+сохраняет те же публичные сигнатуры/defaults и делегирует; контроллеры/views
+продолжают использовать Engine, не внутренний класс. Обратных вызовов в
+Engine/Notify нет, DDL/lock/доставки/изменения статусов в Reports нет.
+
+База/quoting — существующий Base, таблицы только свои prx_597_*. Пороги окон,
+лимиты, сортировки, формат KPI и fallback []/нули при ошибке перенесены без
+смены смысла. Поэтому пустой отчёт по-прежнему не доказывает исправность БД.
+Это доверенное административное чтение без actor/ACL, не пользовательский API.
+Метод user_label (ORM/Auth) пока остаётся у Engine, не включён в SQL-отчёты.
+retry_dead/purge*/cleanup, доставка и их блокировки остаются в Engine.
+
+Три NotificationReportsIntegrationTest проверяют фильтры/кавычки/окна,
+reason/очередь/DLQ/KPI, ленту/группировку и отсутствие изменений outbox от
+отчётов на PostgreSQL. Изолированные engine/delivery контракты явно загружают
+EngineReports; старые тесты сценариев доставки сохранены. Tooling ratchet
+держит делегирование и отсутствие известных SQL-мутаций/вызовов доставки;
+это лексическая проверка, не PHP/SQL-парсер и не security boundary.
+
+## EmailContent: оформление отдельно от транспорта
+
+Внутренний Service_Prx597_EmailContent не наследует Base и не обращается к
+БД/Notify/SMTP/подписи отписки. Формирует shell, digest, plain text и базу
+URL из APP_URL. Зависимость Date::formatted_time для дат сохранена; формат
+HTML и отсутствие даты при исключении не менялись.
+
+Публичные Notify::email_shell/digest_html совместимы. Фасад заранее готовит
+подписанные ссылки/подвал отписки и нормализует href через прежний _safe_href;
+в digest добавляет внутренний _email_href в копию строк. Renderer не принимает
+решения о допустимом маршруте/получателе. Пустой исходный href по-прежнему
+не рисует кнопку. Дайджест без получателя не получает ссылки отписки.
+
+shell принимает доверенный inner_html/footer, не санитизирует произвольный
+HTML. Заголовок и текст карточек экранируются как раньше. APP_URL — доверенная
+конфигурация; fallback http://localhost:8080 сохранён для совместимости и
+не означает доступность адреса в production. Корректный APP_URL обязателен.
+_esc остаётся у Notify для Unsubscribe; отправка/DSN/получатели не переносились.
+
+NotificationEmailContentTest проверяет escaping, доверенный inner HTML,
+unsafe href, empty href, цвета/extra, APP_URL/fallback; прежний settings-
+контракт — подписанные ссылки отписки. Tooling запрещает рендереру известные
+зависимости от БД/подписи/транспорта/фасада. Это лексический ratchet, не парсер.

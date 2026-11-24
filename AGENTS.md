@@ -5,11 +5,11 @@
 | Раздел | Строка | Размер |
 |---|---|---|
 |   Проект | 14 | 0,3 КБ |
-|   Вход в задачу | 19 | 1,6 КБ |
-|   Обязательные инварианты | 36 | 6,0 КБ |
-|   Словарь кода | 91 | 0,6 КБ |
-|   Окружение | 98 | 0,6 КБ |
-|   Проверки перед завершением | 106 | 1,1 КБ |
+|   Вход в задачу | 19 | 2,0 КБ |
+|   Обязательные инварианты | 39 | 6,1 КБ |
+|   Словарь кода | 95 | 0,6 КБ |
+|   Окружение | 102 | 0,6 КБ |
+|   Проверки перед завершением | 110 | 1,2 КБ |
 <!-- context-index:end -->
 ## Проект
 PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind/jQuery,
@@ -17,10 +17,10 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
 Ядро фреймворка `system/` и `modules/` не менять.
 
 ## Вход в задачу
-- Реестр подключённых модулей: `application/config/modules.php`.
+- Базовые модули: `application/config/modules.php`; стендовый блок — в bootstrap.
 - Карта сервисов: `application/config/portal.php`, `docs/ROADMAP.md` — 50 из
   отложенного портального плана плюс старый документооборот. `prx390`–`prx393`
-  подключаются только на стенде одним блоком в `application/bootstrap.php`. Новый фокус —
+  подключены для проверки явным блоком в `application/bootstrap.php`. Новый фокус —
   API-пайплайны для корпоративных систем: `docs/AI-DOCUMENT-PIPELINES.md`.
 - Архитектура: `docs/ARCHITECTURE.md`, модель и схемы — `docs/architecture/model`
   (`make architecture`, страница `/architecture`); создание: `docs/MODULE_GUIDE.md`.
@@ -32,6 +32,9 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
 - Перед правкой читать `AGENTS.md` целевого модуля; при изменении контракта
   обновлять его. Исторические примеры в памятках не являются зависимостями.
 - Контекст-пак: `make brief m=prx120_jobs` (генерируется, не коммитить).
+- Проверки и их расположение — `tests/README.md`. Стенды — `tests/Contracts/`,
+  не `.tools/`; эксплуатационные команды — `bin/`. Обслуживание очереди не
+  добавлять в общий HTTP-контроллер: для этого есть `portal:maintain` по таймеру.
 
 ## Обязательные инварианты
 1. Единый префикс: папка `prxXXX_slug`, классы `Service_PrxXXX_*`,
@@ -63,8 +66,9 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
    технический RAG-кэш `prx560`. Для корпоративного RAG нужны ACL-aware
    коллекции, фильтрация и проверка доступа перед ответом. LLM не определяет права.
 6. Изменения состояния — POST + CSRF. Проверяет `Prx_PostGuard` глобально:
-   токен `csrf`/`X-CSRF-Token`, машинный канал — заголовок `Authorization`
-   или `X-Worker-Token`, вебхуки — `config/post_guard.php`. Ручные проверки
+   токен `csrf`/`X-CSRF-Token`; машинный канал явно объявляет контроллер
+   (`machine_request()`), который обязан проверить ключ. Заголовок сам по себе
+   не отключает CSRF. Вебхуки — `config/post_guard.php`. Ручные проверки
    CSRF в контроллерах не дублировать. Секреты только в `.env`, не в БД/логах/Git.
    Саморегистрация закрыта; пользователей создаёт администратор/интеграция.
 7. Миграции идемпотентны; после первого релиза не менять применённые миграции.
@@ -106,6 +110,7 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
 ## Проверки перед завершением
 ```bash
 make check                         # статические контракты основы
+make test-contracts                # runtime-контракты без БД
 make env-check                     # .env.example ↔ getenv/os.environ
 make architecture                  # YAML -> HTML/JSON, проверка модели
 python3 .tools/php_parse_lint.py application

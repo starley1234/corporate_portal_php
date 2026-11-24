@@ -1,10 +1,47 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
-class Controller_Prx395_Worker extends Controller_Prx395_Json
+class Controller_Prx395_Worker extends Controller
 {
+    public $auto_render = FALSE;
+
+    /** Worker API не использует сессии; ключ проверяется до любого действия. */
+    private function respond(callable $action): void
+    {
+        $this->response->headers('Cache-Control', 'no-store');
+        try
+        {
+            if ( ! Prx_Gate::worker_request($this->request)) throw new Prx395_Error('unauthorized', 401);
+            $action();
+        }
+        catch (Prx395_Error $e)
+        {
+            $this->_json_response($e->payload(), $e->getCode());
+        }
+        catch (Throwable $e)
+        {
+            Log_Plain::event(Log::ERROR, 'prx395 worker error_type=:type', [':type' => get_class($e)]);
+            $this->_json_response(['error' => ['code' => 'service_unavailable']], 503);
+        }
+    }
+
+    private function require_method(string $method): void
+    {
+        if ($this->request->method() !== $method)
+        {
+            $this->response->headers('Allow', $method);
+            throw new Prx395_Error('method_not_allowed', 405);
+        }
+    }
+
+    private function _json_response(array $data, int $status = 200): void
+    {
+        $this->response->status($status)
+            ->headers('Content-Type', 'application/json; charset=utf-8')
+            ->body(json_encode($data, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+    }
+
     private function lease(string $method): array
     {
-        if ( ! Prx_Gate::worker_request($this->request)) throw new Prx395_Error('unauthorized', 401);
         $this->require_method($method);
         $attempt = (string) $this->request->headers('X-PRX-Worker-Attempt');
         if ( ! preg_match('/\A[1-9][0-9]{0,8}\z/', $attempt)) throw new Prx395_Error('invalid_attempt', 400);
@@ -14,7 +51,6 @@ class Controller_Prx395_Worker extends Controller_Prx395_Json
     public function action_health(): void
     {
         $this->respond(function () {
-            if ( ! Prx_Gate::worker_request($this->request)) throw new Prx395_Error('unauthorized', 401);
             $this->require_method(Request::GET);
             $modules = Kohana::modules();
             $this->_json_response([

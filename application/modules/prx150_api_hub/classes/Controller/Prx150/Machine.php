@@ -15,12 +15,17 @@
  *
  * respond() проверяет ключ, scope и лимит, ловит Prx150_Error, пишет
  * использование в finally и ставит X-Request-Id. Сессия и CSRF не нужны:
- * Prx_PostGuard пропускает запрос с заголовком Authorization.
+ * Контроллер явно объявляет машинный канал для Prx_PostGuard.
  */
 abstract class Controller_Prx150_Machine extends Controller_Base
 {
     public $auto_render = FALSE;
     protected $auth_required = FALSE;
+
+    protected function machine_request(): bool
+    {
+        return TRUE; // respond() всегда проверяет ключ и scope до действия.
+    }
 
     /** Scope, который требует этот контроллер; переопределяется в модуле. */
     protected const SCOPE = '';
@@ -34,9 +39,10 @@ abstract class Controller_Prx150_Machine extends Controller_Base
      * Отдаётся сервису вместо массива ролей: у внешнего потребителя нет ни
      * сессии, ни ACL сотрудника. Доступен только внутри respond().
      */
-    public function principal(): ?Prx150_Principal
+    public function principal(): Prx150_Principal
     {
-        return $this->api_client === NULL ? NULL : Service_Prx150_Keys::principal($this->api_client);
+        if ($this->api_client === NULL) throw new LogicException('Machine principal is available only inside respond()');
+        return Service_Prx150_Keys::principal($this->api_client);
     }
 
     /**
@@ -48,6 +54,7 @@ abstract class Controller_Prx150_Machine extends Controller_Base
      */
     protected function respond(callable $action): void
     {
+        $this->api_client = NULL;
         $this->response->headers('Cache-Control', 'no-store');
         $start = microtime(TRUE);
         $status = 500;
@@ -86,6 +93,7 @@ abstract class Controller_Prx150_Machine extends Controller_Base
         }
         finally
         {
+            $this->api_client = NULL;
             if ($client !== NULL)
             {
                 $usage_id = Service_Prx150_Usage::log(
@@ -105,9 +113,4 @@ abstract class Controller_Prx150_Machine extends Controller_Base
         }
     }
 
-    /** JSON-ответ с тем же контрактом, что и у ошибок. */
-    protected function _json_response($data, $code = 200)
-    {
-        parent::_json_response($data, $code);
-    }
 }

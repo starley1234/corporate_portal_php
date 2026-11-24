@@ -8,8 +8,6 @@
  */
 abstract class Controller_Prx39x_Base extends Controller_Base
 {
-    protected $_actor_cache = NULL;
-
     public function before()
     {
         parent::before();
@@ -17,19 +15,6 @@ abstract class Controller_Prx39x_Base extends Controller_Base
         {
             throw HTTP_Exception::factory(403, 'Тестовый документооборот доступен только администратору');
         }
-    }
-
-    protected function _actor()
-    {
-        if ($this->_actor_cache !== NULL)
-        {
-            return $this->_actor_cache;
-        }
-
-        return $this->_actor_cache = [
-            'user_id' => (int) $this->_current_user->id,
-            'roles' => $this->_current_user_roles,
-        ];
     }
 
     protected function _require($ability)
@@ -75,7 +60,8 @@ abstract class Controller_Prx39x_Base extends Controller_Base
         {
             $result = $operation();
             $message = is_string($result) ? $result : 'Готово';
-            Session::instance()->set('prx39x_flash', ['type' => 'ok', 'text' => $message]);
+            // Пустая строка: результат уже показан карточкой процесса, без дублирующего флеша.
+            if ($message !== '') Session::instance()->set('prx39x_flash', ['type' => 'ok', 'text' => $message]);
             $target = $success ? (string) $success($result) : (string) $redirect;
         }
         catch (InvalidArgumentException $e)

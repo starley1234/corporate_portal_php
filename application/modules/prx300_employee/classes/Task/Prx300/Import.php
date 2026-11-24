@@ -1,32 +1,34 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
 /**
- * CLI: bin/console prx300:import --file=/path/employees.csv --source=hris [--apply=1]
+ * CLI: bin/console prx300:import --user=operator --file=/path/employees.csv --source=hris [--apply=1]
  *
- * Локальный CLI считается доверенным оператором портала. Без --apply файл
+ * --user задаёт аккаунт оператора: ACL и оргограничения те же, что в HTTP. Без --apply файл
  * только staged/validated; применение остаётся отдельным явным действием.
  */
 class Task_Prx300_Import extends Minion_Task
 {
-    protected $_options = ['file' => NULL, 'source' => 'hris', 'apply' => NULL];
+    protected $_options = ['user' => NULL, 'file' => NULL, 'source' => 'hris', 'apply' => NULL];
 
     protected function _execute(array $params)
     {
         $file = (string) ($params['file'] ?? '');
         if ($file === '')
         {
-            throw new InvalidArgumentException('Укажите --file=/path/employees.csv');
+            throw new InvalidArgumentException('Укажите --user=operator --file=/path/employees.csv');
         }
 
-        $actor = [
-            'user_id' => 0,
-            'roles' => ['admin'],
-            'can_admin_view' => TRUE,
-            'can_manage' => TRUE,
-            'can_import' => TRUE,
-            'can_identity' => TRUE,
-            'can_directory' => TRUE,
-        ];
+        $identifier = trim((string) ($params['user'] ?? ''));
+        if ($identifier === '') throw new InvalidArgumentException('Укажите --user=<id|username|email> аккаунта оператора');
+        $info = Service_Prx300_Identity::resolve_user($identifier);
+        if ( ! $info) throw new InvalidArgumentException('Аккаунт оператора не найден');
+        $user = ORM::factory('User', (int) $info['id']);
+        if ( ! $user->loaded()) throw new InvalidArgumentException('Аккаунт оператора не найден');
+        $roles = [];
+        foreach ($user->roles->find_all() as $role) $roles[] = (string) $role->name;
+        $actor = Prx_Actor::fromUser($user, $roles);
+        Policy_Prx300_Employee::requireAbility($actor, 'prx300.import');
+        Policy_Prx300_Employee::assertOrganization($actor);
         $rows = Service_Prx300_Import::parse_csv_file($file);
         $batch_id = Service_Prx300_Import::stage_rows(
             $actor,

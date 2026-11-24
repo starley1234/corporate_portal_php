@@ -90,7 +90,7 @@ step "Обслуживание очереди и outbox" bash bin/console portal
 # Сайт запускается отдельно, чтобы скрипт не оставлял фоновых серверов.
 # SMOKE_URL проверяет уже работающий сайт, а не временную БД выше.
 if [[ -n "${SMOKE_URL:-}" ]]; then
-    step "HTTP smoke работающего сайта" python3 tests/http_smoke.py
+    step "HTTP smoke работающего сайта" python3 tests/E2e/http_smoke.py
 fi
 
 echo "✔ FRESH: миграции с нуля, повтор без изменений, PHP-тесты, maintenance"

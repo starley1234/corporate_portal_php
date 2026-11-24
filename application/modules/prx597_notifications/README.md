@@ -60,7 +60,7 @@
 
 Вкладка `/prx597/admin?tab=templates` принимает CSV-строку подстановок из
 реестра и показывает сохранённые тему, текст, формат и состояние шаблонов.
-Регрессии проверяет `.tools/prx597_admin_cases.php` в составе engine-стенда.
+Регрессии проверяет `tests/Contracts/fixtures/prx597_admin.php` в составе engine-стенда.
 
 ## Разработчику модуля
 
@@ -210,12 +210,13 @@ Telegram/MAX нет ни переключателей, ни колонок со�
 
 ## Проверки кода и границы проверки
 
-Стенды: `.tools/prx597_engine_stand.php` (включает `prx597_settings_cases.php`),
-`prx597_delivery_stand.php`, `prx597_api_stand.php`, `prx597_hook_stand.php`.
-Запуск: `PRX_ROOT=$PWD node <путь>/phpwasm_stand.mjs .tools/<стенд>.php`.
-Интерфейсный скрипт: `node --test tests/Js/prx597_notifications.test.mjs`.
+PHP-контракты: `make test-contracts` или отдельно
+`php tests/Contracts/prx597_engine.php`. Engine включает fixtures из
+`tests/Contracts/fixtures/`. Дополнительно: `prx597_delivery.php`,
+`prx597_api.php`, `prx597_hook.php` в том же каталоге.
+Запуск без PHP CLI описан в `tests/README.md`.
 
-Стенды исполняют PHP/JS с подменой БД и внешнего транспорта. Они проверяют
+Стенды исполняют PHP с подменой БД и внешнего транспорта. Они проверяют
 доступность каналов, рендер/формы, права, CSRF, разделение получателей,
 отписки, повторы и DLQ, но **не доказывают доставку живым SMTP/Telegram/MAX**.
 Для этого нужны реальные настройки и проверки выше. Схема БД не меняется:

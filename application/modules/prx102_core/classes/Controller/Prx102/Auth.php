@@ -204,7 +204,8 @@ class Controller_Prx102_Auth extends Controller_Prx102_Base {
         
         $this->template->title = 'Мой Профиль';
         $this->template->content = View::factory('auth/profile')
-            ->set('user', $user);
+            ->set('user', $user)
+            ->set('profile_roles', array_values(array_unique($user->get_role_names())));
     }
 
     public function action_index()

@@ -5,8 +5,7 @@
  *
  * Нужен, когда воркеры работают на отдельном сервере без доступа к PostgreSQL.
  * Аутентификация — статический токен: заголовок X-Worker-Token (или ?token=),
- * значение из WORKER_API_TOKEN. Пустой токен в настройках = API закрыт
- * (кроме KOHANA_ENV=development, где он разрешён для локальной отладки).
+ * значение из WORKER_API_TOKEN. Пустой токен в настройках = API закрыт во всех окружениях.
  *
  *   POST /prx120/api/claim        {"channels": ["embeddings.index"], "worker": "w1"}
  *   POST /prx120/api/heartbeat/<id>  {"worker": "w1", "note": "..."}
@@ -284,16 +283,11 @@ class Controller_Prx120_Api extends Controller {
     {
         $token = trim((string) getenv('WORKER_API_TOKEN'));
 
-        // Токен не задан: в development пускаем локально, иначе API закрыт.
+        // Пустой секрет закрывает API в любом окружении, включая development.
         if ($token === '')
         {
-            if (Kohana::$environment !== Kohana::DEVELOPMENT)
-            {
-                $this->_auth_fail('WORKER_API_TOKEN не задан в .env сайта — API очереди закрыт. Добавьте токен в .env в корне сайта и повторите.');
-                return FALSE;
-            }
-
-            return TRUE;
+            $this->_auth_fail('WORKER_API_TOKEN не задан в .env сайта — API очереди закрыт. Добавьте токен в .env в корне сайта и повторите.');
+            return FALSE;
         }
 
         $given    = $this->request->headers('x-worker-token');
