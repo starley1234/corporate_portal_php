@@ -13,7 +13,7 @@ class DocflowAccessBoundaryTest(unittest.TestCase):
         for module in MODULES:
             for path in (module / 'classes/Controller').rglob('*.php'):
                 with self.subTest(path=path):
-                    self.assertNotRegex(path.read_text(), r'::(?:document_for_processing|route_automatically|scan_folder_automatically)\s*\(')
+                    self.assertNotRegex(path.read_text(), r'::(?:document_for_processing|open_ids_for_processing|route_automatically|scan_folder_automatically)\s*\(')
 
     def test_actor_arrays_and_system_flags_are_not_service_contracts(self):
         for module in MODULES:
@@ -42,3 +42,15 @@ class DocflowAccessBoundaryTest(unittest.TestCase):
         self.assertEqual(events.count('::route_automatically('), 2)
         self.assertNotIn('is_system', events)
         self.assertNotIn("$payload['actor_id']", events)
+
+    def test_workflow_sql_reads_and_writes_only_its_own_tables(self):
+        service = MODULES[3] / 'classes/Service/Prx393/Workflow.php'
+        source = service.read_text()
+        tables = re.findall(r'\b(?:FROM|JOIN|UPDATE|INTO)\s+([a-zA-Z_][a-zA-Z0-9_]*)', source, re.I)
+        self.assertTrue(tables)
+        for table in tables:
+            with self.subTest(table=table):
+                # ON CONFLICT ... DO UPDATE SET не является именем таблицы.
+                self.assertTrue(table.startswith('prx_393_') or table.upper() == 'SET')
+        self.assertIn('Service_Prx391_Documents::open_ids_for_processing(', source)
+        self.assertIn('Service_Prx102_Users::actors_with_role(', source)

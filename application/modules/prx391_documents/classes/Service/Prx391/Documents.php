@@ -232,6 +232,12 @@ class Service_Prx391_Documents
         return Policy_Prx391_Document::canEdit($actor);
     }
 
+    /** Доверенный пакетный конвейер, не список для пользовательского UI. */
+    public static function open_ids_for_processing(int $limit = 200): array
+    {
+        return Service_Prx391_Registry::open_ids_for_processing($limit);
+    }
+
     /** Только серверный конвейер: worker, маршрутизация, эскалации. Не HTTP-read API. */
     public static function document_for_processing($id)
     {

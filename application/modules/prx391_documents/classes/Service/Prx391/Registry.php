@@ -105,6 +105,18 @@ class Service_Prx391_Registry
         return self::_document($id, $actor);
     }
 
+    /** ID незакрытых карточек для доверенного пакетного пересчёта; не пользовательская выдача. */
+    public static function open_ids_for_processing(int $limit = 200): array
+    {
+        if ($limit <= 0) return [];
+        $rows = Prx_Db::select(
+            "SELECT id FROM prx_391_documents WHERE status NOT IN ('closed', 'archived') "
+            .'ORDER BY received_at DESC, id DESC LIMIT :limit',
+            [':limit' => $limit]
+        );
+        return array_map('intval', array_column($rows, 'id'));
+    }
+
     /** Служебное чтение для конвейера, не принимает пользовательский actor. */
     public static function document_for_processing($id)
     {

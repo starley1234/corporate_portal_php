@@ -166,24 +166,20 @@ class Service_Prx393_Workflow
 
     public static function recalculate_all($limit = 200)
     {
-        $ids = self::_all("
-            SELECT id FROM prx_391_documents
-            WHERE status NOT IN ('closed', 'archived')
-            ORDER BY received_at DESC LIMIT ".(int) $limit."
-        ");
+        $ids = Service_Prx391_Documents::open_ids_for_processing((int) $limit);
 
         $n = 0;
-        foreach ($ids as $row)
+        foreach ($ids as $id)
         {
             try
             {
-                self::route_automatically((int) $row['id']);
+                self::route_automatically($id);
                 $n++;
             }
             catch (Throwable $e)
             {
                 Log_Plain::event(Log::WARNING, 'prx393_diag stage=recalculate result=error document_id=:id error_type=:type', [
-                    ':id' => (int) $row['id'], ':type' => get_class($e),
+                    ':id' => $id, ':type' => get_class($e),
                 ]);
             }
         }
@@ -584,34 +580,12 @@ class Service_Prx393_Workflow
 
     protected static function _role_users($role, array $document)
     {
-        // Читаем полный набор ролей кандидатов, а не только роль назначения:
-        // clerk может одновременно быть юристом и иметь доступ к карточке.
-        $roles_by_user = [];
-        foreach (self::_all("
-            SELECT DISTINCT ru.user_id, r.name
-            FROM roles_users ru
-            JOIN roles r ON r.id = ru.role_id
-            WHERE EXISTS (
-                SELECT 1 FROM roles_users candidate
-                JOIN roles target_role ON target_role.id = candidate.role_id
-                WHERE candidate.user_id = ru.user_id AND target_role.name = ".self::_q($role)."
-            )
-            ORDER BY ru.user_id, r.name
-        ") as $row)
-        {
-            $id = (int) $row['user_id'];
-            if ($id > 0)
-            {
-                $roles_by_user[$id][] = (string) $row['name'];
-            }
-        }
-
         $out = [];
-        foreach ($roles_by_user as $id => $roles)
+        foreach (Service_Prx102_Users::actors_with_role((string) $role) as $actor)
         {
-            if (Service_Prx391_Documents::can_view($document, new Prx_Actor((int) $id, $roles)))
+            if (Service_Prx391_Documents::can_view($document, $actor))
             {
-                $out[] = (int) $id;
+                $out[] = $actor->id();
             }
         }
 
