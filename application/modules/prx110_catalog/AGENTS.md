@@ -196,7 +196,7 @@ $this->set_menu(class_exists('Service_Prx110_Catalog')
 
 ### Ручное одобрение
 
-`Service_Prx110_Publication::approve()` проверяет `prx112.approve` и хранит
+`Service_Prx110_Publication::set_state()` (`approved`/`wip`) проверяет `prx112.approve` и хранит
 решение с автором/временем в `prx_110_publications`. Каталог учитывает его
 после проверки аудитории и ACL. Не меняются `status` или `catalog` манифеста;
 архивирование и отключение модуля по-прежнему исключают его из витрины.

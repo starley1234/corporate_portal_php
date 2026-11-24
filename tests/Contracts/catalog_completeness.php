@@ -84,8 +84,10 @@ class Prx_Db
  public static $approved = [];
  public static function select($sql) { return array_values(self::$approved); }
  public static function execute($sql, $params) {
-  if (strpos($sql, 'ON CONFLICT (module_name) DO NOTHING') === FALSE) throw new RuntimeException('Approval insert is not idempotent');
-  self::$approved[$params[':name']] ??= ['module_name' => $params[':name'], 'approved_by' => $params[':actor']];
+  if (strpos($sql, 'WHERE prx_110_publications.state <> EXCLUDED.state') === FALSE) throw new RuntimeException('Approval insert is not idempotent');
+  if ((self::$approved[$params[':name']]['state'] ?? NULL) !== $params[':state']) {
+   self::$approved[$params[':name']] = ['module_name' => $params[':name'], 'state' => $params[':state'], 'approved_by' => $params[':actor']];
+  }
  }
 }
 require APPPATH.'modules/prx110_catalog/classes/Service/Prx110/Publication.php';
@@ -118,3 +120,20 @@ if (!in_array('/employee', array_column(Service_Prx110_Catalog::search_json($use
  throw new RuntimeException('Approved employee profile did not enter regular catalog');
 }
 echo "Publication: admin-only, connected services only, manifest and ACL intact\n";
+
+$notifications = Service_Prx110_Catalog::get('prx597_notifications');
+try {
+ Service_Prx110_Publication::set_state('prx597_notifications', 'wip', Prx_Actor::fromArray($user));
+ throw new RuntimeException('Non-admin could withdraw a module');
+} catch (HTTP_Exception $e) {
+ if ($e->getCode() !== 403) throw $e;
+}
+Service_Prx110_Publication::set_state('prx597_notifications', 'wip', $publisher);
+if (Service_Prx110_Catalog::resolve_manifest_state($notifications) !== 'approved'
+ || Service_Prx110_Catalog::resolve_state($notifications) !== 'wip'
+ || Service_Prx110_Catalog::can_see($notifications, $user)
+ || !Service_Prx110_Catalog::can_see($notifications, $preview)) {
+ throw new RuntimeException('Work state did not override publication while preserving preview');
+}
+Service_Prx110_Publication::approve('prx597_notifications', $publisher);
+if (!Service_Prx110_Catalog::can_see($notifications, $user)) throw new RuntimeException('Reapproval did not restore a stable service');

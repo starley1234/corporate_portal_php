@@ -18,7 +18,7 @@ class Controller_Prx112_Plan extends Controller_Base
         $this->set_title('План и архив портала');
         $this->template->content = View::factory('prx112/index', [
             'domains' => Service_Prx112_Plan::domains($this->actor()),
-            'approved' => Session::instance()->get_once('prx112_approved'),
+            'publication' => Session::instance()->get_once('prx112_publication'),
         ]);
     }
 
@@ -35,8 +35,13 @@ class Controller_Prx112_Plan extends Controller_Base
         {
             throw HTTP_Exception::factory(400, 'Некорректный модуль');
         }
-        Service_Prx110_Publication::approve($name, $actor);
-        Session::instance()->set('prx112_approved', TRUE);
+        $state = $this->request->post('state') ?? 'approved';
+        if ( ! is_string($state))
+        {
+            throw HTTP_Exception::factory(400, 'Некорректное состояние публикации');
+        }
+        Service_Prx110_Publication::set_state($name, $state, $actor);
+        Session::instance()->set('prx112_publication', $state);
         HTTP::redirect('/portal-plan', 303);
     }
 }

@@ -34,9 +34,7 @@ class Service_Prx112_Plan
         foreach ($visible as $name => $module)
         {
             if (isset($seen[$name]) || in_array($name, ['prx110_catalog', 'prx112_portal_plan'], TRUE)
-                || ($module['kind'] ?? 'module') !== 'module'
-                || (Service_Prx110_Catalog::resolve_audience($module) === 'admin'
-                    && ! in_array(Service_Prx110_Catalog::resolve_manifest_state($module), ['wip', 'unpublished'], TRUE)))
+                || ($module['kind'] ?? 'module') !== 'module')
             {
                 continue;
             }
@@ -64,8 +62,9 @@ class Service_Prx112_Plan
             'state' => $module['state'],
             'manifest_state' => Service_Prx110_Catalog::resolve_manifest_state($module),
             'href' => Service_Prx110_Catalog::can_see($module, $ctx) ? $module['href'] : NULL,
-            'approve' => $can_approve && Service_Prx110_Publication::eligible($module)
-                && $module['state'] !== 'approved' ? $module['module_name'] : NULL,
+            'icon' => $module['icon'],
+            'publication_module' => $can_approve && Service_Prx110_Publication::eligible($module)
+                ? $module['module_name'] : NULL,
         ];
     }
 }

@@ -397,12 +397,10 @@ class Service_Prx110_Catalog {
     public static function resolve_state(array $m)
     {
         $state = self::resolve_manifest_state($m);
-        if (in_array($state, ['wip', 'unpublished'], TRUE)
-            && ! empty($m['module_name']) && class_exists('Service_Prx110_Publication')
-            && Service_Prx110_Publication::eligible($m)
-            && Service_Prx110_Publication::is_approved($m['module_name']))
+        if ($state !== 'archived' && ! empty($m['module_name'])
+            && class_exists('Service_Prx110_Publication') && Service_Prx110_Publication::eligible($m))
         {
-            return 'approved';
+            return Service_Prx110_Publication::decision($m['module_name']) ?? $state;
         }
         return $state;
     }
