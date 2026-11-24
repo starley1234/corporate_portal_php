@@ -52,20 +52,20 @@ echo View::factory('partials/docflow_flash', ['flash' => $flash]);
         <?php endif; ?>
     </section>
 
-<?php include __DIR__.'/partials/process.php'; ?>
-
-    <div class="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+    <div class="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div class="min-w-0 space-y-6">
-<?php include __DIR__.'/partials/card.php'; ?>
-
 <?php include __DIR__.'/partials/analysis.php'; ?>
+
+<?php include __DIR__.'/partials/card.php'; ?>
 
 <?php include __DIR__.'/partials/attachments.php'; ?>
 
 <?php include __DIR__.'/partials/field_events.php'; ?>
         </div>
 
-        <aside class="min-w-0 space-y-6">
+        <aside class="min-w-0 w-full max-w-md space-y-6 lg:max-w-none">
+<?php include __DIR__.'/partials/process.php'; ?>
+
 <?php include __DIR__.'/partials/ai_sidebar.php'; ?>
 
 <?php include __DIR__.'/partials/sla_sidebar.php'; ?>
@@ -76,3 +76,5 @@ echo View::factory('partials/docflow_flash', ['flash' => $flash]);
         </aside>
     </div>
 </div>
+
+<?php echo View::factory('partials/live_status_js'); ?>

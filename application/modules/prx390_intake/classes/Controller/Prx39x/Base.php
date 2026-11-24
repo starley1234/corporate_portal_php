@@ -60,7 +60,8 @@ abstract class Controller_Prx39x_Base extends Controller_Base
         {
             $result = $operation();
             $message = is_string($result) ? $result : 'Готово';
-            Session::instance()->set('prx39x_flash', ['type' => 'ok', 'text' => $message]);
+            // Пустая строка: результат уже показан карточкой процесса, без дублирующего флеша.
+            if ($message !== '') Session::instance()->set('prx39x_flash', ['type' => 'ok', 'text' => $message]);
             $target = $success ? (string) $success($result) : (string) $redirect;
         }
         catch (InvalidArgumentException $e)
