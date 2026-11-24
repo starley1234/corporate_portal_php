@@ -135,3 +135,10 @@ legacy-маркеры результата и минимальную админ�
 старого timestamp при up/up/down миграции 007. Повторный сбор и приоритет
 created_by над visitor проверяет JobNotificationsIntegrationTest. Это не
 доказательство exactly-once при конкурентных сборщиках/сбоях внешней доставки.
+
+`Smoke/NotificationPreferencesIntegrationTest.php` удерживает совместимость
+Notify::prefs*/save_prefs после выделения внутреннего Preferences: opt-in
+умолчания, частичные изменения, пустой PATCH, PG 'f', режим дайджеста и
+фильтрация полей формы. Прежние изолированные settings-контракты остаются.
+`Tooling/test_notification_preferences.py` запрещает обратную зависимость
+Preferences → Notify/DDL и проверяет делегирование публичного фасада.
