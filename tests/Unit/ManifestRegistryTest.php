@@ -30,10 +30,7 @@ class ManifestRegistryTest extends TestCase {
 
     public function test_technical_rag_is_not_a_global_search_source(): void
     {
-        foreach (Manifest::search() as $source)
-        {
-            $this->assertNotSame('prx560_knowledge', $source['module']);
-        }
+        $this->assertNotContains('prx560_knowledge', array_column(Manifest::search(), 'module'));
     }
 
     public function test_service_plan_matches_registration_status(): void
