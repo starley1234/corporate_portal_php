@@ -37,8 +37,8 @@ async function runTimer(p, ms) {
 
 test('document page includes poller after process markup in bounded sidebar', () => {
     const view = readFileSync(new URL('application/modules/prx391_documents/views/prx391/show.php', root), 'utf8');
-    assert.ok(view.indexOf('<aside') < view.indexOf("/partials/process.php"));
-    assert.ok(view.indexOf("/partials/process.php") < view.indexOf("partials/live_status_js"));
+    assert.ok(view.indexOf('<aside') < view.indexOf("/partials/ai_sidebar.php"));
+    assert.ok(view.indexOf("/partials/ai_sidebar.php") < view.indexOf("partials/live_status_js"));
     assert.match(view, /xl:grid-cols-2/);
     assert.match(view, /order-1 min-w-0 space-y-4 xl:order-2/);
     assert.match(view, /md:grid-cols-2/);

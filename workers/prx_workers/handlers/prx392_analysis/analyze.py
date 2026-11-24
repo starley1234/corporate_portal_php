@@ -18,6 +18,7 @@ import time
 import httpx
 
 from ...llm import LlmConfigError
+from .diagnostics import save_reply
 
 from ... import site
 from ...base import HandlerContext
@@ -116,7 +117,12 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
         raise
 
     duration_ms = int((time.monotonic() - started) * 1000)
-    result = parse_json_reply(text)
+    save_reply(run_id, model, text, 'received')
+    try:
+        result = parse_json_reply(text)
+    except ValueError as exc:
+        save_reply(run_id, model, text, 'invalid_json', str(exc))
+        raise
 
     tokens = 0
     if isinstance(usage, dict):
@@ -135,7 +141,9 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
         timeout=120.0,
     )
     if not ok:
+        save_reply(run_id, model, text, 'delivery_failed', reason)
         raise RuntimeError(f"сайт не принял результат: {reason}")
+    save_reply(run_id, model, text, 'delivered')
 
     await ctx.progress("Готово", f"{duration_ms} мс · токенов {tokens}")
 

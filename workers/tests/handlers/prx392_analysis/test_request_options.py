@@ -77,3 +77,20 @@ def test_invalid_json_is_never_saved(monkeypatch):
     with pytest.raises(ValueError, match='JSON'):
         asyncio.run(analyze.handle(Context(['not json']), {'run_id': 3}))
     assert not posted
+
+
+def test_delivery_failure_keeps_raw_answer_for_diagnostics(monkeypatch):
+    setup_api(monkeypatch)
+    records = []
+    monkeypatch.setattr(analyze, 'save_reply', lambda *args: records.append(args))
+
+    async def refused(*args, **kwargs):
+        return False, 'HTTP 403: HTML instead of JSON', {}
+
+    monkeypatch.setattr(analyze.site, 'post_json', refused)
+    reply = '{"type":"other"}'
+    with pytest.raises(RuntimeError, match='HTTP 403'):
+        asyncio.run(analyze.handle(Context([reply]), {'run_id': 3}))
+    assert [r[3] for r in records] == ['received', 'delivery_failed']
+    assert records[-1][2] == reply
+    assert '403' in records[-1][4]

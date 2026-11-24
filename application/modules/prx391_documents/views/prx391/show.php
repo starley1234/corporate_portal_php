@@ -59,7 +59,6 @@ echo View::factory('partials/docflow_flash', ['flash' => $flash]);
         <aside class="order-1 min-w-0 space-y-4 xl:order-2">
             <div class="grid items-start gap-4 md:grid-cols-2">
                 <div class="min-w-0 space-y-4">
-<?php include __DIR__.'/partials/process.php'; ?>
 <?php include __DIR__.'/partials/ai_sidebar.php'; ?>
                 </div>
                 <div class="min-w-0 space-y-4">
@@ -68,16 +67,20 @@ echo View::factory('partials/docflow_flash', ['flash' => $flash]);
                 </div>
             </div>
 <?php include __DIR__.'/partials/analysis.php'; ?>
-            <details class="group rounded-xl border border-gray-200 dark:border-gray-700">
-                <summary class="cursor-pointer px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-200">Вложения и история документа</summary>
-                <div class="space-y-4 p-3 pt-0">
-<?php include __DIR__.'/partials/attachments.php'; ?>
-<?php include __DIR__.'/partials/journal_sidebar.php'; ?>
-<?php include __DIR__.'/partials/field_events.php'; ?>
-                </div>
-            </details>
+
         </aside>
     </div>
+    <section aria-label="Вложения и история документа" class="mt-5 grid items-start gap-4 xl:grid-cols-2">
+        <div class="min-w-0 space-y-4">
+<?php include __DIR__.'/partials/attachments.php'; ?>
+        </div>
+        <div class="min-w-0 space-y-4">
+<?php include __DIR__.'/partials/journal_sidebar.php'; ?>
+        </div>
+        <div class="min-w-0 xl:col-span-2">
+<?php include __DIR__.'/partials/field_events.php'; ?>
+        </div>
+    </section>
 </div>
 
 <?php echo View::factory('partials/live_status_js'); ?>

@@ -5,6 +5,7 @@
                     <h2 class="text-base font-semibold text-gray-900 dark:text-white"><i class="fas fa-wand-magic-sparkles mr-2 text-blue-500"></i>ИИ-разбор</h2>
                     <span class="prx-badge prx-badge-<?php echo $analysis ? ($analysis['status'] === 'proposed' ? 'run' : 'ok') : 'wait'; ?>"><span class="prx-dot"></span><?php echo $analysis ? HTML::chars(['proposed' => 'ждёт проверки', 'accepted' => 'применено', 'edited' => 'применено', 'rejected' => 'отклонено'][$analysis['status']] ?? $analysis['status']) : (!empty($progress['found']) ? HTML::chars(['queued' => 'в очереди', 'running' => 'воркер работает', 'failed' => 'ошибка', 'done' => 'готово', 'cancelled' => 'отменено'][$progress['status']] ?? $progress['status']) : 'не запускался'); ?></span>
                 </div>
+<?php include __DIR__.'/process.php'; ?>
                 <?php if ($analysis): ?>
                     <dl class="mt-3 space-y-2 text-sm">
                         <div class="flex justify-between gap-2"><dt class="text-gray-500 dark:text-gray-400">Тип</dt><dd class="text-right font-semibold"><?php echo HTML::chars($analysis['payload']['type'] ?? '—'); ?></dd></div>
@@ -18,7 +19,7 @@
                         <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
                         <button class="prx-btn-process w-full justify-center" type="submit"><i class="fas fa-play"></i><?php echo $analysis ? 'Разобрать заново' : 'Запустить разбор'; ?></button>
                     </form>
-                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Задача уходит в воркер <code class="font-mono">doc.analyze</code>; страница не ждёт модель.</p>
+                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">Результат появится автоматически. Реквизиты изменятся только после вашего подтверждения.</p>
                 <?php endif; ?>
                 <a class="mt-2 block text-center text-xs text-blue-600 hover:underline dark:text-blue-400" href="/analysis">Все предложения</a>
             </section>
