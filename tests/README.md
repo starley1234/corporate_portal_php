@@ -16,6 +16,12 @@
 Python-тесты самого воркера остаются в `workers/tests/` рядом с его runtime.
 Новые проверочные стенды не размещаются в `.tools/` или `bin/`.
 
+`Smoke/JobOwnershipIntegrationTest.php` проверяет владение очередью на PostgreSQL:
+чужие/запоздавшие отчёты, освобождение захвата при retry, backoff, идемпотентный
+done, отмену и новый claim между read/UPDATE. В Python
+`workers/tests/runtime/test_queue_ownership.py` проверяет SQL-контракт fail
+прямого PG-транспорта на заглушке соединения, не реальное asyncpg-подключение.
+
 ## Обычный запуск
 
 ```bash
