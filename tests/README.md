@@ -157,3 +157,11 @@ Notify-фасад: escaping/доверенный inner_html, безопасны�
 settings-контрактом. Tooling/test_notification_email_content.py запрещает
 рендереру зависимости от фасада/БД/подписи/отправки. Внешние почтовые клиенты
 и реальная доставка этими проверками не подтверждены.
+
+`Smoke/SemanticDiagnosticsIntegrationTest.php` — реальная запись вектора без
+внешнего embedding, coverage/панель/статистика и неизменность векторов от
+диагностики; search log/retention/windows и PG 'f'. Временные конфиги/ENV
+восстанавливаются, изменения БД откатываются. `Contracts/semantic_diagnostics.php`
+проверяет отказы БД/источника со стабами. `Tooling/test_semantic_components.py`
+держит явные границы без обратных вызовов. Эти проверки не заменяют ACL-aware
+retrieval, качество поиска или сетевой embedding/worker E2E.
