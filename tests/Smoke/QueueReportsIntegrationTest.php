@@ -26,7 +26,7 @@ class QueueReportsIntegrationTest extends TestCase
         $empty = $this->queue->worker_activity();
         $this->assertSame(['day' => 0, 'live' => 0, 'ago' => NULL], $empty);
         $this->job('report', 'pending');
-        $this->job('report', 'processing', ", heartbeat_at = NULL, claimed_at = now() - interval '1 hour', claimed_by = 'silent'");
+        $this->job('report', 'processing', ", heartbeat_at = NULL, created_at = now() - interval '1 hour', claimed_at = now() - interval '1 hour', claimed_by = 'silent'");
         $this->job('report', 'processing', ", heartbeat_at = now() - interval '20 minutes', claimed_by = 'silent'");
         $this->job('report', 'processing', ", heartbeat_at = now(), claimed_by = 'live'");
         $done = $this->job('report', 'done', ', finished_at = now()');
