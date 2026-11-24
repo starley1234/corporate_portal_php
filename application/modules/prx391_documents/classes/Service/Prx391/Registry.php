@@ -105,6 +105,31 @@ class Service_Prx391_Registry
         return self::_document($id, $actor);
     }
 
+    /**
+     * Минимальные заголовки для доверенного межсервисного конвейера, не UI-read API.
+     * @return array<int, array{id: int, reg_no: mixed, subject: mixed}> По ID; пропавшие ID отсутствуют.
+     */
+    public static function headers_for_processing(array $ids): array
+    {
+        $candidates = [];
+        foreach ($ids as $id)
+        {
+            if ((is_int($id) OR (is_string($id) AND ctype_digit($id))) AND (int) $id > 0)
+            {
+                $candidates[(int) $id] = (int) $id;
+            }
+        }
+        if ( ! $candidates) return [];
+
+        $headers = [];
+        foreach (self::_all('SELECT id, reg_no, subject FROM prx_391_documents WHERE id IN ('.implode(',', $candidates).')') as $row)
+        {
+            $row['id'] = (int) $row['id'];
+            $headers[$row['id']] = $row;
+        }
+        return $headers;
+    }
+
     /** ID незакрытых карточек для доверенного пакетного пересчёта; не пользовательская выдача. */
     public static function open_ids_for_processing(int $limit = 200): array
     {

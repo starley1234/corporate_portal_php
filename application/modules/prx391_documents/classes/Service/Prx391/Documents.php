@@ -232,6 +232,12 @@ class Service_Prx391_Documents
         return Policy_Prx391_Document::canEdit($actor);
     }
 
+    /** Минимальные заголовки по ID для серверного конвейера, без пользовательского ACL. */
+    public static function headers_for_processing(array $ids): array
+    {
+        return Service_Prx391_Registry::headers_for_processing($ids);
+    }
+
     /** Доверенный пакетный конвейер, не список для пользовательского UI. */
     public static function open_ids_for_processing(int $limit = 200): array
     {
