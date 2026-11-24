@@ -28,7 +28,7 @@
     }
 
     if (search && empty && matcher) {
-        search.closest('[data-portal-plan-search]').hidden = false;
+        search.closest('[data-service-search]').hidden = false;
         var filter = function () { applySearch(document.querySelector(contentSelector)); };
         search.addEventListener('input', filter);
         search.addEventListener('keydown', function (event) {

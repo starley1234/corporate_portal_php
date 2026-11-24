@@ -144,19 +144,6 @@
     }
 
     function renderFavorites() {
-        var catalog = document.querySelector('[data-catalog-favorites]');
-        var shortcuts = catalog && catalog.querySelector('[data-catalog-favorites-list]');
-        if (shortcuts) {
-            shortcuts.textContent = '';
-            state.items.forEach(function (item) {
-                var link = document.createElement('a');
-                link.className = 'prx-btn-secondary';
-                link.href = item.href;
-                link.textContent = item.title;
-                shortcuts.appendChild(link);
-            });
-            catalog.hidden = shortcuts.children.length === 0;
-        }
         var list = sidebar && sidebar.querySelector('[data-nav-pinned-list]');
         if (!list) return;
         while (list.firstChild) list.removeChild(list.firstChild);

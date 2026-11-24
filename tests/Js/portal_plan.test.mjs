@@ -21,7 +21,7 @@ const settle = () => new Promise((done) => setImmediate(done));
 
 const group = (name, rows) => `<section data-portal-plan-group="${name}"><ul>${rows}</ul></section>`;
 const otherRow = '<li data-portal-plan-item="Расписание встреч">Встречи</li>';
-const searchBox = `<div data-portal-plan-search hidden>
+const searchBox = `<div data-service-search hidden>
     <input id="portal-plan-search" type="search"><p id="portal-plan-search-empty" hidden>Ничего не найдено</p>
 </div>`;
 
