@@ -83,7 +83,7 @@
 - `GET|POST /prx120/budgets` — бюджеты токенов (админ, `prx120.usage.admin`)
 - `POST /prx120/api/claim|heartbeat/<id>|complete/<id>|fail/<id>`
 - `GET /prx120/api/job/<id>`, `GET /prx120/api/stats`
-- Аутентификация токеном; пустой токен = API закрыт (кроме development).
+- Аутентификация токеном; пустой токен = API закрыт, включая development.
 
 ## События
 - Публикует: `prx120.job_done`, `prx120.job_failed` (через `Event::publish`, инициатор — система).

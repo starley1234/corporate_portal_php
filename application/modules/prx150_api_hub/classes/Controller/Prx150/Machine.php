@@ -15,12 +15,17 @@
  *
  * respond() проверяет ключ, scope и лимит, ловит Prx150_Error, пишет
  * использование в finally и ставит X-Request-Id. Сессия и CSRF не нужны:
- * Prx_PostGuard пропускает запрос с заголовком Authorization.
+ * Контроллер явно объявляет машинный канал для Prx_PostGuard.
  */
 abstract class Controller_Prx150_Machine extends Controller_Base
 {
     public $auto_render = FALSE;
     protected $auth_required = FALSE;
+
+    protected function machine_request(): bool
+    {
+        return TRUE; // respond() всегда проверяет ключ и scope до действия.
+    }
 
     /** Scope, который требует этот контроллер; переопределяется в модуле. */
     protected const SCOPE = '';
@@ -105,9 +110,4 @@ abstract class Controller_Prx150_Machine extends Controller_Base
         }
     }
 
-    /** JSON-ответ с тем же контрактом, что и у ошибок. */
-    protected function _json_response($data, $code = 200)
-    {
-        parent::_json_response($data, $code);
-    }
 }

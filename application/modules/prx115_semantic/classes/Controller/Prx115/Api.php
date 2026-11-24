@@ -53,6 +53,12 @@ class Controller_Prx115_Api extends Controller_Base {
     /** @var array тело запроса (JSON) */
     protected $_body = [];
 
+    protected function machine_request(): bool
+    {
+        // vectors проверяет worker-токен в before(); остальные POST — UI + CSRF.
+        return $this->request->action() === 'vectors';
+    }
+
     public function before()
     {
         parent::before();
@@ -574,11 +580,6 @@ class Controller_Prx115_Api extends Controller_Base {
 
         if ($token === '')
         {
-            if (Kohana::$environment === Kohana::DEVELOPMENT)
-            {
-                return TRUE;
-            }
-
             return $quiet
                 ? FALSE
                 : $this->_auth_fail('WORKER_API_TOKEN не задан в .env сайта — приём векторов закрыт. Добавьте токен и повторите.');

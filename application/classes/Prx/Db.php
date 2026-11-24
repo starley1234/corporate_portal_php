@@ -20,6 +20,9 @@
  */
 final class Prx_Db
 {
+    /** Транзакция принадлежит вызывающей операции, повторный вход запрещён. */
+    private static array $transactions = [];
+
     /** @return array<int, array> */
     public static function select(string $sql, array $params = []): array
     {
@@ -57,23 +60,42 @@ final class Prx_Db
     }
 
     /**
-     * Транзакция с откатом на любом исключении.
-     *
-     *   $id = Prx_Db::transaction(function () use ($data) { ... return $id; });
+     * Одна операция — одна транзакция на явно выбранном соединении.
+     * Вложенные вызовы на том же соединении запрещены, а не делают ранний COMMIT.
+     * Не оборачивать в ручной begin(): владельцем границы должен быть один слой.
      */
-    public static function transaction(callable $operation)
+    public static function transaction(callable $operation, ?Database $db = NULL)
     {
-        $db = Database::instance();
-        $db->begin();
+        $db = $db ?? Database::instance();
+        $connection = spl_object_id($db);
+        if (isset(self::$transactions[$connection])) {
+            throw new LogicException('Вложенная транзакция на том же соединении запрещена');
+        }
 
+        self::$transactions[$connection] = TRUE;
+        $started = FALSE;
         try {
+            if ( ! $db->begin()) {
+                throw new RuntimeException('Не начата транзакция');
+            }
+            $started = TRUE;
             $result = $operation();
-            $db->commit();
-
+            if ( ! $db->commit()) {
+                throw new RuntimeException('Не подтверждена транзакция');
+            }
             return $result;
         } catch (Throwable $e) {
-            $db->rollback();
+            if ($started) {
+                try {
+                    $db->rollback();
+                } catch (Throwable $rollback_error) {
+                    // Сохраняем исходную ошибку, не раскрываем SQL/данные.
+                    error_log('prx_db: rollback failed');
+                }
+            }
             throw $e;
+        } finally {
+            unset(self::$transactions[$connection]);
         }
     }
 

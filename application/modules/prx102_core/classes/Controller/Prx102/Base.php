@@ -61,15 +61,18 @@ abstract class Controller_Prx102_Base extends Controller {
     /** @var Prx_Actor|null Серверный контекст доступа (создаётся по требованию). */
     protected $_actor = NULL;
 
+    /** Только машинные endpoints с собственной обязательной аутентификацией. */
+    protected function machine_request(): bool
+    {
+        return FALSE;
+    }
+
     public function before()
     {
         parent::before();
 
-        // CSRF: одно правило на всё приложение (Prx_PostGuard). Формы и AJAX
-        // передают `csrf` из Security::token(), машинные API — заголовок
-        // Authorization/X-Worker-Token, вебхуки — config/post_guard.php.
-        // Проверка до любых побочных эффектов запроса.
-        Prx_PostGuard::assert_safe($this->request);
+        // Канал определяет серверный контроллер, не заголовки клиента.
+        Prx_PostGuard::assert_safe($this->request, $this->machine_request());
 
 		// Controller_Robotprotection::check_protection();
       

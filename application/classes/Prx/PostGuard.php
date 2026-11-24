@@ -1,23 +1,9 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
 /**
- * Глобальная защита от CSRF: одно правило вместо ручных проверок в каждом
- * контроллере.
- *
- * Любой небезопасный метод (POST/PUT/PATCH/DELETE) обязан доказать, что
- * запрос пришёл из нашего же UI, а не с чужого сайта:
- *
- *   1. валидный токен — поле `csrf` (форма или AJAX-тело) либо заголовок
- *      `X-CSRF-Token` (тот же `Security::token()` из сессии);
- *   2. ИЛИ машинный канал — заголовок `Authorization` (Bearer API) или
- *      `X-Worker-Token` (воркер). Такие заголовки нельзя поставить из чужой
- *      страницы, поэтому они сами по себе доказывают происхождение.
- *
- * Всё остальное — 403. Исключения только для входящих вебхуков с собственной
- * подписью: `config/post_guard.php`, ключ `webhooks`.
- *
- * Контроллеру ничего не нужно: `Controller_Prx102_Base::before()` вызывает
- * `Prx_PostGuard::assert_safe()`. Токен в форму — `Security::token()`.
+ * UI: небезопасные методы требуют CSRF, независимо от заголовков авторизации.
+ * Машинный канал объявляет контроллер; он ОБЯЗАН проверить ключ перед операцией.
+ * Вебхуки с собственной подписью перечислены в config/post_guard.php.
  */
 final class Prx_PostGuard
 {
@@ -27,13 +13,13 @@ final class Prx_PostGuard
     /**
      * @throws HTTP_Exception_403
      */
-    public static function assert_safe(Request $request): void
+    public static function assert_safe(Request $request, bool $machine = FALSE): void
     {
         if (in_array(strtoupper($request->method()), self::SAFE, TRUE)) {
             return;
         }
 
-        if (self::has_machine_credentials($request)) {
+        if ($machine) {
             return;
         }
 
@@ -70,18 +56,6 @@ final class Prx_PostGuard
         }
 
         return $token !== '' AND Security::check($token);
-    }
-
-    /** Машинный запрос: заголовок с учётными данными, недоступный чужому сайту. */
-    public static function has_machine_credentials(Request $request): bool
-    {
-        foreach (['Authorization', 'X-Worker-Token'] as $header) {
-            if (self::header($request, $header) !== '') {
-                return TRUE;
-            }
-        }
-
-        return FALSE;
     }
 
     /** Заголовок без зависимости от регистра ключа (Apache/CGI дают разный). */

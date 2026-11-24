@@ -183,6 +183,10 @@ check: ## все статические контракты: манифесты, 
 	python3 .tools/js_csrf_lint.py
 	python3 -m unittest discover -s tests -p 'test_*.py'
 
+.PHONY: test-contracts
+test-contracts: ## runtime-контракты основы без БД (нужен PHP)
+	php tests/Contracts/foundation.php
+
 manifest-check: ## схема манифестов модулей (id/slug/status/audience/acl)
 	python3 .tools/manifest_check.py
 

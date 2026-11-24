@@ -34,6 +34,17 @@ $modules = [
     'cookie_consent' => APPPATH.'modules/cookie_consent',
 ];
 
+// Старый документооборот — только явное включение на стенде.
+if (getenv('PRX_DOCFLOW_ENABLED') === '1')
+{
+    $modules += [
+        'prx390_intake' => APPPATH.'modules/prx390_intake',
+        'prx391_documents' => APPPATH.'modules/prx391_documents',
+        'prx392_analysis' => APPPATH.'modules/prx392_analysis',
+        'prx393_workflow' => APPPATH.'modules/prx393_workflow',
+    ];
+}
+
 // LDAP — необязательный драйвер; одновременно выбирается в config/auth.php.
 if (getenv('PRX_LDAP_ENABLED') === '1')
 {

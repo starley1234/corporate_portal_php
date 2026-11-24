@@ -45,3 +45,7 @@
 конфликт и истечение ключа, админка. Worker-контур не менялся.
 
 Запуск, ошибки, проверки и лимиты — в [инструкции](../../../docs/integrations/document-extractions.md).
+
+## Граница HTTP (23.11.2026)
+
+Worker-контроллер наследует обычный `Controller`, без сессий и UI-bootstrap. Общий `respond()` проверяет worker-токен до действия, формирует JSON ошибок и no-store. Контракты: `make test-contracts`.

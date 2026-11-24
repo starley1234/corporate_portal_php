@@ -298,7 +298,22 @@ class PrxFoundationTest extends TestCase
         }
     }
 
-    public function test_post_guard_allows_webhook_and_machine_credentials(): void
+    public function test_post_guard_rejects_fake_machine_headers_on_ui(): void
+    {
+        foreach (['Authorization', 'X-Worker-Token'] as $header)
+        {
+            $request = Request::factory('prx395_document_extract')->method(Request::POST);
+            $request->headers($header, 'arbitrary-value');
+            try {
+                Prx_PostGuard::assert_safe($request);
+                $this->fail('Заголовок не должен отключать CSRF у UI');
+            } catch (HTTP_Exception_403 $e) {
+                $this->assertSame(403, $e->getCode());
+            }
+        }
+    }
+
+    public function test_post_guard_allows_webhook_and_explicit_machine_channel(): void
     {
         $webhook = Request::factory('prx597/hook/telegram');
         $webhook->method(Request::POST);
@@ -309,7 +324,7 @@ class PrxFoundationTest extends TestCase
         $api = Request::factory('api/v1/document-extractions/1');
         $api->method(Request::POST);
         $api->headers('Authorization', 'Bearer test-token');
-        Prx_PostGuard::assert_safe($api);
+        Prx_PostGuard::assert_safe($api, TRUE);
 
         $this->assertSame(Request::POST, $api->method());
     }

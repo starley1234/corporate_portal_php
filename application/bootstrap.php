@@ -175,13 +175,7 @@ ini_set('session.save_path', APPPATH.'sessions');
 /**
  * Enable modules. Modules are referenced by a relative or absolute path.
  */
-Kohana::modules((require APPPATH.'config/modules.php') + [
-    // Старый документооборот: для отключения закомментируйте все четыре строки.
-    'prx390_intake' => APPPATH.'modules/prx390_intake',
-    'prx391_documents' => APPPATH.'modules/prx391_documents',
-    'prx392_analysis' => APPPATH.'modules/prx392_analysis',
-    'prx393_workflow' => APPPATH.'modules/prx393_workflow',
-]);
+Kohana::modules(require APPPATH.'config/modules.php');
 
 
 
