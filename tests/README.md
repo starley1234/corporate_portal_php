@@ -40,6 +40,12 @@ CLI-оператора и staging без автоматического прим
 `Smoke/EmployeeDirectoryTest.php`. CLI-тест создаёт оператора, назначает роль
 через Auth и проверяет staging/apply и ID в аудите на реальной БД.
 
+Контракты `extraction_access.php` и `machine_access.php` проверяют разделение
+UI/API principal, scope и время жизни машинного контекста. PostgreSQL-тест
+`Smoke/MachineExtractionAccessTest.php` диспетчеризует API-запросы prx395 внутри PHP,
+проверяет изоляцию владельцев, ключи, лимит и журнал. Сетевой HTTP, загрузку
+PDF, внешнюю OCR-службу и браузер такой внутренний dispatch не проверяет.
+
 ## CI с PostgreSQL
 
 Workflow `.github/workflows/ci.yml` разделяет изолированные проверки и
