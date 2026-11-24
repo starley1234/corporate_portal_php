@@ -24,8 +24,8 @@ $elapsed = max(0, (int) ($progress['elapsed_sec'] ?? 0));
         'lead' => 'PDF → текст через очередь и Python-воркер. Проверьте сервис здесь или подключите свою систему по API.',
         'actions' => [['label' => 'API-доступ', 'href' => '/prx150_api_hub', 'icon' => 'fa-key', 'role' => 'secondary']],
     ]); ?>
-    <div class="mt-5 grid items-start gap-5 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <div class="min-w-0 w-full max-w-2xl space-y-5">
+    <div class="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <div class="min-w-0 space-y-5">
             <?php if ($code): ?>
             <section class="prx-card border-rose-200 dark:border-rose-900" role="alert">
                 <h2 class="prx-h3 text-rose-700 dark:text-rose-300"><i class="fas fa-triangle-exclamation mr-2" aria-hidden="true"></i>Не удалось завершить обработку</h2>

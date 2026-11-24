@@ -69,9 +69,11 @@ test('friendly PDF picker announces filename and rejects wrong type or oversized
     dom.window.close();
 });
 
-test('upload card stays bounded on large screens and preserves keyboard-accessible file input',()=>{
+test('upload and API cards fill their columns and keep keyboard-accessible file input',()=>{
     const ui=readFileSync(new URL('application/modules/prx395_document_extract/views/prx395/index.php',root),'utf8');
-    assert.match(ui,/max-w-2xl/);
+    assert.match(ui,/xl:grid-cols-\[minmax\(0,3fr\)_minmax\(0,2fr\)\]/);
+    // Capping just the left stack leaves an unallocated strip inside its grid column.
+    assert.doesNotMatch(ui,/max-w-2xl/);
     assert.match(ui,/focus-within:ring-2/);
     assert.match(ui,/type="file" name="file"[^>]+aria-describedby="prx395-file-info"/);
     assert.doesNotMatch(ui,/class="hidden"[^>]+id="pdf-file"/);
