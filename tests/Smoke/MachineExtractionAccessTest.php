@@ -15,20 +15,24 @@ class MachineExtractionAccessTest extends TestCase
         return $user;
     }
 
-    /** Прямой вызов action: тестируется respond(), не сетевой сервер и не UI-bootstrap. */
+    /** Внутренний HTTP-dispatch с before/respond, без сетевого сервера. */
     private function request(int $job, ?string $token): Response
     {
         $request = Request::factory('api/v1/document-extractions/'.$job)->method(Request::GET);
         if ($token !== NULL) $request->headers('Authorization', 'Bearer '.$token);
-        $response = Response::factory();
-        $controller = new Controller_Prx395_Api($request, $response);
-        $controller->action_extraction();
+        $response = $request->execute();
         $this->assertSame('no-store', $response->headers('Cache-Control'));
         return $response;
     }
 
+    /**
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
     public function test_keys_and_ui_have_separate_owners_and_api_enforces_credentials(): void
     {
+        $_SERVER['HTTP_HOST'] = 'localhost';
+        $_SERVER['SERVER_NAME'] = 'localhost';
         $db = Database::instance();
         $config = Kohana::$config->load('prx150_api_hub');
         $previous_key = $config->get('ip_hash_key');
