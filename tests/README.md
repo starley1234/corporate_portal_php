@@ -53,6 +53,11 @@ PDF, внешнюю OCR-службу и браузер такой внутрен
 события регистрации/срока. Реальный OCR/LLM в этом тесте не запускается.
 `Tooling/test_docflow_access.py` удерживает служебные entry points вне контроллеров.
 
+`Contracts/workflow_boundaries.php` проверяет контракты чтения prx391/Auth и
+фильтрацию получателей без БД. `Smoke/WorkflowBoundariesTest.php` проверяет
+на PostgreSQL ограниченный пересчёт, роли из Auth, отсутствие заблокированных
+получателей, чувствительность карточки и снятие роли между обходами.
+
 ## CI с PostgreSQL
 
 Workflow `.github/workflows/ci.yml` разделяет изолированные проверки и
