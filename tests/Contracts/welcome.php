@@ -20,6 +20,11 @@ class Service_Prx110_Catalog
             ['module_name' => 'prx393_workflow', 'title' => 'No ACL', 'href' => '/workflow'],
         ];
     }
+
+    public static function plan_modules()
+    {
+        return self::visible_modules();
+    }
 }
 
 class Kohana

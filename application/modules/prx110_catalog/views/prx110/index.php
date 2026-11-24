@@ -15,9 +15,13 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
     <?php echo View::factory('partials/page_header', [
         'crumbs' => [['Главная', '/'], ['Сервисы']],
         'title'  => 'Каталог сервисов PRX',
-        'lead'   => (int) $total.' модулей и сервисов по разделам. Состав каталога зависит от ваших прав доступа.',
+        'lead'   => (int) $total.' сервисов, готовых к работе. Состав зависит от прав доступа.',
     ]); ?>
 
+
+    <?php if ($preview): ?>
+    <p class="prx-hint mt-4" role="status">Предпросмотр: показаны сервисы «в работе» (beta/draft). Обычным сотрудникам они не видны.</p>
+    <?php endif; ?>
 
     <section class="prx-panel mt-6" data-catalog-favorites aria-labelledby="catalog-favorites-title"<?php echo $favorite_items ? '' : ' hidden'; ?>>
         <div class="prx-panel-head"><h2 id="catalog-favorites-title" class="prx-h3">Избранное</h2></div>
@@ -45,7 +49,7 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
     </div>
 
     <!-- CSS-колонки заполняются по высоте карточек: маленькие разделы не оставляют пустые ячейки рядом с большими. -->
-    <div id="catalog-groups" class="columns-1 gap-5 [column-fill:balance] sm:columns-2 xl:columns-3 2xl:columns-4">
+    <div id="catalog-groups" class="columns-1 gap-5 [column-fill:balance] sm:columns-2 xl:columns-3">
         <?php foreach ($groups as $g): ?>
         <section class="catalog-group prx-card mb-5 break-inside-avoid"
                  data-search="<?php echo HTML::chars(mb_strtolower($g['title'])); ?>">
@@ -56,19 +60,16 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
             </a>
             <ul class="mt-3.5 space-y-1 text-sm leading-snug text-gray-600 dark:text-gray-300">
                 <?php foreach ($g['items'] as $m): ?>
-                <?php $badge = Service_Prx110_Catalog::resolve_status($m) === 'beta' ? 'Тестовый режим' : ($m['badge'] ?? ''); ?>
+                <?php $state = Service_Prx110_Catalog::resolve_state($m); ?>
                 <li class="catalog-item group/item flex items-center gap-1 break-inside-avoid" data-search="<?php echo HTML::chars(mb_strtolower($m['title'].' '.($m['short'] ?? '').' '.($m['keywords'] ?? ''))); ?>">
-                    <a href="<?php echo HTML::chars($m['href']); ?>" class="inline-flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-0.5 -mx-1.5 transition hover:bg-gray-50 hover:text-blue-600 dark:hover:bg-gray-700/50 dark:hover:text-blue-400">
+                    <a href="<?php echo HTML::chars($m['href']); ?>"<?php echo empty($m['short']) ? '' : ' title="'.HTML::chars($m['short']).'"'; ?> class="inline-flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-0.5 -mx-1.5 transition hover:bg-gray-50 hover:text-blue-600 dark:hover:bg-gray-700/50 dark:hover:text-blue-400">
                         <i class="<?php echo HTML::chars($m['icon']); ?> w-4 shrink-0 text-center text-sm text-gray-400"></i>
-                        <span class="min-w-0">
-                            <span class="font-semibold"><?php echo HTML::chars($m['title']); ?></span>
-                            <?php if ( ! empty($badge)): ?>
-                                <span class="prx-badge prx-badge-info"><?php echo HTML::chars($badge); ?></span>
-                            <?php endif; ?>
-                            <?php if ( ! empty($m['short'])): ?>
-                                <span class="block text-xs text-gray-600 dark:text-gray-300"><?php echo HTML::chars($m['short']); ?></span>
-                            <?php endif; ?>
-                        </span>
+                        <span class="truncate"><?php echo HTML::chars($m['title']); ?></span>
+                        <?php if ($state === 'wip'): ?>
+                        <span class="prx-badge prx-badge-info shrink-0">В работе</span>
+                        <?php elseif ( ! empty($m['badge'])): ?>
+                        <span class="shrink-0 text-[10px] font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400"><?php echo HTML::chars((string) $m['badge']); ?></span>
+                        <?php endif; ?>
                     </a>
                     <?php // Состояние звезды приходит в первом HTML вместе с аккаунтом. ?>
                     <?php $nav_is_pinned = isset($nav_favorite_hrefs[$m['href']]);

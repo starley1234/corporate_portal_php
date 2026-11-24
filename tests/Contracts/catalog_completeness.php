@@ -29,14 +29,25 @@ $admin=['guest'=>FALSE,'logged'=>TRUE,'user_id'=>1,'admin'=>TRUE,'agent'=>TRUE,'
 $user=['guest'=>FALSE,'logged'=>TRUE,'user_id'=>1,'admin'=>FALSE,'agent'=>FALSE,'roles'=>['login']];
 $visible=array_column(Service_Prx110_Catalog::visible_modules($admin),NULL,'module_name');
 $regular=array_column(Service_Prx110_Catalog::visible_modules($user),NULL,'module_name');
+$plan=array_column(Service_Prx110_Catalog::plan_modules($admin),NULL,'module_name');
 $no_ui=['llm','prx102_core','cookie_consent','ldap_auth'];
 $count=0;
+$wip=0;
 foreach (Manifest::all() as $name=>$manifest) {
  if (($manifest['catalog'] ?? TRUE) === FALSE) {
   if (isset($visible[$name]) || isset($regular[$name])) throw new RuntimeException('Unpublished module leaked: '.$name);
+  if (!isset($plan[$name]) || $plan[$name]['state']!=='unpublished') throw new RuntimeException('Unpublished module missing from the plan: '.$name);
   continue;
  }
  if (($manifest['kind'] ?? '')==='library' || in_array($name,$no_ui,TRUE)) continue;
+ $state=Service_Prx110_Catalog::resolve_state($manifest);
+ if ($state==='wip') {
+  if (isset($visible[$name]) || isset($regular[$name])) throw new RuntimeException('WIP module leaked into /services: '.$name);
+  if (!isset($plan[$name])) throw new RuntimeException('WIP module missing from the plan: '.$name);
+  $wip++;
+  continue;
+ }
+ if ($state!=='approved') continue;
  if (empty($visible[$name]['href'])) throw new RuntimeException('Missing catalog entry: '.$name);
  $count++;
 }
@@ -50,6 +61,11 @@ foreach ($links as $name=>$href) {
 $acl_probe = ['audience'=>'auth', 'status'=>'stable', 'acl'=>'prx120.monitor'];
 if (!Service_Prx110_Catalog::can_see($acl_probe,$admin) || Service_Prx110_Catalog::can_see($acl_probe,$user)) throw new RuntimeException('Catalog does not enforce manifest ACL');
 if (Service_Prx110_Catalog::can_see(['status'=>'draft','audience'=>'admin'],$admin)) throw new RuntimeException('Draft leaked into the working catalog');
+$preview=$admin;
+$preview['preview']=TRUE;
+$preview_visible=array_column(Service_Prx110_Catalog::visible_modules($preview),NULL,'module_name');
+if (isset($visible['prx101_architecture']) || !isset($preview_visible['prx101_architecture'])) throw new RuntimeException('Agent preview does not reveal WIP modules');
+if (Service_Prx110_Catalog::can_see(['status'=>'beta','audience'=>'admin'],$user+['preview'=>TRUE])) throw new RuntimeException('Preview bypasses audience/ACL');
 $grouped=[];
 foreach (Service_Prx110_Catalog::groups_summary($admin) as $group) {
  $items=Service_Prx110_Catalog::group_modules($group['slug'],$admin);
@@ -57,4 +73,4 @@ foreach (Service_Prx110_Catalog::groups_summary($admin) as $group) {
  foreach ($items as $item) $grouped[]=$item['module_name'];
 }
 if (count($grouped)!==count($visible) || count(array_unique($grouped))!==count($visible)) throw new RuntimeException('Catalog grouping lost/duplicated entries');
-echo "Catalog completeness: $count modules with pages, 9 platform links, audience and group coverage OK\n";
+echo "Catalog completeness: $count approved modules, $wip in progress, unpublished and planning OK\n";

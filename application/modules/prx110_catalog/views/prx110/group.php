@@ -23,7 +23,7 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <?php foreach ($items as $m): ?>
-        <?php $badge = Service_Prx110_Catalog::resolve_status($m) === 'beta' ? 'Тестовый режим' : ($m['badge'] ?? ''); ?>
+        <?php $state = Service_Prx110_Catalog::resolve_state($m); ?>
         <div class="group/item relative">
         <?php // Кнопка видна без наведения; состояние приходит вместе со страницей. ?>
         <?php $nav_is_pinned = isset($nav_favorite_hrefs[$m['href']]);
@@ -41,8 +41,10 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
                 <span class="rounded-lg bg-blue-50 p-2.5 text-sm font-bold text-blue-600 dark:bg-blue-950/80 dark:text-blue-400"><i class="<?php echo HTML::chars($m['icon']); ?>"></i></span>
                 <div class="min-w-0">
                     <h2 class="prx-h3 truncate"><?php echo HTML::chars($m['title']); ?></h2>
-                    <?php if ( ! empty($badge)): ?>
-                    <span class="prx-count mt-0.5 uppercase"><?php echo HTML::chars($badge); ?></span>
+                    <?php if ($state === 'wip'): ?>
+                    <span class="prx-badge prx-badge-info mt-0.5">В работе</span>
+                    <?php elseif ( ! empty($m['badge'])): ?>
+                    <span class="prx-count mt-0.5 uppercase"><?php echo HTML::chars((string) $m['badge']); ?></span>
                     <?php endif; ?>
                 </div>
             </div>

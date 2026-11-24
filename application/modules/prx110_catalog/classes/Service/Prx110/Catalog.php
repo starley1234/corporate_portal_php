@@ -32,6 +32,12 @@
  *   'status'   => draft|beta|stable|deprecated  (beta — фолбэк из badge)
  *   'audience' => public|auth|admin|agent      (auth — фолбэк для hidden)
  *
+ * Рабочий каталог /services показывает только ОДОБРЕННЫЕ сервисы (status=stable).
+ * beta/draft — это «в работе»: они не попадают на /services, в палитру и
+ * сайдбар, но видны на /portal-plan и в режиме предпросмотра ?agent_preview=1
+ * для агента/администратора. Отсутствие status больше НЕ означает публикацию:
+ * без явного решения модуль считается черновиком (draft).
+ *
  * Про эти поля подробнее — в Service_Prx110_Catalog::visible_modules() и
  * user_context(). Манифесты БЕЗ явного status подтягивают статус из prx218
  * (таблица prx_218_modules, system_name = имя папки модуля), где управление ведёт
@@ -239,13 +245,6 @@ class Service_Prx110_Catalog {
     // Контекст пользователя и видимость
     // -------------------------------------------------------------------------
 
-    /**
-     * Контекст текущего пользователя для фильтров видимости.
-     *
-     * agent = управление, или роль 'agent', или запрос с ?agent_preview=1 —
-     * агент видит draft/beta-модули «включёнными», пока они сырые,
-     * не светя их публично.
-     */
     /** Вошёл ли посетитель (без исключений, если Auth недоступен). */
     protected static function _logged_in()
     {
@@ -259,6 +258,13 @@ class Service_Prx110_Catalog {
         }
     }
 
+    /**
+     * Контекст текущего пользователя для фильтров видимости.
+     *
+     * agent   — управление: администратор или роль 'agent' (audience='agent').
+     * preview — дополнительный флаг: тот же агент/админ с ?agent_preview=1;
+     *           только он показывает beta/draft («в работе») в рабочем каталоге.
+     */
     public static function user_context()
     {
         static $ctx = NULL;
@@ -293,11 +299,9 @@ class Service_Prx110_Catalog {
         }
 
         $is_admin = in_array('admin', $roles, TRUE);
-        // Скобки обязательны: OR слабее присваивания — без них роль «agent»
-        // и режим предпросмотра не учитывались вовсе.
-        $is_agent = ($is_admin
-            OR in_array('agent', $roles, TRUE)
-            OR (isset($_GET['agent_preview']) AND $_GET['agent_preview'] === '1'));
+        $has_agent_role = in_array('agent', $roles, TRUE);
+        // audience='agent' — управленческий взгляд: только админ или роль agent.
+        $is_agent = ($is_admin OR $has_agent_role);
 
         return $ctx = [
             'guest'  => empty($roles),
@@ -306,19 +310,24 @@ class Service_Prx110_Catalog {
             'user_id' => $user_id,
             'admin'  => $is_admin,
             'agent'  => $is_agent,
+            // Предпросмотр «в работе»: только агент/админ и явный флаг в query.
+            // Обычный сотрудник не может открыть beta/draft одним параметром.
+            'preview' => ($is_agent
+                && isset($_GET['agent_preview'])
+                && $_GET['agent_preview'] === '1'),
         ];
     }
 
     /**
      * Статус модуля: явный status → badge 'beta' → prx218 (system_name=папка)
-     * → 'stable'.
+     * → 'draft'.
      *
      * prx218 влияет на ВИДИМОСТЬ, только когда там явное решение:
      *   published=1 → маппим по тексту (alpha→draft, beta/stable, archived→deprecated);
      *   published=0 → archived/deprecated уходят в архив; другой не-alpha статус (beta,
      *   stable) — управление снял публикацию → draft. Автосозданные сканером записи
-     *   (alpha + unpublished — дефолт) сигналом «скрыть» не считаются: каталог
-     *   должен быть виден гостю (SEO).
+     *   (alpha + unpublished — дефолт) сигналом «скрыть» не считаются и попадают
+     *   в дефолт 'draft': публикация — это явное решение, а не отсутствие записи.
      */
     public static function resolve_status(array $m)
     {
@@ -356,24 +365,68 @@ class Service_Prx110_Catalog {
                 return 'stable';
             }
 
-            // published=0: уважаем только ЯВНЫЙ архив. Дефолтное alpha (так сканер
-            // prx218 создаёт каждую запись) сигналом «скрыть» НЕ является — иначе
-            // весь каталог пропадает у незарегистрированных (поиск/каталог/SEO).
+            // published=0: уважаем только ЯВНЫЙ архив. Дефолтная запись сканера
+            // (alpha) отдельным решением «скрыть» не считается и уходит в дефолт
+            // 'draft': публикация всё равно требует явного stable.
             if (in_array((string) $prx['status'], ['archived', 'deprecated'], TRUE))
             {
                 return 'deprecated';
             }
 
             // published=0 у НЕ-alpha модуля — управление осознанно снял публикацию:
-            // такой сервис уходит публике (draft), но доаступен агенту/админу.
+            // такой сервис уходит публике (draft), но доступен агенту/админу.
             if ((string) $prx['status'] !== 'alpha')
             {
                 return 'draft';
             }
         }
 
-        // дефолт: сервис публичный и стабильный (каталог виден и без входа — SEO)
-        return 'stable';
+        // дефолт: без явного статуса модуль НЕ публикуется (одобрение — решение,
+        // а не отсутствие поля). Так новый модуль не попадает на /services сам.
+        return 'draft';
+    }
+
+    /**
+     * Состояние сервиса для витрин: approved|wip|unpublished|archived.
+     *
+     *   approved    — stable и опубликован в рабочем каталоге (/services);
+     *   wip         — beta/draft, «в работе» (/portal-plan, предпросмотр);
+     *   unpublished — catalog:false: реализован, но публикация отложена;
+     *   archived    — deprecated: выведен из работы, остаётся в архиве плана.
+     */
+    public static function resolve_state(array $m)
+    {
+        if (($m['catalog'] ?? TRUE) === FALSE)
+        {
+            return 'unpublished';
+        }
+
+        switch (self::resolve_status($m))
+        {
+            case 'stable':
+                return 'approved';
+            case 'deprecated':
+                return 'archived';
+            case 'beta':
+            case 'draft':
+                return 'wip';
+        }
+
+        return 'wip';
+    }
+
+    /** Человеческая подпись состояния для /portal-plan и бейджей. */
+    public static function state_label($state)
+    {
+        $labels = [
+            'approved'    => 'Одобрен',
+            'wip'         => 'В работе',
+            'unpublished' => 'Не опубликован',
+            'archived'    => 'Архив',
+            'planned'     => 'Планируется',
+        ];
+
+        return $labels[$state] ?? (string) $state;
     }
 
     /**
@@ -433,28 +486,23 @@ class Service_Prx110_Catalog {
     }
 
     /**
-     * Может ли пользователь ВИДЕТЬ сервис (меню/поиск/каталог/карточки/чипы).
-     * Рабочая витрина: публикация, аудитория, ACL и статус stable/beta.
+     * Проходит ли сервис по аудитории и ACL манифеста (без статуса).
+     * Используется и рабочим каталогом, и планом портала.
      */
-    public static function can_see(array $m, array $ctx)
+    protected static function _audience_allows(array $m, array $ctx)
     {
-        if (($m['catalog'] ?? TRUE) === FALSE)
-        {
-            return FALSE;
-        }
-
         switch (self::resolve_audience($m))
         {
             case 'public':
                 break;
             case 'auth':
-                if ( ! $ctx['logged']) return FALSE;
+                if (empty($ctx['logged'])) return FALSE;
                 break;
             case 'admin':
-                if ( ! $ctx['admin']) return FALSE;
+                if (empty($ctx['admin'])) return FALSE;
                 break;
             case 'agent':
-                if ( ! $ctx['agent']) return FALSE;
+                if (empty($ctx['agent'])) return FALSE;
                 break;
         }
 
@@ -464,14 +512,76 @@ class Service_Prx110_Catalog {
             return FALSE;
         }
 
-        return in_array(self::resolve_status($m), ['stable', 'beta'], TRUE);
+        return TRUE;
+    }
+
+    /**
+     * Предпросмотр «в работе»: ?agent_preview=1 доступен только агенту/админу.
+     * Без него beta/draft не показываются даже администратору — иначе рабочий
+     * каталог снова смешивал бы одобренные сервисы с незавершёнными.
+     */
+    protected static function _preview(array $ctx)
+    {
+        // Двойная проверка: флаг предпросмотра без роли агента/админа не действует.
+        return ! empty($ctx['preview']) && ! empty($ctx['agent']);
+    }
+
+    /**
+     * Может ли пользователь ВИДЕТЬ сервис (меню/поиск/каталог/карточки/чипы).
+     * Рабочая витрина: публикация, аудитория, ACL и статус ТОЛЬКО stable —
+     * «одобрен». beta/draft («в работе») видны лишь в предпросмотре.
+     */
+    public static function can_see(array $m, array $ctx)
+    {
+        if (($m['catalog'] ?? TRUE) === FALSE)
+        {
+            return FALSE;
+        }
+
+        if ( ! self::_audience_allows($m, $ctx))
+        {
+            return FALSE;
+        }
+
+        $state = self::resolve_state($m);
+
+        if ($state === 'approved')
+        {
+            return TRUE;
+        }
+
+        return $state === 'wip' && self::_preview($ctx);
+    }
+
+    /**
+     * Манифесты для /portal-plan: все состояния (approved/wip/unpublished/archived)
+     * с учётом аудитории и ACL, в порядке каталога. План показывает и одобренные,
+     * и «в работе», и отложенные публикацией; архив контроллер выводит отдельно.
+     */
+    public static function plan_modules($ctx = NULL)
+    {
+        $ctx = $ctx === NULL ? self::user_context() : $ctx;
+        $out = [];
+
+        foreach (self::modules() as $m)
+        {
+            if ( ! self::_audience_allows($m, $ctx))
+            {
+                continue;
+            }
+
+            $m['state'] = self::resolve_state($m);
+            $out[] = $m;
+        }
+
+        return $out;
     }
 
     /**
      * Имена семи последних публичных сервисов по порядку sort.
      * Новые сервисы получают больший sort/id, поэтому бейдж обновляется
      * автоматически при добавлении сервиса; старые ручные badge='новое'
-     * не остаются навсегда.
+     * не остаются навсегда. «В работе» бейдж «Новое» не получает.
      */
     protected static function _recent_public_modules()
     {
@@ -480,7 +590,7 @@ class Service_Prx110_Catalog {
         foreach (self::modules() as $m)
         {
             if (self::resolve_audience($m) !== 'public'
-                OR ! in_array(self::resolve_status($m), ['stable', 'beta'], TRUE))
+                OR self::resolve_status($m) !== 'stable')
             {
                 continue;
             }

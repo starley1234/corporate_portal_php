@@ -1,5 +1,8 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 // План, а не список подключённых модулей. Не создаёт маршрутов/таблиц/прав.
+// Для подключённого модуля /portal-plan берёт состояние и заголовок из его
+// манифеста (stable = «одобрен», beta/draft = «в работе»). Поле status здесь
+// осмысленно только для записей без модуля: planned или archived.
 $docflow_status = isset(Kohana::modules()['prx390_intake']) ? 'active' : 'archived';
 return ['domains' => [
     'hr' => ['title' => 'HR и развитие персонала', 'services' => [
