@@ -150,6 +150,9 @@ assert 'action="/portal-plan/approve"' in archive
 for state in ['approved', 'wip', 'unpublished', 'archived', 'planned']:
     filtered = request(f'/portal-plan?state={state}', 200)
     assert re.search(rf'href="/portal-plan\?state={state}"\s+class="[^"]*is-active" aria-current="page"', filtered)
+    if state == 'wip':
+        assert re.search(r'<a class="prx-link [^"]*" href="/prx395_document_extract"', filtered)
+        assert 'id="portal-plan-search"' in filtered
 request('/portal-plan/approve', 405)
 request('/portal-plan/approve', 403, {'module': 'prx395_document_extract', 'state': 'archived'})
 plan_csrf = html_module.unescape(re.search(r'action="/portal-plan/approve"[^>]*>\s*<input type="hidden" name="csrf" value="([^"]+)"', archive)[1])

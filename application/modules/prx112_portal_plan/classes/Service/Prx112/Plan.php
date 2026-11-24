@@ -63,7 +63,7 @@ class Service_Prx112_Plan
                 $seen[$name] = TRUE;
                 if (isset($visible[$name]))
                 {
-                    $domains[$title][] = self::module_item($visible[$name], $ctx,
+                    $domains[$title][] = self::module_item($visible[$name],
                         $can_approve && ! in_array($name, Service_Prx110_Publication::PROTECTED_MODULES, TRUE));
                 }
                 elseif (Service_Prx110_Catalog::get($name) === NULL)
@@ -82,7 +82,7 @@ class Service_Prx112_Plan
             {
                 continue;
             }
-            $domains[$module['group']][] = self::module_item($module, $ctx,
+            $domains[$module['group']][] = self::module_item($module,
                 $can_approve && ! in_array($name, Service_Prx110_Publication::PROTECTED_MODULES, TRUE));
         }
 
@@ -99,8 +99,10 @@ class Service_Prx112_Plan
         return $domains;
     }
 
-    private static function module_item(array $module, array $ctx, bool $can_approve): array
+    private static function module_item(array $module, bool $can_approve): array
     {
+        // Здесь только модули, уже прошедшие аудиторию и ACL в plan_modules().
+        $eligible = Service_Prx110_Publication::eligible($module);
         $meta = Service_Prx110_Publication::decision_meta($module['module_name']);
         if (($meta['state'] ?? NULL) !== $module['state'])
         {
@@ -109,14 +111,15 @@ class Service_Prx112_Plan
         return [
             'title' => $module['title'],
             'description' => $module['short'],
+            'keywords' => $module['keywords'],
             'state' => $module['state'],
             'manifest_state' => Service_Prx110_Catalog::resolve_manifest_state($module),
-            'href' => Service_Prx110_Catalog::can_see($module, $ctx) ? $module['href'] : NULL,
+            'href' => $eligible && in_array($module['state'], ['approved', 'wip'], TRUE) ? $module['href'] : NULL,
             'icon' => $module['icon'],
             'decided_at' => $meta['decided_at'] ?? NULL,
             'decided_by_name' => $meta['decided_by_name'] ?? NULL,
             'note' => $meta['note'] ?? '',
-            'publication_module' => $can_approve && Service_Prx110_Publication::eligible($module)
+            'publication_module' => $can_approve && $eligible
                 ? $module['module_name'] : NULL,
         ];
     }

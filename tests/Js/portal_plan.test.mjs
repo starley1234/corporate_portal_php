@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 
 const source = readFileSync(new URL('../../public_html/assets/js/portal-plan.js', import.meta.url), 'utf8');
-const row = `<li data-portal-plan-module="prx395_document_extract" tabindex="-1">
+const searchLayout = readFileSync(new URL('../../public_html/assets/js/search-layout.js', import.meta.url), 'utf8');
+const row = `<li data-portal-plan-item="Распознавание PDF сканы" data-portal-plan-module="prx395_document_extract" tabindex="-1">
     <form method="post" action="/portal-plan/approve" data-portal-plan-action>
         <input name="csrf" value="test-csrf" type="hidden">
         <input name="module" value="prx395_document_extract" type="hidden">
@@ -18,8 +19,15 @@ const filter = (count) => `<a href="/portal-plan?state=wip" aria-current="page">
 const success = (body) => ({ ok: true, text: async () => root(`<p data-portal-plan-message>Сервис одобрен.</p>${body}`) });
 const settle = () => new Promise((done) => setImmediate(done));
 
+const group = (name, rows) => `<section data-portal-plan-group="${name}"><ul>${rows}</ul></section>`;
+const otherRow = '<li data-portal-plan-item="Расписание встреч">Встречи</li>';
+const searchBox = `<div data-portal-plan-search hidden>
+    <input id="portal-plan-search" type="search"><p id="portal-plan-search-empty" hidden>Ничего не найдено</p>
+</div>`;
+
 function page(t, fetch) {
-    const dom = new JSDOM(`<header>План портала</header>${root(`${filter(1)}<ul>${row}</ul>`)}`, {
+    const body = `${filter(1)}${group('Документы', row)}${group('Календарь', otherRow)}`;
+    const dom = new JSDOM(`<header>План портала</header>${searchBox}${root(body)}`, {
         url: 'https://portal.example.test/portal-plan?state=wip', runScripts: 'outside-only',
     });
     const { window } = dom;
@@ -31,6 +39,7 @@ function page(t, fetch) {
     window.scrollBy = (...args) => scrolls.push(args);
     window.scrollTo = (...args) => scrolls.push(args);
     window.PRX = { busy(button, on) { button.disabled = on; }, toast(...args) { toasts.push(args); } };
+    window.eval(searchLayout);
     window.eval(source);
     const submit = () => {
         const form = document.querySelector('[data-portal-plan-action]');
@@ -104,4 +113,42 @@ test('does not replace the plan with a sign-in page returned after redirection',
     await settle();
     assert.equal(p.document.querySelector('form').querySelector('button').disabled, false);
     assert.match(p.toasts[0][0], /Не удалось обновить план/);
+});
+
+
+test('searches service keywords and domain names across keyboard layouts and clears on Escape', (t) => {
+    const p = page(t, async () => { throw new Error('Search must not fetch'); });
+    const input = p.document.querySelector('#portal-plan-search');
+    const empty = p.document.querySelector('#portal-plan-search-empty');
+    const groups = () => Array.from(p.document.querySelectorAll('[data-portal-plan-group]:not([hidden])'),
+        (group) => group.dataset.portalPlanGroup);
+    const query = (value) => {
+        input.value = value;
+        input.dispatchEvent(new p.window.Event('input'));
+    };
+    assert.equal(input.parentElement.hidden, false);
+    query('crfys'); // «сканы» на латинской раскладке — ключевое слово.
+    assert.deepEqual(groups(), ['Документы']);
+    query('календарь');
+    assert.deepEqual(groups(), ['Календарь']);
+    query('несуществующий сервис');
+    assert.deepEqual(groups(), []);
+    assert.equal(empty.hidden, false);
+    input.dispatchEvent(new p.window.KeyboardEvent('keydown', { key: 'Escape', cancelable: true }));
+    assert.equal(input.value, '');
+    assert.deepEqual(groups(), ['Документы', 'Календарь']);
+    assert.equal(empty.hidden, true);
+});
+
+test('keeps the search active when publication returns a new list and filter counts', async (t) => {
+    const p = page(t, async () => success(`${filter(2)}${group('Документы', row + otherRow)}`));
+    const input = p.document.querySelector('#portal-plan-search');
+    input.value = 'PDF';
+    input.dispatchEvent(new p.window.Event('input'));
+    p.submit();
+    await settle();
+    assert.equal(p.document.querySelector('#portal-plan-search'), input);
+    assert.equal(input.value, 'PDF');
+    assert.equal(p.document.querySelector('[aria-current="page"]').textContent, 'В работе (2)');
+    assert.equal(p.document.querySelectorAll('[data-portal-plan-item]:not([hidden])').length, 1);
 });

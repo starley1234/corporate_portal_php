@@ -38,7 +38,18 @@ $transitions = [
         'lead' => 'Здесь видны сервисы во всех состояниях. В каталог (/services) попадают только одобренные.',
         'actions' => [['label' => 'Каталог сервисов', 'href' => '/services', 'icon' => 'fa-grip']],
     ]); ?>
-    <div data-portal-plan-content>
+    <div class="mt-6 max-w-2xl" data-portal-plan-search hidden>
+        <label class="sr-only" for="portal-plan-search">Поиск по плану портала</label>
+        <div class="relative">
+            <i class="fas fa-magnifying-glass pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-gray-400" aria-hidden="true"></i>
+            <input id="portal-plan-search" type="search" autocomplete="off" spellcheck="false"
+                   aria-controls="portal-plan-content" aria-describedby="portal-plan-search-empty"
+                   placeholder="Найти сервис по названию или ключевому слову…" class="prx-input pl-10">
+        </div>
+        <p id="portal-plan-search-empty" class="prx-hint mt-2" role="status" hidden>Ничего не найдено в выбранном состоянии. Измените запрос или выберите «Все».</p>
+    </div>
+
+    <div id="portal-plan-content" data-portal-plan-content>
     <?php if (isset($messages[$publication ?? ''])): ?>
         <p class="prx-flash prx-flash-ok mt-6" role="status" data-portal-plan-message><?php echo HTML::chars($messages[$publication]); ?></p>
     <?php endif; ?>
@@ -58,7 +69,7 @@ $transitions = [
     <?php else: ?>
     <div class="mt-6 grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
         <?php foreach ($domains as $title => $services): ?>
-        <section class="prx-card min-w-0">
+        <section class="prx-card min-w-0" data-portal-plan-group="<?php echo HTML::chars($title); ?>">
             <div class="flex items-center gap-2.5">
                 <span class="rounded-lg bg-blue-50 p-2 text-sm text-blue-600 dark:bg-blue-950/80 dark:text-blue-400"><i class="fas fa-folder" aria-hidden="true"></i></span>
                 <h2 class="prx-h3 min-w-0"><?php echo HTML::chars($title); ?></h2>
@@ -71,7 +82,8 @@ $transitions = [
                 $service_actions = empty($service['publication_module']) ? [] : ($transitions[$service_state] ?? []);
                 $can_pin = $service_state === 'approved' && ! empty($service['href']);
                 ?>
-                <li class="rounded-md px-1.5 py-1 -mx-1.5"<?php if ($service_actions): ?> data-portal-plan-module="<?php echo HTML::chars($service['publication_module']); ?>" tabindex="-1"<?php endif; ?>>
+                <li data-portal-plan-item="<?php echo HTML::chars($service['title'].' '.($service['description'] ?? '').' '.($service['keywords'] ?? '')); ?>"
+                    class="rounded-md px-1.5 py-1 -mx-1.5"<?php if ($service_actions): ?> data-portal-plan-module="<?php echo HTML::chars($service['publication_module']); ?>" tabindex="-1"<?php endif; ?>>
                     <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
                         <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
                             <i class="<?php echo HTML::chars($service['icon'] ?? 'fas fa-list-check'); ?> w-4 shrink-0 text-center text-gray-400" aria-hidden="true"></i>

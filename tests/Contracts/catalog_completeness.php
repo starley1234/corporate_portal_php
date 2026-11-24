@@ -3,15 +3,36 @@
 if (!defined('SYSPATH')) define('SYSPATH',dirname(__DIR__,2).'/system/');
 define('APPPATH',dirname(__DIR__,2).'/application/');
 define('MODPATH',dirname(__DIR__,2).'/modules/');
-class Kohana { public static $config; }
+class Kohana {
+ public static $config;
+ public static function modules() { return require APPPATH.'config/modules.php'; }
+}
 class CatalogTestConfig {
- public function load($name) { return $this; }
+ public function load($name) {
+  if (in_array($name, ['portal', 'enterprise_plan'], TRUE)) {
+   $data = require APPPATH.'modules/prx112_portal_plan/config/'.$name.'.php';
+   return new class($data) {
+    public function __construct(private array $data) {}
+    public function get($key) { return $this->data[$key] ?? NULL; }
+   };
+  }
+  return $this;
+ }
  public function get($ability) { return (require APPPATH.'config/acl.php')[$ability] ?? NULL; }
 }
 Kohana::$config = new CatalogTestConfig();
 require APPPATH.'classes/Prx/Acl.php';
 require APPPATH.'classes/Prx/Principal.php';
 require APPPATH.'classes/Prx/Actor.php';
+class Auth {
+ public static function instance() { return new self; }
+ public function logged_in() { return TRUE; }
+ public function get_user() {
+  return (object) ['id' => 1, 'roles' => new class {
+   public function find_all() { return [(object) ['name' => 'login']]; }
+  }];
+ }
+}
 class Manifest {
  static function all() {
   $modules=require APPPATH.'config/modules.php';
@@ -184,6 +205,16 @@ if (Service_Prx110_Catalog::resolve_manifest_state($notifications) !== 'approved
  || Service_Prx110_Catalog::can_see($notifications, $user)
  || !Service_Prx110_Catalog::can_see($notifications, $preview)) {
  throw new RuntimeException('Work state did not override publication while preserving preview');
+}
+require APPPATH.'modules/prx112_portal_plan/classes/Service/Prx112/Plan.php';
+$staff_plan = Service_Prx112_Plan::domains(Prx_Actor::fromArray($user));
+$staff_items = array_column(array_merge(...array_values($staff_plan)), NULL, 'title');
+if (($staff_items[$notifications['title']]['href'] ?? NULL) !== $notifications['href']
+ || ($staff_items[$notifications['title']]['publication_module'] ?? NULL) !== NULL
+ || isset($staff_items[$approved_pdf['title']])
+ || ($staff_items[$unpublished['title']]['state'] ?? NULL) !== 'unpublished'
+ || ($staff_items[$unpublished['title']]['href'] ?? NULL) !== NULL) {
+ throw new RuntimeException('Plan links must include accessible WIP and respect audience, ACL and no-page entries');
 }
 Service_Prx110_Publication::approve('prx597_notifications', $publisher);
 if (!Service_Prx110_Catalog::can_see($notifications, $user)) throw new RuntimeException('Reapproval did not restore a stable service');

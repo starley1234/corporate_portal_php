@@ -1,11 +1,47 @@
-/* Keep the server-rendered plan and its existing POST/303 contract. */
+/* Search the server-rendered plan and keep its existing POST/303 contract. */
 (function () {
     'use strict';
-    if (!window.fetch || !window.DOMParser || !window.PRX) return;
-
     var contentSelector = '[data-portal-plan-content]';
     var rowSelector = '[data-portal-plan-module]';
+    var search = document.getElementById('portal-plan-search');
+    var empty = document.getElementById('portal-plan-search-empty');
+    var matcher = window.PRXSearchLayout;
     var saving = false;
+
+    function applySearch(content) {
+        if (!search || !empty || !matcher || !content) return;
+        var query = search.value.trim();
+        var groups = content.querySelectorAll('[data-portal-plan-group]');
+        var found = false;
+        groups.forEach(function (group) {
+            var groupMatch = matcher.matches(group.dataset.portalPlanGroup, query);
+            var hasRows = false;
+            group.querySelectorAll('[data-portal-plan-item]').forEach(function (item) {
+                item.hidden = !groupMatch && !matcher.matches(item.dataset.portalPlanItem, query);
+                hasRows = hasRows || !item.hidden;
+            });
+            group.hidden = !hasRows;
+            found = found || hasRows;
+        });
+        // The server already provides an empty state when the status has no rows.
+        empty.hidden = !query || found || !groups.length;
+    }
+
+    if (search && empty && matcher) {
+        search.closest('[data-portal-plan-search]').hidden = false;
+        var filter = function () { applySearch(document.querySelector(contentSelector)); };
+        search.addEventListener('input', filter);
+        search.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && search.value) {
+                search.value = '';
+                filter();
+                event.preventDefault();
+            }
+        });
+        filter();
+    }
+
+    if (!window.fetch || !window.DOMParser || !window.PRX) return;
 
     document.addEventListener('submit', async function (event) {
         var form = event.target;
@@ -42,11 +78,12 @@
             var text = message.textContent.trim();
             message.remove();
 
-            var replacementRow = Array.from(updated.querySelectorAll(rowSelector)).find(function (item) {
-                return row && item.dataset.portalPlanModule === row.dataset.portalPlanModule;
-            });
             var before = row && row.getBoundingClientRect();
             var scrollTop = window.scrollY;
+            applySearch(updated);
+            var replacementRow = Array.from(updated.querySelectorAll(rowSelector)).find(function (item) {
+                return row && !item.hidden && item.dataset.portalPlanModule === row.dataset.portalPlanModule;
+            });
             var restoreFocus = hadFocus && (content.contains(document.activeElement) || document.activeElement === document.body);
             content.replaceWith(updated);
             if (restoreFocus) {
