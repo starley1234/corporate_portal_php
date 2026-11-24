@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "count": 94,
+  "count": 97,
   "routes": [
     {
       "name": "cookie_consent_close",
@@ -361,6 +361,24 @@
       "action": "index",
       "module": "prx218_module_manager",
       "file": "application/modules/prx218_module_manager/classes/Controller/Prx218/Scanner.php"
+    },
+    {
+      "name": "prx218_module_manager_home",
+      "uri": "prx218_module_manager(/<controller>(/<action>(/<id>)))",
+      "regex": "",
+      "controller": "Prx218_Index",
+      "action": "index",
+      "module": "prx218_module_manager",
+      "file": "application/modules/prx218_module_manager/classes/Controller/Prx218/Index.php"
+    },
+    {
+      "name": "prx218_module_manager_legacy_home",
+      "uri": "prx218",
+      "regex": "",
+      "controller": "ModuleHome",
+      "action": "index",
+      "module": "prx218_module_manager",
+      "file": "application/classes/Controller/ModuleHome.php"
     },
     {
       "name": "prx218_module_manager_admin",
@@ -811,6 +829,15 @@
       "action": "2fa",
       "module": "prx599_account",
       "file": "application/classes/Controller/Auth.php"
+    },
+    {
+      "name": "module_home_alias",
+      "uri": "prx<module_id>_index",
+      "regex": "['module_id' => '[0-9]{3}']",
+      "controller": "ModuleHome",
+      "action": "index",
+      "module": "application",
+      "file": "application/classes/Controller/ModuleHome.php"
     },
     {
       "name": "static_pages",

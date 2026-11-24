@@ -48,3 +48,31 @@ test('connection examples match routes, scope, status contract and idempotency s
     assert.match(ui,/View::factory\('prx395\/api_help'\)/);
     assert.match(ui,/HTML::chars\(\$job\['result'\]\['text'\]\)/);
 });
+
+test('friendly PDF picker announces filename and rejects wrong type or oversized PDF',()=>{
+    const dom=new JSDOM('<div data-prx395-drop><input type="file" id="pdf-file"><p id="prx395-file-info"></p></div>',{runScripts:'outside-only'});
+    const w=dom.window;
+    w.eval(source);
+    const input=w.document.getElementById('pdf-file');
+    function choose(name,size) {
+        Object.defineProperty(input,'files',{value:[{name,size}],configurable:true});
+        input.dispatchEvent(new w.Event('change'));
+    }
+    choose('<test>.pdf',1024);
+    assert.equal(input.validationMessage,'');
+    assert.match(w.document.getElementById('prx395-file-info').textContent,/<test>\.pdf/);
+    assert.equal(w.document.querySelector('test'),null);
+    choose('not.pdf.exe',1024);
+    assert.notEqual(input.validationMessage,'');
+    choose('large.pdf',10485761);
+    assert.match(input.validationMessage,/10 МиБ/);
+    dom.window.close();
+});
+
+test('upload card stays bounded on large screens and preserves keyboard-accessible file input',()=>{
+    const ui=readFileSync(new URL('application/modules/prx395_document_extract/views/prx395/index.php',root),'utf8');
+    assert.match(ui,/max-w-2xl/);
+    assert.match(ui,/focus-within:ring-2/);
+    assert.match(ui,/type="file" name="file"[^>]+aria-describedby="prx395-file-info"/);
+    assert.doesNotMatch(ui,/class="hidden"[^>]+id="pdf-file"/);
+});

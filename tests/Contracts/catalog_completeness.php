@@ -29,7 +29,7 @@ foreach (Manifest::all() as $name=>$manifest) {
 }
 $links=['prx103_platform'=>'/admin','prx110_catalog'=>'/services','prx111_migrations'=>'/migrate_pg',
  'prx115_semantic'=>'/prx115','prx120_jobs'=>'/prx120/monitor','prx208_events'=>'/prx208_events',
- 'prx212_file_storage'=>'/prx212','prx218_module_manager'=>'/prx218','prx595_useradmin'=>'/prx595/admin'];
+ 'prx212_file_storage'=>'/prx212','prx218_module_manager'=>'/prx218_module_manager','prx595_useradmin'=>'/prx595/admin'];
 foreach ($links as $name=>$href) {
  if ($visible[$name]['href']!==$href) throw new RuntimeException('Wrong catalog route: '.$name);
  if ($name!=='prx110_catalog' && isset($regular[$name])) throw new RuntimeException('Admin module leaked: '.$name);

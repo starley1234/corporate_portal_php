@@ -25,7 +25,7 @@ $elapsed = max(0, (int) ($progress['elapsed_sec'] ?? 0));
         'actions' => [['label' => 'API-доступ', 'href' => '/prx150_api_hub', 'icon' => 'fa-key', 'role' => 'secondary']],
     ]); ?>
     <div class="mt-5 grid items-start gap-5 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <div class="min-w-0 space-y-5">
+        <div class="min-w-0 w-full max-w-2xl space-y-5">
             <?php if ($code): ?>
             <section class="prx-card border-rose-200 dark:border-rose-900" role="alert">
                 <h2 class="prx-h3 text-rose-700 dark:text-rose-300"><i class="fas fa-triangle-exclamation mr-2" aria-hidden="true"></i>Не удалось завершить обработку</h2>
@@ -40,8 +40,13 @@ $elapsed = max(0, (int) ($progress['elapsed_sec'] ?? 0));
                 <p class="prx-hint mt-2">PDF до 10 МиБ, не более 20 страниц, без пароля. Файл и результат доступны владельцу в течение 24 часов.</p>
                 <form method="post" action="/prx395_document_extract" enctype="multipart/form-data" class="mt-4 space-y-3" data-prx395-submit>
                     <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
-                    <label class="prx-label" for="pdf-file">PDF-документ</label>
-                    <input class="prx-input w-full" id="pdf-file" type="file" name="file" accept=".pdf,application/pdf" required>
+                    <div class="relative rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-5 text-center transition focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500 dark:border-gray-600 dark:bg-gray-800/50" data-prx395-drop>
+                        <i class="fas fa-file-pdf text-2xl text-blue-500" aria-hidden="true"></i>
+                        <label class="mt-2 block cursor-pointer text-sm font-semibold text-gray-900 dark:text-white" for="pdf-file">Нажмите, чтобы выбрать PDF</label>
+                        <p class="prx-hint mt-1">или перетащите документ сюда</p>
+                        <p id="prx395-file-info" class="mt-2 break-words text-xs text-gray-500 dark:text-gray-400" aria-live="polite">Файл пока не выбран · до 10 МиБ</p>
+                        <input class="absolute inset-0 h-full w-full cursor-pointer opacity-0" id="pdf-file" type="file" name="file" accept=".pdf,application/pdf" aria-label="Выберите или перетащите PDF-документ" aria-describedby="prx395-file-info" required>
+                    </div>
                     <button class="prx-btn-process" type="submit">
                         <span data-prx-idle><i class="fas fa-play mr-1" aria-hidden="true"></i>Распознать PDF</span>
                         <span class="hidden" data-prx-busy><i class="fas fa-circle-notch prx-spin mr-1" aria-hidden="true"></i>Отправка · <span data-prx-clock>0:00</span></span>

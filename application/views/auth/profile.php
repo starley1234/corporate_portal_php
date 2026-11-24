@@ -25,6 +25,17 @@
                 </div>
             </div>
 
+            <section class="mb-6" aria-labelledby="profile-roles-title">
+                <h3 id="profile-roles-title" class="prx-h3">Назначенные роли</h3>
+                <div class="mt-3 flex flex-wrap gap-2">
+                    <?php foreach (($profile_roles ?? []) as $role): ?>
+                    <span class="prx-badge prx-badge-info"><?php echo HTML::chars($role); ?></span>
+                    <?php endforeach; ?>
+                    <?php if (empty($profile_roles)): ?><span class="text-sm text-gray-500 dark:text-gray-400">Роли не назначены</span><?php endif; ?>
+                </div>
+                <p class="prx-hint mt-2">Роли определяют доступ к разделам портала. Для изменения обратитесь к администратору.</p>
+            </section>
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- Account Info -->
                 <div class="space-y-4">
