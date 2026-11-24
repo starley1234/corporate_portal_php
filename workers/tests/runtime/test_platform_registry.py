@@ -7,6 +7,7 @@ def test_only_active_handlers_are_registered():
     assert set(HANDLERS) == {
         "document.extract",
         "pdf.chunks",
+        "invoice.extract",
         "echo",
         "embeddings.index",
         "llm.summarize",

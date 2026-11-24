@@ -28,6 +28,7 @@ $modules = [
     'prx300_employee' => APPPATH.'modules/prx300_employee',
     'prx395_document_extract' => APPPATH.'modules/prx395_document_extract',
     'prx396_pdf_chunks' => APPPATH.'modules/prx396_pdf_chunks',
+    'prx397_invoice' => APPPATH.'modules/prx397_invoice',
     'prx450_document_ocr' => APPPATH.'modules/prx450_document_ocr',
     'prx560_knowledge' => APPPATH.'modules/prx560_knowledge',
     'prx595_useradmin' => APPPATH.'modules/prx595_useradmin',
