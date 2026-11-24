@@ -215,32 +215,43 @@ $e = function ($value) {
     </div>
 
     <!-- ============ 2.1. ПРИЁМ ФАЙЛОВ (локальная демонстрация) ============ -->
-    <section id="file-upload" class="prx-card mt-6" aria-labelledby="ds-upload-title">
-        <div class="prx-card-head">
-            <h2 id="ds-upload-title" class="prx-h3"><i class="fas fa-file-arrow-up mr-2 text-blue-500" aria-hidden="true"></i>Приём файлов</h2>
-        </div>
-        <p id="ds-upload-note" class="prx-hint mt-2">Демонстрация: файл проверяется в браузере и не отправляется на сервер.</p>
-        <!-- method=dialog исключает сетевую отправку даже без JS. В рабочей форме: POST, multipart/form-data и CSRF. -->
-        <form id="ds-upload-form" method="dialog" class="mt-4 space-y-4" aria-describedby="ds-upload-note">
-            <div id="ds-upload-drop" class="relative rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-5 text-center transition focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500 data-[dragging=true]:border-blue-500 data-[dragging=true]:ring-2 data-[dragging=true]:ring-blue-500 dark:border-gray-600 dark:bg-gray-800/50">
-                <i class="fas fa-cloud-arrow-up text-2xl text-blue-500" aria-hidden="true"></i>
-                <label class="prx-label mt-2 block" for="ds-upload-file">Выбрать файл</label>
-                <p id="ds-upload-drag-hint" class="prx-hint mt-1" hidden>или перетащите сюда один файл</p>
-                <p id="ds-upload-limits" class="prx-hint mt-1">PDF, PNG или JPEG · до 10 МиБ</p>
-                <input id="ds-upload-file" class="absolute inset-0 h-full w-full cursor-pointer opacity-0" type="file" name="file"
-                       accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" required
-                       aria-describedby="ds-upload-limits ds-upload-note ds-upload-status ds-upload-error">
+    <div class="mt-6 grid items-start gap-6 md:grid-cols-3">
+        <section id="file-upload" class="prx-card min-w-0 md:col-span-2" aria-labelledby="ds-upload-title">
+            <div class="prx-card-head">
+                <h2 id="ds-upload-title" class="prx-h3"><i class="fas fa-file-arrow-up mr-2 text-blue-500" aria-hidden="true"></i>Приём файлов</h2>
             </div>
-            <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-                <p id="ds-upload-status" class="prx-hint min-w-0 break-words" role="status"></p>
-                <button id="ds-upload-clear" type="button" class="prx-btn-secondary prx-btn-sm hidden">Убрать файл</button>
-            </div>
-            <p id="ds-upload-error" class="prx-hint text-rose-700 dark:text-rose-300" role="alert"></p>
-            <button id="ds-upload-check" type="submit" class="prx-btn-process" disabled>
-                <i class="fas fa-check" aria-hidden="true"></i>Проверить файл
-            </button>
-        </form>
-    </section>
+            <p id="ds-upload-note" class="prx-hint mt-2">Демонстрация: файл проверяется в браузере и не отправляется на сервер.</p>
+            <!-- method=dialog исключает сетевую отправку даже без JS. В рабочей форме: POST, multipart/form-data и CSRF. -->
+            <form id="ds-upload-form" method="dialog" class="mt-4 space-y-4" aria-describedby="ds-upload-note">
+                <div id="ds-upload-drop" class="relative rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-5 text-center transition focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500 data-[dragging=true]:border-blue-500 data-[dragging=true]:ring-2 data-[dragging=true]:ring-blue-500 dark:border-gray-600 dark:bg-gray-800/50">
+                    <i class="fas fa-cloud-arrow-up text-2xl text-blue-500" aria-hidden="true"></i>
+                    <label class="prx-label mt-2 block" for="ds-upload-file">Выбрать файл</label>
+                    <p id="ds-upload-drag-hint" class="prx-hint mt-1" hidden>или перетащите сюда один файл</p>
+                    <p id="ds-upload-limits" class="prx-hint mt-1">PDF, PNG или JPEG · до 10 МиБ</p>
+                    <input id="ds-upload-file" class="absolute inset-0 h-full w-full cursor-pointer opacity-0" type="file" name="file"
+                           accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg" required
+                           aria-describedby="ds-upload-limits ds-upload-note ds-upload-status ds-upload-error">
+                </div>
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <p id="ds-upload-status" class="prx-hint min-w-0 break-words" role="status"></p>
+                    <button id="ds-upload-clear" type="button" class="prx-btn-secondary prx-btn-sm hidden">Убрать файл</button>
+                </div>
+                <p id="ds-upload-error" class="prx-hint text-rose-700 dark:text-rose-300" role="alert"></p>
+                <button id="ds-upload-check" type="submit" class="prx-btn-process" disabled>
+                    <i class="fas fa-check" aria-hidden="true"></i>Проверить файл
+                </button>
+            </form>
+        </section>
+
+        <aside class="prx-card min-w-0" aria-labelledby="ds-upload-guide">
+            <h3 id="ds-upload-guide" class="prx-h3">Для рабочей формы</h3>
+            <ul class="prx-hint mt-3 list-disc space-y-2 pl-5">
+                <li>Сразу укажите допустимые форматы и лимит размера.</li>
+                <li>Покажите выбранный файл, но отправляйте его только по кнопке.</li>
+                <li>Даже если браузер уже проверил файл, перепроверьте размер и содержимое на сервере.</li>
+            </ul>
+        </aside>
+    </div>
 
     <!-- ============ 3. РЕЕСТР ПРОГОНОВ (ТАБЛИЦА + EMPTY STATE) ============ -->
     <section class="prx-panel mt-8">
