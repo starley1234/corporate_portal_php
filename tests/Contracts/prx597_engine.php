@@ -148,6 +148,7 @@ require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/S
 require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Channel/Inapp.php';
 require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Registry.php';
 require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Bind.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/EngineReports.php';
 require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Engine.php';
 // ИИ-помощник по шаблонам (пункт «составление шаблона с помощью ИИ»):
 require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Ai.php';

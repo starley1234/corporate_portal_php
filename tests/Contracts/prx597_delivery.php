@@ -66,6 +66,7 @@ class Test_Db
 require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Base.php';
 require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Registry.php';
 require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Render.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/EngineReports.php';
 require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Engine.php';
 class Service_Prx597_Notify
 {

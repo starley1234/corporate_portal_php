@@ -461,7 +461,8 @@ check('панель: сработавший предохранитель наз�
 check('панель: из предупреждения можно выключить событие', strpos($admin_tpl, '/prx597/admin?tab=events') !== FALSE, TRUE);
 
 $engine_src = file_get_contents(dirname(__DIR__, 3).'/application/modules/prx597_notifications/classes/Service/Prx597/Engine.php');
-check('лента: счётчик за час считается запросом', strpos($engine_src, 'FILTER (WHERE ') !== FALSE, TRUE);
+$reports_src = file_get_contents(dirname(__DIR__, 3).'/application/modules/prx597_notifications/classes/Service/Prx597/EngineReports.php');
+check('лента: счётчик за час считается запросом', strpos($reports_src, 'FILTER (WHERE ') !== FALSE, TRUE);
 
 // --- 9. Вкладка очереди показывает новые кнопки ------------------------------
 check('админка: кнопка «отменить ожидающие» есть', strpos($admin_tpl, 'value="purge_queue"') !== FALSE, TRUE);
