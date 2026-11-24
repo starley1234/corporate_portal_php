@@ -16,6 +16,7 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
         'crumbs' => [['Главная', '/'], ['Сервисы']],
         'title'  => 'Каталог сервисов PRX',
         'lead'   => (int) $total.' сервисов, готовых к работе. Состав зависит от прав доступа.',
+        'actions' => [['label' => 'План и архив портала', 'href' => '/portal-plan', 'icon' => 'fa-box-archive']],
     ]); ?>
 
     <section class="prx-panel mt-6" data-catalog-favorites aria-labelledby="catalog-favorites-title"<?php echo $favorite_items ? '' : ' hidden'; ?>>

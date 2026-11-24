@@ -106,6 +106,7 @@ request('/auth/login?return_url=%2F', 302, {'username': username, 'password': pa
 pages = {}
 for path in ['/', '/services', '/dashboard', '/admin', '/prx595/admin', '/account/security', '/prx597', '/prx597/admin', '/prx560', '/prx115', '/tasks', '/prx120/monitor', '/document-extract', '/prx120/workers', '/migrate_pg', '/llm_admin', '/prx218_module_manager', '/prx100/errors', '/prx100/logs', '/architecture', '/architecture/guide', '/prx208_events', '/prx208_events/list_events', '/employee', '/employee/directory', '/prx300/admin', '/prx300/admin/employees', '/prx300/admin/employee/0', '/prx300/admin/import', '/prx300/admin/import_template']:
     pages[path] = request(path, 200)
+assert 'href="/portal-plan"' in pages['/services']
 request('/prx212', 302)
 request('/prx218', 302)
 files_page = request('/prx212_file_storage', 200)
@@ -151,7 +152,7 @@ for state in ['approved', 'wip', 'unpublished', 'archived', 'planned']:
     assert re.search(rf'href="/portal-plan\?state={state}"\s+class="[^"]*is-active" aria-current="page"', filtered)
 request('/portal-plan/approve', 405)
 request('/portal-plan/approve', 403, {'module': 'prx395_document_extract', 'state': 'archived'})
-plan_csrf = html_module.unescape(re.search(r'action="/portal-plan/approve">\s*<input type="hidden" name="csrf" value="([^"]+)"', archive)[1])
+plan_csrf = html_module.unescape(re.search(r'action="/portal-plan/approve"[^>]*>\s*<input type="hidden" name="csrf" value="([^"]+)"', archive)[1])
 request('/portal-plan/approve', 400, {'module': 'prx395_document_extract', 'state': 'unknown', 'csrf': plan_csrf})
 # Mutates publication audit/history: opt in only on a disposable smoke database.
 if os.environ.get('SMOKE_PUBLICATION_WRITE') == '1':

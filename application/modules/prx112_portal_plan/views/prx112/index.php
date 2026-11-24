@@ -38,8 +38,9 @@ $transitions = [
         'lead' => 'Здесь видны сервисы во всех состояниях. В каталог (/services) попадают только одобренные.',
         'actions' => [['label' => 'Каталог сервисов', 'href' => '/services', 'icon' => 'fa-grip']],
     ]); ?>
+    <div data-portal-plan-content>
     <?php if (isset($messages[$publication ?? ''])): ?>
-        <p class="prx-flash prx-flash-ok mt-6" role="status"><?php echo HTML::chars($messages[$publication]); ?></p>
+        <p class="prx-flash prx-flash-ok mt-6" role="status" data-portal-plan-message><?php echo HTML::chars($messages[$publication]); ?></p>
     <?php endif; ?>
 
     <nav class="prx-seg mt-6 w-fit max-w-full flex-wrap gap-1" aria-label="Состояние сервисов">
@@ -70,7 +71,7 @@ $transitions = [
                 $service_actions = empty($service['publication_module']) ? [] : ($transitions[$service_state] ?? []);
                 $can_pin = $service_state === 'approved' && ! empty($service['href']);
                 ?>
-                <li class="rounded-md px-1.5 py-1 -mx-1.5">
+                <li class="rounded-md px-1.5 py-1 -mx-1.5"<?php if ($service_actions): ?> data-portal-plan-module="<?php echo HTML::chars($service['publication_module']); ?>" tabindex="-1"<?php endif; ?>>
                     <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
                         <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
                             <i class="<?php echo HTML::chars($service['icon'] ?? 'fas fa-list-check'); ?> w-4 shrink-0 text-center text-gray-400" aria-hidden="true"></i>
@@ -85,7 +86,7 @@ $transitions = [
                         <div class="ml-auto flex flex-wrap items-center gap-1">
                             <?php foreach ($service_actions as $next => $action): ?>
                             <?php [$label, $icon, $confirm] = $actions[$action]; ?>
-                            <form method="post" action="/portal-plan/approve">
+                            <form method="post" action="/portal-plan/approve" data-portal-plan-action>
                                 <input type="hidden" name="csrf" value="<?php echo HTML::chars(Security::token()); ?>">
                                 <input type="hidden" name="module" value="<?php echo HTML::chars($service['publication_module']); ?>">
                                 <input type="hidden" name="state" value="<?php echo $next; ?>">
@@ -137,4 +138,6 @@ $transitions = [
         <?php endforeach; ?>
     </div>
     <?php endif; ?>
+    </div>
 </div>
+<script src="/assets/js/portal-plan.js" defer></script>
