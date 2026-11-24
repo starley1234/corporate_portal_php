@@ -77,7 +77,7 @@ class Controller_Prx395_Worker extends Controller
         $this->respond(function () {
             [$id, $attempt] = $this->lease(Request::POST);
             $raw = (string) $this->request->body();
-            if (strlen($raw) > 6 * Service_Prx395_Extraction::MAX_TEXT + 4096)
+            if (strlen($raw) > 6 * Service_Prx395_Limits::get('max_text_bytes') + 4096)
                 throw new Prx395_Error('result_too_large', 413);
             $body = json_decode($raw, TRUE);
             if ( ! is_array($body)) throw new Prx395_Error('invalid_result', 400);

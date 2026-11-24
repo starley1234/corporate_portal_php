@@ -6,9 +6,6 @@ class Service_Prx395_Extraction
     const MODULE = 'prx395';
     /** Scope внешнего ключа prx150, дающий доступ к этому сервису. */
     const SCOPE = 'prx395.extract';
-    const MAX_PDF = 10485760;
-    const MAX_TEXT = 1048576;
-    const MAX_PAGES = 20;
     const FAILED_CODES = [
         'invalid_pdf', 'encrypted_pdf', 'page_limit', 'result_too_large', 'no_text',
         'ocr_unavailable', 'ocr_timeout', 'ocr_auth', 'ocr_config', 'ocr_rejected',
@@ -52,7 +49,7 @@ class Service_Prx395_Extraction
 
         // ФС не откатывается вместе с PostgreSQL. Сохраняем через prx212 вне
         // транзакции; если ключ занят или транзакция не подтверждена — удаляем.
-        $file_id = Storage::save($upload, self::MODULE);
+        $file_id = Storage::save($upload, self::MODULE, max_bytes: Service_Prx395_Limits::get('max_pdf_bytes'));
 
         try
         {
@@ -86,14 +83,17 @@ class Service_Prx395_Extraction
         try
         {
             $job_id = Service_Prx120_JobQueue::push(self::CHANNEL, [], [
-                'module' => self::MODULE, 'max_attempts' => 3, 'timeout_sec' => 300,
+                'module' => self::MODULE,
+                'max_attempts' => Service_Prx395_Limits::get('max_attempts'),
+                'timeout_sec' => Service_Prx395_Limits::get('task_timeout_sec'),
             ]);
             if ($job_id < 1) throw new RuntimeException('Отсутствует ID задачи');
             // push и ссылка на задание — в одной транзакции с ключом идемпотентности.
+            $ttl = Service_Prx395_Limits::get('result_ttl_hours');
             $this->db->query(Database::INSERT, 'INSERT INTO prx_395_extractions '
-                .'(job_id, api_client_id, request_key, file_sha256, file_id) VALUES ('
+                .'(job_id, api_client_id, request_key, file_sha256, file_id, expires_at) VALUES ('
                 .$job_id.','.(int) $client.','.$this->db->quote($key_hash).','
-                .$this->db->quote($sha).','.$file_id.')', FALSE);
+                .$this->db->quote($sha).','.$file_id.",now() + ({$ttl} * interval '1 hour'))", FALSE);
             Prx_Idempotency::finish((int) $idem['id'], ['job_id' => $job_id], $this->db);
         }
         catch (Throwable $e)
@@ -118,7 +118,7 @@ class Service_Prx395_Extraction
         $path = $file['tmp_name'];
         $size = filesize($path);
         if ($size === FALSE) throw new Prx395_Error('upload_unavailable', 503);
-        if ($size > self::MAX_PDF) throw new Prx395_Error('file_too_large', 413);
+        if ($size > Service_Prx395_Limits::get('max_pdf_bytes')) throw new Prx395_Error('file_too_large', 413);
         if ((new finfo(FILEINFO_MIME_TYPE))->file($path) !== 'application/pdf'
             || file_get_contents($path, FALSE, NULL, 0, 5) !== '%PDF-')
             throw new Prx395_Error('pdf_required', 415);
@@ -149,7 +149,7 @@ class Service_Prx395_Extraction
             $result = is_string($receipt) && preg_match('/\A[a-f0-9]{32}\z/', $receipt)
                 ? $this->result_row($id, (int) $job['attempts'], $receipt) : NULL;
             if ( ! $result) throw new Prx395_Error('result_unavailable', 503);
-            $text = Storage::read_owned((int) $result['file_id'], self::MODULE, self::MAX_TEXT);
+            $text = Storage::read_owned((int) $result['file_id'], self::MODULE, Service_Prx395_Limits::get('max_text_bytes'));
             if ($text === NULL) throw new Prx395_Error('result_unavailable', 503);
             $response['result'] = ['text' => $text] + json_decode($result['metadata'], TRUE, 8, JSON_THROW_ON_ERROR);
         }
@@ -168,7 +168,7 @@ class Service_Prx395_Extraction
     public function read_pdf(int $id, int $attempt): string
     {
         $row = $this->check_lease($id, $attempt);
-        $bytes = Storage::read_owned((int) $row['file_id'], self::MODULE, self::MAX_PDF);
+        $bytes = Storage::read_owned((int) $row['file_id'], self::MODULE, Service_Prx395_Limits::get('max_pdf_bytes'));
         if ($bytes === NULL || ! hash_equals($row['file_sha256'], hash('sha256', $bytes)))
             throw new Prx395_Error('file_unavailable', 410);
         return $bytes;
@@ -208,10 +208,10 @@ class Service_Prx395_Extraction
         $total = $body['pages_total'] ?? NULL;
         $pages = $body['pages_processed'] ?? NULL;
         $warnings = $body['warnings'] ?? [];
-        if (is_string($text) && strlen($text) > self::MAX_TEXT) throw new Prx395_Error('result_too_large', 413);
+        if (is_string($text) && strlen($text) > Service_Prx395_Limits::get('max_text_bytes')) throw new Prx395_Error('result_too_large', 413);
         if ( ! is_string($text) || trim($text) === '' || ! mb_check_encoding($text, 'UTF-8')
             || ! in_array($provider, ['remote', 'tesseract'], TRUE) || $format !== ($provider === 'remote' ? 'markdown' : 'plain')
-            || ! is_int($total) || $total < 1 || $total > self::MAX_PAGES
+            || ! is_int($total) || $total < 1 || $total > Service_Prx395_Limits::get('max_pages')
             || ($pages !== NULL && (! is_int($pages) || $pages !== $total))
             || ($provider === 'tesseract' && $pages === NULL)
             || ! in_array($warnings, [[], ['empty_page']], TRUE))
@@ -252,7 +252,8 @@ class Service_Prx395_Extraction
             }
         }
         // Компенсация после SIGKILL между сохранением в Storage и записью
-        // ссылки в БД. Запас 48 ч больше любого TTL/таймаута нашего контура.
+        // ссылки в БД. Возрастной порог — страховка для сирот; файлы со ссылками
+        // в БД не удаляются этим обходом независимо от TTL.
         foreach (Storage::owned_ids_before(self::MODULE, 48) as $file_id)
         {
             if ($this->one('SELECT 1 FROM prx_395_extractions WHERE file_id = '.$file_id

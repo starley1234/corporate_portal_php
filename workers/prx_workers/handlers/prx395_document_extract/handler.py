@@ -15,7 +15,8 @@ import httpx
 from . import document_extract
 from ... import site
 from ...base import HandlerContext, PermanentJobError
-from .document_extract import DocumentJobError, MAX_PDF
+from .document_extract import DocumentJobError
+from .limits import limits
 
 CHANNEL = "document.extract"
 
@@ -40,6 +41,7 @@ def _check(response: httpx.Response) -> None:
 
 
 async def _download(client: httpx.AsyncClient, url: str, path: Path) -> None:
+    max_pdf_bytes = limits()["max_pdf_bytes"]
     async with client.stream("GET", url) as response:
         _check(response)
         if response.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/pdf":
@@ -48,7 +50,7 @@ async def _download(client: httpx.AsyncClient, url: str, path: Path) -> None:
         with path.open("xb") as pdf:
             async for block in response.aiter_bytes(chunk_size=65536):
                 size += len(block)
-                if size > MAX_PDF:
+                if size > max_pdf_bytes:
                     raise PermanentJobError("file_unavailable")
                 pdf.write(block)
         if not size:

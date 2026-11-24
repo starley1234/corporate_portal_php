@@ -331,7 +331,7 @@ class Service_Prx212_Storage {
     /**
      * Сохранение файла с новой структурой путей
      */
-    public function save($file, array $metadata = [])
+    public function save($file, array $metadata = [], ?int $max_bytes = NULL)
     {
         $file_path = is_array($file) ? $file['tmp_name'] : $file;
         $module = isset($metadata['module']) ? trim((string) $metadata['module']) : 'default';
@@ -352,7 +352,7 @@ class Service_Prx212_Storage {
             throw new Exception('MIME type "'.$mime_type.'" not allowed');
         }
 
-        if ($file_size > $this->get_max_size())
+        if ($file_size > ($max_bytes ?? $this->get_max_size()))
         {
             throw new Exception('File size exceeds maximum allowed');
         }

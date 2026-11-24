@@ -40,17 +40,16 @@ test('auto-refresh is scheduled only for pending extraction',()=>{
 
 test('connection examples match routes, scope, status contract and idempotency semantics',()=>{
     const help=readFileSync(new URL('application/modules/prx395_document_extract/views/prx395/api_help.php',root),'utf8');
-    for(const text of ['prx395.extract','Idempotency-Key','Authorization: Bearer $PRX_API_KEY','/api/v1/document-extractions','status_url','result.text','succeeded','failed','canceled','idempotency_key_expired']) assert.ok(help.includes(text),text);
+    for(const text of ['prx395.extract','Idempotency-Key','Authorization: Bearer $PRX_API_KEY','/api/v1/document-extractions','status_url','result.text','succeeded','failed','canceled','idempotency_key_expired','затем удаляется']) assert.ok(help.includes(text),text);
     assert.match(help,/UI и API — разные владельцы/);
-    assert.match(help,/24 часа/);
     const ui=readFileSync(new URL('application/modules/prx395_document_extract/views/prx395/index.php',root),'utf8');
     assert.doesNotMatch(ui,/prx-panel/);
-    assert.match(ui,/View::factory\('prx395\/api_help'\)/);
+    assert.match(ui,/View::factory\('prx395\/api_help',/);
     assert.match(ui,/HTML::chars\(\$job\['result'\]\['text'\]\)/);
 });
 
 test('friendly PDF picker announces filename and rejects wrong type or oversized PDF',()=>{
-    const dom=new JSDOM('<div data-prx395-drop><input type="file" id="pdf-file"><p id="prx395-file-info"></p></div>',{runScripts:'outside-only'});
+    const dom=new JSDOM('<div data-prx395-drop><input type="file" id="pdf-file" data-max-bytes="2097152" data-max-label="2 МиБ"><p id="prx395-file-info"></p></div>',{runScripts:'outside-only'});
     const w=dom.window;
     w.eval(source);
     const input=w.document.getElementById('pdf-file');
@@ -64,8 +63,10 @@ test('friendly PDF picker announces filename and rejects wrong type or oversized
     assert.equal(w.document.querySelector('test'),null);
     choose('not.pdf.exe',1024);
     assert.notEqual(input.validationMessage,'');
-    choose('large.pdf',10485761);
-    assert.match(input.validationMessage,/10 МиБ/);
+    choose('fits.pdf',2097152);
+    assert.equal(input.validationMessage,'');
+    choose('large.pdf',2097153);
+    assert.match(input.validationMessage,/2 МиБ/);
     dom.window.close();
 });
 

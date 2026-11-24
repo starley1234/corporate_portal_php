@@ -1,10 +1,12 @@
 <?php defined('SYSPATH') or die('No direct script access.');
+$labels_limits = $limits['labels'];
 $state = $job['status'] ?? '';
 $labels = ['queued' => 'В очереди', 'running' => 'В обработке', 'succeeded' => 'Текст готов', 'failed' => 'Ошибка', 'canceled' => 'Отменено'];
 $messages = [
     'worker_not_configured' => 'На стороне PHP не задан WORKER_API_TOKEN.',
-    'file_required' => 'Выберите PDF-файл.', 'file_too_large' => 'Файл больше 10 МБ.',
-    'pdf_required' => 'Загрузите именно PDF.', 'page_limit' => 'В документе больше 20 страниц.',
+    'file_required' => 'Выберите PDF-файл.', 'file_too_large' => 'Файл больше '.$labels_limits['max_pdf'].'.',
+    'pdf_required' => 'Загрузите именно PDF.', 'page_limit' => 'Превышен лимит страниц: '.$labels_limits['max_pages'].'.',
+    'result_too_large' => 'Результат превышает '.$labels_limits['max_text'].' текста.',
     'encrypted_pdf' => 'Снимите пароль с PDF и загрузите заново.', 'invalid_pdf' => 'Не удалось прочитать PDF.',
     'not_found' => 'Задача недоступна или срок хранения истёк.', 'no_text' => 'На страницах не найдено текста.',
     'ocr_unavailable' => 'Движок распознавания недоступен. Проверьте Tesseract и Poppler или адрес OCR-шлюза.',
@@ -37,15 +39,16 @@ $elapsed = max(0, (int) ($progress['elapsed_sec'] ?? 0));
             <?php if (!$id): ?>
             <section class="prx-card" aria-labelledby="prx395-upload-title">
                 <h2 id="prx395-upload-title" class="prx-h3"><i class="fas fa-file-arrow-up mr-2 text-blue-500" aria-hidden="true"></i>Ваш документ</h2>
-                <p class="prx-hint mt-2">PDF до 10 МиБ, не более 20 страниц, без пароля. Файл и результат доступны владельцу в течение 24 часов.</p>
+                <p class="prx-hint mt-2">PDF до <?php echo HTML::chars($labels_limits['max_pdf']); ?>, максимум <?php echo HTML::chars($labels_limits['max_pages']); ?>. Без пароля. Срок доступа к файлу и результату: <?php echo HTML::chars($labels_limits['ttl']); ?>.</p>
                 <form method="post" action="/prx395_document_extract" enctype="multipart/form-data" class="mt-4 space-y-3" data-prx395-submit>
                     <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
                     <div class="relative rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 p-5 text-center transition focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500 dark:border-gray-600 dark:bg-gray-800/50" data-prx395-drop>
                         <i class="fas fa-file-pdf text-2xl text-blue-500" aria-hidden="true"></i>
                         <label class="mt-2 block cursor-pointer text-sm font-semibold text-gray-900 dark:text-white" for="pdf-file">Нажмите, чтобы выбрать PDF</label>
                         <p class="prx-hint mt-1">или перетащите документ сюда</p>
-                        <p id="prx395-file-info" class="mt-2 break-words text-xs text-gray-500 dark:text-gray-400" aria-live="polite">Файл пока не выбран · до 10 МиБ</p>
-                        <input class="absolute inset-0 h-full w-full cursor-pointer opacity-0" id="pdf-file" type="file" name="file" accept=".pdf,application/pdf" aria-label="Выберите или перетащите PDF-документ" aria-describedby="prx395-file-info" required>
+                        <p id="prx395-file-info" class="mt-2 break-words text-xs text-gray-500 dark:text-gray-400" aria-live="polite">Файл пока не выбран · до <?php echo HTML::chars($labels_limits['max_pdf']); ?></p>
+                        <input class="absolute inset-0 h-full w-full cursor-pointer opacity-0" id="pdf-file" type="file" name="file" accept=".pdf,application/pdf" aria-label="Выберите или перетащите PDF-документ" aria-describedby="prx395-file-info" required
+                               data-max-bytes="<?php echo (int) $limits['max_pdf_bytes']; ?>" data-max-label="<?php echo HTML::chars($labels_limits['max_pdf']); ?>">
                     </div>
                     <button class="prx-btn-process" type="submit">
                         <span data-prx-idle><i class="fas fa-play mr-1" aria-hidden="true"></i>Распознать PDF</span>
@@ -98,7 +101,7 @@ $elapsed = max(0, (int) ($progress['elapsed_sec'] ?? 0));
             <?php endif; ?>
         </div>
         <aside class="min-w-0 space-y-5" aria-label="Подключение API">
-<?php echo View::factory('prx395/api_help'); ?>
+<?php echo View::factory('prx395/api_help', ['limits' => $limits, 'rate_limit' => $rate_limit]); ?>
         </aside>
     </div>
 </div>

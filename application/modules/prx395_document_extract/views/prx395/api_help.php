@@ -1,4 +1,6 @@
-<?php defined('SYSPATH') or die('No direct script access.'); ?>
+<?php defined('SYSPATH') or die('No direct script access.');
+$labels = $limits['labels'];
+?>
 <section class="prx-card" aria-labelledby="prx395-api-title">
     <div class="flex items-center justify-between gap-3">
         <h2 id="prx395-api-title" class="prx-h3"><i class="fas fa-plug mr-2 text-blue-500" aria-hidden="true"></i>Подключение API</h2>
@@ -35,10 +37,21 @@
 <section class="prx-card" aria-labelledby="prx395-limits">
     <h2 id="prx395-limits" class="prx-h3">Лимиты и повторные запросы</h2>
     <dl class="mt-3 space-y-2 text-sm">
-        <div class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">PDF</dt><dd class="text-right font-semibold">10 МиБ · 20 страниц</dd></div>
-        <div class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">Результат</dt><dd class="text-right font-semibold">до 1 МиБ текста · 24 часа</dd></div>
-        <div class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">Частота запросов</dt><dd class="text-right">по лимиту ключа prx150</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">PDF</dt><dd class="text-right font-semibold">до <?php echo HTML::chars($labels['max_pdf']); ?> · максимум <?php echo HTML::chars($labels['max_pages']); ?></dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">Ответ</dt><dd class="text-right font-semibold">текст до <?php echo HTML::chars($labels['max_text']); ?></dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">Срок хранения</dt><dd class="text-right">доступен <?php echo HTML::chars($labels['ttl']); ?>, затем удаляется при очистке</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-gray-500 dark:text-gray-400">Скорость</dt><dd class="text-right">до <?php echo (int) $rate_limit; ?> запросов в минуту по умолчанию · настраивается на ключе</dd></div>
     </dl>
+    <details class="mt-3">
+        <summary class="prx-hint cursor-pointer font-semibold">Где менять лимиты и что учитывать</summary>
+        <p class="prx-hint mt-2">Задайте <code>PRX395_*</code> в корневом <code>.env</code>. Значения по умолчанию и диапазоны PHP описаны в <code class="break-all">application/modules/prx395_document_extract/config/prx395_document_extract.php</code>. После изменений перезапустите PHP и воркер. <code>workers/.env</code> переопределяет настройки только для воркера.</p>
+        <ul class="prx-hint mt-2 list-disc space-y-1 pl-5">
+            <li>Больше PDF или страниц — дольше обработка. Проверьте лимиты загрузки PHP/прокси и при необходимости увеличьте <code>PRX395_TASK_TIMEOUT_SEC</code> и <code>PRX395_PDF_MEMORY_MB</code>.</li>
+            <li>Больше текста — больше данных в ответе.</li>
+            <li>Дольше срок — дольше хранятся личные документы.</li>
+            <li>Больше попыток — дольше занят воркер при сбоях.</li>
+        </ul>
+    </details>
     <p class="prx-hint mt-3"><code>Idempotency-Key</code>: 1–128 символов <code>A–Z a–z 0–9 . _ : -</code>. Тот же ключ и файл возвращают то же задание. Другой файл — 409; истёкший ключ — 409 <code>idempotency_key_expired</code>. Для нового документа используйте новый ключ.</p>
     <p class="prx-hint mt-3">401/403 — ключ или право доступа; 404 — задание недоступно; 413/415 — размер или формат; 429 — лимит; 503 — инфраструктура. Исходник и текст приватны, не публикуйте их в логах.</p>
     <p class="prx-hint mt-3">Для обработки нужен воркер <code>document.extract</code>. Этот API не использует LLM. Нужен один синхронный запрос к внешнему OCR-шлюзу? <a class="prx-link" href="/prx450_document_ocr">Распознавание документов</a>.</p>

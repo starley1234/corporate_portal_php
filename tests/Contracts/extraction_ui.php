@@ -1,14 +1,26 @@
 <?php
 if (!defined('SYSPATH')) define('SYSPATH',dirname(__DIR__,2).'/system/');
+require dirname(__DIR__,2).'/application/modules/prx395_document_extract/classes/Service/Prx395/Limits.php';
+class Kohana { public static $config; }
+Kohana::$config = new class {
+ function load($name) { return $this; }
+ function as_array() { return require dirname(__DIR__,2).'/application/modules/prx395_document_extract/config/prx395_document_extract.php'; }
+};
+putenv('PRX395_MAX_PDF_BYTES=12582912');
+putenv('PRX395_MAX_PAGES=33');
+putenv('PRX395_MAX_TEXT_BYTES=2097152');
+putenv('PRX395_RESULT_TTL_HOURS=48');
 class HTML {static function chars($value) {return htmlspecialchars((string) $value,ENT_QUOTES,'UTF-8');}}
 class View {
  static function factory($name,$data=[]) {
   if ($name==='partials/page_header') return '<header>PDF extraction</header>';
+  extract($data);
   ob_start();include dirname(__DIR__,2).'/application/modules/prx395_document_extract/views/'.$name.'.php';return ob_get_clean();
  }
 }
-function render395($job=NULL) {
- $id=$job?42:0; $csrf='test-csrf'; $error=NULL; $can_monitor=TRUE;
+function render395($job=NULL, $error=NULL) {
+ $id=$job?42:0; $csrf='test-csrf'; $can_monitor=TRUE;
+ $limits=Service_Prx395_Limits::all(); $rate_limit=60;
  $progress=['elapsed_sec'=>12,'stage'=>'<stage>'];
  ob_start();include dirname(__DIR__,2).'/application/modules/prx395_document_extract/views/prx395/index.php';return ob_get_clean();
 }
@@ -28,4 +40,7 @@ check395(strpos($done,'data-prx-stopwatch')===FALSE);
 check395(strpos($done,'&lt;script&gt;alert(1)&lt;/script&gt;')!==FALSE);
 check395(strpos($done,'<script>alert(1)</script>')===FALSE);
 check395(strpos($done,'prx395-api-submit')!==FALSE);
-echo "Extraction UI: 12 rendering checks OK\n";
+foreach (['12 МиБ', '33 страницы', 'текст до 2 МиБ', '48 часов', 'data-max-bytes="12582912"', '60 запросов в минуту'] as $visible)
+ check395(str_contains($empty, $visible));
+check395(str_contains(render395(NULL, 'file_too_large'), 'Файл больше 12 МиБ.'));
+echo "Extraction UI: rendering and configured labels OK\n";
