@@ -82,6 +82,55 @@ class DocflowAccessTest extends TestCase
         } catch (RuntimeException $e) { $this->assertStringContainsString('гриф', $e->getMessage()); }
     }
 
+    public function test_cron_intake_and_text_event_register_and_route_without_system_actor(): void
+    {
+        $root = sys_get_temp_dir().'/docflow-'.bin2hex(random_bytes(6));
+        $property = new ReflectionProperty(Service_Prx390_Intake::class, '_config');
+        $previous = $property->getValue();
+        $config = Service_Prx390_Intake::config();
+        foreach (['inbox_dir', 'processed_dir', 'duplicates_dir', 'error_dir'] as $key) $config[$key] = $root.'/'.$key;
+        $property->setValue(NULL, $config);
+        try
+        {
+            Service_Prx390_Intake::ensure_dirs();
+            $bytes = file_get_contents(dirname(__DIR__, 2).'/application/modules/prx395_document_extract/fixtures/sample.pdf')
+                ."\n% synthetic ".bin2hex(random_bytes(16))."\n";
+            $this->db->query(Database::UPDATE, 'UPDATE prx_212_storage_backends SET is_active = 0', FALSE);
+            $this->db->query(Database::INSERT, 'INSERT INTO prx_212_storage_backends (name, driver, config_data, is_active) VALUES ('
+                .$this->db->quote('docflow-test').", 'local', ".$this->db->quote(json_encode(['root_path' => $root.'/files'])).', 1)', FALSE);
+            file_put_contents($config['inbox_dir'].'/test.pdf', $bytes);
+            $report = Service_Prx390_Intake::scan_folder_automatically(1);
+            $this->assertSame(1, $report['accepted'], json_encode($report));
+            $this->assertSame(0, $report['errors'], json_encode($report));
+            $item = $report['items'][0];
+            $message = Service_Prx390_Intake::message($item['message_id']);
+            $this->assertNull($message['created_by']);
+            $this->assertSame('received', $message['status']);
+            $this->assertFileExists($config['processed_dir'].'/test.pdf');
+            Service_Prx390_Intake::store_text($item['message_id'], [
+                'file_id' => $item['file_id'], 'text' => str_repeat('Synthetic document text. ', 4), 'pages' => 1, 'engine' => 'test',
+            ]);
+            $message = Service_Prx390_Intake::message($item['message_id']);
+            $this->assertGreaterThan(0, (int) $message['document_id']);
+            $this->assertNotEmpty(Service_Prx393_Workflow::deadline_for((int) $message['document_id']));
+            $this->assertNull(Service_Prx391_Documents::document((int) $message['document_id']));
+            $this->assertNotNull(Service_Prx391_Documents::document_for_processing((int) $message['document_id']));
+            file_put_contents($config['inbox_dir'].'/duplicate.pdf', $bytes);
+            $repeat = Service_Prx390_Intake::scan_folder_automatically(1);
+            $this->assertSame(1, $repeat['duplicates'], json_encode($repeat));
+            $this->assertSame($item['message_id'], $repeat['items'][0]['message_id']);
+        }
+        finally
+        {
+            $property->setValue(NULL, $previous);
+            if (is_dir($root)) {
+                $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
+                foreach ($iterator as $entry) $entry->isDir() ? rmdir($entry->getPathname()) : unlink($entry->getPathname());
+                rmdir($root);
+            }
+        }
+    }
+
     public function test_user_routing_and_review_do_not_gain_system_access(): void
     {
         $prefix = 'flow-'.bin2hex(random_bytes(4));

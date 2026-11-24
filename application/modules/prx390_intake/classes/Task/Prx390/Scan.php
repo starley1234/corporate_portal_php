@@ -11,7 +11,7 @@ class Task_Prx390_Scan extends Minion_Task
 
     protected function _execute(array $params)
     {
-        $report = Service_Prx390_Intake::scan_folder_automatically( (int) $params['limit']);
+        $report = Service_Prx390_Intake::scan_folder_automatically((int) $params['limit']);
 
         Minion_CLI::write('Папка: '.Service_Prx390_Intake::path('inbox_dir'));
         Minion_CLI::write('Найдено: '.$report['found'].', принято: '.$report['accepted']
