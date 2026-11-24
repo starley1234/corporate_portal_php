@@ -52,6 +52,8 @@ echo View::factory('partials/docflow_flash', ['flash' => $flash]);
         <?php endif; ?>
     </section>
 
+<?php include __DIR__.'/partials/process.php'; ?>
+
     <div class="mt-6 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div class="min-w-0 space-y-6">
 <?php include __DIR__.'/partials/card.php'; ?>

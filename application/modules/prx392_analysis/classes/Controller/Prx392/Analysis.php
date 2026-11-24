@@ -28,7 +28,7 @@ class Controller_Prx392_Analysis extends Controller_Prx39x_Base
         $this->_post(function () use ($document_id) {
             $run_id = Service_Prx392_Analysis::queue_for_document($document_id, $this->actor());
 
-            return 'Разбор поставлен в очередь (прогон #'.$run_id.')';
+            return 'Разбор документа: прогон #'.$run_id.'. Состояние — в карточке процесса.';
         }, '/prx391_documents/'.$document_id);
     }
 

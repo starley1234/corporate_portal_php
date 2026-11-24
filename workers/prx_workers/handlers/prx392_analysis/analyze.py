@@ -58,6 +58,7 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
     if not run_id:
         raise ValueError("payload.run_id обязателен")
 
+    await ctx.progress("Этап 1 из 3 · Получение документа", f"прогон #{run_id}")
     ok, reason, data = await site.get_json(_PREFIX, f"/input/{run_id}", base=_api_base(), timeout=90.0)
     if not ok:
         raise RuntimeError(f"задание #{run_id} не получено: {reason}")
@@ -73,7 +74,7 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
     if ctx.llm is None:
         raise RuntimeError("LLM-провайдеры не настроены в workers/.env")
 
-    await ctx.progress("Модель думает", model)
+    await ctx.progress("Этап 2 из 3 · Модель думает", model)
     started = time.monotonic()
 
     text, usage = await ctx.llm.chat_with_usage(
@@ -94,7 +95,7 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
         if not tokens:
             tokens = int(usage.get("prompt_tokens") or 0) + int(usage.get("completion_tokens") or 0)
 
-    await ctx.progress("Сохранение", f"тип: {result.get('type') or '—'}")
+    await ctx.progress("Этап 3 из 3 · Сохранение", f"тип: {result.get('type') or '—'}")
 
     ok, reason, _res = await site.post_json(
         _PREFIX,

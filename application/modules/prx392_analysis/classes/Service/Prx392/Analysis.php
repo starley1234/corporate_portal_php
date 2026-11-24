@@ -88,33 +88,52 @@ class Service_Prx392_Analysis
         self::provider_for_model($profile['model']);
         $input_hash = md5($text['text']."\n".$profile_code.'|'.$profile['model'].'|'.$profile['prompt_version'].'|'.$profile['schema_version']);
 
-        $existing = self::_row("
-            SELECT * FROM prx_392_runs
-            WHERE document_id = ".$document_id." AND profile = ".self::_q($profile_code)."
-              AND input_hash = ".self::_q($input_hash)."
-              AND status IN ('queued', 'running', 'ready')
-            ORDER BY id DESC LIMIT 1
-        ");
-        if ($existing)
-        {
-            return (int) $existing['id'];
-        }
-
-        $run = self::_row("
-            INSERT INTO prx_392_runs
-                (document_id, message_id, profile, model, prompt_version, schema_version, input_hash, status, created_by)
-            VALUES (
-                ".$document_id.", ".$message_id.", ".self::_q($profile_code).", ".self::_q($profile['model']).",
-                ".self::_q($profile['prompt_version']).", ".self::_q($profile['schema_version']).",
-                ".self::_q($input_hash).", 'queued', ".self::_int_or_null($actor ? $actor->id() : NULL)."
-            )
-            RETURNING id
-        ");
-
-        $run_id = (int) $run['id'];
-
+        // Прогон и запись в prx120 фиксируются вместе; параллельные клики
+        // для одного документа не должны создавать две задачи.
+        self::_db()->begin();
         try
         {
+            self::_row('SELECT pg_advisory_xact_lock(392, '.$document_id.')');
+            $existing = self::_row("
+                SELECT * FROM prx_392_runs
+                WHERE document_id = ".$document_id." AND profile = ".self::_q($profile_code)."
+                  AND input_hash = ".self::_q($input_hash)."
+                ORDER BY id DESC LIMIT 1
+            ");
+            if ($existing)
+            {
+                $job = !empty($existing['job_id']) ? Service_Prx120_JobQueue::instance()->get((int) $existing['job_id']) : NULL;
+                $payload = $job['payload'] ?? [];
+                if (is_string($payload)) $payload = json_decode($payload, TRUE);
+                if ($existing['status'] === 'ready' || ($job && $job['channel'] === 'doc.analyze'
+                    && (int) ($payload['run_id'] ?? 0) === (int) $existing['id']
+                    && in_array($job['status'], ['pending', 'processing'], TRUE)))
+                {
+                    self::_db()->commit();
+                    return (int) $existing['id'];
+                }
+                self::_exec("UPDATE prx_392_runs SET status = 'queued', job_id = NULL, error = NULL,
+                    started_at = NULL, finished_at = NULL WHERE id = ".(int) $existing['id']);
+                $run = $existing;
+            }
+
+            else
+            {
+                $run = self::_row("
+                    INSERT INTO prx_392_runs
+                        (document_id, message_id, profile, model, prompt_version, schema_version, input_hash, status, created_by)
+                    VALUES (
+                        ".$document_id.", ".$message_id.", ".self::_q($profile_code).", ".self::_q($profile['model']).",
+                        ".self::_q($profile['prompt_version']).", ".self::_q($profile['schema_version']).",
+                        ".self::_q($input_hash).", 'queued', ".self::_int_or_null($actor ? $actor->id() : NULL)."
+                    )
+                    RETURNING id
+                ");
+
+            }
+
+            $run_id = (int) $run['id'];
+
             $job_id = Service_Prx120_JobQueue::push('doc.analyze', [
                 'run_id' => $run_id,
                 'document_id' => $document_id,
@@ -126,17 +145,19 @@ class Service_Prx392_Analysis
                 'timeout_sec' => 900,
                 'created_by' => ($actor ? $actor->id() : 0),
             ]);
+
+            self::_exec("UPDATE prx_392_runs SET job_id = ".(int) $job_id." WHERE id = ".$run_id);
+
+            self::_db()->commit();
+            return $run_id;
         }
-        catch (Exception $e)
+        catch (Throwable $e)
         {
-            self::_exec("UPDATE prx_392_runs SET status = 'failed', error = ".self::_q($e->getMessage()).", finished_at = now() WHERE id = ".$run_id);
+            self::_db()->rollback();
             throw $e;
         }
-
-        self::_exec("UPDATE prx_392_runs SET job_id = ".(int) $job_id." WHERE id = ".$run_id);
-
-        return $run_id;
     }
+
 
     public static function document_progress(int $id, ?Prx_Actor $actor = NULL): array
     {
