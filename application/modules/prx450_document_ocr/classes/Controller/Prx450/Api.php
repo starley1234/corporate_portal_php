@@ -11,6 +11,12 @@ class Controller_Prx450_Api extends Controller_Prx150_Machine
 {
     protected const SCOPE = Service_Prx450_Ocr::SCOPE;
 
+    public function after()
+    {
+        if (in_array($this->response->status(), [503, 504], TRUE)) $this->response->headers('Retry-After', '5');
+        parent::after();
+    }
+
     public function action_parse(): void
     {
         $this->respond(function () {
@@ -23,7 +29,7 @@ class Controller_Prx450_Api extends Controller_Prx150_Machine
             $result = Service_Prx450_Ocr::parse(
                 $_FILES['file'] ?? NULL,
                 $this->request->query(),
-                NULL
+                NULL, $this->principal()->id()
             );
 
             $this->_json_response($result, 200);

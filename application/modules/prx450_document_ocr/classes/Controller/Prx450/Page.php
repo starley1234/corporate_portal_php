@@ -10,6 +10,14 @@ class Controller_Prx450_Page extends Controller_Base
 {
     public function before()
     {
+        $this->response->headers('Cache-Control', 'no-store');
+        $this->response->headers('X-Request-Id', bin2hex(random_bytes(8)));
+        if (!in_array($this->request->method(), [Request::GET, Request::POST], TRUE)) {
+            $this->response->headers('Allow', 'GET, POST');
+            throw HTTP_Exception::factory(405, 'Нужен GET или POST');
+        }
+        try { Service_Prx450_Ocr::assert_request_size((int) ($_SERVER['CONTENT_LENGTH'] ?? 0), (string) ini_get('post_max_size')); }
+        catch (Prx450_Error $e) { throw HTTP_Exception::factory(413, 'Документ превышает лимит загрузки PHP. Выберите файл меньшего размера.'); }
         parent::before();
 
         if ( ! $this->can('prx450.view'))
@@ -51,7 +59,10 @@ class Controller_Prx450_Page extends Controller_Base
             }
         }
 
+        if (in_array($this->response->status(), [503, 504], TRUE)) $this->response->headers('Retry-After', '5');
+        $old = array_filter((array) $this->request->post(), 'is_scalar');
         $this->template->content = View::factory('prx450/index', [
+            'old' => $old,
             'config' => Service_Prx450_Ocr::summary(),
             'result' => $result,
             'error'  => $error,

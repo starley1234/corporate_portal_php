@@ -49,6 +49,8 @@ return [
 
     'limits' => [
         'max_file_bytes' => max(1024, (int) (getenv('PRX450_MAX_FILE_BYTES') ?: 26214400)),
+        'max_raw_result_bytes' => max(1024, (int) (getenv('PRX450_MAX_RAW_RESULT_BYTES') ?: 4194304)),
+        'max_response_bytes' => max(1024, (int) (getenv('PRX450_MAX_RESPONSE_BYTES') ?: 16777216)),
         'max_content_bytes' => max(1024, (int) (getenv('PRX450_MAX_CONTENT_BYTES') ?: 4194304)),
     ],
 
