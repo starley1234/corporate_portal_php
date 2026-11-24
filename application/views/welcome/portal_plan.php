@@ -4,13 +4,20 @@
     <?php echo View::factory('partials/page_header', [
         'crumbs' => [['Главная', '/'], ['План и архив портала']],
         'title'  => $title,
-        'lead'   => 'Прежний план развития корпоративного портала. Доступные, тестовые и архивные модули отмечены отдельно.',
+        'lead'   => 'Дорожная карта производственных пайплайнов и архив прежнего плана портала.',
     ]); ?>
 
+    <section class="mt-6" aria-labelledby="pipeline-plan">
+        <h2 id="pipeline-plan" class="prx-h3">План производственных пайплайнов</h2>
+        <p class="mt-3">Запланированные сценарии: от разработки изделия до работы с рекламациями.</p>
+        <?php echo View::factory('welcome/parts/enterprise_plan', ['phases' => $phases]); ?>
+    </section>
+
+    <h2 class="prx-h3 mt-7">Прежний план портала</h2>
     <div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <?php foreach ($domains as $domain): ?>
         <section class="prx-card">
-            <h2 class="prx-h3"><?php echo HTML::chars($domain['title']); ?></h2>
+            <h3 class="prx-h3"><?php echo HTML::chars($domain['title']); ?></h3>
             <ul class="mt-3 space-y-2 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
                 <?php foreach ($domain['services'] as $service): ?>
                 <li>
