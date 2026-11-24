@@ -65,4 +65,8 @@ jobs:
       - run: bash bin/setup.sh
       - run: php public_html/index.php db:migrate
       - run: php public_html/index.php db:migrate
-      - run: bash bin/test
+      - name: PHPUnit on PostgreSQL
+        run: bash bin/test --log-junit /tmp/prx-phpunit.xml
+      - name: Publish PHPUnit failures
+        if: always()
+        run: python3 .tools/phpunit_report.py /tmp/prx-phpunit.xml
