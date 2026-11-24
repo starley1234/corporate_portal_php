@@ -4,14 +4,19 @@
  * Манифест модуля prx595_useradmin.
  *
  * Создан 28.09.2026: реестр модулей в docs/ARCHITECTURE.md §2 теперь
- * генерируется из манифестов, а не пишется руками. Инфраструктурный модуль —
- * без `href`, поэтому в меню и на /services он не показывается.
+ * генерируется из манифестов. Страница модуля доступна также в /services.
  */
 
 return [
     'id' => 595,
     'slug' => 'prx595_useradmin',
-    'kind' => 'platform',
+    'kind' => 'module',
+    'status' => 'stable',
+    'acl' => 'prx595.users.admin',
+    'href' => '/prx595/admin',
+    'icon' => 'fas fa-users-gear',
+    'group' => 'Платформа',
+    'audience' => 'admin',
     'title' => 'Администрирование пользователей',
     'short' => 'роли и блокировки поверх ядра users/roles, журнал активности; только для роли admin',
 ];

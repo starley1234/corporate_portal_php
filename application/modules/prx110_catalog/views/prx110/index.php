@@ -14,7 +14,7 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
     <?php echo View::factory('partials/page_header', [
         'crumbs' => [['Главная', '/'], ['Сервисы']],
         'title'  => 'Каталог сервисов PRX',
-        'lead'   => (int) $total.' инструментов по разделам: расчёты, документы, данные и ИИ.',
+        'lead'   => (int) $total.' модулей и сервисов по разделам. Состав каталога зависит от ваших прав доступа.',
     ]); ?>
 
 

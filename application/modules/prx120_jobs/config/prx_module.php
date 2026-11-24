@@ -5,20 +5,25 @@
  *
  * Создан 28.09.2026 вместе с пятым контрактом (application/classes/Manifest.php):
  * модуль объявляет свои реестровые записи сам, а не строкой в чужом конфиге.
- * Полей title/href здесь нет намеренно — это не карточка витрины.
+ * Страница управления опубликована в каталоге с ограничением по аудитории.
  */
 
 return [
     'id' => 120,
     'slug' => 'prx120_jobs',
-    'kind' => 'platform',
+    'kind' => 'module',
+    'status' => 'stable',
+    'acl' => 'prx120.monitor',
+    'href' => '/prx120/monitor',
+    'icon' => 'fas fa-list-check',
+    'group' => 'Платформа',
+    'audience' => 'admin',
     'worker' => ['channels' => [
         'echo' => ['label' => 'Проверка воркера', 'url' => '/tasks'],
         'embeddings.index' => ['label' => 'Эмбеддинги', 'url' => '/tasks'],
     ]],
     // Назначение модуля: отсюда его берёт реестр в docs/ARCHITECTURE.md §2
-    // (bin/console module:list --markdown). Без `href` в меню и на /services
-    // модуль не показывается.
+    // (bin/console module:list --markdown).
     'title' => 'Очередь задач',
     'short' => 'асинхронный механизм платформы: задачи для python-воркеров',
 
