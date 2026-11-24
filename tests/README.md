@@ -22,6 +22,14 @@ done, отмену и новый claim между read/UPDATE. В Python
 `workers/tests/runtime/test_queue_ownership.py` проверяет SQL-контракт fail
 прямого PG-транспорта на заглушке соединения, не реальное asyncpg-подключение.
 
+`Contracts/analysis_headers.php` проверяет нормализацию/дедупликацию ID и один
+минимальный batch SELECT prx391 без настоящей БД. `Smoke/AnalysisHeadersIntegrationTest.php`
+проверяет заголовки и форму списков prx392 на PostgreSQL, включая сироты.
+Docflow-ratchet охватывает classes/views всех четырёх модулей; автоматизация
+в Task допускается только по узкому списку вызовов. `test_queue_table_debt.py`
+замораживает SQL-долг prx103/115/595/597, но не доказывает его исправление.
+Новые tooling-тесты читают исходники с явным UTF-8.
+
 ## Обычный запуск
 
 ```bash
