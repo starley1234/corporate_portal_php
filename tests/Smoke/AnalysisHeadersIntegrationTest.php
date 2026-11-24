@@ -13,7 +13,7 @@ class AnalysisHeadersIntegrationTest extends TestCase
             "INSERT INTO prx_391_documents (reg_no, subject, sensitivity) VALUES (:number, 'Тест заголовка', 'personal') RETURNING id")
             ->param(':number', 'headers-'.bin2hex(random_bytes(5)))->execute()->get('id');
     }
-    private function run(int $document): int
+    private function create_run(int $document): int
     {
         return (int) DB::query(Database::SELECT,
             "INSERT INTO prx_392_runs (document_id, message_id, profile, model, prompt_version, input_hash, created_at) "
@@ -44,9 +44,9 @@ class AnalysisHeadersIntegrationTest extends TestCase
     public function test_analysis_lists_keep_order_metadata_and_missing_document_semantics(): void
     {
         $id = $this->document();
-        $first = $this->run($id);
-        $second = $this->run($id);
-        $orphan = $this->run(0);
+        $first = $this->create_run($id);
+        $second = $this->create_run($id);
+        $orphan = $this->create_run(0);
         $proposal = $this->proposal($second, $id);
         $this->proposal($orphan, 0);
         $runs = Service_Prx392_Analysis::runs(3);
