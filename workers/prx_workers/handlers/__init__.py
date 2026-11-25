@@ -4,7 +4,13 @@
 канал из `worker.channels` его манифеста — это файл с CHANNEL в этом пакете.
 Явная регистрация — только здесь. Платформенные каналы грузятся всегда,
 условные каналы — только при включении в PHP.
+
+Загрузка ЛЕНИВАЯ: каждый обработчик импортируется отдельно, и ошибка импорта
+(например, у модуля не стоит необязательная зависимость — `pydantic`,
+`langgraph`) отключает ТОЛЬКО его канал, а не весь воркер. Раньше один такой
+модуль валил старт воркера целиком.
 """
+import importlib
 import logging
 
 import httpx
@@ -19,6 +25,24 @@ CONDITIONAL_CHANNELS = frozenset({"doc.normalize", "doc.analyze"})
 HEALTH_FLAG = "docflow_enabled"
 HEALTH = ("PRX395_DOCUMENT_EXTRACT", "/prx395/worker")
 log = logging.getLogger("prx.site")
+
+# Платформенные обработчики: (пакет-владелец, модуль). Импортируются при старте.
+REGISTRY = (
+    ("prx120_jobs", "echo"),
+    ("prx120_jobs", "embeddings"),
+    ("prx115_semantic", "index"),
+    ("llm", "summarize"),
+    ("prx395_document_extract", "handler"),
+    ("prx396_pdf_chunks", "handler"),
+    ("prx397_invoice", "handler"),
+    ("prx398_doc_router", "handler"),
+)
+
+# Условные каналы пробы пера: импортируются только при явном включении в PHP.
+CONDITIONAL_REGISTRY = (
+    ("prx390_intake", "normalize"),
+    ("prx392_analysis", "analyze"),
+)
 
 
 async def enabled(token: str, *, transport=None) -> bool:
@@ -46,34 +70,28 @@ async def enabled(token: str, *, transport=None) -> bool:
     return False
 
 
-from .prx120_jobs import echo, embeddings
-from .prx115_semantic import index as semantic_index
-from .llm import summarize as llm_task
-from .prx395_document_extract import handler as document_extract
-from .prx396_pdf_chunks import handler as pdf_chunks
-from .prx397_invoice import handler as invoice_extract
-from .prx398_doc_router import handler as doc_route
+def _load(registry) -> dict:
+    """Загрузить обработчики: сбой импорта одного — не смерть остальных."""
+    handlers: dict = {}
+
+    for package, name in registry:
+        try:
+            module = importlib.import_module(f".{package}.{name}", __package__)
+        except Exception as exc:  # noqa: BLE001 — изолируем один канал
+            log.error("Канал %s/%s недоступен: %s: %s. Проверьте зависимости "
+                      "(workers/requirements.txt) и перезапустите воркер.",
+                      package, name, type(exc).__name__, exc)
+            continue
+        handlers[module.CHANNEL] = module.handle
+
+    return handlers
 
 
-HANDLERS = {
-    document_extract.CHANNEL: document_extract.handle,
-    pdf_chunks.CHANNEL: pdf_chunks.handle,
-    invoice_extract.CHANNEL: invoice_extract.handle,
-    doc_route.CHANNEL: doc_route.handle,
-    echo.CHANNEL: echo.handle,
-    embeddings.CHANNEL: embeddings.handle,
-    llm_task.CHANNEL: llm_task.handle,
-    semantic_index.CHANNEL: semantic_index.handle,
-}
+HANDLERS = _load(REGISTRY)
+
 
 def active_handlers(trial_enabled: bool = False):
     handlers = dict(HANDLERS)
     if trial_enabled:
-        from .prx390_intake import normalize
-        from .prx392_analysis import analyze
-
-        handlers.update({
-            normalize.CHANNEL: normalize.handle,
-            analyze.CHANNEL: analyze.handle,
-        })
+        handlers.update(_load(CONDITIONAL_REGISTRY))
     return handlers

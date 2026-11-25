@@ -75,11 +75,11 @@ for path in (ROOT / 'application').rglob('*.php'):
 # handlers/__init__.py; остальные файлы пакета — его помощники без CHANNEL.
 handlers = ROOT / 'workers/prx_workers/handlers'
 channel_modules = {}  # путь модуля канала → имя импорта
-for imp in re.findall(r'^\s*from \.(\w+) import ([\w, ]+)' , (handlers / '__init__.py').read_text(encoding='utf-8'), re.M):
-    package = imp[0]
-    for part in [part.strip() for part in imp[1].split(',') if part.strip()]:
-        name = part.split(' as ')[0].strip()
-        channel_modules[handlers / package / f'{name}.py'] = name
+# Реестр каналов — явные пары (пакет, модуль) в REGISTRY/CONDITIONAL_REGISTRY.
+# Ленивая загрузка: сбой импорта одного модуля не валит воркер целиком.
+for package, name in re.findall(r'\(\s*"(\w+)"\s*,\s*"(\w+)"\s*\)',
+                                (handlers / '__init__.py').read_text(encoding='utf-8')):
+    channel_modules[handlers / package / f'{name}.py'] = name
 channel_names = []
 for path in (ROOT / 'workers/prx_workers').rglob('*.py'):
     try:
