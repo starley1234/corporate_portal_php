@@ -100,9 +100,10 @@ async def test_worker_download_uses_configured_pdf_limit(tmp_path, monkeypatch):
         200, content=body + (b'x' if request.url.path == '/too-large' else b''),
         headers={'Content-Type': 'application/pdf'},
     ))
+    from prx_workers import job_api
     async with httpx.AsyncClient(base_url='http://example.test', transport=transport) as client:
         path = tmp_path / 'fits.pdf'
-        await handler._download(client, '/fits', path)
+        await job_api.download_pdf(client, '/fits', path, limits()['max_pdf_bytes'])
         assert path.stat().st_size == MIB
         with pytest.raises(PermanentJobError, match='^file_unavailable$'):
-            await handler._download(client, '/too-large', tmp_path / 'oversized.pdf')
+            await job_api.download_pdf(client, '/too-large', tmp_path / 'oversized.pdf', limits()['max_pdf_bytes'])

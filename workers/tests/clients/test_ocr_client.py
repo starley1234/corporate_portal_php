@@ -197,10 +197,11 @@ def test_remote_confidence_is_clamped():
 
 def test_timeout_env_validation(monkeypatch):
     monkeypatch.setenv("OCR_TIMEOUT", "15")
-    assert ocr_client._timeout() == 15
-    monkeypatch.setenv("OCR_TIMEOUT", "abc")
+    assert ocr_client._timeout_value("15") == 15.0
     with pytest.raises(RuntimeError, match="OCR_TIMEOUT"):
-        ocr_client._timeout()
+        ocr_client._timeout_value("abc")
+    with pytest.raises(RuntimeError, match="OCR_TIMEOUT"):
+        ocr_client._timeout_value("0")
 
 
 def test_tesseract_sets_omp_thread_limit_and_cleans_temp(tmp_path, monkeypatch):
