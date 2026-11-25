@@ -77,6 +77,12 @@ $check_labels = [
                     <?php if ($state==='review'): ?><span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">Нужна проверка</span><?php endif; ?>
                 </div>
                 <p class="prx-hint mt-2">Задача #<?php echo (int)$id; ?> · попытка <?php echo (int)($row['attempt'] ?? 0); ?><?php if ($pending): ?> · статус обновляется автоматически<?php endif; ?></p>
+<?php if ($pending AND ! empty($stale)): ?>
+                <div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100" role="alert">
+                    <i class="fas fa-triangle-exclamation mr-1.5" aria-hidden="true"></i><?php echo HTML::chars((string) $stale); ?>
+                    Проверьте воркеры (workers/.env: WORKER_API_URL и WORKER_API_TOKEN) или <a class="font-semibold underline" href="/prx120_jobs">монитор очереди</a>.
+                </div>
+<?php endif; ?>
                 <?php if ($state==='queued'): ?><p class="prx-hint mt-2">Ожидаем воркер канала <code>invoice.extract</code>.</p><?php endif; ?>
                 <?php if ($reasons): ?>
                 <div class="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">

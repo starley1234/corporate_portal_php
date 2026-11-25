@@ -38,9 +38,33 @@ class Controller_Prx397_Ui extends Controller_Base
             $this->response->status(503); $error = 'service_unavailable';
         }
 
+        // Вечное «В обработке» = воркер не работает. Задача queued дольше 30
+        // минут или running без пульса 30 минут — честно говорим об этом
+        // вместо бесконечного спиннера.
+        $stale = NULL;
+        if ($id AND $row AND in_array($row['status'] ?? '', ['queued', 'running'], TRUE))
+        {
+            try
+            {
+                $live = class_exists('Service_Prx120_JobQueue')
+                    ? Service_Prx120_JobQueue::instance()->status_of((int) $id) : [];
+                $silent = $live['silent_sec'] ?? NULL;
+                $elapsed = (int) ($live['elapsed_sec'] ?? 0);
+                if (($live['status'] ?? '') === 'queued' AND $elapsed >= 1800)
+                {
+                    $stale = 'Задача в очереди '.(int) round($elapsed / 60).' мин — воркер канала invoice.extract её не берёт.';
+                }
+                elseif (($live['status'] ?? '') === 'running' AND $silent !== NULL AND $silent >= 1800)
+                {
+                    $stale = 'Воркер молчит '.(int) round($silent / 60).' мин — задача, вероятно, зависла.';
+                }
+            }
+            catch (Throwable $e) { $stale = NULL; } // очередь недоступна — не пугаем ложной тревогой
+        }
+
         $this->add_script('/assets/js/prx397-status.js?v=1', TRUE);
         $this->template->content = View::factory('prx397/index', [
-            'id' => $id, 'row' => $row, 'error' => $error,
+            'id' => $id, 'row' => $row, 'error' => $error, 'stale' => $stale,
             'limits' => Service_Prx397_Limits::all(),
             'csrf' => Security::token(), 'can_monitor' => $this->can('prx120.monitor'),
         ]);
