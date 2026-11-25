@@ -27,17 +27,17 @@ $branches = [
 ];
 
 $names = [
-    ['Модуль', '<code>prxNNN_slug</code>', '<code>prx312_claims</code> — папка и slug манифеста; ID не переиспользуются'],
-    ['Контроллер · маршрут', '<code>Controller_PrxNNN_Name</code> · <code>prxNNN_…</code>', '<code>Controller_Prx312_Claim</code>, <code>/prx312/claim/&lt;id&gt;</code>'],
-    ['Сервис', '<code>Service_PrxNNN_Name</code>', '<code>Service_Prx312_Claims</code> — статические методы, принимают <code>Prx_Actor</code>'],
-    ['Политика', '<code>Policy_PrxNNN_Name</code> в <code>classes/Policy/PrxNNN/</code>', '<code>Policy_Prx312_Claim extends Prx_Policy</code>'],
-    ['Модель · таблица', '<code>Model_PrxNNN_Name</code> · <code>prx_&lt;id&gt;_&lt;slug&gt;</code>', '<code>Model_Prx312_Claim</code>, <code>prx_312_claims</code>'],
-    ['Право (ACL)', '<code>prxNNN.ability</code>', '<code>prx312.view</code>, <code>prx312.manage</code> — в <code>config/acl.php</code>'],
-    ['Переменные окружения', '<code>PRXNNN_&lt;SLUG&gt;_*</code>', '<code>PRX312_CLAIMS_API_TOKEN</code> — только в <code>.env</code>'],
-    ['Событие', '<code>prxNNN.entity.action</code>', '<code>prx312.claim.approved</code> — имя это контракт для слушателей'],
-    ['Канал воркера', '<code>&lt;domain&gt;.&lt;action&gt;</code> в <code>handlers/&lt;модуль&gt;/</code>', '<code>document.extract</code> → <code>handlers/prx395_document_extract/</code>'],
+    ['Модуль', '<code>prxNNN_slug</code>', '<code>prx399_docmerge</code> — папка и slug манифеста; ID не переиспользуются'],
+    ['Контроллер · маршрут', '<code>Controller_PrxNNN_Name</code> · <code>prxNNN_…</code>', '<code>Controller_Prx399_Api</code>, <code>/prx399/api/&lt;action&gt;</code>'],
+    ['Сервис', '<code>Service_PrxNNN_Name</code>', '<code>Service_Prx399_Merge</code> — статические методы, принимают <code>Prx_Actor</code>'],
+    ['Политика', '<code>Policy_PrxNNN_Name</code> в <code>classes/Policy/PrxNNN/</code>', '<code>Policy_Prx397_Extraction extends Prx_Policy</code>'],
+    ['Модель · таблица', '<code>Model_PrxNNN_Name</code> · <code>prx_&lt;id&gt;_&lt;slug&gt;</code>', '<code>prx_399_merges</code> — схема только через миграции модуля'],
+    ['Право (ACL)', '<code>prxNNN.ability</code>', '<code>prx399.view</code>, <code>prx399.manage</code> — в <code>config/acl.php</code>'],
+    ['Переменные окружения', '<code>PRXNNN_&lt;SLUG&gt;_*</code>', '<code>PRX399_DOCMERGE_MAX_CHARS</code> — и в <code>.env</code>, и в <code>workers/.env.example</code>'],
+    ['Событие', '<code>prxNNN.entity.action</code>', '<code>prx397.invoice.submitted</code> — имя это контракт для слушателей'],
+    ['Канал воркера', '<code>&lt;domain&gt;.&lt;action&gt;</code> в <code>handlers/&lt;модуль&gt;/</code>', '<code>doc.merge.delta</code> → <code>handlers/prx399_docmerge/</code>'],
     ['Интерфейс', '<code>.prx-*</code>, <code>PRX.*</code>, <code>data-prx-*</code>', '<code>.prx-card</code>, <code>PRX.toast()</code>, <code>data-prx-arm</code>'],
-    ['Тесты', '<code>tests/Unit/XTest.php</code> · <code>tests/Js/x.test.mjs</code>', 'Python-воркер: <code>tests/handlers/&lt;пакет&gt;/</code>'],
+    ['Тесты', '<code>tests/Unit/XTest.php</code> · <code>tests/Js/x.test.mjs</code>', 'Python-воркер: <code>tests/handlers/prx399_docmerge/</code>'],
 ];
 
 $tree = <<<'HTML'
@@ -63,12 +63,12 @@ $checks = [
 ];
 
 $next = [
-    ['PHP-стенд', 'Прогнать то, что в песочнице не запускается: phpunit (включая PrxFoundationTest), HTTP smoke, <code>make new-module</code> вживую.'],
-    ['Контрактные тесты платформы', 'Первый запуск и добивка: Actor, Policy, PostGuard, Prx_Db, Event::publish — на реальном PHP/PostgreSQL.'],
-    ['Первый модуль на фундаменте', 'Один реальный сервис (например, заявки) по контракту из ARCHITECTURE-REVIEW §1 — проверка контракта делом.'],
+    ['Образец для новых модулей', '<a class="font-semibold text-blue-600 hover:underline dark:text-blue-400" href="/prx399_docmerge">prx399_docmerge</a> — эталон: миграция, манифест, слои Service/Policy, канал воркера, 22 теста, AGENTS.md-учебник. Новые модули сверять с ним, а не с гипотетическими примерами.'],
+    ['PHP-стенд', 'Прогнать то, что в песочнице без БД не запускается: phpunit, HTTP smoke, <code>make new-module</code> вживую.'],
+    ['Цикл входящих документов', 'prx390–398 уже в проде: довести связку «роутер prx398 → извлечение prx395/397 → слияние prx399» и убрать диагностические леса.'],
     ['Аудит ассетов и чистка', 'Мёртвые JS/CSS, SQL в манифестах (<code>count_sql</code>), god-сервисы prx120/prx597 — только когда в них всё равно придётся зайти.'],
-    ['Проба пера prx390–prx393', 'Удалить или переделать — решение владельца. Вместе с ней уходят <code>handlers/prx390_intake/</code> и <code>handlers/prx392_analysis/</code> и диагностический контекст <code>ocr_client</code>.'],
     ['Воркеры', 'Разбиение <code>base.py</code>/<code>queue.py</code> на жизненный цикл и транспорты — отдельным шагом, с сохранением контрактных тестов.'],
+    ['Понятность для агента', 'Реестры в манифестах (поиск, worker, cleanup, health) — расширять секциями, а не новыми глобальными списками; AGENTS.md каждого модуля — живой, не формальный.'],
 ];
 ?>
 
@@ -123,7 +123,7 @@ $next = [
     <div class="mt-8 gap-6 space-y-6 lg:grid lg:grid-cols-3 lg:items-start lg:space-y-0">
         <section class="prx-card lg:col-span-2" aria-labelledby="guide-anatomy">
             <h2 id="guide-anatomy" class="prx-h3">3. Анатомия модуля</h2>
-            <p class="prx-hint mt-1">Создаёт <code>make new-module id=312 slug=claims name="Заявки" entity=Claim</code>. Всё, что модуль знает о своих данных, — внутри; наружу — манифест и публичный Service.</p>
+            <p class="prx-hint mt-1">Создаёт <code>make new-module id=NNN slug=… name="…" entity=…</code>. Всё, что модуль знает о своих данных, — внутри; наружу — манифест и публичный Service. Живой образец всех слоёв — <a class="font-semibold text-blue-600 hover:underline dark:text-blue-400" href="/prx399_docmerge">prx399_docmerge</a>: его <code>AGENTS.md</code> — учебник по каждому слою, от миграции до тестов воркера.</p>
             <pre class="mt-3 overflow-x-auto whitespace-pre rounded-lg bg-gray-900 p-4 text-xs leading-5 text-gray-100"><?php echo HTML::chars($tree); ?></pre>
         </section>
 
