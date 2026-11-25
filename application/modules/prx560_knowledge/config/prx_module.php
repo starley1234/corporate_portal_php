@@ -5,7 +5,7 @@ return [
     'status' => 'stable',
     'title' => 'Техническая база знаний',
     'short' => 'RAG-кэш: дедупликация и поиск наработок платформы; только для администраторов',
-    'href' => '/prx560',
+    'href' => '/prx560_knowledge',
     'group' => 'Платформа',
     'audience' => 'admin',
     'acl' => 'prx560.admin',

@@ -8,14 +8,14 @@
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
 
     <nav class="flex items-center overflow-x-auto whitespace-nowrap text-xs text-gray-500 dark:text-gray-400" aria-label="Хлебные крошки">
-        <a href="/prx595/admin" class="transition hover:text-blue-600 dark:hover:text-blue-400">Пользователи</a>
+        <a href="/prx595_useradmin" class="transition hover:text-blue-600 dark:hover:text-blue-400">Пользователи</a>
         <span class="mx-1.5 text-gray-300 dark:text-gray-600">/</span>
         <span class="font-mono font-medium text-gray-700 dark:text-gray-200">#<?php echo (int) $u->id; ?></span>
     </nav>
     <div class="mt-2 flex flex-wrap items-center justify-between gap-3">
         <h1 class="prx-h1"><i class="fas fa-user-gear mr-2 text-blue-500"></i><?php echo HTML::chars($u->username); ?></h1>
         <div class="flex flex-wrap gap-2">
-            <a href="/prx595/admin" class="prx-btn-secondary"><i class="fas fa-arrow-left text-xs text-gray-400"></i>К списку</a>
+            <a href="/prx595_useradmin" class="prx-btn-secondary"><i class="fas fa-arrow-left text-xs text-gray-400"></i>К списку</a>
         </div>
     </div>
 

@@ -11,7 +11,7 @@
     <div class="mt-6 max-w-4xl space-y-5">
     <nav class="prx-seg max-w-md" aria-label="Разделы профиля">
         <span class="prx-seg-item is-active flex-1 text-center" aria-current="page">Профиль и данные</span>
-        <a href="/account/security" class="prx-seg-item flex-1 text-center">Безопасность</a>
+        <a href="/prx599_account" class="prx-seg-item flex-1 text-center">Безопасность</a>
     </nav>
     <div class="prx-card">
         <div>

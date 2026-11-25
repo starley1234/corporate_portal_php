@@ -12,7 +12,7 @@ return [
     'title' => 'Входящие документы',
     'short' => 'Приём PDF из папки, файлы в prx212 и распознанный текст',
     'icon' => 'fas fa-inbox',
-    'href' => '/inbox',
+    'href' => '/prx390_intake',
     'group' => 'Документооборот',
     'sort' => 390,
     'status' => 'beta',
@@ -25,7 +25,7 @@ return [
         'channels' => [
             'doc.normalize' => [
                 'label' => 'Распознавание входящего документа',
-                'url' => '/inbox',
+                'url' => '/prx390_intake',
                 'reconcile' => "SELECT 1 FROM prx_390_texts t
                                 WHERE t.message_id = (j.payload->>'message_id')::bigint",
             ],

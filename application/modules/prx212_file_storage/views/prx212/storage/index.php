@@ -7,7 +7,7 @@
             <nav class="flex" aria-label="Breadcrumb">
                 <ol class="inline-flex items-center space-x-1 md:space-x-3">
                     <li class="inline-flex items-center">
-                        <a href="<?php echo URL::site('prx212_storage'); ?>" class="text-blue-600 hover:text-blue-700 dark:text-blue-400 transition-colors">
+                        <a href="<?php echo URL::site('prx212_file_storage'); ?>" class="text-blue-600 hover:text-blue-700 dark:text-blue-400 transition-colors">
                             <i class="fas fa-hdd mr-2"></i>Хранилище
                         </a>
                     </li>
@@ -116,7 +116,7 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center">
-                                        <a href="<?php echo URL::site('prx212_storage/file/'.$file->id); ?>" class="flex-shrink-0 h-10 w-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
+                                        <a href="<?php echo URL::site('prx212_file_storage/file/'.$file->id); ?>" class="flex-shrink-0 h-10 w-10 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center mr-4 group-hover:scale-110 transition-transform">
                                             <?php
                                                 $ext = strtolower(pathinfo($file->filename, PATHINFO_EXTENSION));
                                                 $icon = 'fa-file';
@@ -178,7 +178,7 @@
                                                 title="Создать временную ссылку">
                                             <i class="fas fa-link"></i>
                                         </button>
-                                        <a href="<?php echo URL::site('prx212_storage/file/'.$file->id); ?>"
+                                        <a href="<?php echo URL::site('prx212_file_storage/file/'.$file->id); ?>"
                                            class="prx-btn-icon"
                                            title="Просмотр">
                                             <i class="fas fa-eye"></i>
@@ -188,7 +188,7 @@
                                            title="Скачать">
                                             <i class="fas fa-download"></i>
                                         </a>
-                                        <a href="<?php echo URL::site('/prx212_storage/edit/'.$file->id); ?>"
+                                        <a href="<?php echo URL::site('/prx212_file_storage/edit/'.$file->id); ?>"
                                            class="prx-btn-icon"
                                            title="Редактировать">
                                             <i class="fas fa-edit"></i>

@@ -20,3 +20,13 @@ Route::set('prx101_architecture', 'architecture')
         'controller' => 'Architecture',
         'action'     => 'index',
     ]);
+
+// Канонический адрес главной модуля (префикс+слаг): /prx101_architecture.
+// Короткий URL выше остаётся рабочим алиасом.
+Route::set('prx101_architecture_home', 'prx101_architecture')
+
+    ->defaults([
+        'directory'  => 'Prx101',
+        'controller' => 'Architecture',
+        'action'     => 'index',
+    ]);

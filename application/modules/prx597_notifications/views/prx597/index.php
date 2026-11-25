@@ -78,7 +78,7 @@ $chip = function ($key) use ($binding) {
 		<i class="fas fa-bell-slash shrink-0"></i>
 		<span class="min-w-0 flex-1">На сайте уведомления видны всегда, а письма и мессенджеры выключены — так у всех по умолчанию. Включите нужное, если хотите получать их вне сайта.</span>
 		<?php if ($tab !== 'settings'): ?>
-		<a href="/prx597?tab=settings" class="prx-btn-secondary prx-btn-sm shrink-0">Настроить</a>
+		<a href="/prx597_notifications?tab=settings" class="prx-btn-secondary prx-btn-sm shrink-0">Настроить</a>
 		<?php endif; ?>
 	</div>
 	<?php endif; ?>
@@ -86,7 +86,7 @@ $chip = function ($key) use ($binding) {
 	<!-- ================= вкладки ================= -->
 	<div class="mt-4 flex gap-1 border-b border-gray-200 dark:border-gray-700">
 		<?php foreach (['feed' => ['fas fa-list', 'Лента'], 'settings' => ['fas fa-sliders', 'Настройки']] as $key => $info): ?>
-		<a href="/prx597?tab=<?php echo $key; ?>" class="inline-flex min-h-[40px] items-center gap-2 border-b-2 px-3 text-sm font-semibold transition <?php echo $tab === $key ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400'; ?>">
+		<a href="/prx597_notifications?tab=<?php echo $key; ?>" class="inline-flex min-h-[40px] items-center gap-2 border-b-2 px-3 text-sm font-semibold transition <?php echo $tab === $key ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400'; ?>">
 			<i class="<?php echo $info[0]; ?>"></i><?php echo $info[1]; ?>
 		</a>
 		<?php endforeach; ?>

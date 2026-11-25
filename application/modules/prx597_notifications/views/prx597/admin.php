@@ -52,7 +52,7 @@ $badge = function ($status) {
 				<input type="hidden" name="tab" value="<?php echo HTML::chars($tab); ?>">
 				<button type="submit" class="prx-btn-process prx-btn-sm"><i class="fas fa-play mr-1.5"></i>Доставить сейчас</button>
 			</form>
-			<a href="/prx597" class="prx-btn-secondary prx-btn-sm"><i class="fas fa-bell mr-1.5"></i>Мои уведомления</a>
+			<a href="/prx597_notifications" class="prx-btn-secondary prx-btn-sm"><i class="fas fa-bell mr-1.5"></i>Мои уведомления</a>
 		</div>
 	</div>
 

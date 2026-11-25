@@ -24,6 +24,15 @@ Route::set('prx110_catalog_page', 'services')
         'action'     => 'index',
     ]);
 
+// Канонический адрес главной модуля (префикс+слаг): /prx110_catalog.
+// Короткий URL выше остаётся рабочим алиасом.
+Route::set('prx110_catalog_home', 'prx110_catalog')
+
+    ->defaults([
+        'controller' => 'Prx110_Catalog',
+        'action'     => 'index',
+    ]);
+
 Route::set('prx110_catalog_api', 'prx110/api(/<action>)')
     ->defaults([
         'controller' => 'Prx110_Api',

@@ -96,7 +96,7 @@
                 <p class="mt-3 break-all text-sm font-semibold text-gray-900 dark:text-white"><?php echo HTML::chars($user->username); ?></p>
                 <p class="break-all text-sm text-gray-500 dark:text-gray-400"><?php echo HTML::chars($user->email); ?></p>
                 <p class="prx-hint mt-3">Сопоставление аккаунта и сотрудника хранится отдельно и может быть отозвано HR без изменения Auth-профиля.</p>
-                <a href="/account/security" class="prx-btn-secondary mt-4"><i class="fas fa-shield-halved"></i>Безопасность и сессии</a>
+                <a href="/prx599_account" class="prx-btn-secondary mt-4"><i class="fas fa-shield-halved"></i>Безопасность и сессии</a>
             </section>
         </aside>
     </div>

@@ -14,7 +14,7 @@ return [
     'kind' => 'module',
     'status' => 'stable',
     'acl' => 'prx120.monitor',
-    'href' => '/prx120/monitor',
+    'href' => '/prx120_jobs',
     'icon' => 'fas fa-list-check',
     'group' => 'Платформа',
     'audience' => 'admin',
@@ -76,7 +76,7 @@ return [
         'prx_120_jobs' => [
             'label' => 'prx120 · задача очереди',
             'code'  => "id::text",   // SQL-выражение «кода» записи
-            'href'  => '/prx120/monitor',
+            'href'  => '/prx120_jobs',
         ],
     ],
 ];

@@ -10,6 +10,12 @@ Route::set('prx393_workflow_recalc', 'sla/recalc')
 Route::set('prx393_workflow', 'sla')
     ->defaults(['controller' => 'Prx393_Sla', 'action' => 'index']);
 
+// Канонический адрес главной модуля (префикс+слаг): /prx393_workflow.
+// Короткий URL выше остаётся рабочим алиасом.
+Route::set('prx393_workflow_home', 'prx393_workflow')
+
+    ->defaults(['controller' => 'Prx393_Sla', 'action' => 'index']);
+
 // Документ зарегистрирован — назначаем маршрут и срок. Слушатель здесь, а не
 // в prx391: реестр не должен зависеть от того, включён ли контроль сроков.
 Event::listen('prx391.document.registered', function ($payload, $event_name, $initiator_id) {

@@ -11,6 +11,15 @@ Route::set('prx599_security', 'account/security')
         'action'     => 'index',
     ]);
 
+// Канонический адрес главной модуля (префикс+слаг): /prx599_account.
+// Короткий URL выше остаётся рабочим алиасом.
+Route::set('prx599_account_home', 'prx599_account')
+
+    ->defaults([
+        'controller' => 'Prx599_Security',
+        'action'     => 'index',
+    ]);
+
 Route::set('prx599_2fa', 'auth/2fa')
     ->defaults([
         'controller' => 'Prx599_2fa',

@@ -114,7 +114,7 @@ $next = [
             <div class="prx-card">
                 <p class="text-sm font-bold text-gray-900 dark:text-white"><i class="fas <?php echo HTML::chars($branch[0]); ?> mr-2 text-amber-600 dark:text-amber-400" aria-hidden="true"></i><?php echo HTML::chars($branch[1]); ?></p>
                 <p class="mt-1 text-sm text-gray-600 dark:text-gray-300"><?php echo $branch[2]; ?></p>
-                <p class="prx-hint mt-2"><i class="fas fa-eye mr-1" aria-hidden="true"></i>Посмотреть вживую: <a class="prx-link" href="/prx120/monitor">очередь</a> · <a class="prx-link" href="/prx208_events">события</a> · <a class="prx-link" href="/prx597/admin">уведомления</a> · <a class="prx-link" href="/prx100/logs">логи</a></p>
+                <p class="prx-hint mt-2"><i class="fas fa-eye mr-1" aria-hidden="true"></i>Посмотреть вживую: <a class="prx-link" href="/prx120_jobs">очередь</a> · <a class="prx-link" href="/prx208_events">события</a> · <a class="prx-link" href="/prx597/admin">уведомления</a> · <a class="prx-link" href="/prx100/logs">логи</a></p>
             </div>
             <?php endforeach; ?>
         </div>

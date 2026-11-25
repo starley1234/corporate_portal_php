@@ -6,7 +6,7 @@
             <nav class="flex mb-2" aria-label="Breadcrumb">
                 <ol class="inline-flex items-center space-x-1 md:space-x-3">
                     <li class="inline-flex items-center">
-                        <a href="<?php echo Route::url('default', ['controller' => 'prx212_storage', 'action' => 'index']); ?>" class="text-sm text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white">
+                        <a href="<?php echo Route::url('default', ['controller' => 'prx212_file_storage', 'action' => 'index']); ?>" class="text-sm text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white">
                             <i class="fas fa-folder-open mr-2"></i>Хранилище
                         </a>
                     </li>
@@ -29,7 +29,7 @@
                 <i class="fas fa-download mr-2"></i> Скачать
             </a>
             <?php if ($file->can_write(Auth::instance()->get_user()->id)): ?>
-                <a href="/prx212_storage/edit/<?php echo HTML::chars($file->id); ?>" class="prx-btn-secondary">
+                <a href="/prx212_file_storage/edit/<?php echo HTML::chars($file->id); ?>" class="prx-btn-secondary">
                     <i class="fas fa-edit mr-2"></i> Редактировать
                 </a>
                 <button type="button" onclick="deleteFile(<?php echo $file->id; ?>)" data-prx-confirm="Файл удалится из хранилища." data-prx-title="Удалить файл?" class="prx-btn-danger-soft">
@@ -184,7 +184,7 @@ function deleteFile(id) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            window.location.href = '<?php echo Route::url('default', ['controller' => 'prx212_storage', 'action' => 'index']); ?>';
+            window.location.href = '<?php echo Route::url('default', ['controller' => 'prx212_file_storage', 'action' => 'index']); ?>';
         } else {
             PRX.toast(data.error || 'Не удалось удалить файл', 0, 'err');
         }
@@ -195,6 +195,6 @@ function deleteFile(id) {
 function manageAccess(id) {
     // В данной реализации перенаправляем на страницу управления правами или открываем модальное окно
     // Для примера реализуем переход на контроллер управления
-    window.location.href = '/prx212_storage/permissions/' + id;
+    window.location.href = '/prx212_file_storage/permissions/' + id;
 }
 </script>

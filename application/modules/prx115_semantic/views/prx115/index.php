@@ -122,7 +122,7 @@ $found_html = function (array $s_row) {
             <div class="prx-card">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <h2 class="prx-h3">Индексация</h2>
-                    <a href="/prx120/monitor" class="text-sm font-semibold text-emerald-600 hover:underline dark:text-emerald-400">Монитор воркеров →</a>
+                    <a href="/prx120_jobs" class="text-sm font-semibold text-emerald-600 hover:underline dark:text-emerald-400">Монитор воркеров →</a>
                 </div>
                 <?php echo View::factory('partials/live_status', [
                     'url'   => '/prx115/api/status',

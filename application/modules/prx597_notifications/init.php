@@ -49,3 +49,12 @@ Route::set('prx597_page', 'prx597')
         'controller' => 'Prx597_Notifications',
         'action'     => 'index',
     ]);
+
+// Канонический адрес главной модуля (префикс+слаг): /prx597_notifications.
+// Короткий URL выше остаётся рабочим алиасом.
+Route::set('prx597_notifications_home', 'prx597_notifications')
+
+    ->defaults([
+        'controller' => 'Prx597_Notifications',
+        'action'     => 'index',
+    ]);

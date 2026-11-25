@@ -14,7 +14,7 @@ return [
     'kind' => 'module',
     'status' => 'stable',
     'acl' => 'prx115.admin',
-    'href' => '/prx115',
+    'href' => '/prx115_semantic',
     'icon' => 'fas fa-brain',
     'group' => 'Платформа',
     'audience' => 'admin',

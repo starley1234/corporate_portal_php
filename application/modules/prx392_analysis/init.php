@@ -15,3 +15,9 @@ Route::set('prx392_analysis_reject', 'analysis/reject/<id>', ['id' => '\d+'])
     ->defaults(['controller' => 'Prx392_Analysis', 'action' => 'reject']);
 Route::set('prx392_analysis', 'analysis')
     ->defaults(['controller' => 'Prx392_Analysis', 'action' => 'index']);
+
+// Канонический адрес главной модуля (префикс+слаг): /prx392_analysis.
+// Короткий URL выше остаётся рабочим алиасом.
+Route::set('prx392_analysis_home', 'prx392_analysis')
+
+    ->defaults(['controller' => 'Prx392_Analysis', 'action' => 'index']);

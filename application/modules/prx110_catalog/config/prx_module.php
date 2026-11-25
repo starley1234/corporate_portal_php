@@ -13,7 +13,7 @@ return [
     'kind' => 'module',
     'status' => 'stable',
     'acl' => 'portal.access',
-    'href' => '/services',
+    'href' => '/prx110_catalog',
     'icon' => 'fas fa-grip',
     'group' => 'Платформа',
     'audience' => 'auth',

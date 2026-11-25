@@ -19,7 +19,7 @@ $card = 'rounded-xl border border-gray-200 bg-white p-4 shadow-xs dark:border-gr
             Что делает каждый обработчик фоновых задач — на человеческом языке, со схемами.
             Страница собирается прямо из кода воркера (workers/prx_workers/handlers), поэтому
             описания и схемы всегда соответствуют тому, что реально запускается.
-            Живое состояние очереди — <a href="/prx120/monitor" class="font-semibold text-blue-600 hover:underline dark:text-blue-400">монитор воркеров</a>.
+            Живое состояние очереди — <a href="/prx120_jobs" class="font-semibold text-blue-600 hover:underline dark:text-blue-400">монитор воркеров</a>.
         </p>
         <?php if ($dir === ''): ?>
         <p class="prx-flash prx-flash-warn mt-3 block">

@@ -19,6 +19,15 @@ Route::set('prx115_page', 'prx115(/<action>)')
         'action'     => 'index',
     ]);
 
+// Канонический адрес главной модуля (префикс+слаг): /prx115_semantic.
+// Короткий URL выше остаётся рабочим алиасом.
+Route::set('prx115_semantic_home', 'prx115_semantic')
+
+    ->defaults([
+        'controller' => 'Prx115_Page',
+        'action'     => 'index',
+    ]);
+
 // --- Очередь -------------------------------------------------------------------
 // Канал semantic.index обрабатывает python-воркер (workers/, режим pg):
 // получает векторы с эмбеддинг-сервера и пишет их в prx_115_vectors.

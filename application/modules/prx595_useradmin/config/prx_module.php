@@ -13,7 +13,7 @@ return [
     'kind' => 'module',
     'status' => 'stable',
     'acl' => 'prx595.users.admin',
-    'href' => '/prx595/admin',
+    'href' => '/prx595_useradmin',
     'icon' => 'fas fa-users-gear',
     'group' => 'Платформа',
     'audience' => 'admin',

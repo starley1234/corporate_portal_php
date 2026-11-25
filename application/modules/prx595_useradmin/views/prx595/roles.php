@@ -8,7 +8,7 @@
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
 
     <nav class="flex items-center overflow-x-auto whitespace-nowrap text-xs text-gray-500 dark:text-gray-400" aria-label="Хлебные крошки">
-        <a href="/prx595/admin" class="transition hover:text-blue-600 dark:hover:text-blue-400">Пользователи</a>
+        <a href="/prx595_useradmin" class="transition hover:text-blue-600 dark:hover:text-blue-400">Пользователи</a>
         <span class="mx-1.5 text-gray-300 dark:text-gray-600">/</span>
         <span class="font-medium text-gray-700 dark:text-gray-200">Роли</span>
     </nav>

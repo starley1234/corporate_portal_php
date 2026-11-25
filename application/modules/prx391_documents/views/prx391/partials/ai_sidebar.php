@@ -20,8 +20,8 @@
     <div class="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
         <?php if (!empty($progress['found'])): ?>
         <span>Прогон #<?php echo (int) $progress['run_id']; ?></span>
-        <a href="/prx120/monitor" class="prx-link">Монитор очереди</a>
+        <a href="/prx120_jobs" class="prx-link">Монитор очереди</a>
         <?php endif; ?>
-        <a href="/analysis" class="prx-link">Все предложения</a>
+        <a href="/prx392_analysis" class="prx-link">Все предложения</a>
     </div>
 </section>

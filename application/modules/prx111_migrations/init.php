@@ -22,6 +22,16 @@ Route::set('prx111_migrations', 'migrate_pg')
         'directory'  => 'Prx111',
     ));
 
+// Канонический адрес главной модуля (префикс+слаг): /prx111_migrations.
+// Короткий URL выше остаётся рабочим алиасом.
+Route::set('prx111_migrations_home', 'prx111_migrations')
+
+    ->defaults(array(
+        'controller' => 'Migrate',
+        'action'     => 'index',
+        'directory'  => 'Prx111',
+    ));
+
 // JSON API: состояние схемы доступно машинам (доступ — право prx111.view)
 Route::set('prx111_api', 'migrate_pg/api/<action>')
     ->defaults(array(

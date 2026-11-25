@@ -17,3 +17,12 @@ Route::set('prx595_admin', 'prx595/admin(/<action>(/<id>))')
         'controller' => 'Prx595_Admin',
         'action'     => 'index',
     ]);
+
+// Канонический адрес главной модуля (префикс+слаг): /prx595_useradmin.
+// Короткий URL выше остаётся рабочим алиасом.
+Route::set('prx595_useradmin_home', 'prx595_useradmin')
+
+    ->defaults([
+        'controller' => 'Prx595_Admin',
+        'action'     => 'index',
+    ]);

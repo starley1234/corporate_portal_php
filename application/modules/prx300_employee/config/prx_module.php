@@ -6,7 +6,7 @@ return [
     'title' => 'Мой профиль сотрудника',
     'short' => 'Рабочий профиль, структура организации и справочник коллег своей организации',
     'icon' => 'fas fa-id-card',
-    'href' => '/employee',
+    'href' => '/prx300_employee',
     'group' => 'HR и развитие персонала',
     'sort' => 300,
     'status' => 'stable',

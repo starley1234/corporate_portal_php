@@ -13,7 +13,7 @@ return [
     'kind' => 'module',
     'status' => 'stable',
     'acl' => 'prx100.admin',
-    'href' => '/admin',
+    'href' => '/prx103_platform',
     'icon' => 'fas fa-gears',
     'group' => 'Платформа',
     'audience' => 'admin',

@@ -1,5 +1,5 @@
 <?php defined('SYSPATH') or die('No direct script access.');
-$storage_url = URL::site('prx212_storage');
+$storage_url = URL::site('prx212_file_storage');
 ?>
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">

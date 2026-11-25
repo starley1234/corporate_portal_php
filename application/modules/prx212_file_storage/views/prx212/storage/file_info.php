@@ -3,7 +3,7 @@
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
     <?php echo View::factory('partials/page_header', [
-        'crumbs' => [['Файлы', '/prx212_storage'], ['Сведения о файле']],
+        'crumbs' => [['Файлы', '/prx212_file_storage'], ['Сведения о файле']],
         'title'  => 'Сведения о файле',
         'pill'   => ['prx212 · хранилище', 'fa-file-lines'],
         'lead'   => 'Метаданные файла, права доступа и ссылки для работы с ним.',

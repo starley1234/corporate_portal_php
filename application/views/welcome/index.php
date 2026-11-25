@@ -29,7 +29,7 @@
                     <a class="prx-btn-secondary" href="<?php echo HTML::chars($link['href']); ?>"><?php echo HTML::chars($link['title']); ?></a>
                 <?php endforeach; ?>
                 <?php if ($can_monitor): ?>
-                    <a class="prx-btn-secondary" href="/prx120/monitor">Монитор воркеров</a>
+                    <a class="prx-btn-secondary" href="/prx120_jobs">Монитор воркеров</a>
                 <?php endif; ?>
             </div>
         </div>

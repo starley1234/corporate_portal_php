@@ -44,6 +44,15 @@ Route::set('prx100_admin', 'admin')
         'action'     => 'index',
     ]);
 
+// Канонический адрес главной модуля (префикс+слаг): /prx103_platform.
+// Короткий URL выше остаётся рабочим алиасом.
+Route::set('prx103_platform_home', 'prx103_platform')
+
+    ->defaults([
+        'controller' => 'Prx103_Admin',
+        'action'     => 'index',
+    ]);
+
 // /admin_index — исторический адрес из меню профиля («Панель управления»);
 // до 25.10.2026 вёл в 404. Та же страница, что и /admin.
 Route::set('prx100_admin_index', 'admin_index')

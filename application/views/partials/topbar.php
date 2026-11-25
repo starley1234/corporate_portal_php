@@ -226,7 +226,7 @@
                         <div id="prx597-list" class="max-h-80 overflow-y-auto">
                             <p class="px-4 py-6 text-center text-xs text-gray-400">Загружаю…</p>
                         </div>
-                        <a href="/prx597" class="block border-t border-gray-100 px-4 py-2.5 text-center text-xs font-semibold text-blue-600 transition hover:bg-gray-50 dark:border-gray-700/60 dark:text-blue-400 dark:hover:bg-gray-700/40">Все уведомления и настройки</a>
+                        <a href="/prx597_notifications" class="block border-t border-gray-100 px-4 py-2.5 text-center text-xs font-semibold text-blue-600 transition hover:bg-gray-50 dark:border-gray-700/60 dark:text-blue-400 dark:hover:bg-gray-700/40">Все уведомления и настройки</a>
                     </div>
                 </div>
                 <script>
@@ -381,16 +381,16 @@
                                     <a href="/admin" class="flex items-center px-3 py-2.5 text-sm rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-amber-600 dark:text-amber-400 transition-colors">
                                         <i class="fas fa-screwdriver-wrench mr-3"></i> Панель управления
                                     </a>
-                                    <a href="/prx595/admin" class="flex items-center px-3 py-2.5 text-sm rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-amber-600 dark:text-amber-400 transition-colors">
+                                    <a href="/prx595_useradmin" class="flex items-center px-3 py-2.5 text-sm rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-amber-600 dark:text-amber-400 transition-colors">
                                         <i class="fas fa-users-gear mr-3"></i> Пользователи и роли
                                     </a>
                                     <a href="/prx595/admin/activity" class="flex items-center px-3 py-2.5 text-sm rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-amber-600 dark:text-amber-400 transition-colors">
                                         <i class="fas fa-chart-line mr-3"></i> Активность системы
                                     </a>
-                                    <a href="/prx120/monitor" class="flex items-center px-3 py-2.5 text-sm rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-amber-600 dark:text-amber-400 transition-colors">
+                                    <a href="/prx120_jobs" class="flex items-center px-3 py-2.5 text-sm rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-amber-600 dark:text-amber-400 transition-colors">
                                         <i class="fas fa-heart-pulse mr-3"></i> Воркеры · монитор
                                     </a>
-                                	<a href="/migrate_pg" class="flex items-center px-3 py-2.5 text-sm rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-amber-600 dark:text-amber-400 transition-colors">
+                                	<a href="/prx111_migrations" class="flex items-center px-3 py-2.5 text-sm rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 text-amber-600 dark:text-amber-400 transition-colors">
                                         <i class="fas fa-database mr-3"></i> Миграции PG
                                     </a>
                                 <?php endif; ?>

@@ -126,7 +126,7 @@
                         </tr>
                     <?php endforeach; ?>
                     <?php if (empty($rows)): ?>
-                        <tr><td colspan="7" class="text-center text-gray-500 dark:text-gray-400">Документы не найдены. Начните с <a class="text-blue-600 hover:underline dark:text-blue-400" href="/inbox">приёма PDF</a>.</td></tr>
+                        <tr><td colspan="7" class="text-center text-gray-500 dark:text-gray-400">Документы не найдены. Начните с <a class="text-blue-600 hover:underline dark:text-blue-400" href="/prx390_intake">приёма PDF</a>.</td></tr>
                     <?php endif; ?>
                     </tbody>
                 </table>
@@ -151,7 +151,7 @@
                     <div class="flex items-center justify-between"><dt class="text-gray-600 dark:text-gray-300">Без исполнителя</dt><dd class="font-bold"><?php echo (int) $stats['unassigned']; ?></dd></div>
                     <div class="flex items-center justify-between"><dt class="text-gray-600 dark:text-gray-300">Поступило сегодня</dt><dd class="font-bold"><?php echo (int) $stats['today']; ?></dd></div>
                 </dl>
-                <a href="/sla" class="prx-btn-secondary mt-4 w-full justify-center">Открыть сроки</a>
+                <a href="/prx393_workflow" class="prx-btn-secondary mt-4 w-full justify-center">Открыть сроки</a>
             </section>
 
             <section class="prx-card">

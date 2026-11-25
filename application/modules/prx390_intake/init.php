@@ -18,6 +18,12 @@ Route::set('prx390_intake_retry', 'inbox/retry/<id>', ['id' => '\d+'])
 Route::set('prx390_intake', 'inbox')
     ->defaults(['controller' => 'Prx390_Inbox', 'action' => 'index']);
 
+// Канонический адрес главной модуля (префикс+слаг): /prx390_intake.
+// Короткий URL выше остаётся рабочим алиасом.
+Route::set('prx390_intake_home', 'prx390_intake')
+
+    ->defaults(['controller' => 'Prx390_Inbox', 'action' => 'index']);
+
 /**
  * Текст распознан — регистрируем документ в реестре. Слушатель в prx390,
  * а не в prx391: событие принадлежит владельцу конверта, а получатель может

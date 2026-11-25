@@ -45,7 +45,7 @@ $fmt = static function ($ts): string {
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
 
     <nav class="flex items-center overflow-x-auto whitespace-nowrap text-xs text-gray-500 dark:text-gray-400" aria-label="Хлебные крошки">
-        <a href="/prx120/monitor" class="transition hover:text-emerald-600 dark:hover:text-emerald-400">Монитор воркеров</a>
+        <a href="/prx120_jobs" class="transition hover:text-emerald-600 dark:hover:text-emerald-400">Монитор воркеров</a>
         <span class="mx-1.5 text-gray-300 dark:text-gray-600">/</span>
         <span class="font-semibold text-gray-700 dark:text-gray-300">Задача #<?php echo (int) $job_id; ?></span>
     </nav>

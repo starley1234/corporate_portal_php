@@ -1,7 +1,7 @@
 <?php defined('SYSPATH') or die('No direct script access.'); ?>
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
     <?php echo View::factory('partials/page_header', [
-        'crumbs' => [['Мой профиль', '/employee'], ['Справочник сотрудников']],
+        'crumbs' => [['Мой профиль', '/prx300_employee'], ['Справочник сотрудников']],
         'title' => 'Справочник сотрудников',
         'pill' => [number_format((int) $result['total'], 0, ',', ' ').' сотрудников', 'fa-users'],
         'lead' => 'Только рабочие сведения коллег, доступных в вашем организационном контексте. Табельные номера, даты найма и внешние идентификаторы здесь не показываются.',

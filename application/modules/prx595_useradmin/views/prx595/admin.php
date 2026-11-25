@@ -25,10 +25,10 @@ $role_badge = function ($name) {
     <?php endif; ?>
 
     <div class="mt-4 flex flex-wrap items-center gap-2 text-xs font-semibold">
-        <a href="/prx595/admin" class="prx-btn-sm <?php echo ($show ?? 'active') === 'active' ? 'prx-btn-cta' : 'prx-btn-secondary'; ?>">
+        <a href="/prx595_useradmin" class="prx-btn-sm <?php echo ($show ?? 'active') === 'active' ? 'prx-btn-cta' : 'prx-btn-secondary'; ?>">
             <i class="fas fa-users mr-1"></i>Активные
         </a>
-        <a href="/prx595/admin?show=inactive" class="prx-btn-sm <?php echo ($show ?? 'active') === 'inactive' ? 'prx-btn-cta' : 'prx-btn-secondary'; ?>">
+        <a href="/prx595_useradmin?show=inactive" class="prx-btn-sm <?php echo ($show ?? 'active') === 'inactive' ? 'prx-btn-cta' : 'prx-btn-secondary'; ?>">
             <i class="fas fa-user-slash mr-1"></i>Деактивированные
         </a>
     </div>
@@ -104,9 +104,9 @@ $role_badge = function ($name) {
 
             <?php if ($total > $per): ?>
             <div class="mt-3 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-                <?php if ($page > 1): ?><a class="prx-btn-secondary" href="/prx595/admin?<?php echo http_build_query(['q' => $q, 'page' => $page - 1]); ?>">← новее</a><?php else: ?><span></span><?php endif; ?>
+                <?php if ($page > 1): ?><a class="prx-btn-secondary" href="/prx595_useradmin?<?php echo http_build_query(['q' => $q, 'page' => $page - 1]); ?>">← новее</a><?php else: ?><span></span><?php endif; ?>
                 <span>стр. <?php echo (int) $page; ?> из <?php echo (int) ceil($total / $per); ?></span>
-                <?php if ($page * $per < $total): ?><a class="prx-btn-secondary" href="/prx595/admin?<?php echo http_build_query(['q' => $q, 'page' => $page + 1]); ?>">старее →</a><?php else: ?><span></span><?php endif; ?>
+                <?php if ($page * $per < $total): ?><a class="prx-btn-secondary" href="/prx595_useradmin?<?php echo http_build_query(['q' => $q, 'page' => $page + 1]); ?>">старее →</a><?php else: ?><span></span><?php endif; ?>
             </div>
             <?php endif; ?>
         </div>

@@ -62,7 +62,7 @@
                     </div>
                     <div class="flex items-end gap-2">
                         <button class="prx-btn-process" type="submit"><i class="fas fa-filter"></i>Применить</button>
-                        <a class="prx-btn-secondary" href="/inbox">Сбросить</a>
+                        <a class="prx-btn-secondary" href="/prx390_intake">Сбросить</a>
                     </div>
                 </div>
             </form>
@@ -171,7 +171,7 @@
 
             <section class="prx-card">
                 <h2 class="text-base font-semibold text-gray-900 dark:text-white"><i class="fas fa-circle-info mr-2 text-blue-500"></i>Что дальше</h2>
-                <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">После текста документ автоматически появляется в <a class="text-blue-600 hover:underline dark:text-blue-400" href="/prx391_documents">реестре</a>. Разбор ИИ запускается в карточке или на странице <a class="text-blue-600 hover:underline dark:text-blue-400" href="/analysis">ИИ-разбор</a>.</p>
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">После текста документ автоматически появляется в <a class="text-blue-600 hover:underline dark:text-blue-400" href="/prx391_documents">реестре</a>. Разбор ИИ запускается в карточке или на странице <a class="text-blue-600 hover:underline dark:text-blue-400" href="/prx392_analysis">ИИ-разбор</a>.</p>
             </section>
         </aside>
     </div>

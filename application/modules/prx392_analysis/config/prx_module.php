@@ -12,7 +12,7 @@ return [
     'title' => 'ИИ-анализ входящих',
     'short' => 'Тип, реквизиты, краткое содержание и риски — предложениями, не приказом',
     'icon' => 'fas fa-wand-magic-sparkles',
-    'href' => '/analysis',
+    'href' => '/prx392_analysis',
     'group' => 'Документооборот',
     'sort' => 392,
     'status' => 'beta',

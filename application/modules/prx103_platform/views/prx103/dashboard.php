@@ -34,8 +34,8 @@
         </div>
         <nav class="flex flex-wrap gap-2.5 p-5" aria-label="Аккаунт">
             <a class="prx-btn-secondary" href="/auth/profile"><i class="fas fa-id-card"></i> Профиль аккаунта</a>
-            <a class="prx-btn-secondary" href="/account/security"><i class="fas fa-shield-halved"></i> Безопасность и сессии</a>
-            <a class="prx-btn-secondary" href="/prx597"><i class="fas fa-bell"></i> Уведомления</a>
+            <a class="prx-btn-secondary" href="/prx599_account"><i class="fas fa-shield-halved"></i> Безопасность и сессии</a>
+            <a class="prx-btn-secondary" href="/prx597_notifications"><i class="fas fa-bell"></i> Уведомления</a>
             <a class="prx-btn-secondary" href="/tasks"><i class="fas fa-list-check"></i> Мои фоновые задачи</a>
             <?php if ($is_admin): ?><a class="prx-btn-secondary" href="/admin"><i class="fas fa-screwdriver-wrench"></i> Администрирование</a><?php endif; ?>
         </nav>

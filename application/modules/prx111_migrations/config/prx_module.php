@@ -13,7 +13,7 @@ return [
     'kind' => 'module',
     'status' => 'stable',
     'acl' => 'prx111.view',
-    'href' => '/migrate_pg',
+    'href' => '/prx111_migrations',
     'icon' => 'fas fa-database',
     'group' => 'Платформа',
     'audience' => 'admin',

@@ -14,7 +14,7 @@ return [
     'title'     => 'Архитектура',
     'short'     => 'Схемы, слои, модули и решения портала: YAML как источник истины, страница и JSON собираются одной командой',
     'icon'      => 'fas fa-sitemap',
-    'href'      => '/architecture',
+    'href'      => '/prx101_architecture',
     'group'     => 'Платформа',
     'sort'      => 105,
     'status'    => 'beta',

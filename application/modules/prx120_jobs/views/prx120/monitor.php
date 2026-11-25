@@ -125,7 +125,7 @@ $v = $verdict[$health['verdict']] ?? $verdict['idle'];
             <p class="mt-1 text-2xl font-black text-gray-900 dark:text-white"><?php echo $c($health['done_24h']); ?></p>
             <?php if ($health['avg_ms_24h'] !== NULL): ?><p class="prx-hint mt-0.5">ср. время <?php echo $c(($health['avg_ms_24h'] / 1000)); ?> с</p><?php endif; ?>
         </div>
-        <a href="/prx120/monitor?p=failed" class="prx-card transition hover:border-rose-300 dark:hover:border-rose-800">
+        <a href="/prx120_jobs?p=failed" class="prx-card transition hover:border-rose-300 dark:hover:border-rose-800">
             <p class="text-xs font-semibold uppercase text-gray-400">Ошибки за 24 ч</p>
             <p class="mt-1 text-2xl font-black <?php echo $health['failed_24h'] > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-gray-900 dark:text-white'; ?>"><?php echo $c($health['failed_24h']); ?></p>
         </a>
@@ -164,9 +164,9 @@ $v = $verdict[$health['verdict']] ?? $verdict['idle'];
     </div>
 
     <div id="njmon-filters" class="prx-seg mt-4 flex-wrap gap-1">
-        <a href="/prx120/monitor" class="prx-seg-item<?php echo $p === '' ? ' is-active' : ''; ?>">Все</a>
+        <a href="/prx120_jobs" class="prx-seg-item<?php echo $p === '' ? ' is-active' : ''; ?>">Все</a>
         <?php foreach ($st as $k => [$label, $cls]): ?>
-        <a href="/prx120/monitor?p=<?php echo $k; ?>" class="prx-seg-item<?php echo $p === $k ? ' is-active' : ''; ?>"><?php echo $label; ?> (<?php echo $c($health['counts'][$k] ?? 0); ?>)</a>
+        <a href="/prx120_jobs?p=<?php echo $k; ?>" class="prx-seg-item<?php echo $p === $k ? ' is-active' : ''; ?>"><?php echo $label; ?> (<?php echo $c($health['counts'][$k] ?? 0); ?>)</a>
         <?php endforeach; ?>
     </div>
 

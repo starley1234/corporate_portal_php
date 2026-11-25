@@ -63,7 +63,7 @@
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                     <div class="flex justify-end gap-2">
-                                        <a href="<?php echo Route::url('default', ['controller' => 'prx212_storage', 'action' => 'file', 'id' => $file->id]); ?>"
+                                        <a href="<?php echo Route::url('default', ['controller' => 'prx212_file_storage', 'action' => 'file', 'id' => $file->id]); ?>"
                                            class="prx-btn-icon"
                                            title="Просмотр">
                                             <i class="fas fa-eye"></i>

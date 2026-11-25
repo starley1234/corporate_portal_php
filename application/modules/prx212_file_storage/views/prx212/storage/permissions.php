@@ -5,14 +5,14 @@
         <nav class="flex mb-2" aria-label="Breadcrumb">
             <ol class="inline-flex items-center space-x-1 md:space-x-3">
                 <li class="inline-flex items-center">
-                    <a href="<?php echo Route::url('default', ['controller' => 'prx212_storage', 'action' => 'index']); ?>" class="text-sm text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white">
+                    <a href="<?php echo Route::url('default', ['controller' => 'prx212_file_storage', 'action' => 'index']); ?>" class="text-sm text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white">
                         <i class="fas fa-folder-open mr-2"></i>Хранилище
                     </a>
                 </li>
                 <li>
                     <div class="flex items-center">
                         <i class="fas fa-chevron-right text-gray-400 text-xs mx-2"></i>
-                        <a href="<?php echo Route::url('default', ['controller' => 'prx212_storage', 'action' => 'file', 'id' => $file->id]); ?>" class="text-sm text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white">
+                        <a href="<?php echo Route::url('default', ['controller' => 'prx212_file_storage', 'action' => 'file', 'id' => $file->id]); ?>" class="text-sm text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white">
                             <?php echo HTML::chars($file->filename); ?>
                         </a>
                     </div>

@@ -11,7 +11,7 @@
                 Изменение метаданных и параметров доступа для файла #<?php echo $file->id; ?>
             </p>
         </div>
-        <a href="<?php echo Route::url('default', ['controller' => 'prx212_storage', 'action' => 'file', 'id' => $file->id]); ?>"
+        <a href="<?php echo Route::url('default', ['controller' => 'prx212_file_storage', 'action' => 'file', 'id' => $file->id]); ?>"
            class="prx-btn-secondary">
             <i class="fas fa-arrow-left mr-2"></i> К информации
         </a>

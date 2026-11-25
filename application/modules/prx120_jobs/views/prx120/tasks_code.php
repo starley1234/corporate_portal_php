@@ -61,7 +61,7 @@ $latest_status = $latest ? (string) $latest['status'] : '';
             <i class="fas fa-arrow-up-right-from-square text-[11px]"></i>Открыть результат
         </a>
         <?php endif; ?>
-        <a href="/prx120/monitor" class="prx-btn-secondary prx-btn-sm">
+        <a href="/prx120_jobs" class="prx-btn-secondary prx-btn-sm">
             Монитор воркеров
         </a>
     </div>
