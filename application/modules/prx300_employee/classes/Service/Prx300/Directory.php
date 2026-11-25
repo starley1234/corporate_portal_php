@@ -42,8 +42,15 @@ class Service_Prx300_Directory extends Service_Prx300_Store
         $per_page = max(1, min(100, (int) ($filters['per_page'] ?? self::_config('directory.page_size', 50))));
         $offset = ($page - 1) * $per_page;
         $statuses = Policy_Prx300_Employee::directoryStatuses();
+        $params = [];
+        $status_list = [];
+        foreach ($statuses as $i => $status)
+        {
+            $params[':status'.$i] = (string) $status;
+            $status_list[] = ':status'.$i;
+        }
 
-        $where = ['e.employment_status IN ('.self::_in($statuses).')'];
+        $where = ['e.employment_status IN ('.implode(', ', $status_list).')'];
         if ($organization_id !== NULL)
         {
             $where[] = 'e.organization_id = '.(int) $organization_id;
@@ -60,12 +67,12 @@ class Service_Prx300_Directory extends Service_Prx300_Store
         $q = trim((string) ($filters['q'] ?? ''));
         if ($q !== '')
         {
-            $like = self::_q('%'.mb_strtolower(self::_escape_like($q)).'%');
-            $where[] = "(lower(e.last_name || ' ' || e.first_name || ' ' || e.middle_name) LIKE {$like}
-                      OR lower(e.work_email) LIKE {$like}
-                      OR lower(e.position_title) LIKE {$like}
-                      OR lower(COALESCE(d.name, '')) LIKE {$like}
-                      OR lower(COALESCE(s.name, '')) LIKE {$like})";
+            $params[':like'] = '%'.mb_strtolower(self::_escape_like($q)).'%';
+            $where[] = "(lower(e.last_name || ' ' || e.first_name || ' ' || e.middle_name) LIKE :like
+                      OR lower(e.work_email) LIKE :like
+                      OR lower(e.position_title) LIKE :like
+                      OR lower(COALESCE(d.name, '')) LIKE :like
+                      OR lower(COALESCE(s.name, '')) LIKE :like)";
         }
 
         $where_sql = implode(' AND ', $where);
@@ -74,9 +81,9 @@ class Service_Prx300_Directory extends Service_Prx300_Store
                   LEFT JOIN prx_300_departments d ON d.id = e.department_id
                   LEFT JOIN prx_300_sites s ON s.id = e.site_id
                   LEFT JOIN prx_300_employees m ON m.id = e.manager_employee_id ';
-        $total = (int) (self::_row('SELECT count(*) AS c'.$from.' WHERE '.$where_sql)['c'] ?? 0);
+        $total = (int) (self::_row('SELECT count(*) AS c'.$from.' WHERE '.$where_sql, $params)['c'] ?? 0);
         $rows = self::_all(self::_employee_select().' WHERE '.$where_sql
-            .' ORDER BY e.last_name, e.first_name, e.middle_name LIMIT '.$per_page.' OFFSET '.$offset);
+            .' ORDER BY e.last_name, e.first_name, e.middle_name LIMIT '.$per_page.' OFFSET '.$offset, $params);
 
         return [
             'rows' => array_map(function ($row) { return self::_format_employee($row, FALSE); }, $rows),
@@ -93,13 +100,20 @@ class Service_Prx300_Directory extends Service_Prx300_Store
         // Сначала определяем допустимую организацию, а уже потом ищем запись:
         // отсутствие карточки и чужая организация снаружи неразличимы.
         $organization_id = Policy_Prx300_Employee::directoryOrganization($actor, []);
-        $where = 'e.id = '.(int) $employee_id.' AND e.employment_status IN ('.self::_in(Policy_Prx300_Employee::directoryStatuses()).')';
+        $params = [];
+        $status_list = [];
+        foreach (Policy_Prx300_Employee::directoryStatuses() as $i => $status)
+        {
+            $params[':status'.$i] = (string) $status;
+            $status_list[] = ':status'.$i;
+        }
+        $where = 'e.id = '.(int) $employee_id.' AND e.employment_status IN ('.implode(', ', $status_list).')';
         if ($organization_id !== NULL)
         {
             $where .= ' AND e.organization_id = '.(int) $organization_id;
         }
 
-        $row = self::_row(self::_employee_select().' WHERE '.$where.' LIMIT 1');
+        $row = self::_row(self::_employee_select().' WHERE '.$where.' LIMIT 1', $params);
 
         return $row ? self::_format_employee($row, FALSE) : NULL;
     }

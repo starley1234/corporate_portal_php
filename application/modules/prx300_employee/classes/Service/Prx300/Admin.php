@@ -101,8 +101,9 @@ class Service_Prx300_Admin extends Service_Prx300_Store
         $legal = self::_text($data['legal_name'] ?? '', 'Юридическое наименование', 512);
         $status = self::_entity_status($data['status'] ?? 'active');
 
-        $duplicate = self::_row('SELECT id FROM prx_300_organizations WHERE lower(code) = '.self::_q($code)
-            .($id ? ' AND id <> '.(int) $id : '').' LIMIT 1');
+        $duplicate = self::_row('SELECT id FROM prx_300_organizations WHERE lower(code) = :code'
+            .($id ? ' AND id <> '.(int) $id : '').' LIMIT 1',
+            [':code' => (string) $code]);
         if ($duplicate)
         {
             throw new DomainException('Организация с таким кодом уже существует');
@@ -110,15 +111,19 @@ class Service_Prx300_Admin extends Service_Prx300_Store
 
         if ($id)
         {
-            self::_execute('UPDATE prx_300_organizations SET code = '.self::_q($code)
-                .', name = '.self::_q($name).', legal_name = '.self::_q($legal)
-                .', status = '.self::_q($status).' WHERE id = '.(int) $id);
+            self::_execute('UPDATE prx_300_organizations SET code = :code
+                , name = :name, legal_name = :legal
+                , status = :status WHERE id = '.(int) $id,
+                [':code' => (string) $code, ':name' => (string) $name,
+                 ':legal' => (string) $legal, ':status' => (string) $status]);
         }
         else
         {
             $row = self::_row('INSERT INTO prx_300_organizations (code, name, legal_name, status)
-                               VALUES ('.self::_q($code).', '.self::_q($name).', '.self::_q($legal).', '.self::_q($status).')
-                               RETURNING id');
+                               VALUES (:code, :name, :legal, :status)
+                               RETURNING id',
+                [':code' => (string) $code, ':name' => (string) $name,
+                 ':legal' => (string) $legal, ':status' => (string) $status]);
             $id = (int) $row['id'];
         }
 
@@ -153,8 +158,9 @@ class Service_Prx300_Admin extends Service_Prx300_Store
             throw new InvalidArgumentException('Часовой пояс: укажите имя IANA, например Europe/Samara');
         }
         $status = self::_entity_status($data['status'] ?? 'active');
-        $duplicate = self::_row('SELECT id FROM prx_300_sites WHERE organization_id = '.$org_id
-            .' AND lower(code) = '.self::_q($code).($id ? ' AND id <> '.(int) $id : '').' LIMIT 1');
+        $duplicate = self::_row('SELECT id FROM prx_300_sites WHERE organization_id = '.$org_id.'
+            AND lower(code) = :code'.($id ? ' AND id <> '.(int) $id : '').' LIMIT 1',
+            [':code' => (string) $code]);
         if ($duplicate)
         {
             throw new DomainException('Площадка с таким кодом уже есть в организации');
@@ -162,15 +168,21 @@ class Service_Prx300_Admin extends Service_Prx300_Store
 
         if ($id)
         {
-            self::_execute('UPDATE prx_300_sites SET organization_id = '.$org_id.', code = '.self::_q($code)
-                .', name = '.self::_q($name).', city = '.self::_q($city).', address = '.self::_q($address)
-                .', timezone = '.self::_q($timezone).', status = '.self::_q($status).' WHERE id = '.(int) $id);
+            self::_execute('UPDATE prx_300_sites SET organization_id = '.$org_id.', code = :code
+                , name = :name, city = :city, address = :address
+                , timezone = :timezone, status = :status WHERE id = '.(int) $id,
+                [':code' => (string) $code, ':name' => (string) $name, ':city' => (string) $city,
+                 ':address' => (string) $address, ':timezone' => (string) $timezone,
+                 ':status' => (string) $status]);
         }
         else
         {
             $row = self::_row('INSERT INTO prx_300_sites (organization_id, code, name, city, address, timezone, status)
-                               VALUES ('.$org_id.', '.self::_q($code).', '.self::_q($name).', '.self::_q($city).', '
-                                   .self::_q($address).', '.self::_q($timezone).', '.self::_q($status).') RETURNING id');
+                               VALUES ('.$org_id.', :code, :name, :city, '
+                                   .':address, :timezone, :status) RETURNING id',
+                [':code' => (string) $code, ':name' => (string) $name, ':city' => (string) $city,
+                 ':address' => (string) $address, ':timezone' => (string) $timezone,
+                 ':status' => (string) $status]);
             $id = (int) $row['id'];
         }
 
@@ -219,8 +231,9 @@ class Service_Prx300_Admin extends Service_Prx300_Store
         $name = self::_text($data['name'] ?? '', 'Название подразделения', 255, TRUE);
         $sort = max(0, min(10000, (int) ($data['sort_order'] ?? 100)));
         $status = self::_entity_status($data['status'] ?? 'active');
-        $duplicate = self::_row('SELECT id FROM prx_300_departments WHERE organization_id = '.$org_id
-            .' AND lower(code) = '.self::_q($code).($id ? ' AND id <> '.(int) $id : '').' LIMIT 1');
+        $duplicate = self::_row('SELECT id FROM prx_300_departments WHERE organization_id = '.$org_id.'
+            AND lower(code) = :code'.($id ? ' AND id <> '.(int) $id : '').' LIMIT 1',
+            [':code' => (string) $code]);
         if ($duplicate)
         {
             throw new DomainException('Подразделение с таким кодом уже есть в организации');
@@ -230,16 +243,18 @@ class Service_Prx300_Admin extends Service_Prx300_Store
         {
             self::_execute('UPDATE prx_300_departments SET organization_id = '.$org_id
                 .', parent_id = '.self::_qi($parent_id).', site_id = '.self::_qi($site_id)
-                .', manager_employee_id = '.self::_qi($head_id).', code = '.self::_q($code)
-                .', name = '.self::_q($name).', sort_order = '.$sort.', status = '.self::_q($status)
-                .' WHERE id = '.(int) $id);
+                .', manager_employee_id = '.self::_qi($head_id).', code = :code
+                , name = :name, sort_order = '.$sort.', status = :status
+                WHERE id = '.(int) $id,
+                [':code' => (string) $code, ':name' => (string) $name, ':status' => (string) $status]);
         }
         else
         {
             $row = self::_row('INSERT INTO prx_300_departments
                 (organization_id, parent_id, site_id, manager_employee_id, code, name, sort_order, status)
                 VALUES ('.$org_id.', '.self::_qi($parent_id).', '.self::_qi($site_id).', '.self::_qi($head_id)
-                    .', '.self::_q($code).', '.self::_q($name).', '.$sort.', '.self::_q($status).') RETURNING id');
+                    .', :code, :name, '.$sort.', :status) RETURNING id',
+                [':code' => (string) $code, ':name' => (string) $name, ':status' => (string) $status]);
             $id = (int) $row['id'];
         }
 
@@ -253,6 +268,7 @@ class Service_Prx300_Admin extends Service_Prx300_Store
         Policy_Prx300_Employee::requireAdministration($actor);
         $scope = Policy_Prx300_Employee::assertOrganization($actor);
         $where = ['TRUE'];
+        $params = [];
         if ( ! $scope['global'])
         {
             $where[] = 'e.organization_id = '.(int) $scope['organization_id'];
@@ -276,16 +292,17 @@ class Service_Prx300_Admin extends Service_Prx300_Store
             {
                 throw new InvalidArgumentException('Неизвестный кадровый статус');
             }
-            $where[] = 'e.employment_status = '.self::_q($status);
+            $where[] = 'e.employment_status = :status';
+            $params[':status'] = (string) $status;
         }
         $q = trim((string) ($filters['q'] ?? ''));
         if ($q !== '')
         {
-            $like = self::_q('%'.mb_strtolower(self::_escape_like($q)).'%');
-            $where[] = "(lower(e.last_name || ' ' || e.first_name || ' ' || e.middle_name) LIKE {$like}
-                      OR lower(e.work_email) LIKE {$like}
-                      OR lower(e.personnel_number) LIKE {$like}
-                      OR lower(e.position_title) LIKE {$like})";
+            $params[':like'] = '%'.mb_strtolower(self::_escape_like($q)).'%';
+            $where[] = "(lower(e.last_name || ' ' || e.first_name || ' ' || e.middle_name) LIKE :like
+                      OR lower(e.work_email) LIKE :like
+                      OR lower(e.personnel_number) LIKE :like
+                      OR lower(e.position_title) LIKE :like)";
         }
         if ( ! empty($filters['unlinked']))
         {
@@ -307,7 +324,7 @@ class Service_Prx300_Admin extends Service_Prx300_Store
                   LEFT JOIN prx_300_user_links l ON l.employee_id = e.id AND l.status = 'active'
                   LEFT JOIN prx_300_external_identities x ON x.employee_id = e.id AND x.status = 'active' ";
         $where_sql = implode(' AND ', $where);
-        $total = (int) (self::_row('SELECT count(DISTINCT e.id) AS c'.$from.' WHERE '.$where_sql)['c'] ?? 0);
+        $total = (int) (self::_row('SELECT count(DISTINCT e.id) AS c'.$from.' WHERE '.$where_sql, $params)['c'] ?? 0);
         $rows = self::_all('SELECT e.*, o.code AS organization_code, o.name AS organization_name,
                     d.code AS department_code, d.name AS department_name,
                     s.code AS site_code, s.name AS site_name, s.city AS site_city,
@@ -315,7 +332,7 @@ class Service_Prx300_Admin extends Service_Prx300_Store
                     m.middle_name AS manager_middle_name, m.position_title AS manager_position_title,
                     max(l.user_id) AS linked_user_id, count(DISTINCT x.id) AS external_identity_count'
                 .$from.' WHERE '.$where_sql
-                .' GROUP BY e.id, o.id, d.id, s.id, m.id ORDER BY e.last_name, e.first_name LIMIT '.$per_page.' OFFSET '.$offset);
+                .' GROUP BY e.id, o.id, d.id, s.id, m.id ORDER BY e.last_name, e.first_name LIMIT '.$per_page.' OFFSET '.$offset, $params);
 
         $out = [];
         foreach ($rows as $row)
@@ -411,9 +428,10 @@ class Service_Prx300_Admin extends Service_Prx300_Store
 
         if ($values['personnel_number'] !== '')
         {
-            $dup = self::_row('SELECT id FROM prx_300_employees WHERE organization_id = '.$org_id
-                .' AND lower(personnel_number) = '.self::_q(mb_strtolower($values['personnel_number']))
-                .($id ? ' AND id <> '.(int) $id : '').' LIMIT 1');
+            $dup = self::_row('SELECT id FROM prx_300_employees WHERE organization_id = '.$org_id.'
+                AND lower(personnel_number) = :pnum'
+                .($id ? ' AND id <> '.(int) $id : '').' LIMIT 1',
+                [':pnum' => mb_strtolower($values['personnel_number'])]);
             if ($dup)
             {
                 throw new DomainException('Табельный номер уже используется в этой организации');
@@ -421,9 +439,10 @@ class Service_Prx300_Admin extends Service_Prx300_Store
         }
         if ($values['work_email'] !== '')
         {
-            $dup = self::_row('SELECT id FROM prx_300_employees WHERE organization_id = '.$org_id
-                .' AND lower(work_email) = '.self::_q($values['work_email'])
-                .($id ? ' AND id <> '.(int) $id : '').' LIMIT 1');
+            $dup = self::_row('SELECT id FROM prx_300_employees WHERE organization_id = '.$org_id.'
+                AND lower(work_email) = :email'
+                .($id ? ' AND id <> '.(int) $id : '').' LIMIT 1',
+                [':email' => (string) $values['work_email']]);
             if ($dup)
             {
                 throw new DomainException('Рабочий email уже используется другим сотрудником организации');
@@ -438,13 +457,23 @@ class Service_Prx300_Admin extends Service_Prx300_Store
             self::_execute('UPDATE prx_300_employees SET organization_id = '.$org_id
                 .', department_id = '.self::_qi($department_id).', site_id = '.self::_qi($site_id)
                 .', manager_employee_id = '.self::_qi($manager_id)
-                .', personnel_number = '.self::_q($values['personnel_number'])
-                .', last_name = '.self::_q($values['last_name']).', first_name = '.self::_q($values['first_name'])
-                .', middle_name = '.self::_q($values['middle_name']).', position_title = '.self::_q($values['position_title'])
-                .', work_email = '.self::_q($values['work_email']).', work_phone = '.self::_q($values['work_phone'])
-                .', employment_status = '.self::_q($status).', hired_on = '.self::_qn($hired)
-                .', terminated_on = '.self::_qn($terminated).', source_system = '.self::_q($source_system)
-                .', source_updated_at = now() WHERE id = '.(int) $id);
+                .', personnel_number = :personnel_number
+                , last_name = :last_name, first_name = :first_name
+                , middle_name = :middle_name, position_title = :position_title
+                , work_email = :work_email, work_phone = :work_phone
+                , employment_status = :status, hired_on = :hired
+                , terminated_on = :terminated, source_system = :source_system
+                , source_updated_at = now() WHERE id = '.(int) $id,
+                [':personnel_number' => (string) $values['personnel_number'],
+                 ':last_name' => (string) $values['last_name'],
+                 ':first_name' => (string) $values['first_name'],
+                 ':middle_name' => (string) $values['middle_name'],
+                 ':position_title' => (string) $values['position_title'],
+                 ':work_email' => (string) $values['work_email'],
+                 ':work_phone' => (string) $values['work_phone'],
+                 ':status' => (string) $status,
+                 ':hired' => self::_pstr($hired), ':terminated' => self::_pstr($terminated),
+                 ':source_system' => (string) $source_system]);
         }
         else
         {
@@ -453,11 +482,20 @@ class Service_Prx300_Admin extends Service_Prx300_Store
                  last_name, first_name, middle_name, position_title, work_email, work_phone,
                  employment_status, hired_on, terminated_on, source_system, source_updated_at)
                 VALUES ('.$org_id.', '.self::_qi($department_id).', '.self::_qi($site_id).', '.self::_qi($manager_id)
-                    .', '.self::_q($values['personnel_number']).', '.self::_q($values['last_name'])
-                    .', '.self::_q($values['first_name']).', '.self::_q($values['middle_name'])
-                    .', '.self::_q($values['position_title']).', '.self::_q($values['work_email'])
-                    .', '.self::_q($values['work_phone']).', '.self::_q($status).', '.self::_qn($hired)
-                    .', '.self::_qn($terminated).", 'manual', now()) RETURNING id");
+                    .', :personnel_number, :last_name
+                    , :first_name, :middle_name
+                    , :position_title, :work_email
+                    , :work_phone, :status, :hired
+                    , :terminated, \'manual\', now()) RETURNING id',
+                [':personnel_number' => (string) $values['personnel_number'],
+                 ':last_name' => (string) $values['last_name'],
+                 ':first_name' => (string) $values['first_name'],
+                 ':middle_name' => (string) $values['middle_name'],
+                 ':position_title' => (string) $values['position_title'],
+                 ':work_email' => (string) $values['work_email'],
+                 ':work_phone' => (string) $values['work_phone'],
+                 ':status' => (string) $status,
+                 ':hired' => self::_pstr($hired), ':terminated' => self::_pstr($terminated)]);
             $id = (int) $row['id'];
         }
 

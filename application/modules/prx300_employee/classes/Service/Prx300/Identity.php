@@ -30,8 +30,9 @@ class Service_Prx300_Identity extends Service_Prx300_Store
         $system = self::_code($system_code, 'Код системы');
         $external_id = self::_text($external_id, 'Внешний идентификатор', 191, TRUE);
         $row = self::_row('SELECT employee_id FROM prx_300_external_identities
-                           WHERE system_code = '.self::_q($system)
-                            .' AND external_id = '.self::_q($external_id)." AND status = 'active' LIMIT 1");
+                           WHERE system_code = :system
+                            AND external_id = :external_id AND status = \'active\' LIMIT 1',
+            [':system' => (string) $system, ':external_id' => (string) $external_id]);
 
         return $row ? (int) $row['employee_id'] : NULL;
     }
@@ -40,9 +41,10 @@ class Service_Prx300_Identity extends Service_Prx300_Store
     {
         $system = self::_code($system_code, 'Код системы');
         $row = self::_row('SELECT * FROM prx_300_external_identities
-                           WHERE employee_id = '.(int) $employee_id
-                            .' AND system_code = '.self::_q($system)." AND status = 'active'
-                           ORDER BY is_primary DESC, id DESC LIMIT 1");
+                           WHERE employee_id = '.(int) $employee_id.'
+                            AND system_code = :system AND status = \'active\'
+                           ORDER BY is_primary DESC, id DESC LIMIT 1',
+            [':system' => (string) $system]);
 
         return $row ? self::_format_identity($row) : NULL;
     }
@@ -80,9 +82,10 @@ class Service_Prx300_Identity extends Service_Prx300_Store
         $source_updated = self::_datetime($data['source_updated_at'] ?? '', 'Обновлено источником');
 
         $duplicate = self::_row('SELECT employee_id FROM prx_300_external_identities
-                                 WHERE system_code = '.self::_q($system)
-                                  .' AND external_id = '.self::_q($external_id)
-                                  .($identity_id ? ' AND id <> '.(int) $identity_id : '').' LIMIT 1');
+                                 WHERE system_code = :system
+                                  AND external_id = :external_id'
+                                  .($identity_id ? ' AND id <> '.(int) $identity_id : '').' LIMIT 1',
+            [':system' => (string) $system, ':external_id' => (string) $external_id]);
         if ($duplicate)
         {
             throw new DomainException((int) $duplicate['employee_id'] === (int) $employee_id
@@ -92,26 +95,26 @@ class Service_Prx300_Identity extends Service_Prx300_Store
         if ($status === 'active' AND $external_login !== '')
         {
             $login_duplicate = self::_row('SELECT id FROM prx_300_external_identities
-                                           WHERE system_code = '.self::_q($system)
-                                            .' AND lower(external_login) = '.self::_q(mb_strtolower($external_login))
-                                            ." AND status = 'active'"
-                                            .($identity_id ? ' AND id <> '.(int) $identity_id : '').' LIMIT 1');
+                                           WHERE system_code = :system
+                                            AND lower(external_login) = :login
+                                            AND status = \'active\''
+                                            .($identity_id ? ' AND id <> '.(int) $identity_id : '').' LIMIT 1',
+                [':system' => (string) $system, ':login' => mb_strtolower($external_login)]);
             if ($login_duplicate)
             {
                 throw new DomainException('Этот внешний логин уже используется в выбранной системе');
             }
         }
 
-        $db = self::_db();
-        $db->begin();
-        try
-        {
+        return Prx_Db::transaction(function () use ($primary, $employee_id, $identity_id, $system,
+            $external_id, $external_login, $status, $valid_from, $valid_to, $source_updated, $actor, $employee) {
             if ($primary)
             {
                 self::_execute('UPDATE prx_300_external_identities SET is_primary = FALSE
-                                WHERE employee_id = '.(int) $employee_id
-                                 .' AND system_code = '.self::_q($system)
-                                 .($identity_id ? ' AND id <> '.(int) $identity_id : ''));
+                                WHERE employee_id = '.(int) $employee_id.'
+                                 AND system_code = :system'
+                                 .($identity_id ? ' AND id <> '.(int) $identity_id : ''),
+                    [':system' => (string) $system]);
             }
 
             if ($identity_id)
@@ -122,40 +125,41 @@ class Service_Prx300_Identity extends Service_Prx300_Store
                 {
                     throw new DomainException('Внешний идентификатор не найден у этого сотрудника');
                 }
-                self::_execute('UPDATE prx_300_external_identities SET system_code = '.self::_q($system)
-                    .', external_id = '.self::_q($external_id)
-                    .', external_login = '.self::_q($external_login)
-                    .', is_primary = '.self::_qbool($primary)
-                    .', status = '.self::_q($status)
-                    .', valid_from = '.self::_qn($valid_from)
-                    .', valid_to = '.self::_qn($valid_to)
-                    .', source_updated_at = '.self::_qn($source_updated)
-                    .' WHERE id = '.(int) $identity_id);
+                self::_execute('UPDATE prx_300_external_identities SET system_code = :system
+                    , external_id = :external_id
+                    , external_login = :external_login
+                    , is_primary = '.self::_qbool($primary).'
+                    , status = :status
+                    , valid_from = :valid_from
+                    , valid_to = :valid_to
+                    , source_updated_at = :source_updated_at
+                    WHERE id = '.(int) $identity_id,
+                    [':system' => (string) $system, ':external_id' => (string) $external_id,
+                     ':external_login' => (string) $external_login, ':status' => (string) $status,
+                     ':valid_from' => self::_pstr($valid_from), ':valid_to' => self::_pstr($valid_to),
+                     ':source_updated_at' => self::_pstr($source_updated)]);
                 $id = (int) $identity_id;
             }
             else
             {
                 $row = self::_row('INSERT INTO prx_300_external_identities
                     (employee_id, system_code, external_id, external_login, is_primary, status, valid_from, valid_to, source_updated_at)
-                    VALUES ('.(int) $employee_id.', '.self::_q($system).', '.self::_q($external_id).', '
-                        .self::_q($external_login).', '.self::_qbool($primary).', '.self::_q($status).', '
-                        .self::_qn($valid_from).', '.self::_qn($valid_to).', '.self::_qn($source_updated).')
-                    RETURNING id');
+                    VALUES ('.(int) $employee_id.', :system, :external_id, :external_login, '
+                        .self::_qbool($primary).', :status, :valid_from, :valid_to, :source_updated_at)
+                    RETURNING id',
+                    [':system' => (string) $system, ':external_id' => (string) $external_id,
+                     ':external_login' => (string) $external_login, ':status' => (string) $status,
+                     ':valid_from' => self::_pstr($valid_from), ':valid_to' => self::_pstr($valid_to),
+                     ':source_updated_at' => self::_pstr($source_updated)]);
                 $id = (int) $row['id'];
             }
 
             self::_audit($actor, (int) $employee['organization_id'], 'external_identity', $id,
                 $identity_id ? 'external_identity.updated' : 'external_identity.created',
                 ['employee_id' => (int) $employee_id, 'system_code' => $system, 'status' => $status]);
-            $db->commit();
 
             return $id;
-        }
-        catch (Throwable $e)
-        {
-            $db->rollback();
-            throw $e;
-        }
+        });
     }
 
     public static function disable_identity(Prx_Actor $actor, $identity_id)
@@ -251,9 +255,10 @@ class Service_Prx300_Identity extends Service_Prx300_Store
         $actor_id = $actor->id();
         $row = self::_row('INSERT INTO prx_300_user_links
             (employee_id, user_id, linked_via, linked_by_user_id, note)
-            VALUES ('.(int) $employee_id.', '.(int) $user['id'].', '.self::_q($via).', '
-                .($actor_id > 0 ? $actor_id : 'NULL').', '.self::_q($note).')
-            RETURNING id');
+            VALUES ('.(int) $employee_id.', '.(int) $user['id'].', :via, '
+                .($actor_id > 0 ? $actor_id : 'NULL').', :note)
+            RETURNING id',
+            [':via' => (string) $via, ':note' => (string) $note]);
         $id = (int) $row['id'];
         self::_audit($actor, (int) $employee['organization_id'], 'user_link', $id, 'user_link.created', [
             'employee_id' => (int) $employee_id,
@@ -282,8 +287,9 @@ class Service_Prx300_Identity extends Service_Prx300_Store
 
         $reason = self::_text($reason, 'Причина отзыва связи', 255);
         self::_execute("UPDATE prx_300_user_links
-                        SET status = 'revoked', revoked_at = now(), revoke_reason = ".self::_q($reason)
-                        .' WHERE id = '.(int) $row['id']);
+                        SET status = 'revoked', revoked_at = now(), revoke_reason = :reason
+                        WHERE id = ".(int) $row['id'],
+            [':reason' => (string) $reason]);
         self::_audit($actor, (int) $employee['organization_id'], 'user_link', (int) $row['id'], 'user_link.revoked', [
             'employee_id' => (int) $employee_id,
             'user_id' => (int) $row['user_id'],

@@ -244,7 +244,8 @@ class Service_Prx300_Import extends Service_Prx300_Store
         }
 
         $existing = self::_row('SELECT * FROM prx_300_import_batches
-                                WHERE source_system = '.self::_q($source).' AND file_sha256 = '.self::_q($hash).' LIMIT 1');
+                                WHERE source_system = :source AND file_sha256 = :hash LIMIT 1',
+            [':source' => (string) $source, ':hash' => (string) $hash]);
         if ($existing)
         {
             Policy_Prx300_Employee::assertBatch($actor, $existing);
@@ -252,16 +253,17 @@ class Service_Prx300_Import extends Service_Prx300_Store
         }
 
         $actor_id = $actor->id();
-        $db = self::_db();
-        $db->begin();
-        try
-        {
+        return Prx_Db::transaction(function () use ($source, $file_name, $hash, $organization_codes, $rows, $actor_id, $actor) {
             $batch = self::_row('INSERT INTO prx_300_import_batches
                 (source_system, file_name, file_sha256, organization_codes, total_rows, created_by_user_id, summary)
-                VALUES ('.self::_q($source).', '.self::_q(self::_text($file_name, 'Имя файла', 255))
-                    .', '.self::_q($hash).', '.self::_qjson($organization_codes).', '.count($rows)
-                    .', '.($actor_id > 0 ? $actor_id : 'NULL').', '.self::_qjson(['staged_at' => date('c')]).')
-                RETURNING id');
+                VALUES (:source, :file_name, :hash, :orgcodes::jsonb, '.count($rows)
+                    .', '.($actor_id > 0 ? $actor_id : 'NULL').', :staged::jsonb)
+                RETURNING id',
+                [':source' => (string) $source,
+                 ':file_name' => (string) self::_text($file_name, 'Имя файла', 255),
+                 ':hash' => (string) $hash,
+                 ':orgcodes' => json_encode($organization_codes),
+                 ':staged' => json_encode(['staged_at' => date('c')])]);
             $batch_id = (int) $batch['id'];
 
             foreach ($rows as $row)
@@ -269,19 +271,14 @@ class Service_Prx300_Import extends Service_Prx300_Store
                 $number = (int) $row['_row_number'];
                 unset($row['_row_number']);
                 self::_execute('INSERT INTO prx_300_import_rows (batch_id, row_number, payload)
-                                VALUES ('.$batch_id.', '.$number.', '.self::_qjson($row).')');
+                                VALUES ('.$batch_id.', '.$number.', :payload::jsonb)',
+                    [':payload' => json_encode($row)]);
             }
 
             self::validate_batch($actor, $batch_id);
-            $db->commit();
 
             return $batch_id;
-        }
-        catch (Throwable $e)
-        {
-            $db->rollback();
-            throw $e;
-        }
+        });
     }
 
     public static function validate_batch(Prx_Actor $actor, $batch_id)
@@ -493,11 +490,18 @@ class Service_Prx300_Import extends Service_Prx300_Store
             if ($row['external_login'] !== '') { $logins[$row['external_login']] = TRUE; }
         }
         $org_codes = array_keys($org_codes);
+        $org_in = '';
+        $org_in_params = [];
+        foreach ($org_codes as $i => $org_code)
+        {
+            $org_in .= ($i ? ', ' : '').':orgc'.$i;
+            $org_in_params[':orgc'.$i] = (string) $org_code;
+        }
 
         $orgs = [];
         if ($org_codes)
         {
-            foreach (self::_all('SELECT * FROM prx_300_organizations WHERE lower(code) IN ('.self::_in($org_codes).')') as $org)
+            foreach (self::_all('SELECT * FROM prx_300_organizations WHERE lower(code) IN ('.$org_in.')', $org_in_params) as $org)
             {
                 $orgs[mb_strtolower($org['code'])] = $org;
             }
@@ -510,20 +514,20 @@ class Service_Prx300_Import extends Service_Prx300_Store
         {
             foreach (self::_all('SELECT s.*, lower(o.code) AS org_code FROM prx_300_sites s
                                   JOIN prx_300_organizations o ON o.id = s.organization_id
-                                  WHERE lower(o.code) IN ('.self::_in($org_codes).')') as $site)
+                                  WHERE lower(o.code) IN ('.$org_in.')', $org_in_params) as $site)
             {
                 $sites[$site['org_code']."\0".mb_strtolower($site['code'])] = $site;
             }
             foreach (self::_all('SELECT d.*, lower(o.code) AS org_code FROM prx_300_departments d
                                   JOIN prx_300_organizations o ON o.id = d.organization_id
-                                  WHERE lower(o.code) IN ('.self::_in($org_codes).')') as $dept)
+                                  WHERE lower(o.code) IN ('.$org_in.')', $org_in_params) as $dept)
             {
                 $departments[$dept['org_code']."\0".mb_strtolower($dept['code'])] = $dept;
             }
             foreach (self::_all('SELECT e.id, lower(o.code) AS org_code, lower(e.personnel_number) AS personnel_key,
                                         lower(e.work_email) AS email_key
                                   FROM prx_300_employees e JOIN prx_300_organizations o ON o.id = e.organization_id
-                                  WHERE lower(o.code) IN ('.self::_in($org_codes).')') as $employee)
+                                  WHERE lower(o.code) IN ('.$org_in.')', $org_in_params) as $employee)
             {
                 if ($employee['personnel_key'] !== '')
                 {
@@ -541,24 +545,40 @@ class Service_Prx300_Import extends Service_Prx300_Store
         $identity_logins = [];
         if ($all_external)
         {
+            $ext_in = '';
+            $ext_params = [];
+            foreach ($all_external as $i => $ext)
+            {
+                $ext_in .= ($i ? ', ' : '').':ext'.$i;
+                $ext_params[':ext'.$i] = (string) $ext;
+            }
             foreach (self::_all('SELECT x.*, e.source_updated_at AS employee_source_updated_at,
                                         lower(o.code) AS org_code
                                   FROM prx_300_external_identities x
                                   JOIN prx_300_employees e ON e.id = x.employee_id
                                   JOIN prx_300_organizations o ON o.id = e.organization_id
-                                  WHERE x.system_code = '.self::_q($batch['source_system'])
-                                   .' AND x.external_id IN ('.self::_in($all_external).')') as $identity)
+                                  WHERE x.system_code = :system
+                                   AND x.external_id IN ('.$ext_in.')',
+                [':system' => (string) $batch['source_system']] + $ext_params) as $identity)
             {
                 $identities[(string) $identity['external_id']] = $identity;
             }
         }
         if ($logins)
         {
+            $login_in = '';
+            $login_params = [];
+            foreach (array_map('mb_strtolower', array_keys($logins)) as $i => $login)
+            {
+                $login_in .= ($i ? ', ' : '').':login'.$i;
+                $login_params[':login'.$i] = (string) $login;
+            }
             foreach (self::_all('SELECT employee_id, lower(external_login) AS login_key
                                   FROM prx_300_external_identities
-                                  WHERE system_code = '.self::_q($batch['source_system'])
-                                   .' AND lower(external_login) IN ('.self::_in(array_map('mb_strtolower', array_keys($logins)))
-                                   .") AND status = 'active'") as $identity)
+                                  WHERE system_code = :system
+                                   AND lower(external_login) IN ('.$login_in.')
+                                  AND status = \'active\'',
+                [':system' => (string) $batch['source_system']] + $login_params) as $identity)
             {
                 $identity_logins[(string) $identity['login_key']] = (int) $identity['employee_id'];
             }
@@ -695,8 +715,9 @@ class Service_Prx300_Import extends Service_Prx300_Store
                 $valid++;
                 $message = '';
             }
-            self::_execute('UPDATE prx_300_import_rows SET status = '.self::_q($status)
-                .', error = '.self::_q($message).' WHERE id = '.$row_id);
+            self::_execute('UPDATE prx_300_import_rows SET status = :status
+                , error = :error WHERE id = '.$row_id,
+                [':status' => (string) $status, ':error' => (string) $message]);
         }
 
         $batch_status = $failed > 0 ? 'rejected' : 'validated';
@@ -707,9 +728,10 @@ class Service_Prx300_Import extends Service_Prx300_Store
             'skipped' => $skipped,
             'validated_at' => date('c'),
         ];
-        self::_execute('UPDATE prx_300_import_batches SET status = '.self::_q($batch_status)
-            .', valid_rows = '.$valid.', error_rows = '.$failed.', skipped_count = '.$skipped
-            .', summary = '.self::_qjson($summary).' WHERE id = '.(int) $batch_id);
+        self::_execute('UPDATE prx_300_import_batches SET status = :batch_status
+            , valid_rows = '.$valid.', error_rows = '.$failed.', skipped_count = '.$skipped
+            .', summary = :summary::jsonb WHERE id = '.(int) $batch_id,
+            [':batch_status' => (string) $batch_status, ':summary' => json_encode($summary)]);
 
         return self::_format_batch(self::_batch_row((int) $batch_id));
     }
@@ -751,285 +773,342 @@ class Service_Prx300_Import extends Service_Prx300_Store
             'employees_created' => 0, 'employees_updated' => 0,
             'skipped' => (int) $batch['skipped_count'],
         ];
-        $db = self::_db();
-        $db->begin();
         try
         {
-            // Двойной клик/параллельный CLI не должен применять пакет дважды:
-            // второй процесс подождёт на строке batch и увидит applied.
-            $locked_batch = self::_row('SELECT * FROM prx_300_import_batches WHERE id = '.(int) $batch_id.' FOR UPDATE');
-            if ((string) $locked_batch['status'] === 'applied')
-            {
-                $db->commit();
-                return self::_format_batch($locked_batch);
-            }
-            if ((string) $locked_batch['status'] !== 'validated')
-            {
-                throw new DomainException('Пакет уже обрабатывается или не готов к применению');
-            }
-            $batch = $locked_batch;
+            $result = Prx_Db::transaction(function () use ($actor, $batch_id, $batch, $counts, $rows) {
+                // Двойной клик/параллельный CLI не должен применять пакет дважды:
+                // второй процесс подождёт на строке batch и увидит applied.
+                $locked_batch = self::_row('SELECT * FROM prx_300_import_batches WHERE id = '.(int) $batch_id.' FOR UPDATE');
+                if ((string) $locked_batch['status'] === 'applied')
+                {
+                    return self::_format_batch($locked_batch);
+                }
+                if ((string) $locked_batch['status'] !== 'validated')
+                {
+                    throw new DomainException('Пакет уже обрабатывается или не готов к применению');
+                }
+                $batch = $locked_batch;
 
-            $organization_ids = [];
-            foreach (self::_merged_definitions($rows, 'organization_code', ['organization_name', 'organization_legal_name']) as $code => $def)
-            {
-                $existing = self::_row('SELECT * FROM prx_300_organizations WHERE lower(code) = '.self::_q($code));
-                if ($existing)
+                $organization_ids = [];
+                foreach (self::_merged_definitions($rows, 'organization_code', ['organization_name', 'organization_legal_name']) as $code => $def)
                 {
-                    self::_execute('UPDATE prx_300_organizations SET name = '.self::_q($def['organization_name'] ?: $existing['name'])
-                        .', legal_name = '.self::_q($def['organization_legal_name'] ?: $existing['legal_name'])
-                        .' WHERE id = '.(int) $existing['id']);
-                    $organization_ids[$code] = (int) $existing['id'];
-                    $counts['organizations_updated']++;
-                }
-                else
-                {
-                    $created = self::_row('INSERT INTO prx_300_organizations (code, name, legal_name)
-                                           VALUES ('.self::_q($code).', '.self::_q($def['organization_name']).', '
-                                               .self::_q($def['organization_legal_name']).') RETURNING id');
-                    $organization_ids[$code] = (int) $created['id'];
-                    $counts['organizations_created']++;
-                }
-            }
-
-            $site_ids = [];
-            foreach ($rows as $row)
-            {
-                if ($row['site_code'] === '')
-                {
-                    continue;
-                }
-                $key = $row['organization_code']."\0".$row['site_code'];
-                if (isset($site_ids[$key]))
-                {
-                    continue;
-                }
-                $def = self::_merged_site_definition($rows, $row['organization_code'], $row['site_code']);
-                $org_id = $organization_ids[$row['organization_code']];
-                $existing = self::_row('SELECT * FROM prx_300_sites WHERE organization_id = '.$org_id
-                    .' AND lower(code) = '.self::_q($row['site_code']));
-                if ($existing)
-                {
-                    self::_execute('UPDATE prx_300_sites SET name = '.self::_q($def['site_name'] ?: $existing['name'])
-                        .', city = '.self::_q($def['site_city']).', address = '.self::_q($def['site_address'])
-                        .', timezone = '.self::_q($def['site_timezone'] ?: $existing['timezone'])." , status = 'active'"
-                        .' WHERE id = '.(int) $existing['id']);
-                    $site_ids[$key] = (int) $existing['id'];
-                    $counts['sites_updated']++;
-                }
-                else
-                {
-                    $created = self::_row('INSERT INTO prx_300_sites (organization_id, code, name, city, address, timezone)
-                                           VALUES ('.$org_id.', '.self::_q($row['site_code']).', '.self::_q($def['site_name'])
-                                               .', '.self::_q($def['site_city']).', '.self::_q($def['site_address'])
-                                               .', '.self::_q($def['site_timezone'] ?: 'UTC').') RETURNING id');
-                    $site_ids[$key] = (int) $created['id'];
-                    $counts['sites_created']++;
-                }
-            }
-
-            $department_defs = self::_department_definitions($rows);
-            $department_ids = [];
-            $pending = $department_defs;
-            while ($pending)
-            {
-                $progress = FALSE;
-                foreach (array_keys($pending) as $key)
-                {
-                    $def = $pending[$key];
-                    $org_id = $organization_ids[$def['organization_code']];
-                    $parent_id = NULL;
-                    $existing = self::_row('SELECT * FROM prx_300_departments WHERE organization_id = '.$org_id
-                        .' AND lower(code) = '.self::_q($def['code']));
-                    if ($def['parent_specified'])
-                    {
-                        if ($def['parent_code'] !== '')
-                        {
-                            $parent_key = $def['organization_code']."\0".$def['parent_code'];
-                            if (isset($department_defs[$parent_key]) AND ! isset($department_ids[$parent_key]))
-                            {
-                                continue;
-                            }
-                            if (isset($department_ids[$parent_key]))
-                            {
-                                $parent_id = $department_ids[$parent_key];
-                            }
-                            else
-                            {
-                                $parent = self::_row('SELECT id FROM prx_300_departments WHERE organization_id = '.$org_id
-                                    .' AND lower(code) = '.self::_q($def['parent_code']));
-                                $parent_id = $parent ? (int) $parent['id'] : NULL;
-                            }
-                        }
-                    }
-                    elseif ($existing)
-                    {
-                        $parent_id = isset($existing['parent_id']) ? (int) $existing['parent_id'] ?: NULL : NULL;
-                    }
-
+                    $existing = self::_row('SELECT * FROM prx_300_organizations WHERE lower(code) = :code',
+                        [':code' => (string) $code]);
                     if ($existing)
                     {
-                        self::_execute('UPDATE prx_300_departments SET parent_id = '.self::_qi($parent_id)
-                            .', name = '.self::_q($def['name'] ?: $existing['name'])." , status = 'active'"
-                            .' WHERE id = '.(int) $existing['id']);
-                        $department_ids[$key] = (int) $existing['id'];
-                        $counts['departments_updated']++;
+                        self::_execute('UPDATE prx_300_organizations SET name = :name
+                            , legal_name = :legal_name
+                            WHERE id = '.(int) $existing['id'],
+                            [':name' => (string) ($def['organization_name'] ?: $existing['name']),
+                             ':legal_name' => (string) ($def['organization_legal_name'] ?: $existing['legal_name'])]);
+                        $organization_ids[$code] = (int) $existing['id'];
+                        $counts['organizations_updated']++;
                     }
                     else
                     {
-                        $created = self::_row('INSERT INTO prx_300_departments (organization_id, parent_id, code, name)
-                                               VALUES ('.$org_id.', '.self::_qi($parent_id).', '.self::_q($def['code'])
-                                                   .', '.self::_q($def['name']).') RETURNING id');
-                        $department_ids[$key] = (int) $created['id'];
-                        $counts['departments_created']++;
+                        $created = self::_row('INSERT INTO prx_300_organizations (code, name, legal_name)
+                                               VALUES (:code, :name, :legal_name) RETURNING id',
+                            [':code' => (string) $code, ':name' => (string) $def['organization_name'],
+                             ':legal_name' => (string) $def['organization_legal_name']]);
+                        $organization_ids[$code] = (int) $created['id'];
+                        $counts['organizations_created']++;
                     }
-                    unset($pending[$key]);
-                    $progress = TRUE;
                 }
-                if ( ! $progress)
-                {
-                    throw new DomainException('Структура подразделений содержит цикл');
-                }
-            }
 
-            $existing_by_external = [];
-            $external_values = [];
-            foreach ($rows as $row)
-            {
-                $external_values[$row['employee_external_id']] = TRUE;
-                if ($row['manager_external_id'] !== '')
+                $site_ids = [];
+                foreach ($rows as $row)
                 {
-                    $external_values[$row['manager_external_id']] = TRUE;
-                }
-            }
-            if ($external_values)
-            {
-                foreach (self::_all('SELECT external_id, employee_id FROM prx_300_external_identities
-                                      WHERE system_code = '.self::_q($batch['source_system'])
-                                       .' AND external_id IN ('.self::_in(array_keys($external_values)).')') as $identity)
-                {
-                    $existing_by_external[(string) $identity['external_id']] = (int) $identity['employee_id'];
-                }
-            }
-
-            $employee_by_external = $existing_by_external;
-            $result_by_row = [];
-            foreach ($rows as $row)
-            {
-                $org_id = $organization_ids[$row['organization_code']];
-                $site_id = $row['site_code'] !== '' ? $site_ids[$row['organization_code']."\0".$row['site_code']] : NULL;
-                $department_id = $row['department_code'] !== ''
-                    ? $department_ids[$row['organization_code']."\0".$row['department_code']] : NULL;
-                $existing_id = $existing_by_external[$row['employee_external_id']] ?? NULL;
-                // Отсутствие времени источника не превращаем в now(): иначе
-                // следующая корректная выгрузка с реальным HR-временем будет
-                // ошибочно сочтена устаревшей. Для существующей записи
-                // сохраняем прежнее время, для новой оставляем NULL.
-                $source_updated_sql = $row['source_updated_at'] !== ''
-                    ? self::_q(self::_datetime($row['source_updated_at'], 'Время обновления источника'))
-                    : ($existing_id ? 'source_updated_at' : 'NULL');
-
-                if ($existing_id)
-                {
-                    self::_execute('UPDATE prx_300_employees SET organization_id = '.$org_id
-                        .', department_id = '.self::_qi($department_id).', site_id = '.self::_qi($site_id)
-                        .', manager_employee_id = NULL, personnel_number = '.self::_q($row['personnel_number'])
-                        .', last_name = '.self::_q($row['last_name']).', first_name = '.self::_q($row['first_name'])
-                        .', middle_name = '.self::_q($row['middle_name']).', position_title = '.self::_q($row['position_title'])
-                        .', work_email = '.self::_q($row['work_email']).', work_phone = '.self::_q($row['work_phone'])
-                        .', employment_status = '.self::_q($row['employment_status']).', hired_on = '.self::_qn($row['hired_on'])
-                        .', terminated_on = '.self::_qn($row['terminated_on']).', source_system = '.self::_q($batch['source_system'])
-                        .', source_updated_at = '.$source_updated_sql.' WHERE id = '.(int) $existing_id);
-                    $employee_id = (int) $existing_id;
-                    $counts['employees_updated']++;
-                }
-                else
-                {
-                    $created = self::_row('INSERT INTO prx_300_employees
-                        (organization_id, department_id, site_id, personnel_number, last_name, first_name, middle_name,
-                         position_title, work_email, work_phone, employment_status, hired_on, terminated_on,
-                         source_system, source_updated_at)
-                        VALUES ('.$org_id.', '.self::_qi($department_id).', '.self::_qi($site_id).', '
-                            .self::_q($row['personnel_number']).', '.self::_q($row['last_name']).', '.self::_q($row['first_name'])
-                            .', '.self::_q($row['middle_name']).', '.self::_q($row['position_title']).', '.self::_q($row['work_email'])
-                            .', '.self::_q($row['work_phone']).', '.self::_q($row['employment_status']).', '.self::_qn($row['hired_on'])
-                            .', '.self::_qn($row['terminated_on']).', '.self::_q($batch['source_system']).', '.$source_updated_sql.
-                        ') RETURNING id');
-                    $employee_id = (int) $created['id'];
-                    $counts['employees_created']++;
-                }
-                $employee_by_external[$row['employee_external_id']] = $employee_id;
-                $result_by_row[(int) $row['_id']] = $employee_id;
-
-                self::_execute('UPDATE prx_300_external_identities SET is_primary = FALSE
-                                WHERE employee_id = '.$employee_id.' AND system_code = '.self::_q($batch['source_system'])
-                                 .' AND external_id <> '.self::_q($row['employee_external_id']));
-                $identity = self::_row('SELECT * FROM prx_300_external_identities
-                                        WHERE system_code = '.self::_q($batch['source_system'])
-                                         .' AND external_id = '.self::_q($row['employee_external_id']));
-                if ($identity)
-                {
-                    if ((int) $identity['employee_id'] !== $employee_id)
+                    if ($row['site_code'] === '')
                     {
-                        throw new DomainException('Внешний ID уже принадлежит другому сотруднику');
+                        continue;
                     }
-                    self::_execute('UPDATE prx_300_external_identities SET external_login = '.self::_q($row['external_login'])
-                        .", is_primary = TRUE, status = 'active', source_updated_at = ".$source_updated_sql
-                        .' WHERE id = '.(int) $identity['id']);
+                    $key = $row['organization_code']."\0".$row['site_code'];
+                    if (isset($site_ids[$key]))
+                    {
+                        continue;
+                    }
+                    $def = self::_merged_site_definition($rows, $row['organization_code'], $row['site_code']);
+                    $org_id = $organization_ids[$row['organization_code']];
+                    $existing = self::_row('SELECT * FROM prx_300_sites WHERE organization_id = '.$org_id.'
+                        AND lower(code) = :code',
+                        [':code' => (string) $row['site_code']]);
+                    if ($existing)
+                    {
+                        self::_execute('UPDATE prx_300_sites SET name = :name
+                            , city = :city, address = :address
+                            , timezone = :timezone , status = \'active\'
+                            WHERE id = '.(int) $existing['id'],
+                            [':name' => (string) ($def['site_name'] ?: $existing['name']),
+                             ':city' => (string) $def['site_city'], ':address' => (string) $def['site_address'],
+                             ':timezone' => (string) ($def['site_timezone'] ?: $existing['timezone'])]);
+                        $site_ids[$key] = (int) $existing['id'];
+                        $counts['sites_updated']++;
+                    }
+                    else
+                    {
+                        $created = self::_row('INSERT INTO prx_300_sites (organization_id, code, name, city, address, timezone)
+                                               VALUES ('.$org_id.', :code, :name, :city, :address, :timezone)
+                                               RETURNING id',
+                            [':code' => (string) $row['site_code'], ':name' => (string) $def['site_name'],
+                             ':city' => (string) $def['site_city'], ':address' => (string) $def['site_address'],
+                             ':timezone' => (string) ($def['site_timezone'] ?: 'UTC')]);
+                        $site_ids[$key] = (int) $created['id'];
+                        $counts['sites_created']++;
+                    }
                 }
-                else
+
+                $department_defs = self::_department_definitions($rows);
+                $department_ids = [];
+                $pending = $department_defs;
+                while ($pending)
                 {
-                    self::_execute('INSERT INTO prx_300_external_identities
-                        (employee_id, system_code, external_id, external_login, is_primary, source_updated_at)
-                        VALUES ('.$employee_id.', '.self::_q($batch['source_system']).', '
-                            .self::_q($row['employee_external_id']).', '.self::_q($row['external_login'])
-                            .', TRUE, '.$source_updated_sql.')');
-                }
-            }
+                    $progress = FALSE;
+                    foreach (array_keys($pending) as $key)
+                    {
+                        $def = $pending[$key];
+                        $org_id = $organization_ids[$def['organization_code']];
+                        $parent_id = NULL;
+                        $existing = self::_row('SELECT * FROM prx_300_departments WHERE organization_id = '.$org_id.'
+                            AND lower(code) = :code',
+                            [':code' => (string) $def['code']]);
+                        if ($def['parent_specified'])
+                        {
+                            if ($def['parent_code'] !== '')
+                            {
+                                $parent_key = $def['organization_code']."\0".$def['parent_code'];
+                                if (isset($department_defs[$parent_key]) AND ! isset($department_ids[$parent_key]))
+                                {
+                                    continue;
+                                }
+                                if (isset($department_ids[$parent_key]))
+                                {
+                                    $parent_id = $department_ids[$parent_key];
+                                }
+                                else
+                                {
+                                    $parent = self::_row('SELECT id FROM prx_300_departments WHERE organization_id = '.$org_id.'
+                                        AND lower(code) = :code',
+                                        [':code' => (string) $def['parent_code']]);
+                                    $parent_id = $parent ? (int) $parent['id'] : NULL;
+                                }
+                            }
+                        }
+                        elseif ($existing)
+                        {
+                            $parent_id = isset($existing['parent_id']) ? (int) $existing['parent_id'] ?: NULL : NULL;
+                        }
 
-            foreach ($rows as $row)
-            {
-                $employee_id = $employee_by_external[$row['employee_external_id']];
-                $manager_id = $row['manager_external_id'] !== ''
-                    ? ($employee_by_external[$row['manager_external_id']] ?? NULL) : NULL;
-                if ($row['manager_external_id'] !== '' AND ! $manager_id)
+                        if ($existing)
+                        {
+                            self::_execute('UPDATE prx_300_departments SET parent_id = '.self::_qi($parent_id)
+                                .', name = :name , status = \'active\'
+                                WHERE id = '.(int) $existing['id'],
+                                [':name' => (string) ($def['name'] ?: $existing['name'])]);
+                            $department_ids[$key] = (int) $existing['id'];
+                            $counts['departments_updated']++;
+                        }
+                        else
+                        {
+                            $created = self::_row('INSERT INTO prx_300_departments (organization_id, parent_id, code, name)
+                                                   VALUES ('.$org_id.', '.self::_qi($parent_id).', :code, :name)
+                                                   RETURNING id',
+                                [':code' => (string) $def['code'], ':name' => (string) $def['name']]);
+                            $department_ids[$key] = (int) $created['id'];
+                            $counts['departments_created']++;
+                        }
+                        unset($pending[$key]);
+                        $progress = TRUE;
+                    }
+                    if ( ! $progress)
+                    {
+                        throw new DomainException('Структура подразделений содержит цикл');
+                    }
+                }
+
+                $existing_by_external = [];
+                $external_values = [];
+                foreach ($rows as $row)
                 {
-                    throw new DomainException('Руководитель не найден после первого прохода импорта');
+                    $external_values[$row['employee_external_id']] = TRUE;
+                    if ($row['manager_external_id'] !== '')
+                    {
+                        $external_values[$row['manager_external_id']] = TRUE;
+                    }
                 }
-                self::_execute('UPDATE prx_300_employees SET manager_employee_id = '.self::_qi($manager_id)
-                    .' WHERE id = '.$employee_id);
-            }
+                if ($external_values)
+                {
+                    $extv_in = '';
+                    $extv_params = [];
+                    foreach (array_keys($external_values) as $i => $extv)
+                    {
+                        $extv_in .= ($i ? ', ' : '').':extv'.$i;
+                        $extv_params[':extv'.$i] = (string) $extv;
+                    }
+                    foreach (self::_all('SELECT external_id, employee_id FROM prx_300_external_identities
+                                          WHERE system_code = :system
+                                           AND external_id IN ('.$extv_in.')',
+                        [':system' => (string) $batch['source_system']] + $extv_params) as $identity)
+                    {
+                        $existing_by_external[(string) $identity['external_id']] = (int) $identity['employee_id'];
+                    }
+                }
 
-            self::_assert_no_cycles(array_values($organization_ids));
+                $employee_by_external = $existing_by_external;
+                $result_by_row = [];
+                foreach ($rows as $row)
+                {
+                    $org_id = $organization_ids[$row['organization_code']];
+                    $site_id = $row['site_code'] !== '' ? $site_ids[$row['organization_code']."\0".$row['site_code']] : NULL;
+                    $department_id = $row['department_code'] !== ''
+                        ? $department_ids[$row['organization_code']."\0".$row['department_code']] : NULL;
+                    $existing_id = $existing_by_external[$row['employee_external_id']] ?? NULL;
+                    // Отсутствие времени источника не превращаем в now(): иначе
+                    // следующая корректная выгрузка с реальным HR-временем будет
+                    // ошибочно сочтена устаревшей. Для существующей записи
+                    // сохраняем прежнее время, для новой оставляем NULL.
+                    $source_updated_sql = $row['source_updated_at'] !== ''
+                        ? ':source_updated_at'
+                        : ($existing_id ? 'source_updated_at' : 'NULL');
+                    $source_params = $source_updated_sql === ':source_updated_at'
+                        ? [':source_updated_at' => self::_datetime($row['source_updated_at'], 'Время обновления источника')]
+                        : [];
 
-            foreach ($result_by_row as $row_id => $employee_id)
-            {
-                self::_execute("UPDATE prx_300_import_rows SET status = 'applied', error = '', result_employee_id = "
-                    .(int) $employee_id.' WHERE id = '.(int) $row_id);
-            }
+                    if ($existing_id)
+                    {
+                        self::_execute('UPDATE prx_300_employees SET organization_id = '.$org_id
+                            .', department_id = '.self::_qi($department_id).', site_id = '.self::_qi($site_id)
+                            .', manager_employee_id = NULL, personnel_number = :personnel_number
+                            , last_name = :last_name, first_name = :first_name
+                            , middle_name = :middle_name, position_title = :position_title
+                            , work_email = :work_email, work_phone = :work_phone
+                            , employment_status = :status, hired_on = :hired
+                            , terminated_on = :terminated, source_system = :source_system
+                            , source_updated_at = '.$source_updated_sql.' WHERE id = '.(int) $existing_id,
+                            [':personnel_number' => (string) $row['personnel_number'],
+                             ':last_name' => (string) $row['last_name'],
+                             ':first_name' => (string) $row['first_name'],
+                             ':middle_name' => (string) $row['middle_name'],
+                             ':position_title' => (string) $row['position_title'],
+                             ':work_email' => (string) $row['work_email'],
+                             ':work_phone' => (string) $row['work_phone'],
+                             ':status' => (string) $row['employment_status'],
+                             ':hired' => self::_pstr($row['hired_on']),
+                             ':terminated' => self::_pstr($row['terminated_on']),
+                             ':source_system' => (string) $batch['source_system']] + $source_params);
+                        $employee_id = (int) $existing_id;
+                        $counts['employees_updated']++;
+                    }
+                    else
+                    {
+                        $created = self::_row('INSERT INTO prx_300_employees
+                            (organization_id, department_id, site_id, personnel_number, last_name, first_name, middle_name,
+                             position_title, work_email, work_phone, employment_status, hired_on, terminated_on,
+                             source_system, source_updated_at)
+                            VALUES ('.$org_id.', '.self::_qi($department_id).', '.self::_qi($site_id).', '
+                                .':personnel_number, :last_name, :first_name, :middle_name, :position_title, :work_email, '
+                                .':work_phone, :status, :hired, :terminated, :source_system, '.$source_updated_sql.'
+                            RETURNING id',
+                            [':personnel_number' => (string) $row['personnel_number'],
+                             ':last_name' => (string) $row['last_name'],
+                             ':first_name' => (string) $row['first_name'],
+                             ':middle_name' => (string) $row['middle_name'],
+                             ':position_title' => (string) $row['position_title'],
+                             ':work_email' => (string) $row['work_email'],
+                             ':work_phone' => (string) $row['work_phone'],
+                             ':status' => (string) $row['employment_status'],
+                             ':hired' => self::_pstr($row['hired_on']),
+                             ':terminated' => self::_pstr($row['terminated_on']),
+                             ':source_system' => (string) $batch['source_system']] + $source_params);
+                        $employee_id = (int) $created['id'];
+                        $counts['employees_created']++;
+                    }
+                    $employee_by_external[$row['employee_external_id']] = $employee_id;
+                    $result_by_row[(int) $row['_id']] = $employee_id;
 
-            $summary = self::_summary($batch);
-            $summary['applied'] = $counts + ['applied_at' => date('c')];
-            $actor_id = $actor->id();
-            self::_execute("UPDATE prx_300_import_batches SET status = 'applied', created_count = "
+                    self::_execute('UPDATE prx_300_external_identities SET is_primary = FALSE
+                                    WHERE employee_id = '.$employee_id.' AND system_code = :system
+                                     AND external_id <> :external_id',
+                        [':system' => (string) $batch['source_system'],
+                         ':external_id' => (string) $row['employee_external_id']]);
+                    $identity = self::_row('SELECT * FROM prx_300_external_identities
+                                            WHERE system_code = :system
+                                             AND external_id = :external_id',
+                        [':system' => (string) $batch['source_system'],
+                         ':external_id' => (string) $row['employee_external_id']]);
+                    if ($identity)
+                    {
+                        if ((int) $identity['employee_id'] !== $employee_id)
+                        {
+                            throw new DomainException('Внешний ID уже принадлежит другому сотруднику');
+                        }
+                        self::_execute('UPDATE prx_300_external_identities SET external_login = :external_login
+                            , is_primary = TRUE, status = \'active\', source_updated_at = '.$source_updated_sql.'
+                            WHERE id = '.(int) $identity['id'],
+                            [':external_login' => (string) $row['external_login']] + $source_params);
+                    }
+                    else
+                    {
+                        self::_execute('INSERT INTO prx_300_external_identities
+                            (employee_id, system_code, external_id, external_login, is_primary, source_updated_at)
+                            VALUES ('.$employee_id.', :system, :external_id, :external_login, TRUE, '
+                            .$source_updated_sql.')',
+                            [':system' => (string) $batch['source_system'],
+                             ':external_id' => (string) $row['employee_external_id'],
+                             ':external_login' => (string) $row['external_login']] + $source_params);
+                    }
+                }
+
+                foreach ($rows as $row)
+                {
+                    $employee_id = $employee_by_external[$row['employee_external_id']];
+                    $manager_id = $row['manager_external_id'] !== ''
+                        ? ($employee_by_external[$row['manager_external_id']] ?? NULL) : NULL;
+                    if ($row['manager_external_id'] !== '' AND ! $manager_id)
+                    {
+                        throw new DomainException('Руководитель не найден после первого прохода импорта');
+                    }
+                    self::_execute('UPDATE prx_300_employees SET manager_employee_id = '.self::_qi($manager_id)
+                        .' WHERE id = '.$employee_id);
+                }
+
+                self::_assert_no_cycles(array_values($organization_ids));
+
+                foreach ($result_by_row as $row_id => $employee_id)
+                {
+                    self::_execute("UPDATE prx_300_import_rows SET status = 'applied', error = '', result_employee_id = "
+                        .(int) $employee_id.' WHERE id = '.(int) $row_id);
+                }
+
+                $summary = self::_summary($batch);
+                $summary['applied'] = $counts + ['applied_at' => date('c')];
+                $actor_id = $actor->id();
+            self::_execute('UPDATE prx_300_import_batches SET status = \'applied\', created_count = '
                 .(int) $counts['employees_created'].', updated_count = '.(int) $counts['employees_updated']
                 .', skipped_count = '.(int) $counts['skipped'].', applied_by_user_id = '
-                .($actor_id > 0 ? $actor_id : 'NULL').', applied_at = now(), summary = '.self::_qjson($summary)
-                .' WHERE id = '.(int) $batch_id);
-            $audit_org = count($organization_ids) === 1 ? reset($organization_ids) : NULL;
-            self::_audit($actor, $audit_org, 'import_batch', (int) $batch_id, 'import.applied', $counts + [
-                'source_system' => (string) $batch['source_system'],
-            ]);
-            $db->commit();
+                .($actor_id > 0 ? $actor_id : 'NULL').', applied_at = now(), summary = :summary::jsonb'
+                .' WHERE id = '.(int) $batch_id,
+                [':summary' => json_encode($summary)]);
+                $audit_org = count($organization_ids) === 1 ? reset($organization_ids) : NULL;
+                self::_audit($actor, $audit_org, 'import_batch', (int) $batch_id, 'import.applied', $counts + [
+                    'source_system' => (string) $batch['source_system'],
+                ]);
+
+                return NULL;
+            });
         }
         catch (Throwable $e)
         {
-            $db->rollback();
             $summary = self::_summary($batch);
             $summary['apply_error'] = 'apply_failed';
-            self::_execute("UPDATE prx_300_import_batches SET status = 'failed', summary = ".self::_qjson($summary)
-                .' WHERE id = '.(int) $batch_id);
+            self::_execute("UPDATE prx_300_import_batches SET status = 'failed', summary = :summary::jsonb
+                WHERE id = ".(int) $batch_id,
+                [':summary' => json_encode($summary)]);
             Kohana::$log->add(Log::WARNING, 'prx300: импорт не применён: :class', [':class' => get_class($e)]);
             throw new DomainException('Не удалось применить пакет: транзакция отменена без частичных изменений');
+        }
+        if ($result !== NULL)
+        {
+            return $result;
         }
 
         $applied = self::_format_batch(self::_batch_row((int) $batch_id));

@@ -8,13 +8,6 @@
  */
 abstract class Service_Prx300_Store
 {
-    protected static $_db;
-
-    protected static function _db()
-    {
-        return self::$_db !== NULL ? self::$_db : self::$_db = Database::instance();
-    }
-
     protected static function _config($path, $default = NULL)
     {
         $value = Kohana::$config->load('prx300_employee')->get($path);
@@ -22,60 +15,39 @@ abstract class Service_Prx300_Store
         return $value === NULL ? $default : $value;
     }
 
-    protected static function _row($sql)
+    protected static function _row($sql, array $params = [])
     {
-        $row = self::_db()->query(Database::SELECT, $sql, FALSE)->current();
-
-        return $row ? (array) $row : NULL;
+        return Prx_Db::one($sql, $params);
     }
 
-    protected static function _all($sql)
+    protected static function _all($sql, array $params = [])
     {
-        $rows = self::_db()->query(Database::SELECT, $sql, FALSE)->as_array();
-
-        return array_map(function ($row) { return (array) $row; }, $rows);
+        return Prx_Db::select($sql, $params);
     }
 
-    protected static function _execute($sql)
+    protected static function _execute($sql, array $params = [])
     {
-        return self::_db()->query(Database::SELECT, $sql, FALSE);
+        return Prx_Db::execute($sql, $params);
     }
 
-    protected static function _q($value)
-    {
-        return self::_db()->quote((string) $value);
-    }
-
-    protected static function _qn($value)
-    {
-        $value = trim((string) ($value ?? ''));
-
-        return $value === '' ? 'NULL' : self::_q($value);
-    }
-
+    /** Целочисленный фрагмент: NULL/пусто/не-позитив → NULL, иначе голое число. */
     protected static function _qi($value)
     {
         return ($value === NULL OR $value === '' OR (int) $value <= 0) ? 'NULL' : (string) (int) $value;
     }
 
+    /** Булев фрагмент для SQL-литералов TRUE/FALSE. */
     protected static function _qbool($value)
     {
         return ! empty($value) ? 'TRUE' : 'FALSE';
     }
 
-    protected static function _qjson(array $value)
+    /** Нормализация строкового :param: trim, пусто → NULL (бывшая _qn без SQL). */
+    protected static function _pstr($value)
     {
-        return self::_q(json_encode($value, JSON_UNESCAPED_UNICODE)).'::jsonb';
-    }
+        $value = trim((string) ($value ?? ''));
 
-    protected static function _in(array $values)
-    {
-        if ( ! $values)
-        {
-            return "''";
-        }
-
-        return implode(', ', array_map(function ($value) { return self::_q($value); }, $values));
+        return $value === '' ? NULL : $value;
     }
 
     protected static function _text($value, $label, $max, $required = FALSE)
@@ -267,7 +239,9 @@ abstract class Service_Prx300_Store
         self::_execute(
             'INSERT INTO prx_300_audit_log (actor_user_id, organization_id, entity_type, entity_id, action, details)
              VALUES ('.($actor_id > 0 ? $actor_id : 'NULL').', '.self::_qi($organization_id).', '
-                .self::_q($entity_type).', '.self::_qi($entity_id).', '.self::_q($action).', '.self::_qjson($details).')'
+                .':entity_type, '.self::_qi($entity_id).', :action, :details::jsonb)',
+            [':entity_type' => (string) $entity_type, ':action' => (string) $action,
+             ':details' => json_encode($details, JSON_UNESCAPED_UNICODE)]
         );
     }
 
