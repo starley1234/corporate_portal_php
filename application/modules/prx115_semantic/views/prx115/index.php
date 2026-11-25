@@ -110,8 +110,9 @@ $found_html = function (array $s_row) {
     <div class="mt-5 gap-5 space-y-5 md:grid md:grid-cols-3 md:items-start md:space-y-0">
         <div class="space-y-5 md:col-span-2">
 
-            <?php /* Живой статус последней задачи канала: идёт / Готово / Ошибка. */ ?>
-            <?php if ( ! empty($queue['ok'])): ?>
+            <?php /* Живой статус только для ЖИВОЙ задачи (см. контроллер): без неё блок не рисуем,
+                 чтобы не «крутился безтолку» на страницах без запущенной индексации. */ ?>
+            <?php if ( ! empty($queue['ok']) AND ! empty($live)): ?>
             <div class="prx-card">
                 <div class="flex flex-wrap items-center justify-between gap-2">
                     <h2 class="prx-h3">Индексация</h2>

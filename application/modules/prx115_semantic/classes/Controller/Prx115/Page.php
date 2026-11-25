@@ -51,8 +51,37 @@ class Controller_Prx115_Page extends Controller_Prx102_Base {
             $panel = ['error' => $e->getMessage(), 'collections' => [], 'queue' => [], 'health' => [], 'totals' => []];
         }
 
+        // Карточку «Индексация» показываем только при ЖИВОЙ задаче: queued
+        // старше 30 минут или running без пульса 30 минут — это «воркер не
+        // работает», а не «ждём свободного» (жалоба владельца: «крутится
+        // безтолку, я ничего не запускал»). Готово/ошибка — 15 минут после
+        // завершения, чтобы ряд успел показать итог и перезагрузить страницу.
+        $live = FALSE;
+        try
+        {
+            $status = class_exists('Service_Prx120_JobQueue')
+                ? Service_Prx120_JobQueue::instance()->last_status('semantic.index') : [];
+            if ( ! empty($status['found']))
+            {
+                $state = (string) $status['status'];
+                $silent = $status['silent_sec'] ?? NULL;
+                $elapsed = (int) ($status['elapsed_sec'] ?? 0);
+                $finished = isset($status['finished_at']) && $status['finished_at']
+                    ? strtotime((string) $status['finished_at']) : NULL;
+                $live = ($state === 'queued' AND $elapsed < 1800)
+                    OR ($state === 'running' AND ($silent === NULL OR $silent < 1800))
+                    OR (in_array($state, ['done', 'failed', 'cancelled'], TRUE)
+                        AND $finished !== NULL AND (time() - $finished) < 900);
+            }
+        }
+        catch (Throwable $e)
+        {
+            $live = FALSE; // очередь недоступна — ряд не показываем
+        }
+
         $this->template->content = View::factory('prx115/index', [
             'panel' => $panel,
+            'live'  => $live,
             'csrf'  => Security::token(),
         ]);
     }
