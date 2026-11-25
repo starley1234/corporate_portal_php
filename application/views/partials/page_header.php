@@ -56,6 +56,15 @@ $ph_roles = [
 <?php if ($ph_pill): ?>
             <span class="prx-pill"><?php if ( ! empty($ph_pill[1])): ?><i class="fas <?php echo HTML::chars((string) $ph_pill[1]); ?> text-xs"></i><?php endif; ?><?php echo HTML::chars((string) $ph_pill[0]); ?></span>
 <?php endif; ?>
+<?php $ph_pin_href = '/'.ltrim((string) Request::current()->uri(), '/'); ?>
+<?php if (($pin ?? TRUE) !== FALSE AND $ph_title !== '' AND $ph_pin_href !== '/' AND Auth::instance()->logged_in()): ?>
+<?php // Избранное для любой страницы (prx110): состояние и клик ведёт navpalette.js
+      // (syncCards/delegation), серверу достаточно адреса и названия. ?>
+            <button type="button" data-nav-pin-card="<?php echo HTML::chars($ph_pin_href); ?>"
+                    data-nav-pin-title="<?php echo HTML::chars($ph_title); ?>"
+                    class="nav-pin-card inline-flex h-8 w-8 items-center justify-center rounded-lg text-sm text-gray-300 transition hover:text-amber-500 dark:text-gray-600"
+                    title="В Избранное" aria-label="В Избранное: <?php echo HTML::chars($ph_title); ?>" aria-pressed="false"><i class="fas fa-star"></i></button>
+<?php endif; ?>
         </div>
 <?php if ($ph_actions): ?>
 
