@@ -13,7 +13,7 @@ from pathlib import Path
 
 import httpx
 
-from ... import site
+from ... import job_api, site
 from ...base import HandlerContext, PermanentJobError
 from ...ocr.errors import DocumentJobError
 from ...ocr.page import tesseract_page
@@ -80,7 +80,8 @@ def _error_code(response: httpx.Response) -> str:
 
 async def _download(client: httpx.AsyncClient, url: str, path: Path, max_pdf_bytes: int) -> None:
     async with client.stream("GET", url) as response:
-        _check(response)
+        # Стриминговый ответ: тело не читаем, только статус.
+        job_api.check_status(response)
         if response.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/pdf":
             raise PermanentJobError("file_unavailable")
         size = 0

@@ -36,8 +36,27 @@ def error_code(response: httpx.Response) -> str:
         return ""
 
 
+def check_status(response: httpx.Response) -> None:
+    """Проверить статус ответа БЕЗ чтения тела.
+
+    Нужно для стриминговых ответов (`client.stream(...)`): там `.content`
+    бросает `ResponseNotRead`, поэтому парсить тело нельзя.
+    """
+    code = response.status_code
+    if code in (401, 403):
+        raise PermanentJobError("worker_auth")
+    if code == 409:
+        raise PermanentJobError("lease_lost")
+    if code in (404, 410):
+        raise PermanentJobError("file_unavailable")
+    if code in (408, 429) or code >= 500:
+        raise DocumentJobError("worker_endpoint_unavailable")
+    if not response.is_success:
+        raise PermanentJobError("file_unavailable")
+
+
 def check(response: httpx.Response) -> dict | None:
-    """Проверить ответ PHP и вернуть JSON-тело (или None).
+    """Проверить статус и вернуть JSON-тело (для не-стриминговых ответов).
 
     PermanentJobError — повтор не поможет; DocumentJobError — временный сбой.
     """
@@ -48,8 +67,6 @@ def check(response: httpx.Response) -> dict | None:
         raise PermanentJobError("lease_lost")
     if code in (404, 410):
         raise PermanentJobError("file_unavailable")
-    if code == 422:
-        raise PermanentJobError(error_code(response) or "job_failed")
     if code in (408, 429) or code >= 500:
         raise DocumentJobError("worker_endpoint_unavailable")
     if not response.is_success:
@@ -68,7 +85,7 @@ def check(response: httpx.Response) -> dict | None:
 async def download_pdf(client: httpx.AsyncClient, url: str, path: Path, max_pdf_bytes: int) -> None:
     """Скачать PDF в path; проверить тип и размер. Бросает ошибку протокола."""
     async with client.stream("GET", url) as response:
-        check(response)
+        check_status(response)
         ctype = response.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
         if ctype != "application/pdf":
             raise PermanentJobError("file_unavailable")
