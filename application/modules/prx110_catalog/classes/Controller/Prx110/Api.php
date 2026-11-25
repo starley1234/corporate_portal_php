@@ -79,7 +79,9 @@ class Controller_Prx110_Api extends Controller_Prx102_Base {
                 $pinned = $this->request->post('pinned');
                 $href = $this->request->post('href');
                 if ( ! is_string($pinned) OR ! in_array($pinned, ['0', '1'], TRUE) OR ! is_string($href)
-                    OR ! Service_Prx110_Favorites::set($uid, $href, $pinned === '1'))
+                    OR ! Service_Prx110_Favorites::set(
+                        $uid, $href, $pinned === '1', NULL,
+                        $this->request->post('title'), $this->request->post('icon')))
                 {
                     $this->_favorites_reply(['error' => 'Сервис недоступен или указан неверно'], 422);
                     return;

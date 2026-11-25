@@ -64,7 +64,7 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
                                     data-nav-pin-card="<?php echo HTML::chars($m['href']); ?>"
                                     data-nav-pin-title="<?php echo HTML::chars($m['title']); ?>"
                                     data-nav-pin-icon="<?php echo HTML::chars($m['icon']); ?>"
-                                    class="prx-btn-icon nav-pin-card h-10 w-10 shrink-0 text-sm <?php echo $nav_is_pinned ? 'text-amber-500' : 'text-gray-400'; ?>"
+                                    class="prx-btn-icon nav-pin-card h-10 w-10 shrink-0 text-sm <?php echo $nav_is_pinned ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300' : 'text-gray-400 dark:text-gray-500'; ?>"
                                     title="<?php echo HTML::chars($nav_pin_label); ?>" aria-label="<?php echo HTML::chars($nav_pin_label.': '.$m['title']); ?>"
                                     aria-pressed="<?php echo $nav_is_pinned ? 'true' : 'false'; ?>"<?php echo $nav_favorites_ready ? '' : ' disabled'; ?>><i class="fas fa-star"></i></button>
                         </li>

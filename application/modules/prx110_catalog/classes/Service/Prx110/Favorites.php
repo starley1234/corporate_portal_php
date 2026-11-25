@@ -9,7 +9,7 @@ class Service_Prx110_Favorites
         $user_id = (int) $user_id;
         if ($user_id <= 0) return [];
 
-        $rows = DB::select('href')->from('prx_110_favorites')
+        $rows = DB::select('href', 'title', 'icon')->from('prx_110_favorites')
             ->where('user_id', '=', $user_id)->order_by('id', 'ASC')->execute()->as_array();
         if ( ! $rows) return [];
 
@@ -18,28 +18,53 @@ class Service_Prx110_Favorites
         foreach ($rows as $row)
         {
             $href = (string) $row['href'];
-            if (isset($catalog[$href])) $items[] = $catalog[$href];
+            if (isset($catalog[$href]))
+            {
+                $items[] = $catalog[$href];
+                continue;
+            }
+            // Подстраница (звезда в page_header): метаданные — сохранённые
+            // при закреплении; доступ проверит сам маршрут при переходе.
+            if ( ! self::valid_href($href)) continue;
+            $items[] = [
+                'href' => $href,
+                'title' => (string) ($row['title'] !== NULL && $row['title'] !== '' ? $row['title'] : $href),
+                'icon' => (string) ($row['icon'] !== NULL && $row['icon'] !== '' ? $row['icon'] : 'fas fa-star'),
+                'nav_paths' => [],
+            ];
         }
         return $items;
     }
 
     /** Идемпотентно установить явное состояние, а не переключать его. */
-    public static function set($user_id, $href, $pinned, $ctx = NULL)
+    public static function set($user_id, $href, $pinned, $ctx = NULL, $title = NULL, $icon = NULL)
     {
         $user_id = (int) $user_id;
         $href = is_string($href) ? $href : '';
         if ($user_id <= 0 OR ! self::valid_href($href)) return FALSE;
 
+        // Метаданные страницы (для пинов вне каталога — подстраницы).
+        $title = mb_substr(trim((string) $title), 0, 200);
+        $icon = mb_substr(trim((string) $icon), 0, 64);
+        $icon = preg_match('/^[a-z0-9][a-z0-9 -]{0,63}$/i', $icon) ? $icon : NULL;
+        $title = $title !== '' ? $title : NULL;
+
         if ($pinned)
         {
-            // Нельзя закрепить произвольный URL или сервис, не видимый текущей
-            // аудитории. Проверка маршрута сервисом по-прежнему обязательна.
+            // Сервис каталога — только видимый текущей аудитории; метаданные
+            // всегда свежие из каталога. Подстраница (звезда в page_header) —
+            // любая внутренняя страница: доступ проверит сам её маршрут.
             $catalog = self::catalog_map($ctx);
-            if ( ! isset($catalog[$href])) return FALSE;
+            if (isset($catalog[$href]))
+            {
+                $title = $catalog[$href]['title'];
+                $icon = $catalog[$href]['icon'];
+            }
 
-            DB::query(Database::UPDATE, 'INSERT INTO prx_110_favorites (user_id, href)
-                VALUES (:uid, :href) ON CONFLICT (user_id, href) DO NOTHING')
-                ->parameters([':uid' => $user_id, ':href' => $href])->execute();
+            DB::query(Database::UPDATE, 'INSERT INTO prx_110_favorites (user_id, href, title, icon)
+                VALUES (:uid, :href, :title, :icon)
+                ON CONFLICT (user_id, href) DO UPDATE SET title = :title, icon = :icon')
+                ->parameters([':uid' => $user_id, ':href' => $href, ':title' => $title, ':icon' => $icon])->execute();
         }
         else
         {

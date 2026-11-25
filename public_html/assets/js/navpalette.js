@@ -303,8 +303,11 @@
         });
     }
 
-    function setPin(href, on) {
-        saveFavorites('/prx110/api/favorites', { href: href, pinned: on ? '1' : '0' }, function () {
+    function setPin(href, on, title, icon) {
+        var fields = { href: href, pinned: on ? '1' : '0' };
+        if (on && title) fields.title = title;
+        if (on && icon) fields.icon = icon;
+        saveFavorites('/prx110/api/favorites', fields, function () {
             toast(on ? 'Добавлено в Избранное' : 'Убрано из Избранного');
         });
     }
@@ -337,7 +340,9 @@
             if (!card) return;
             event.preventDefault();
             var href = card.getAttribute('data-nav-pin-card') || '';
-            if (href) setPin(href, !isPinned(href));
+            if (href) setPin(href, !isPinned(href),
+                card.getAttribute('data-nav-pin-title') || '',
+                card.getAttribute('data-nav-pin-icon') || '');
         });
 
         function receiveChange(message) {
