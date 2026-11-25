@@ -40,6 +40,7 @@ class Service_Prx391_Card
 
         $sets = [];
         $events = [];
+        $params = [];
         $fields = ['subject', 'sender_name', 'sender_email', 'sender_inn', 'outbound_no',
             'contract_no', 'summary', 'priority', 'sensitivity'];
 
@@ -57,7 +58,15 @@ class Service_Prx391_Card
                 continue;
             }
 
-            $sets[] = $field." = ".($new === '' ? ($field === 'subject' ? "''" : 'NULL') : self::_q($new));
+            if ($new === '')
+            {
+                $sets[] = $field." = ".($field === 'subject' ? "''" : 'NULL');
+            }
+            else
+            {
+                $sets[] = $field." = :set_".$field;
+                $params[':set_'.$field] = $new;
+            }
             $events[] = [$field, $old, $new];
         }
 
@@ -91,7 +100,15 @@ class Service_Prx391_Card
             $old = (string) ($doc['outbound_date'] ?? '');
             if ((string) $new !== $old)
             {
-                $sets[] = "outbound_date = ".($new ? self::_q($new) : 'NULL');
+                if ($new)
+                {
+                    $sets[] = "outbound_date = :set_outbound_date";
+                    $params[':set_outbound_date'] = $new;
+                }
+                else
+                {
+                    $sets[] = "outbound_date = NULL";
+                }
                 $events[] = ['outbound_date', $old, (string) $new];
             }
         }
@@ -114,7 +131,8 @@ class Service_Prx391_Card
             $new = (string) $input['status'];
             if ($new !== (string) $doc['status'])
             {
-                $sets[] = "status = ".self::_q($new);
+                $sets[] = "status = :set_status";
+                $params[':set_status'] = $new;
                 $sets[] = $new === 'closed' ? "closed_at = now()" : "closed_at = NULL";
                 $events[] = ['status', (string) $doc['status'], $new];
             }
@@ -122,7 +140,7 @@ class Service_Prx391_Card
 
         if ($sets)
         {
-            self::_exec("UPDATE prx_391_documents SET ".implode(', ', $sets).", updated_at = now() WHERE id = ".(int) $id);
+            self::_exec("UPDATE prx_391_documents SET ".implode(', ', $sets).", updated_at = now() WHERE id = ".(int) $id, $params);
             foreach ($events as $e)
             {
                 self::_field_event($id, $e[0], $e[1], $e[2], 'manual', NULL, $actor ? $actor->id() : NULL);
@@ -213,8 +231,9 @@ class Service_Prx391_Card
         $sets = [];
         $events = [];
         $skipped = [];
+        $params = [];
 
-        $put = function ($field, $new) use (&$sets, &$events, &$skipped, $doc, $overwrite) {
+        $put = function ($field, $new) use (&$sets, &$events, &$skipped, &$params, $doc, $overwrite) {
             $new = trim((string) $new);
             if ($new === '')
             {
@@ -232,14 +251,15 @@ class Service_Prx391_Card
                 return;
             }
 
-            $sets[] = $field." = ".self::_q($new);
+            $sets[] = $field." = :set_".$field;
+            $params[':set_'.$field] = $new;
             $events[] = [$field, $old, $new];
         };
 
         $type_code = trim((string) ($payload['type'] ?? ''));
         if ($type_code !== '' AND $type_code !== 'other')
         {
-            $type = self::_row("SELECT id, code FROM prx_391_types WHERE code = ".self::_q($type_code)." AND is_active = 1");
+            $type = self::_row("SELECT id, code FROM prx_391_types WHERE code = :code AND is_active = 1", [':code' => $type_code]);
             if ($type)
             {
                 $current = (int) $doc['type_id'];
@@ -333,7 +353,7 @@ class Service_Prx391_Card
 
         if ($sets)
         {
-            self::_exec("UPDATE prx_391_documents SET ".implode(', ', $sets).", updated_at = now() WHERE id = ".(int) $id);
+            self::_exec("UPDATE prx_391_documents SET ".implode(', ', $sets).", updated_at = now() WHERE id = ".(int) $id, $params);
             foreach ($events as $e)
             {
                 self::_field_event($id, $e[0], $e[1], $e[2], 'llm', $suggestion_id, $actor ? $actor->id() : NULL);
@@ -370,22 +390,35 @@ class Service_Prx391_Card
         $row = NULL;
         if ($inn !== '')
         {
-            $row = self::_row("SELECT id FROM prx_391_correspondents WHERE inn = ".self::_q($inn));
+            $row = self::_row("SELECT id FROM prx_391_correspondents WHERE inn = :inn", [':inn' => $inn]);
         }
         if ( ! $row)
         {
-            $row = self::_row("SELECT id FROM prx_391_correspondents WHERE lower(name) = lower(".self::_q($name).")");
+            $row = self::_row("SELECT id FROM prx_391_correspondents WHERE lower(name) = lower(:name)", [':name' => $name]);
         }
         if ($row)
         {
             return (int) $row['id'];
         }
 
+        $params = [':name' => mb_substr($name, 0, 255)];
+        $inn_sql = 'NULL';
+        if ($inn !== '')
+        {
+            $inn_sql = ':inn';
+            $params[':inn'] = $inn;
+        }
+        $email_sql = 'NULL';
+        if ($email)
+        {
+            $email_sql = ':email';
+            $params[':email'] = $email;
+        }
         $new = self::_row("
             INSERT INTO prx_391_correspondents (name, inn, email)
-            VALUES (".self::_q(mb_substr($name, 0, 255)).", ".($inn !== '' ? self::_q($inn) : 'NULL').", ".($email ? self::_q($email) : 'NULL').")
+            VALUES (:name, {$inn_sql}, {$email_sql})
             RETURNING id
-        ");
+        ", $params);
 
         return (int) $new['id'];
     }
@@ -394,16 +427,26 @@ class Service_Prx391_Card
     public static function set_sla_snapshot($id, array $data = [])
     {
         $sets = [];
+        $params = [];
         foreach (['deadline_source', 'assignee_role', 'department', 'priority'] as $field)
         {
             if (array_key_exists($field, $data) AND $data[$field] !== NULL)
             {
-                $sets[] = $field." = ".self::_q((string) $data[$field]);
+                $sets[] = $field." = :set_".$field;
+                $params[':set_'.$field] = (string) $data[$field];
             }
         }
         if (array_key_exists('deadline_at', $data))
         {
-            $sets[] = "deadline_at = ".($data['deadline_at'] ? self::_q($data['deadline_at']) : 'NULL');
+            if ($data['deadline_at'])
+            {
+                $sets[] = "deadline_at = :set_deadline_at";
+                $params[':set_deadline_at'] = $data['deadline_at'];
+            }
+            else
+            {
+                $sets[] = "deadline_at = NULL";
+            }
         }
         if (array_key_exists('assignee_id', $data))
         {
@@ -411,7 +454,7 @@ class Service_Prx391_Card
         }
         if ($sets)
         {
-            self::_exec("UPDATE prx_391_documents SET ".implode(', ', $sets).", updated_at = now() WHERE id = ".(int) $id);
+            self::_exec("UPDATE prx_391_documents SET ".implode(', ', $sets).", updated_at = now() WHERE id = ".(int) $id, $params);
         }
 
         return TRUE;
@@ -423,20 +466,27 @@ class Service_Prx391_Card
 
     protected static function _field_event($document_id, $field, $old, $new, $source, $suggestion_id, $actor_id)
     {
+        $params = [':field' => $field, ':source' => $source];
+        $params[':old'] = ($old === NULL OR $old === '') ? NULL : (string) $old;
+        $params[':new'] = ($new === NULL OR $new === '') ? NULL : (string) $new;
         self::_exec(
             "INSERT INTO prx_391_field_events (document_id, field, old_value, new_value, source, suggestion_id, actor_id) "
-            ."VALUES (".(int) $document_id.", ".self::_q($field).", ".self::_q_or_null($old).", "
-            .self::_q_or_null($new).", ".self::_q($source).", ".self::_int_or_null($suggestion_id).", "
-            .self::_int_or_null($actor_id).")"
+            ."VALUES (".(int) $document_id.", :field, :old, :new, :source, "
+            .self::_int_or_null($suggestion_id).", "
+            .self::_int_or_null($actor_id).")",
+            $params
         );
     }
 
     protected static function _history($document_id, $event, $note, $actor_id, array $payload = [])
     {
+        $params = [':event' => $event, ':payload' => json_encode($payload, JSON_UNESCAPED_UNICODE)];
+        $params[':note'] = ($note === NULL OR $note === '') ? NULL : (string) $note;
         self::_exec(
             "INSERT INTO prx_391_history (document_id, event, note, actor_id, payload) "
-            ."VALUES (".(int) $document_id.", ".self::_q($event).", ".self::_q_or_null($note).", "
-            .self::_int_or_null($actor_id).", ".self::_q(json_encode($payload, JSON_UNESCAPED_UNICODE))."::jsonb)"
+            ."VALUES (".(int) $document_id.", :event, :note, "
+            .self::_int_or_null($actor_id).", :payload::jsonb)",
+            $params
         );
     }
 
@@ -472,36 +522,18 @@ class Service_Prx391_Card
     // Мини-слой БД
     // ------------------------------------------------------------------
 
-    protected static function _db()
-    {
-        return Database::instance();
-    }
-
-    protected static function _q($value)
-    {
-        return self::_db()->quote((string) $value);
-    }
-
-    protected static function _q_or_null($value)
-    {
-        return ($value === NULL OR $value === '') ? 'NULL' : self::_q($value);
-    }
-
     protected static function _int_or_null($value)
     {
         return ($value === NULL OR $value === '') ? 'NULL' : (string) (int) $value;
     }
 
-    protected static function _row($sql)
+    protected static function _row($sql, array $params = [])
     {
-        $res = self::_db()->query(Database::SELECT, $sql, FALSE);
-        $row = $res->current();
-
-        return $row ?: NULL;
+        return Prx_Db::one($sql, $params);
     }
 
-    protected static function _exec($sql)
+    protected static function _exec($sql, array $params = [])
     {
-        return self::_db()->query(Database::UPDATE, $sql, FALSE);
+        return Prx_Db::execute($sql, $params);
     }
 }

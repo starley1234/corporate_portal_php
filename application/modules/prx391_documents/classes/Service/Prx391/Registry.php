@@ -37,6 +37,7 @@ class Service_Prx391_Registry
     {
         ($actor ?? Prx_Actor::guest())->require('prx391.view');
         $where = ['d.status <> \'archived\''];
+        $params = [];
         if ( ! Policy_Prx391_Document::canViewAll($actor))
         {
             $where[] = "d.sensitivity IN ('public', 'internal')";
@@ -44,17 +45,20 @@ class Service_Prx391_Registry
 
         if ( ! empty($filters['status']))
         {
-            $where[] = "d.status = ".self::_q($filters['status']);
+            $where[] = "d.status = :f_status";
+            $params[':f_status'] = $filters['status'];
         }
         if ( ! empty($filters['type']))
         {
-            $where[] = "t.code = ".self::_q($filters['type']);
+            $where[] = "t.code = :f_type";
+            $params[':f_type'] = $filters['type'];
         }
         if ( ! empty($filters['q']))
         {
             $q = '%'.str_replace(['%', '_'], ['\\%', '\\_'], trim((string) $filters['q'])).'%';
-            $where[] = "(d.subject ILIKE ".self::_q($q)." OR d.reg_no ILIKE ".self::_q($q)
-                ." OR c.name ILIKE ".self::_q($q)." OR d.sender_name ILIKE ".self::_q($q).")";
+            $where[] = "(d.subject ILIKE :q OR d.reg_no ILIKE :q"
+                ." OR c.name ILIKE :q OR d.sender_name ILIKE :q)";
+            $params[':q'] = $q;
         }
 
         $page = max(1, (int) ($filters['page'] ?? 1));
@@ -67,7 +71,7 @@ class Service_Prx391_Registry
             LEFT JOIN prx_391_types t ON t.id = d.type_id
             LEFT JOIN prx_391_correspondents c ON c.id = d.correspondent_id
             WHERE ".implode(' AND ', $where)."
-        ");
+        ", $params);
 
         $rows = self::_all("
             SELECT d.*, t.code AS type_code, t.title AS type_title, t.icon AS type_icon,
@@ -88,7 +92,7 @@ class Service_Prx391_Registry
                 CASE d.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'normal' THEN 2 ELSE 3 END,
                 d.received_at DESC, d.id DESC
             LIMIT ".$per." OFFSET ".$offset."
-        ");
+        ", $params);
 
         return [
             'rows' => $rows,
@@ -291,32 +295,13 @@ class Service_Prx391_Registry
     // Внутреннее: права и мини-слой БД
     // ------------------------------------------------------------------
 
-    protected static function _db()
+    protected static function _row($sql, array $params = [])
     {
-        return Database::instance();
+        return Prx_Db::one($sql, $params);
     }
 
-    protected static function _q($value)
+    protected static function _all($sql, array $params = [])
     {
-        return self::_db()->quote((string) $value);
-    }
-
-    protected static function _row($sql)
-    {
-        $res = self::_db()->query(Database::SELECT, $sql, FALSE);
-        $row = $res->current();
-
-        return $row ?: NULL;
-    }
-
-    protected static function _all($sql)
-    {
-        $out = [];
-        foreach (self::_db()->query(Database::SELECT, $sql, FALSE) as $row)
-        {
-            $out[] = $row;
-        }
-
-        return $out;
+        return Prx_Db::select($sql, $params);
     }
 }

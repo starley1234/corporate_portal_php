@@ -93,20 +93,25 @@ class Service_Prx391_Documents
 
         try
         {
+            $params = [':reg_no' => $reg_no, ':subject' => $subject,
+                ':received_at' => $message['received_at'] ?: date('Y-m-d H:i:s')];
+            foreach (['sender_name', 'sender_email', 'sender_inn'] as $k)
+            {
+                $v = $message[$k] ?? NULL;
+                $params[':'.$k] = ($v === NULL OR $v === '') ? NULL : (string) $v;
+            }
             $row = self::_row("
                 INSERT INTO prx_391_documents
                     (reg_no, source_message_id, subject, sender_name, sender_email, sender_inn,
                      received_at, status, priority, sensitivity, created_by)
                 VALUES (
-                    ".self::_q($reg_no).", ".$message_id.", ".self::_q($subject).",
-                    ".self::_q_or_null($message['sender_name'] ?? NULL).",
-                    ".self::_q_or_null($message['sender_email'] ?? NULL).",
-                    ".self::_q_or_null($message['sender_inn'] ?? NULL).",
-                    ".self::_q($message['received_at'] ?: date('Y-m-d H:i:s')).",
+                    :reg_no, ".$message_id.", :subject,
+                    :sender_name, :sender_email, :sender_inn,
+                    :received_at,
                     'new', 'normal', 'internal', ".self::_int_or_null($message['created_by'] ?? NULL)."
                 )
                 RETURNING id
-            ");
+            ", $params);
         }
         catch (Exception $e)
         {
@@ -256,10 +261,13 @@ class Service_Prx391_Documents
 
     protected static function _history($document_id, $event, $note, $actor_id, array $payload = [])
     {
+        $params = [':event' => $event, ':payload' => json_encode($payload, JSON_UNESCAPED_UNICODE)];
+        $params[':note'] = ($note === NULL OR $note === '') ? NULL : (string) $note;
         self::_exec(
             "INSERT INTO prx_391_history (document_id, event, note, actor_id, payload) "
-            ."VALUES (".(int) $document_id.", ".self::_q($event).", ".self::_q_or_null($note).", "
-            .self::_int_or_null($actor_id).", ".self::_q(json_encode($payload, JSON_UNESCAPED_UNICODE))."::jsonb)"
+            ."VALUES (".(int) $document_id.", :event, :note, "
+            .self::_int_or_null($actor_id).", :payload::jsonb)",
+            $params
         );
     }
 
@@ -267,36 +275,18 @@ class Service_Prx391_Documents
     // Мини-слой БД
     // ------------------------------------------------------------------
 
-    protected static function _db()
-    {
-        return Database::instance();
-    }
-
-    protected static function _q($value)
-    {
-        return self::_db()->quote((string) $value);
-    }
-
-    protected static function _q_or_null($value)
-    {
-        return ($value === NULL OR $value === '') ? 'NULL' : self::_q($value);
-    }
-
     protected static function _int_or_null($value)
     {
         return ($value === NULL OR $value === '') ? 'NULL' : (string) (int) $value;
     }
 
-    protected static function _row($sql)
+    protected static function _row($sql, array $params = [])
     {
-        $res = self::_db()->query(Database::SELECT, $sql, FALSE);
-        $row = $res->current();
-
-        return $row ?: NULL;
+        return Prx_Db::one($sql, $params);
     }
 
-    protected static function _exec($sql)
+    protected static function _exec($sql, array $params = [])
     {
-        return self::_db()->query(Database::UPDATE, $sql, FALSE);
+        return Prx_Db::execute($sql, $params);
     }
 }
