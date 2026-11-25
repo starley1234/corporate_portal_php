@@ -17,12 +17,12 @@ class Service_Prx397_Extraction
         'invalid_result', 'invalid_attempt', 'method_not_allowed', 'pdf_required',
     ];
 
-    private Database $db;
     private Service_Prx120_JobQueue $queue;
 
     public function __construct()
     {
-        $this->db = Database::instance(Kohana::$config->load('prx120_jobs.db_group'));
+        // JobQueue::push, INSERT регистрации и ключ идемпотентности идут через
+        // одно соединение: все берут default-группу (db_group конфига = NULL).
         $this->queue = Service_Prx120_JobQueue::instance();
     }
 
@@ -43,7 +43,7 @@ class Service_Prx397_Extraction
 
         $file_id = Storage::save($upload, self::MODULE, max_bytes: Service_Prx397_Limits::get('max_pdf_bytes'));
         try {
-            $idem = Prx_Idempotency::begin(self::SCOPE, (string) $owner, $key, $sha, $this->db);
+            $idem = Prx_Idempotency::begin(self::SCOPE, (string) $owner, $key, $sha);
         } catch (Throwable $e) {
             $this->discard($file_id);
             throw $e;
@@ -71,13 +71,14 @@ class Service_Prx397_Extraction
             ]);
             if ($job_id < 1) throw new RuntimeException('Отсутствует ID задачи');
             $ttl = Service_Prx397_Limits::get('result_ttl_hours');
-            $this->db->query(Database::INSERT, 'INSERT INTO prx_397_invoices '
+            Prx_Db::execute('INSERT INTO prx_397_invoices '
                 .'(job_id, owner_id, file_id, request_key, file_sha256, status, expires_at) VALUES ('
-                .$job_id.','.(int) $owner.','.$file_id.','.$this->db->quote($key_hash).','
-                .$this->db->quote($sha).",'queued',now() + (".$ttl." * interval '1 hour'))", FALSE);
-            Prx_Idempotency::finish((int) $idem['id'], ['job_id' => $job_id], $this->db);
+                .':job,'.(int) $owner.','.$file_id.',:key_hash,'
+                .':sha,\'queued\',now() + (:ttl * interval \'1 hour\'))',
+                [':job' => $job_id, ':key_hash' => $key_hash, ':sha' => $sha, ':ttl' => (int) $ttl]);
+            Prx_Idempotency::finish((int) $idem['id'], ['job_id' => $job_id]);
         } catch (Throwable $e) {
-            Prx_Idempotency::abort($this->db);
+            Prx_Idempotency::abort();
             $this->discard($file_id);
             throw $e;
         }
@@ -170,9 +171,10 @@ class Service_Prx397_Extraction
         $this->check_lease($id, $attempt);
         $error_code = $body['error_code'] ?? NULL;
         if (is_string($error_code) && $error_code !== '') {
-            $this->db->query(Database::UPDATE,
-                'UPDATE prx_397_invoices SET status = \'failed\', error_code = '.$this->db->quote($error_code)
-                .', updated_at = now() WHERE job_id = '.(int) $id, FALSE);
+            Prx_Db::execute(
+                'UPDATE prx_397_invoices SET status = \'failed\', error_code = :code'
+                .', updated_at = now() WHERE job_id = '.(int) $id,
+                [':code' => $error_code]);
             return ['status' => 'failed', 'error_code' => $error_code];
         }
 
@@ -183,7 +185,7 @@ class Service_Prx397_Extraction
         if ($confidence !== NULL && ( ! is_numeric($confidence) || $confidence < 0 || $confidence > 1))
             throw new Prx397_Error('invalid_result', 400);
         if (is_int($text_chars) && $text_chars > Service_Prx397_Limits::get('max_llm_chars')) {
-            $this->db->query(Database::UPDATE, "UPDATE prx_397_invoices SET status='failed', error_code='text_too_large_for_llm', updated_at=now() WHERE job_id=".(int)$id, FALSE);
+            Prx_Db::execute("UPDATE prx_397_invoices SET status='failed', error_code='text_too_large_for_llm', updated_at=now() WHERE job_id=".(int)$id);
             return ['status' => 'failed', 'error_code' => 'text_too_large_for_llm'];
         }
 
@@ -193,12 +195,14 @@ class Service_Prx397_Extraction
         foreach ($checks as $c) { if (empty($c['ok'])) { $ok = FALSE; break; } }
         $status = $ok ? 'done' : 'review';
 
-        $this->db->query(Database::UPDATE,
-            'UPDATE prx_397_invoices SET status = '.$this->db->quote($status)
-            .', fields = '.$this->db->quote(json_encode($normalized, JSON_UNESCAPED_UNICODE)).'::jsonb'
-            .', checks = '.$this->db->quote(json_encode($checks, JSON_UNESCAPED_UNICODE)).'::jsonb'
+        Prx_Db::execute(
+            'UPDATE prx_397_invoices SET status = :status'
+            .', fields = :fields::jsonb'
+            .', checks = :checks::jsonb'
             .', confidence = '.($confidence === NULL ? 'NULL' : number_format((float) $confidence, 3, '.', ''))
-            .', error_code = NULL, updated_at = now() WHERE job_id = '.$id, FALSE);
+            .', error_code = NULL, updated_at = now() WHERE job_id = '.$id,
+            [':status' => $status, ':fields' => json_encode($normalized, JSON_UNESCAPED_UNICODE),
+             ':checks' => json_encode($checks, JSON_UNESCAPED_UNICODE)]);
 
         return ['status' => $status, 'checks' => $checks];
     }
@@ -330,15 +334,15 @@ class Service_Prx397_Extraction
 
     public function purge(): array
     {
-        $expired = $this->db->query(Database::SELECT,
-            'SELECT job_id, file_id FROM prx_397_invoices WHERE expires_at <= now() ORDER BY expires_at, job_id LIMIT 100', FALSE)->as_array();
+        $expired = Prx_Db::select(
+            'SELECT job_id, file_id FROM prx_397_invoices WHERE expires_at <= now() ORDER BY expires_at, job_id LIMIT 100');
         $report = ['purged' => 0, 'orphans' => 0, 'errors' => 0];
         foreach ($expired as $row) {
             $id = (int) $row['job_id'];
             $file_id = (int) $row['file_id'];
             try {
                 if ($file_id > 0) Storage::delete_owned($file_id, self::MODULE);
-                $this->db->query(Database::DELETE, 'DELETE FROM prx_397_invoices WHERE job_id = '.$id.' AND expires_at <= now()', FALSE);
+                Prx_Db::execute('DELETE FROM prx_397_invoices WHERE job_id = '.$id.' AND expires_at <= now()');
                 $report['purged']++;
             } catch (Throwable $e) {
                 $report['errors']++;
@@ -359,9 +363,8 @@ class Service_Prx397_Extraction
         Log_Plain::event(Log::ERROR, 'prx397 stage=discard file_id=:id', [':id' => $file_id]);
     }
 
-    private function one(string $sql): ?array
+    private function one(string $sql, array $params = []): ?array
     {
-        $row = $this->db->query(Database::SELECT, $sql, FALSE)->current();
-        return $row ? (array) $row : NULL;
+        return Prx_Db::one($sql, $params);
     }
 }
