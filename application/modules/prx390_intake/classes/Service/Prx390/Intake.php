@@ -236,7 +236,7 @@ class Service_Prx390_Intake
         }
 
         $sha = hash_file('sha256', $path);
-        $existing = self::_row("SELECT id FROM prx_390_messages WHERE sha256 = ".self::_q($sha));
+        $existing = self::_row('SELECT id FROM prx_390_messages WHERE sha256 = :sha', [':sha' => $sha]);
         if ($existing)
         {
             Log_Plain::event(Log::INFO, 'prx390_diag stage=intake result=duplicate message_id=:id', [
@@ -253,18 +253,25 @@ class Service_Prx390_Intake
                 (channel_id, source, source_ref, sha256, subject, status, created_by)
             VALUES (
                 (SELECT id FROM prx_390_channels WHERE code = 'folder'),
-                ".self::_q($source).", ".self::_q($name).", ".self::_q($sha).",
-                ".self::_q(pathinfo($name, PATHINFO_FILENAME)).",
-                ".self::_q(self::STATUS_RECEIVED).", ".self::_int_or_null($actor ? $actor->id() : NULL)."
+                :source, :name, :sha,
+                :subject,
+                :status, ".self::_int_or_null($actor ? $actor->id() : NULL)."
             )
             RETURNING id, received_at
-        ");
+        ", [
+            ':source'  => $source,
+            ':name'    => $name,
+            ':sha'     => $sha,
+            ':subject' => pathinfo($name, PATHINFO_FILENAME),
+            ':status'  => self::STATUS_RECEIVED,
+        ]);
 
         $message_id = (int) $row['id'];
         self::_exec(
             "INSERT INTO prx_390_files (message_id, file_id, filename, mime, size_bytes, sha256) "
-            ."VALUES (".(int) $message_id.", ".(int) $file_id.", ".self::_q($name).", "
-            .self::_q($mime).", ".(int) $size.", ".self::_q($sha).")"
+            ."VALUES (".(int) $message_id.", ".(int) $file_id.", :filename, "
+            .":mime, ".(int) $size.", :sha)",
+            [':filename' => $name, ':mime' => $mime, ':sha' => $sha]
         );
 
         try
@@ -274,7 +281,9 @@ class Service_Prx390_Intake
         }
         catch (Exception $e)
         {
-            self::_exec("UPDATE prx_390_messages SET status = '".self::STATUS_ERROR."', error = ".self::_q($e->getMessage())." WHERE id = ".$message_id);
+            self::_exec(
+                "UPDATE prx_390_messages SET status = '".self::STATUS_ERROR."', error = :err WHERE id = :id",
+                [':err' => $e->getMessage(), ':id' => $message_id]);
             Log_Plain::event(Log::ERROR, 'prx390_diag stage=enqueue result=error message_id=:id error_type=:type', [
                 ':id' => $message_id, ':type' => get_class($e),
             ]);
@@ -363,14 +372,17 @@ class Service_Prx390_Intake
     public static function messages(array $filters = [])
     {
         $where = ['1=1'];
+        $params = [];
         if ( ! empty($filters['status']))
         {
-            $where[] = "m.status = ".self::_q($filters['status']);
+            $where[] = 'm.status = :status';
+            $params[':status'] = $filters['status'];
         }
         if ( ! empty($filters['q']))
         {
             $q = '%'.str_replace(['%', '_'], ['\\%', '\\_'], trim((string) $filters['q'])).'%';
-            $where[] = "(m.subject ILIKE ".self::_q($q)." OR m.sender_name ILIKE ".self::_q($q)." OR m.source_ref ILIKE ".self::_q($q).")";
+            $where[] = '(m.subject ILIKE :q OR m.sender_name ILIKE :q OR m.source_ref ILIKE :q)';
+            $params[':q'] = $q;
         }
 
         $limit = max(1, min(200, (int) ($filters['limit'] ?? self::config('page_size', 50))));
@@ -383,7 +395,8 @@ class Service_Prx390_Intake
             LEFT JOIN prx_390_channels c ON c.id = m.channel_id
             WHERE ".implode(' AND ', $where)."
             ORDER BY m.received_at DESC, m.id DESC
-            LIMIT ".$limit
+            LIMIT ".$limit,
+            $params
         );
     }
 
@@ -427,9 +440,9 @@ class Service_Prx390_Intake
         $row = self::_row("
             INSERT INTO prx_390_texts (message_id, file_id, text, chars, pages, engine, status, confidence)
             VALUES (
-                ".(int) $message_id.", ".$file_id.", ".self::_q($text).", ".$chars.",
-                ".self::_int_or_null($data['pages'] ?? NULL).", ".self::_q((string) ($data['engine'] ?? 'pypdf')).",
-                ".self::_q($status).", ".self::_num_or_null($data['confidence'] ?? NULL)."
+                ".(int) $message_id.", ".$file_id.", ":text", ".$chars.",
+                ".self::_int_or_null($data['pages'] ?? NULL).", :engine,
+                :status, ".self::_num_or_null($data['confidence'] ?? NULL).",
             )
             ON CONFLICT (message_id, file_id) DO UPDATE SET
                 text = EXCLUDED.text,
@@ -440,13 +453,17 @@ class Service_Prx390_Intake
                 confidence = EXCLUDED.confidence,
                 updated_at = now()
             RETURNING id
-        ");
+        ", [
+            ':text'   => $text,
+            ':engine' => (string) ($data['engine'] ?? 'pypdf'),
+            ':status' => $status,
+        ]);
 
         self::_exec("
             UPDATE prx_390_messages
-            SET status = ".self::_q($status).", error = NULL
+            SET status = :status, error = NULL
             WHERE id = ".(int) $message_id."
-        ");
+        ", [':status' => $status]);
 
         Log_Plain::event(Log::INFO, 'prx390_diag stage=text_saved result=ok message_id=:message file_id=:file status=:status chars=:chars', [
             ':message' => (int) $message_id, ':file' => $file_id, ':status' => $status, ':chars' => $chars,
@@ -515,31 +532,23 @@ class Service_Prx390_Intake
     protected static function _touch_channel($error = NULL)
     {
         $set = "last_scan_at = now()";
+        $params = [];
         if ($error === NULL)
         {
             $set .= ", last_ok_at = now(), last_error = NULL";
         }
         else
         {
-            $set .= ", last_error = ".self::_q($error);
+            $set .= ", last_error = :err";
+            $params[':err'] = $error;
         }
 
-        self::_exec("UPDATE prx_390_channels SET ".$set." WHERE code = 'folder'");
+        self::_exec("UPDATE prx_390_channels SET ".$set." WHERE code = 'folder'", $params);
     }
 
     // ------------------------------------------------------------------
-    // Мини-слой БД: только свои таблицы
+    // Мини-слой БД: только свои таблицы (Prx_Db, docs/SKELETON-ADR.md Д1)
     // ------------------------------------------------------------------
-
-    protected static function _db()
-    {
-        return Database::instance();
-    }
-
-    protected static function _q($value)
-    {
-        return self::_db()->quote((string) $value);
-    }
 
     protected static function _int_or_null($value)
     {
@@ -551,27 +560,18 @@ class Service_Prx390_Intake
         return ($value === NULL OR $value === '') ? 'NULL' : (string) (float) $value;
     }
 
-    protected static function _row($sql)
+    protected static function _row($sql, array $params = [])
     {
-        $res = self::_db()->query(Database::SELECT, $sql, FALSE);
-        $row = $res->current();
-
-        return $row ?: NULL;
+        return Prx_Db::one($sql, $params);
     }
 
-    protected static function _all($sql)
+    protected static function _all($sql, array $params = [])
     {
-        $out = [];
-        foreach (self::_db()->query(Database::SELECT, $sql, FALSE) as $row)
-        {
-            $out[] = $row;
-        }
-
-        return $out;
+        return Prx_Db::select($sql, $params);
     }
 
-    protected static function _exec($sql)
+    protected static function _exec($sql, array $params = [])
     {
-        return self::_db()->query(Database::UPDATE, $sql, FALSE);
+        return Prx_Db::execute($sql, $params);
     }
 }
