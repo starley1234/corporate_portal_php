@@ -111,3 +111,21 @@ id/reg_no/subject, результат по ID. Пустые/невалидные
 Не применяет пользовательский ACL: для пользовательских списков остаются
 actor-aware методы. `AnalysisHeadersIntegrationTest` и `analysis_headers.php`
 удерживают проекцию и нормализацию ID; snapshot-кэша нет.
+
+## Автоматизация (25.11.2026): `bin/console documents:auto`
+
+Задача для Crontab (раз в минуту, рядом с `portal:maintain`):
+
+    * * * * * cd /путь/к/порталу && php bin/console documents:auto >> application/logs/documents-auto.log 2>&1
+
+Шаги включаются флагами `.env` (по умолчанию ВЫКЛ — включение = решение владельца):
+
+- `PRX390_AUTO_SCAN=1` — скан папки входящих prx390 без кнопки
+  (`Service_Prx390_Intake::scan_folder_automatically()`, ACL не проверяется
+  намеренно: действует планировщик, не пользователь);
+- `PRX391_AUTO_AI=1` — разбор ИИ для документов реестра **без прогонов**
+  (`Service_Prx392_Analysis::queue_automatically()`, идемпотентно:
+  advisory-лок + input_hash; документ без текста ждёт doc.normalize —
+  берётся на следующем проходе). Ручная кнопка «разбор ИИ» остаётся.
+
+`limit=N` — сколько документов ставить в очередь за проход (по умолчанию 10).

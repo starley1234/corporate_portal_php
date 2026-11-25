@@ -75,7 +75,10 @@ class DocflowAccessBoundaryTest(unittest.TestCase):
                     self.assertNotRegex(path.read_text(encoding='utf-8'), TRUSTED_CALL)
 
     def test_tasks_have_only_declared_automation_calls(self):
-        allowed = {'prx390_intake/classes/Task/Prx390/Scan.php': ['scan_folder_automatically']}
+        allowed = {
+            'prx390_intake/classes/Task/Prx390/Scan.php': ['scan_folder_automatically'],
+            'prx391_documents/classes/Task/Documents/Auto.php': ['scan_folder_automatically', 'queue_automatically'],
+        }
         for module in MODULES:
             for path in (module / 'classes/Task').rglob('*.php'):
                 relative = path.relative_to(ROOT / 'application/modules').as_posix()

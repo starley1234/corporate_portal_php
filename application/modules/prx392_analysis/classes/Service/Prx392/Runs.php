@@ -65,6 +65,31 @@ class Service_Prx392_Runs
         "));
     }
 
+    /**
+     * Доверенное межсервисное чтение (prx391 documents:auto), не UI-read API:
+     * подмножество переданных ID, у которых ещё нет ни одного прогона.
+     * Пустые/невалидные ID отбрасываются до БД, список ограничен 500;
+     * результат по ID, порядок выдачи не является контрактом.
+     */
+    public static function documents_without_runs(array $ids): array
+    {
+        $clean = [];
+        foreach ($ids as $id)
+        {
+            $id = (int) $id;
+            if ($id > 0) $clean[$id] = TRUE;
+        }
+        $clean = array_slice(array_keys($clean), 0, 500);
+        if ( ! $clean) return [];
+
+        $rows = self::_all(
+            "SELECT DISTINCT document_id FROM prx_392_runs
+             WHERE document_id IN (".implode(',', $clean).")");
+        $with_runs = array_map('intval', array_column($rows, 'document_id'));
+
+        return array_values(array_diff($clean, $with_runs));
+    }
+
     /** Один batch lookup вместо JOIN к чужой таблице или N+1 карточек. */
     private static function _with_headers(array $rows, bool $require_document = FALSE): array
     {

@@ -65,6 +65,22 @@ class Service_Prx392_Analysis
     public static function queue($document_id, $message_id, ?Prx_Actor $actor = NULL, $profile_code = 'classify_extract_v1', bool $restart = FALSE)
     {
         ($actor ?? Prx_Actor::guest())->require('prx392.run');
+
+        return self::_queue($document_id, $message_id, $profile_code, $restart, $actor);
+    }
+
+    /**
+     * Автоматический запуск от локального cron (prx391 documents:auto) —
+     * как prx390 scan_folder_automatically: ACL не проверяется, потому что
+     * действуют от имени планировщика, а не пользователя.
+     */
+    public static function queue_automatically($document_id, $message_id, $profile_code = 'classify_extract_v1', bool $restart = FALSE)
+    {
+        return self::_queue($document_id, $message_id, $profile_code, $restart);
+    }
+
+    private static function _queue($document_id, $message_id, $profile_code = 'classify_extract_v1', bool $restart = FALSE, ?Prx_Actor $actor = NULL)
+    {
         $document_id = (int) $document_id;
         $message_id = (int) $message_id;
         $profile = self::profile($profile_code);
