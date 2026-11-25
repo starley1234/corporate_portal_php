@@ -201,6 +201,20 @@ Storage::delete($file_id, $actor->id());
 `status`: draft|beta|stable|deprecated. `audience`: public|auth|admin|agent.
 `python3 .tools/manifest_check.py`.
 
+Секции манифеста — закрытый список (проверяет `manifest_check.py`; неизвестный
+ключ — предупреждение, пока набор устоялся). Новая секция добавляется решением,
+а не «по ходу».
+
+| секция | что описывает |
+|---|---|
+| `id`, `slug`, `title`, `short`, `icon`, `href`, `group`, `sort`, `status`, `audience`, `acl` | карточка витрины и права страницы |
+| `created_at`, `updated_at` | даты (YYYY-MM-DD): появление модуля и правка сервиса |
+| `hidden`, `catalog`, `keywords`, `family`, `badge`, `pin`, `home` | видимость, поиск, семейство, бейджи, порядок |
+| `card_view`, `nav_paths`, `header_chips`, `sitemap` | виджет главной, алиасы, чипы, карта сайта |
+| `api`, `api_scopes` | внутренний API и внешние scope (prx150) |
+| `admin`, `auth`, `notify` | ссылки админки, каналы уведомлений, события prx597 |
+| `worker`, `schedule`, `cleanup`, `health`, `recent`, `search` | контракты обнаружения (`Manifest::section`) |
+
 ## 7. Страница: page-kit
 
 Собирается из четырёх партиалов, в этом порядке:

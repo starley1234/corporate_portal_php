@@ -41,6 +41,21 @@ KINDS = {'module', 'platform', 'library'}
 STATUSES = {'draft', 'beta', 'stable', 'deprecated'}
 AUDIENCES = {'public', 'auth', 'admin', 'agent'}
 ERRORS: list[str] = []
+WARNINGS: list[str] = []
+
+# Закрытый список секций манифеста (docs/FOUNDATION.md §6). Новая секция —
+# только решением владельца, с добавлением сюда и в таблицу документа. Так
+# манифест остаётся контрактом, а не свалкой ad-hoc ключей.
+ALLOWED_KEYS = {
+    # карточка и витрина
+    'id', 'kind', 'slug', 'title', 'short', 'icon', 'href', 'group', 'sort',
+    'status', 'audience', 'acl', 'created_at', 'updated_at',
+    'hidden', 'catalog', 'keywords', 'family', 'badge', 'pin', 'home',
+    'card_view', 'nav_paths', 'header_chips', 'sitemap',
+    # контракты обнаружения (Manifest::section)
+    'api', 'api_scopes', 'admin', 'auth', 'notify',
+    'worker', 'schedule', 'cleanup', 'health', 'recent', 'search',
+}
 
 
 def fail(message: str) -> None:
@@ -68,6 +83,18 @@ def check_module(path: Path, hrefs: dict[str, str], keys: set[str]) -> None:
     if not manifest:
         fail(f'{name}: манифест не разобран')
         return
+
+    # Секции манифеста — закрытый список; неизвестная секция не ошибка, пока
+    # набор устоялся, но её видно и её надо либо внести в схему, либо убрать.
+    for key in manifest:
+        if key not in ALLOWED_KEYS:
+            WARNINGS.append(f'{name}: неизвестная секция манифеста `{key}` — '
+                            'внесите в схему (docs/FOUNDATION.md §6) или уберите')
+
+    for field in ('created_at', 'updated_at'):
+        value = manifest.get(field)
+        if value is not None and not re.fullmatch(r'\d{4}-\d{2}-\d{2}', text(value)):
+            fail(f'{name}: `{field}` должен быть датой YYYY-MM-DD, а не {text(value)!r}')
 
     kind = text(manifest.get('kind') or 'module')
     if kind not in KINDS:
@@ -196,11 +223,13 @@ def main() -> int:
         check_module(path, hrefs, keys)
 
     if '--json' in sys.argv:
-        print(json.dumps({'ok': not ERRORS, 'errors': ERRORS}, ensure_ascii=False, indent=2))
+        print(json.dumps({'ok': not ERRORS, 'errors': ERRORS, 'warnings': WARNINGS}, ensure_ascii=False, indent=2))
     else:
+        for warning in WARNINGS:
+            print(f'  ! {warning}')
         for error in ERRORS:
             print(f'  ✗ {error}')
-        print(f'манифестов: {len(manifests)}, ошибок: {len(ERRORS)}')
+        print(f'манифестов: {len(manifests)}, ошибок: {len(ERRORS)}, предупреждений: {len(WARNINGS)}')
 
     return 1 if ERRORS else 0
 
