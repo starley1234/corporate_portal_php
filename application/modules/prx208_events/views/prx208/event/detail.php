@@ -25,7 +25,32 @@
                 <div><dt class="text-xs font-bold uppercase tracking-wide text-gray-500 dark:text-gray-400">ID записи</dt><dd class="mt-1 font-mono text-gray-800 dark:text-gray-100">#<?php echo (int) $event['id']; ?></dd></div>
             </dl>
             <h3 class="prx-h3 mt-6">Payload</h3>
+<?php
+    // Человекочитаемая легенда модульных кодов в payload («module»: «prx397»):
+    // сырой JSON не трогаем — журнал честный, а расшифровку даём рядом.
+    $mod_legend = [];
+    $_payload = json_decode((string) $event['payload_text'], TRUE);
+    if (is_array($_payload) AND class_exists('Manifest'))
+    {
+        foreach (['module', 'module_prefix'] as $_key)
+        {
+            $_pref = isset($_payload[$_key]) && is_string($_payload[$_key]) ? $_payload[$_key] : '';
+            if ($_pref === '') { continue; }
+            foreach (Manifest::all() as $_slug => $_m)
+            {
+                if ($_slug === $_pref OR strpos($_slug, $_pref.'_') === 0)
+                {
+                    $mod_legend[$_pref] = [$_slug, (string) ($_m['title'] ?? '')];
+                    break;
+                }
+            }
+        }
+    }
+?>
             <pre class="mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-gray-900 p-4 text-xs leading-5 text-gray-100"><?php echo HTML::chars($event['payload_text']); ?></pre>
+            <?php if ( ! empty($mod_legend)): ?>
+            <p class="prx-hint mt-2">Модули в payload: <?php $_first = TRUE; foreach ($mod_legend as $_pref => $_info): ?><?php echo $_first ? '' : ' · '; ?><code class="font-mono"><?php echo HTML::chars($_pref); ?></code> — <?php echo HTML::chars($_info[1]); ?> (<?php echo HTML::chars($_info[0]); ?>)<?php $_first = FALSE; endforeach; ?></p>
+            <?php endif; ?>
         </section>
 
         <aside class="space-y-4">
