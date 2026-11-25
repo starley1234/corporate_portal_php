@@ -148,7 +148,7 @@ LEGACY_SQL_MODULES = {
     'prx218_module_manager', 'prx300_employee', 'prx390_intake', 'prx391_documents',
     'prx392_analysis', 'prx393_workflow', 'prx395_document_extract', 'prx396_pdf_chunks',
     'prx397_invoice', 'prx398_doc_router', 'prx560_knowledge', 'prx595_useradmin',
-    'prx597_notifications', 'prx599_account',
+    'prx597_notifications',
 }
 RAW_DB_PATTERNS = ('Database::instance()', '->quote(')
 

@@ -36,7 +36,7 @@ class Service_Prx599_Account
 
         try
         {
-            DB::query(NULL, <<<SQL
+            Prx_Db::execute(<<<SQL
 CREATE TABLE IF NOT EXISTS "prx_599_totp" (
     "user_id"    BIGINT      PRIMARY KEY,
     "secret"     VARCHAR(64) NOT NULL,
@@ -74,18 +74,13 @@ CREATE TABLE IF NOT EXISTS "prx_599_kicks" (
 );
 COMMENT ON TABLE "prx_599_kicks" IS 'PRX-599 «выйти везде»: сессии созданные раньше after_ts недействительны';
 SQL
-            )->execute();
+            );
         }
         catch (Throwable $e)
         {
             self::$_tables_ensured = FALSE;
             Kohana::$log->add(Log::WARNING, 'prx599: ensure_tables: :e', [':e' => $e->getMessage()]);
         }
-    }
-
-    protected static function _db()
-    {
-        return Database::instance();
     }
 
     // ------------------------------------------------------------------ TOTP
@@ -193,10 +188,11 @@ SQL
     public static function totp_row($user_id)
     {
         self::ensure_tables();
-        $row = self::_db()->query(Database::SELECT,
-            'SELECT * FROM prx_599_totp WHERE user_id = '.(int) $user_id, FALSE)->current();
+        $row = Prx_Db::one(
+            'SELECT * FROM prx_599_totp WHERE user_id = :user_id',
+            [':user_id' => (int) $user_id]);
 
-        return $row ? (array) $row : NULL;
+        return $row;
     }
 
     public static function totp_enabled($user_id)
@@ -211,12 +207,12 @@ SQL
     {
         self::ensure_tables();
         $secret = self::totp_secret();
-        $db = self::_db();
 
-        $db->query(Database::SELECT,
+        Prx_Db::execute(
             'INSERT INTO prx_599_totp (user_id, secret, enabled_at)
-             VALUES ('.(int) $user_id.', '.$db->quote($secret).', NULL)
-             ON CONFLICT (user_id) DO UPDATE SET secret = EXCLUDED.secret, enabled_at = NULL', FALSE);
+             VALUES (:user_id, :secret, NULL)
+             ON CONFLICT (user_id) DO UPDATE SET secret = EXCLUDED.secret, enabled_at = NULL',
+            [':user_id' => (int) $user_id, ':secret' => $secret]);
 
         return $secret;
     }
@@ -236,8 +232,9 @@ SQL
             return ['error' => 'Код не подошёл — проверьте время на телефоне и введите актуальный'];
         }
 
-        self::_db()->query(Database::SELECT,
-            'UPDATE prx_599_totp SET enabled_at = now() WHERE user_id = '.(int) $user_id, FALSE);
+        Prx_Db::execute(
+            'UPDATE prx_599_totp SET enabled_at = now() WHERE user_id = :user_id',
+            [':user_id' => (int) $user_id]);
 
         return ['ok' => TRUE];
     }
@@ -245,7 +242,7 @@ SQL
     public static function totp_disable($user_id)
     {
         self::ensure_tables();
-        self::_db()->query(Database::SELECT, 'DELETE FROM prx_599_totp WHERE user_id = '.(int) $user_id, FALSE);
+        Prx_Db::execute('DELETE FROM prx_599_totp WHERE user_id = :user_id', [':user_id' => (int) $user_id]);
     }
 
     // -------------------------------------------------- журнал / сессии / kick
@@ -254,40 +251,40 @@ SQL
     public static function after_login($user_id, $via = 'password')
     {
         self::ensure_tables();
-        $db  = self::_db();
         $sid = self::_sid();
         $ip  = self::_ip();
         $ua  = mb_substr((string) Arr::get($_SERVER, 'HTTP_USER_AGENT', ''), 0, 300);
 
-        $db->query(Database::SELECT,
+        Prx_Db::execute(
             'INSERT INTO prx_599_logins (user_id, ip, ua, session_id, via)
-             VALUES ('.(int) $user_id.', '.$db->quote($ip).', '.$db->quote($ua).',
-                     '.$db->quote($sid).', '.$db->quote(mb_substr((string) $via, 0, 20)).')', FALSE);
+             VALUES (:user_id, :ip, :ua, :sid, :via)',
+            [':user_id' => (int) $user_id, ':ip' => $ip, ':ua' => $ua,
+             ':sid' => $sid, ':via' => mb_substr((string) $via, 0, 20)]);
 
-        $db->query(Database::SELECT, 'DELETE FROM prx_599_kicks WHERE user_id = '.(int) $user_id, FALSE);
-        $db->query(Database::SELECT, 'DELETE FROM prx_599_sessions WHERE user_id = '.(int) $user_id, FALSE);
+        Prx_Db::execute('DELETE FROM prx_599_kicks WHERE user_id = :user_id', [':user_id' => (int) $user_id]);
+        Prx_Db::execute('DELETE FROM prx_599_sessions WHERE user_id = :user_id', [':user_id' => (int) $user_id]);
 
         self::touch_session($user_id, $sid, $ip, $ua);
 
         // журнал: держим 90 дней
-        $db->query(Database::SELECT,
-            'DELETE FROM prx_599_logins WHERE user_id = '.(int) $user_id.'
-             AND created_at < now() - interval \'90 days\'', FALSE);
+        Prx_Db::execute(
+            'DELETE FROM prx_599_logins WHERE user_id = :user_id AND created_at < now() - interval \'90 days\'',
+            [':user_id' => (int) $user_id]);
     }
 
     /** Обновить/создать запись текущей сессии. */
     public static function touch_session($user_id, $sid = NULL, $ip = NULL, $ua = NULL)
     {
         self::ensure_tables();
-        $db = self::_db();
         $sid = $sid ?: self::_sid();
         $ip  = $ip ?: self::_ip();
         $ua  = $ua ?: mb_substr((string) Arr::get($_SERVER, 'HTTP_USER_AGENT', ''), 0, 300);
 
-        $db->query(Database::SELECT,
+        Prx_Db::execute(
             'INSERT INTO prx_599_sessions (session_id, user_id, ip, ua, created_at, last_seen)
-             VALUES ('.$db->quote($sid).', '.(int) $user_id.', '.$db->quote($ip).', '.$db->quote($ua).', now(), now())
-             ON CONFLICT (session_id) DO UPDATE SET last_seen = now(), ip = EXCLUDED.ip', FALSE);
+             VALUES (:sid, :user_id, :ip, :ua, now(), now())
+             ON CONFLICT (session_id) DO UPDATE SET last_seen = now(), ip = EXCLUDED.ip',
+            [':sid' => $sid, ':user_id' => (int) $user_id, ':ip' => $ip, ':ua' => $ua]);
     }
 
     /**
@@ -299,7 +296,6 @@ SQL
     public static function session_valid($user_id, $sid = NULL)
     {
         self::ensure_tables();
-        $db  = self::_db();
         $sid = $sid ?: self::_sid();
 
         if ($sid === '')
@@ -309,12 +305,12 @@ SQL
 
         // Основной путь — один indexed lookup: сессия соединяется с kick-меткой.
         // Раньше здесь было два SELECT плюс отдельный upsert из Base на каждой странице.
-        $sess = $db->query(Database::SELECT,
+        $sess = Prx_Db::one(
             'SELECT s.created_at, s.last_seen, k.after_ts
              FROM prx_599_sessions s
              LEFT JOIN prx_599_kicks k ON k.user_id = s.user_id
-             WHERE s.session_id = '.$db->quote($sid).'
-               AND s.user_id = '.(int) $user_id, FALSE)->current();
+             WHERE s.session_id = :sid AND s.user_id = :user_id',
+            [':sid' => $sid, ':user_id' => (int) $user_id]);
 
         if ($sess)
         {
@@ -327,17 +323,18 @@ SQL
             if ($valid AND strtotime((string) $sess['last_seen']) < time() - 300)
             {
                 // Прямой вызов драйвера: UPDATE возвращает int, ->execute() у него нет.
-                $db->query(Database::UPDATE,
-                    'UPDATE prx_599_sessions SET last_seen = now()
-                     WHERE session_id = '.$db->quote($sid).' AND user_id = '.(int) $user_id, FALSE);
+                Prx_Db::execute(
+                    'UPDATE prx_599_sessions SET last_seen = now() WHERE session_id = :sid AND user_id = :user_id',
+                    [':sid' => $sid, ':user_id' => (int) $user_id]);
             }
 
             return $valid;
         }
 
         // Строки нет: отдельная проверка kick нужна только для legacy-сессии.
-        $kick = $db->query(Database::SELECT,
-            'SELECT 1 AS active FROM prx_599_kicks WHERE user_id = '.(int) $user_id.' LIMIT 1', FALSE)->current();
+        $kick = Prx_Db::one(
+            'SELECT 1 AS active FROM prx_599_kicks WHERE user_id = :user_id LIMIT 1',
+            [':user_id' => (int) $user_id]);
 
         if ($kick)
         {
@@ -355,9 +352,9 @@ SQL
     {
         self::ensure_tables();
 
-        return self::_db()->query(Database::SELECT,
-            'SELECT * FROM prx_599_sessions WHERE user_id = '.(int) $user_id.'
-             ORDER BY last_seen DESC LIMIT 20', FALSE)->as_array();
+        return Prx_Db::select(
+            'SELECT * FROM prx_599_sessions WHERE user_id = :user_id ORDER BY last_seen DESC LIMIT 20',
+            [':user_id' => (int) $user_id]);
     }
 
     /** Журнал входов (хвост). */
@@ -365,29 +362,29 @@ SQL
     {
         self::ensure_tables();
 
-        return self::_db()->query(Database::SELECT,
-            'SELECT * FROM prx_599_logins WHERE user_id = '.(int) $user_id.'
-             ORDER BY id DESC LIMIT '.(int) $limit, FALSE)->as_array();
+        return Prx_Db::select(
+            'SELECT * FROM prx_599_logins WHERE user_id = :user_id ORDER BY id DESC LIMIT '.(int) $limit,
+            [':user_id' => (int) $user_id]);
     }
 
     /** Завершить одну сессию (не текущую — текущую через logout). */
     public static function end_session($user_id, $sid)
     {
         self::ensure_tables();
-        self::_db()->query(Database::SELECT,
-            'DELETE FROM prx_599_sessions WHERE user_id = '.(int) $user_id.'
-             AND session_id = '.self::_db()->quote((string) $sid), FALSE);
+        Prx_Db::execute(
+            'DELETE FROM prx_599_sessions WHERE user_id = :user_id AND session_id = :sid',
+            [':user_id' => (int) $user_id, ':sid' => (string) $sid]);
     }
 
     /** «Выйти везде»: kick-метка + удаление всех сессий (включая текущую). */
     public static function logout_everywhere($user_id)
     {
         self::ensure_tables();
-        $db = self::_db();
-        $db->query(Database::SELECT,
-            'INSERT INTO prx_599_kicks (user_id, after_ts) VALUES ('.(int) $user_id.', now())
-             ON CONFLICT (user_id) DO UPDATE SET after_ts = now()', FALSE);
-        $db->query(Database::SELECT, 'DELETE FROM prx_599_sessions WHERE user_id = '.(int) $user_id, FALSE);
+        Prx_Db::execute(
+            'INSERT INTO prx_599_kicks (user_id, after_ts) VALUES (:user_id, now())
+             ON CONFLICT (user_id) DO UPDATE SET after_ts = now()',
+            [':user_id' => (int) $user_id]);
+        Prx_Db::execute('DELETE FROM prx_599_sessions WHERE user_id = :user_id', [':user_id' => (int) $user_id]);
     }
 
     protected static function _sid()
