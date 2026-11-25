@@ -20,6 +20,7 @@ GATE_ENDPOINTS = {
     'application/modules/prx396_pdf_chunks/classes/Controller/Prx396/Worker.php',
     'application/modules/prx397_invoice/classes/Controller/Prx397/Worker.php',
     'application/modules/prx398_doc_router/classes/Controller/Prx398/Worker.php',
+    'application/modules/prx399_docmerge/classes/Controller/Prx399/Api.php',
     'application/modules/prx597_notifications/classes/Controller/Prx597/Api.php',
 }
 ACL_BASE = 'application/modules/prx102_core/classes/Controller/Prx102/Base.php'

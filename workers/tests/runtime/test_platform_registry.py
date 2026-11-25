@@ -9,6 +9,8 @@ def test_only_active_handlers_are_registered():
         "pdf.chunks",
         "invoice.extract",
         "doc.route",
+        "doc.merge.delta",
+        "doc.merge.audit",
         "echo",
         "embeddings.index",
         "llm.summarize",

@@ -33,9 +33,9 @@ plan_entries = [(name, status.strip("'")) for name, status in plan_entries]
 planned = [name for name, _status in plan_entries]
 active_services = [name for name, status in plan_entries if status == 'active']
 archived_services = [name for name, status in plan_entries if status == 'archived']
-check(len(planned) == 55, 'План должен содержать 55 сервисов')
-check(len(set(planned)) == 55, 'Дубли в плане')
-check(len({re.search(r'\d+', name)[0] for name in planned}) == 55, 'Дубли ID в плане')
+check(len(planned) == 56, 'План должен содержать 56 сервисов')
+check(len(set(planned)) == 56, 'Дубли в плане')
+check(len({re.search(r'\d+', name)[0] for name in planned}) == 56, 'Дубли ID в плане')
 for name, status in plan_entries:
     exists = (ROOT / 'application/modules' / name).exists()
     registered_service = name in {entry[0] for entry in registered}
@@ -97,7 +97,7 @@ for path in (ROOT / 'workers/prx_workers').rglob('*.py'):
                   f'Пакет обработчика не называется как модуль-владелец: {path.relative_to(ROOT)}')
     elif handlers in path.parents and re.search(r'^CHANNEL = ', path.read_text(encoding='utf-8'), re.M):
         errors.append(f'Канал не зарегистрирован в handlers/__init__.py: {path.relative_to(ROOT)}')
-check(set(channel_names) == {'doc.analyze', 'doc.normalize', 'document.extract', 'echo', 'embeddings.index', 'llm.summarize', 'semantic.index', 'pdf.chunks', 'invoice.extract', 'doc.route'}, 'Лишние/потерянные worker-каналы')
+check(set(channel_names) == {'doc.analyze', 'doc.normalize', 'document.extract', 'echo', 'embeddings.index', 'llm.summarize', 'semantic.index', 'pdf.chunks', 'invoice.extract', 'doc.route', 'doc.merge.delta', 'doc.merge.audit'}, 'Лишние/потерянные worker-каналы')
 manifest_text = '\n'.join(p.read_text(encoding='utf-8') for p in (ROOT / 'application/modules').glob('*/config/prx_module.php'))
 for channel in channel_names:
     check(f"'{channel}'" in manifest_text, f'Канал не объявлен в манифесте: {channel}')

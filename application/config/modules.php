@@ -30,6 +30,7 @@ $modules = [
     'prx396_pdf_chunks' => APPPATH.'modules/prx396_pdf_chunks',
     'prx397_invoice' => APPPATH.'modules/prx397_invoice',
     'prx398_doc_router' => APPPATH.'modules/prx398_doc_router',
+    'prx399_docmerge' => APPPATH.'modules/prx399_docmerge',
     'prx450_document_ocr' => APPPATH.'modules/prx450_document_ocr',
     'prx560_knowledge' => APPPATH.'modules/prx560_knowledge',
     'prx595_useradmin' => APPPATH.'modules/prx595_useradmin',

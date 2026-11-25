@@ -36,6 +36,8 @@ REGISTRY = (
     ("prx396_pdf_chunks", "handler"),
     ("prx397_invoice", "handler"),
     ("prx398_doc_router", "handler"),
+    ("prx399_docmerge", "delta"),
+    ("prx399_docmerge", "audit"),
 )
 
 # Условные каналы пробы пера: импортируются только при явном включении в PHP.

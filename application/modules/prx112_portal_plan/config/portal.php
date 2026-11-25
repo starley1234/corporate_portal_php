@@ -61,6 +61,7 @@ return ['domains' => [
         ['module' => 'prx392_analysis', 'title' => 'ИИ-анализ входящих', 'status' => $docflow_status],
         ['module' => 'prx393_workflow', 'title' => 'Сроки и маршруты', 'status' => $docflow_status],
         ['module' => 'prx394_drafts', 'title' => 'Ответы на письма', 'status' => 'archived'],
+        ['module' => 'prx399_docmerge', 'title' => 'Слияние договоров и ДС (ИИ)', 'status' => $docflow_status],
     ]],
     'projects' => ['title' => 'Управление проектами', 'services' => [
         ['module' => 'prx400_projects', 'title' => 'Доска общих проектов', 'status' => 'planned'],

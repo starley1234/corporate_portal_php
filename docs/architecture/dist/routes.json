@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "count": 128,
+  "count": 131,
   "routes": [
     {
       "name": "cookie_consent_close",
@@ -982,6 +982,33 @@
       "action": "index",
       "module": "prx398_doc_router",
       "file": "application/modules/prx398_doc_router/classes/Controller/Prx398/Ui.php"
+    },
+    {
+      "name": "prx399_docmerge_home",
+      "uri": "prx399_docmerge",
+      "regex": "",
+      "controller": "Prx399_Ui",
+      "action": "index",
+      "module": "prx399_docmerge",
+      "file": "application/modules/prx399_docmerge/classes/Controller/Prx399/Ui.php"
+    },
+    {
+      "name": "prx399_docmerge_ui",
+      "uri": "prx399_docmerge(/<action>(/<id>))",
+      "regex": "",
+      "controller": "Prx399_Ui",
+      "action": "index",
+      "module": "prx399_docmerge",
+      "file": "application/modules/prx399_docmerge/classes/Controller/Prx399/Ui.php"
+    },
+    {
+      "name": "prx399_docmerge_api",
+      "uri": "prx399/api(/<action>(/<id>))",
+      "regex": "",
+      "controller": "Prx399_Api",
+      "action": "index",
+      "module": "prx399_docmerge",
+      "file": "application/modules/prx399_docmerge/classes/Controller/Prx399/Api.php"
     },
     {
       "name": "prx450_document_ocr_api",
