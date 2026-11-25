@@ -58,9 +58,10 @@ final class Prx_Db
     /** Выполнить запрос на выбранном соединении (по умолчанию — дефолтном). */
     private static function _run(string $type, string $sql, array $params, ?Database $db)
     {
-        $db = $db ?? Database::instance();
-
-        return $db->query($type, $sql)->parameters($params)->execute($db);
+        // DB::query() создаёт Database_Query; соединение выбирает execute($db).
+        // $db->query() здесь НЕЛЬЗЯ: это низкоуровневый метод драйвера — он
+        // выполняет SQL сразу и возвращает результат PDO, без parameters().
+        return DB::query($type, $sql)->parameters($params)->execute($db);
     }
 
     /**
