@@ -116,25 +116,32 @@ class Service_Prx393_Workflow
             INSERT INTO prx_393_assignments
                 (document_id, reg_no, subject, department, role_code, rule_id, priority, status, note)
             VALUES (
-                ".$document_id.", ".self::_q($document['reg_no']).", ".self::_q($document['subject']).",
-                ".self::_q($department).", ".self::_q($role).", ".self::_int_or_null($matched['id'] ?? NULL).",
-                ".self::_q($priority).", 'assigned', ".self::_q($note)."
+                ".$document_id.", :reg_no, :subject,
+                :department, :role, ".self::_int_or_null($matched['id'] ?? NULL).",
+                :priority, 'assigned', :note
             )
             ON CONFLICT (document_id) DO UPDATE SET
                 reg_no = EXCLUDED.reg_no, subject = EXCLUDED.subject,
                 department = EXCLUDED.department, role_code = EXCLUDED.role_code,
                 rule_id = EXCLUDED.rule_id, priority = EXCLUDED.priority,
                 note = EXCLUDED.note, updated_at = now()
-        ");
+        ", [
+            ':reg_no'     => $document['reg_no'],
+            ':subject'    => $document['subject'],
+            ':department' => $department,
+            ':role'       => $role,
+            ':priority'   => $priority,
+            ':note'       => $note,
+        ]);
 
         // Документ снова в работе — срок снова открыт, в том числе после reopen.
         self::_exec("
             INSERT INTO prx_393_deadlines
                 (document_id, reg_no, subject, department, kind, source, due_at, started_at, status, business_days, note)
             VALUES (
-                ".$document_id.", ".self::_q($document['reg_no']).", ".self::_q($document['subject']).",
-                ".self::_q($department).", 'sla', ".self::_q($source).", ".self::_q($due).",
-                ".self::_q($start).", 'open', ".($business_days ? 'true' : 'false').", ".self::_q($note)."
+                ".$document_id.", :reg_no, :subject,
+                :department, 'sla', :source, :due, :start, 'open',
+                ".($business_days ? 'true' : 'false').", :note
             )
             ON CONFLICT (document_id) DO UPDATE SET
                 reg_no = EXCLUDED.reg_no, subject = EXCLUDED.subject,
@@ -142,7 +149,15 @@ class Service_Prx393_Workflow
                 due_at = EXCLUDED.due_at, started_at = EXCLUDED.started_at,
                 status = 'open',
                 business_days = EXCLUDED.business_days, note = EXCLUDED.note, updated_at = now()
-        ");
+        ", [
+            ':reg_no'     => $document['reg_no'],
+            ':subject'    => $document['subject'],
+            ':department' => $department,
+            ':source'     => $source,
+            ':due'        => $due,
+            ':start'      => $start,
+            ':note'       => $note,
+        ]);
 
         Service_Prx391_Documents::set_sla_snapshot($document_id, [
             'deadline_at' => $due,
@@ -341,7 +356,7 @@ class Service_Prx393_Workflow
 
     public static function holidays()
     {
-        $row = self::_row("SELECT holidays FROM prx_393_calendars WHERE code = ".self::_q((string) self::config('calendar_code', 'ru')));
+        $row = self::_row('SELECT holidays FROM prx_393_calendars WHERE code = :code', [':code' => (string) self::config('calendar_code', 'ru')]);
         if ( ! $row OR empty($row['holidays']))
         {
             return [];
@@ -401,7 +416,7 @@ class Service_Prx393_Workflow
                 continue;
             }
 
-            $exists = self::_row("SELECT id FROM prx_393_escalations WHERE deadline_id = ".(int) $row['id']." AND level = ".self::_q($level));
+            $exists = self::_row("SELECT id FROM prx_393_escalations WHERE deadline_id = ".(int) $row['id']." AND level = :level", [':level' => $level]);
             if ($exists)
             {
                 continue;
@@ -434,9 +449,9 @@ class Service_Prx393_Workflow
             {
                 self::_row("
                     INSERT INTO prx_393_escalations (deadline_id, document_id, level)
-                    VALUES (".(int) $row['id'].", ".(int) $row['document_id'].", ".self::_q($level).")
+                    VALUES (".(int) $row['id'].", ".(int) $row['document_id'].", :level
                     RETURNING id
-                ");
+                ", [':level' => $level]);
             }
             catch (Exception $e)
             {
@@ -592,42 +607,23 @@ class Service_Prx393_Workflow
         return $out;
     }
 
-    protected static function _db()
-    {
-        return Database::instance();
-    }
-
-    protected static function _q($value)
-    {
-        return self::_db()->quote((string) $value);
-    }
-
     protected static function _int_or_null($value)
     {
         return ($value === NULL OR $value === '') ? 'NULL' : (string) (int) $value;
     }
 
-    protected static function _row($sql)
+    protected static function _row($sql, array $params = [])
     {
-        $res = self::_db()->query(Database::SELECT, $sql, FALSE);
-        $row = $res->current();
-
-        return $row ?: NULL;
+        return Prx_Db::one($sql, $params);
     }
 
-    protected static function _all($sql)
+    protected static function _all($sql, array $params = [])
     {
-        $out = [];
-        foreach (self::_db()->query(Database::SELECT, $sql, FALSE) as $row)
-        {
-            $out[] = $row;
-        }
-
-        return $out;
+        return Prx_Db::select($sql, $params);
     }
 
-    protected static function _exec($sql)
+    protected static function _exec($sql, array $params = [])
     {
-        return self::_db()->query(Database::UPDATE, $sql, FALSE);
+        return Prx_Db::execute($sql, $params);
     }
 }
