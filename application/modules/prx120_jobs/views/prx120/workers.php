@@ -19,8 +19,8 @@ $card = 'rounded-xl border border-gray-200 bg-white p-4 shadow-xs dark:border-gr
         'lead'    => 'Что делает каждый обработчик фоновых задач — на человеческом языке, со схемами. Страница собирается прямо из кода воркера, поэтому описания и схемы всегда соответствуют тому, что реально запускается.',
     ]); ?>
         <?php if ($dir === ''): ?>
-        <p class="prx-flash prx-flash-warn mt-3 block">
-            <i class="fas fa-triangle-exclamation mr-1"></i>Каталог workers/prx_workers/handlers не найден рядом с сайтом — на этой машине код воркера не развёрнут.
+        <p class="prx-flash prx-flash-info mt-3 block">
+            <i class="fas fa-circle-info mr-1"></i>Каталог workers/prx_workers/handlers не найден рядом с сайтом (код воркера развёрнут отдельно) — ниже краткие карточки из манифестов модулей. Полные страницы с пайплайнами и промптами собираются на машине с воркерами.
         </p>
         <?php endif; ?>
     </div>

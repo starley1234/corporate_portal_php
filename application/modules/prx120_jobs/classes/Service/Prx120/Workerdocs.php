@@ -20,14 +20,52 @@ class Service_Prx120_Workerdocs {
             .DIRECTORY_SEPARATOR.'prx_workers'.DIRECTORY_SEPARATOR.'handlers') ?: '';
     }
 
-    /** Все воркеры: [][name, channels, title, about, pipeline, env, mermaid, file]. */
+    /**
+     * Краткие карточки из манифестов: видны всегда, даже когда каталог
+     * workers/ не развёрнут рядом с сайтом. Полные страницы (пайплайн,
+     * промпты, mermaid) собираются только из кода воркера.
+     */
+    protected static function _from_manifests(): array
+    {
+        $out = [];
+        foreach (Manifest::all() as $module)
+        {
+            $channels = (array) ($module['worker']['channels'] ?? []);
+            if ($channels === []) continue;
+
+            $out[] = [
+                'name'     => (string) ($module['slug'] ?? ''),
+                'file'     => 'application/modules/'.(string) ($module['slug'] ?? '').'/config/prx_module.php',
+                'channels' => array_keys($channels),
+                'title'    => (string) ($module['title'] ?? ''),
+                'about'    => (string) ($module['short'] ?? ''),
+                'pipeline' => [],
+                'env'      => [],
+                'prompt'   => '',
+                'mermaid'  => '',
+                'source'   => 'manifest',
+            ];
+        }
+
+        usort($out, static function (array $a, array $b): int {
+            return strcmp((string) $a['name'], (string) $b['name']);
+        });
+
+        return $out;
+    }
+
+    /** Все воркеры: [][name, channels, title, about, pipeline, env, mermaid, file, source]. */
     public static function all(): array
     {
         $dir = self::handlers_dir();
 
         if ($dir === '')
         {
-            return [];
+            // Код воркера развёрнут не рядом с каждым сайтом (Toolforge: только
+            // public_html). Документация всё равно нужна — собираем КРАТКИЕ
+            // карточки из манифестов (title/short/каналы), чтобы страница
+            // не была пустой («Обработчики не найдены»).
+            return self::_from_manifests();
         }
 
         $channels_of = self::_registry_channels($dir.DIRECTORY_SEPARATOR.'__init__.py');
@@ -59,6 +97,7 @@ class Service_Prx120_Workerdocs {
                 'env'      => $env,
                 'prompt'   => self::_prompt($src),
                 'mermaid'  => self::_mermaid($pipe),
+                'source'   => 'code',
             ];
         }
 
