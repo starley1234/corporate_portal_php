@@ -13,13 +13,12 @@ class Service_Prx395_Extraction
         'worker_auth', 'worker_endpoint_unavailable', 'worker_config', 'lease_lost',
     ];
 
-    private Database $db;
     private Service_Prx120_JobQueue $queue;
 
     public function __construct()
     {
-        // JobQueue::push и INSERT регистрации должны использовать одно соединение.
-        $this->db = Database::instance(Kohana::$config->load('prx120_jobs.db_group'));
+        // JobQueue::push, INSERT регистрации и ключ идемпотентности идут через
+        // одно соединение: все берут default-группу (db_group конфига = NULL).
         $this->queue = Service_Prx120_JobQueue::instance();
     }
 
@@ -53,7 +52,7 @@ class Service_Prx395_Extraction
 
         try
         {
-            $idem = Prx_Idempotency::begin(self::SCOPE, (string) $client, $key, $sha, $this->db);
+            $idem = Prx_Idempotency::begin(self::SCOPE, (string) $client, $key, $sha);
         }
         catch (Throwable $e)
         {
@@ -90,15 +89,16 @@ class Service_Prx395_Extraction
             if ($job_id < 1) throw new RuntimeException('Отсутствует ID задачи');
             // push и ссылка на задание — в одной транзакции с ключом идемпотентности.
             $ttl = Service_Prx395_Limits::get('result_ttl_hours');
-            $this->db->query(Database::INSERT, 'INSERT INTO prx_395_extractions '
+            Prx_Db::execute('INSERT INTO prx_395_extractions '
                 .'(job_id, api_client_id, request_key, file_sha256, file_id, expires_at) VALUES ('
-                .$job_id.','.(int) $client.','.$this->db->quote($key_hash).','
-                .$this->db->quote($sha).','.$file_id.",now() + ({$ttl} * interval '1 hour'))", FALSE);
-            Prx_Idempotency::finish((int) $idem['id'], ['job_id' => $job_id], $this->db);
+                .':job, :client, :key_hash, :sha, :file, now() + (:ttl * interval \'1 hour\'))',
+                [':job' => $job_id, ':client' => (int) $client, ':key_hash' => $key_hash,
+                 ':sha' => $sha, ':file' => $file_id, ':ttl' => (int) $ttl]);
+            Prx_Idempotency::finish((int) $idem['id'], ['job_id' => $job_id]);
         }
         catch (Throwable $e)
         {
-            Prx_Idempotency::abort($this->db);
+            Prx_Idempotency::abort();
             $this->discard($file_id);
             throw $e;
         }
@@ -185,10 +185,10 @@ class Service_Prx395_Extraction
         try {
             $this->check_lease($id, $attempt);
             $result = $this->one('INSERT INTO prx_395_results (job_id, attempt, receipt, file_id, metadata) '
-                .'SELECT '.$id.','.$attempt.','.$this->db->quote($receipt).','.$file_id.','
-                .$this->db->quote(json_encode($metadata, JSON_THROW_ON_ERROR)).'::jsonb '
+                .'SELECT '.$id.','.$attempt.',:receipt,'.$file_id.',:metadata::jsonb '
                 .'FROM prx_395_extractions WHERE job_id = '.$id.' AND expires_at > now() '
-                .'ON CONFLICT (job_id, attempt) DO NOTHING RETURNING receipt');
+                .'ON CONFLICT (job_id, attempt) DO NOTHING RETURNING receipt',
+                [':receipt' => $receipt, ':metadata' => json_encode($metadata, JSON_THROW_ON_ERROR)]);
         } catch (Throwable $e) {
             $this->discard($file_id);
             throw $e;
@@ -233,13 +233,14 @@ class Service_Prx395_Extraction
     private function result_row(int $id, int $attempt, ?string $receipt = NULL): ?array
     {
         return $this->one('SELECT receipt, file_id, metadata FROM prx_395_results WHERE job_id = '.$id.' AND attempt = '.$attempt
-            .($receipt === NULL ? '' : ' AND receipt = '.$this->db->quote($receipt)));
+            .($receipt === NULL ? '' : ' AND receipt = :receipt'),
+            $receipt === NULL ? [] : [':receipt' => $receipt]);
     }
 
     public function purge(): array
     {
-        $expired = $this->db->query(Database::SELECT,
-            'SELECT job_id FROM prx_395_extractions WHERE expires_at <= now() ORDER BY expires_at, job_id LIMIT 100', FALSE)->as_array();
+        $expired = Prx_Db::select(
+            'SELECT job_id FROM prx_395_extractions WHERE expires_at <= now() ORDER BY expires_at, job_id LIMIT 100');
         $report = ['purged' => 0, 'orphans' => 0, 'errors' => 0];
         foreach ($expired as $candidate)
         {
@@ -271,25 +272,20 @@ class Service_Prx395_Extraction
 
     private function purge_one(int $id): bool
     {
-        if ( ! $this->db->begin()) throw new RuntimeException('Не начата транзакция очистки');
-        try {
+        return Prx_Db::transaction(function () use ($id) {
             // FK на попытки сериализует удаление с их записью. Если попытка
             // завершает запись, сначала ждём её, потом удаляем все артефакты.
             $row = $this->one('SELECT file_id FROM prx_395_extractions WHERE job_id = '.$id.' AND expires_at <= now() FOR UPDATE');
             if ($row)
             {
-                $files = $this->db->query(Database::SELECT, 'SELECT file_id FROM prx_395_results WHERE job_id = '.$id, FALSE)->as_array();
+                $files = Prx_Db::select('SELECT file_id FROM prx_395_results WHERE job_id = '.$id);
                 foreach (array_merge([$row['file_id']], array_column($files, 'file_id')) as $file_id) {
                     if ( ! Storage::delete_owned((int) $file_id, self::MODULE)) throw new RuntimeException('Артефакт не удалён');
                 }
-                $this->db->query(Database::DELETE, 'DELETE FROM prx_395_extractions WHERE job_id = '.$id, FALSE);
+                Prx_Db::execute('DELETE FROM prx_395_extractions WHERE job_id = '.$id);
             }
-            if ( ! $this->db->commit()) throw new RuntimeException('Не подтверждена очистка');
             return (bool) $row;
-        } catch (Throwable $e) {
-            $this->db->rollback();
-            throw $e;
-        }
+        });
     }
 
     private function discard(int $file_id): void
@@ -302,9 +298,8 @@ class Service_Prx395_Extraction
         Log_Plain::event(Log::ERROR, 'prx395 stage=discard file_id=:id', [':id' => $file_id]);
     }
 
-    private function one(string $sql): ?array
+    private function one(string $sql, array $params = []): ?array
     {
-        $row = $this->db->query(Database::SELECT, $sql, FALSE)->current();
-        return $row ? (array) $row : NULL;
+        return Prx_Db::one($sql, $params);
     }
 }
