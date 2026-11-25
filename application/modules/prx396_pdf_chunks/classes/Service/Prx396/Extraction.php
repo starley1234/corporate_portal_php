@@ -1,5 +1,13 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
+/**
+ * Extract-сценарий prx396: разбор большого PDF по частям через очередь prx120
+ * (канал pdf.chunks) и Python-воркер.
+ *
+ * Слои (пилот Д8): здесь — только логика (валидация, статусы, lease, Storage,
+ * очередь, идемпотентность, транзакции). Все запросы — в Model_Prx396_Batches
+ * и Model_Prx396_Parts: один публичный метод = один запрос, только :param.
+ */
 class Service_Prx396_Extraction
 {
     const CHANNEL = 'pdf.chunks';
@@ -98,7 +106,7 @@ class Service_Prx396_Extraction
                 'visitor_id' => Visitor::uid(),
             ]);
             if ($job_id < 1) throw new RuntimeException('Отсутствует ID задачи');
-            Prx_Db::execute('UPDATE prx_396_batches SET job_id = '.$job_id.' WHERE id = '.$batch_id);
+            Model_Prx396_Batches::set_job($batch_id, $job_id);
             Prx_Idempotency::finish((int) $idem['id'], ['batch_id' => $batch_id]);
         }
         catch (Prx120_Budget_Exception $e)
@@ -122,16 +130,12 @@ class Service_Prx396_Extraction
 
     private function insert_batch(int $owner, string $key_hash, string $sha, int $file_id, int $ttl, array $snapshot): int
     {
-        $row = $this->one('INSERT INTO prx_396_batches '
-            .'(job_id, owner_id, request_key, file_sha256, file_id, chunk_pages, status, config_snapshot, expires_at) VALUES ('
-            .'0,'.(int) $owner.',:key_hash,:sha,'.$file_id.','
-            .Service_Prx396_Limits::get('chunk_pages').",'queued',"
-            .':snapshot::jsonb,'
-            ."now() + ({$ttl} * interval '1 hour')) RETURNING id",
-            [':key_hash' => $key_hash, ':sha' => $sha,
-             ':snapshot' => json_encode($snapshot, JSON_THROW_ON_ERROR)]);
-        if ( ! $row) throw new RuntimeException('Не создана партия');
-        return (int) $row['id'];
+        $batch_id = Model_Prx396_Batches::insert_queued(
+            $owner, $key_hash, $sha, $file_id,
+            (int) Service_Prx396_Limits::get('chunk_pages'), $ttl,
+            json_encode($snapshot, JSON_THROW_ON_ERROR));
+        if ($batch_id < 1) throw new RuntimeException('Не создана партия');
+        return $batch_id;
     }
 
     private static function config_snapshot(): array
@@ -170,15 +174,10 @@ class Service_Prx396_Extraction
     public function status(Prx_Principal $principal, int $id): array
     {
         $owner = Policy_Prx396_Extraction::ownerId($principal);
-        $batch = $this->one('SELECT id, job_id, status, pages_total, error_code, text_bytes, expires_at '
-            .'FROM prx_396_batches WHERE id = '.$id.' AND owner_id = '.(int) $owner.' AND expires_at > now()');
+        $batch = Model_Prx396_Batches::find_for_owner($id, $owner);
         if ( ! $batch) throw new Prx396_Error('not_found', 404);
 
-        $counts = $this->one('SELECT '
-            ."COUNT(*) FILTER (WHERE status = 'done') AS done, "
-            ."COUNT(*) AS total, "
-            ."MIN(part_no) FILTER (WHERE status IN ('pending','failed')) AS next_part "
-            .'FROM prx_396_parts WHERE batch_id = '.$id);
+        $counts = Model_Prx396_Parts::counts_by_batch($id);
         $job = $this->queue->get((int) $batch['job_id']);
         $state = $this->public_status((string) $batch['status'], $job);
 
@@ -260,38 +259,29 @@ class Service_Prx396_Extraction
             $this->create_parts($batch_id, $pages_total, (int) ($batch['snapshot']['chunk_pages'] ?? Service_Prx396_Limits::get('chunk_pages')));
         }
 
-        Prx_Db::execute(
-            "UPDATE prx_396_batches SET status = 'running', error_code = NULL WHERE id = ".$batch_id
-            ." AND status IN ('queued','running')");
+        Model_Prx396_Batches::mark_running($batch_id);
         return $this->plan_payload($batch_id, 'running');
     }
 
     private function create_parts(int $batch_id, int $pages_total, int $chunk_pages): void
     {
         $chunk_pages = max(1, $chunk_pages);
-        $values = [];
+        $ranges = [];
         $part_no = 1;
         for ($from = 1; $from <= $pages_total; $from += $chunk_pages)
         {
             $to = min($pages_total, $from + $chunk_pages - 1);
-            $values[] = '('.$batch_id.','.$part_no.','.$from.','.$to.",'pending',now())";
+            $ranges[] = [$part_no, $from, $to];
             $part_no++;
         }
-        if ( ! $values) throw new Prx396_Error('invalid_plan', 400);
-        Prx_Db::execute(
-            'INSERT INTO prx_396_parts (batch_id, part_no, page_from, page_to, status, updated_at) VALUES '
-            .implode(',', $values)
-            .' ON CONFLICT (batch_id, part_no) DO NOTHING');
-        Prx_Db::execute(
-            'UPDATE prx_396_batches SET pages_total = '.$pages_total.', status = \'running\' WHERE id = '.$batch_id
-            .' AND pages_total IS NULL');
+        if ( ! $ranges) throw new Prx396_Error('invalid_plan', 400);
+        Model_Prx396_Parts::insert_ranges($batch_id, $ranges);
+        Model_Prx396_Batches::set_pages_total($batch_id, $pages_total);
     }
 
     private function plan_payload(int $batch_id, string $status): array
     {
-        $parts = Prx_Db::select(
-            'SELECT part_no, page_from, page_to, status, text_bytes, error_code FROM prx_396_parts '
-            .'WHERE batch_id = '.$batch_id.' ORDER BY part_no');
+        $parts = Model_Prx396_Parts::find_by_batch($batch_id);
         $out = [];
         foreach ($parts as $p)
         {
@@ -302,7 +292,7 @@ class Service_Prx396_Extraction
                 'status' => (string) $p['status'],
             ];
         }
-        $batch = $this->one('SELECT pages_total, text_bytes, error_code, status FROM prx_396_batches WHERE id = '.$batch_id);
+        $batch = Model_Prx396_Batches::find_summary($batch_id);
         return [
             'batch_id' => $batch_id,
             'status' => $status,
@@ -338,8 +328,7 @@ class Service_Prx396_Extraction
 
         if ( ! is_int($part_no) || $part_no < 1)
             throw new Prx396_Error('invalid_part', 400);
-        $part = $this->one('SELECT part_no, page_from, page_to, status, text_file_id, text_bytes FROM prx_396_parts '
-            .'WHERE batch_id = '.$batch_id.' AND part_no = '.$part_no);
+        $part = Model_Prx396_Parts::find_part($batch_id, $part_no);
         if ( ! $part) throw new Prx396_Error('invalid_part', 400);
 
         if ($part['status'] === 'done')
@@ -362,8 +351,7 @@ class Service_Prx396_Extraction
         if ($text_bytes > $max_text)
             throw new Prx396_Error('result_too_large', 413);
 
-        $current_total = (int) $this->one('SELECT COALESCE(SUM(text_bytes),0) AS total FROM prx_396_parts '
-            .'WHERE batch_id = '.$batch_id." AND status = 'done'")['total'];
+        $current_total = Model_Prx396_Parts::done_bytes($batch_id);
         if ($current_total + $text_bytes > $max_text)
             throw new Prx396_Error('result_too_large', 413);
 
@@ -371,14 +359,11 @@ class Service_Prx396_Extraction
         try
         {
             $this->check_lease($batch_id, $attempt);
-            $updated = Prx_Db::execute(
-                'UPDATE prx_396_parts SET status = \'done\', text_file_id = '.$file_id.', text_bytes = '.$text_bytes.', '
-                ."error_code = NULL, updated_at = now() WHERE batch_id = ".$batch_id.' AND part_no = '.$part_no
-                ." AND status IN ('pending','failed','running')");
+            $updated = Model_Prx396_Parts::mark_done($batch_id, $part_no, $file_id, $text_bytes);
             if ( ! is_numeric($updated) || (int) $updated < 1)
             {
                 // Race or already done - check
-                $fresh = $this->one('SELECT status FROM prx_396_parts WHERE batch_id = '.$batch_id.' AND part_no = '.$part_no);
+                $fresh = Model_Prx396_Parts::find_part($batch_id, $part_no);
                 if ( ! $fresh || $fresh['status'] !== 'done')
                 {
                     $this->discard($file_id);
@@ -401,10 +386,8 @@ class Service_Prx396_Extraction
 
     private function part_ack(int $batch_id, int $part_no): array
     {
-        $counts = $this->one('SELECT '
-            ."COUNT(*) FILTER (WHERE status = 'done') AS done, COUNT(*) AS total "
-            .'FROM prx_396_parts WHERE batch_id = '.$batch_id);
-        $batch = $this->one('SELECT status FROM prx_396_batches WHERE id = '.$batch_id);
+        $counts = Model_Prx396_Parts::counts_by_batch($batch_id);
+        $batch = Model_Prx396_Batches::find_summary($batch_id);
         return [
             'batch_id' => $batch_id,
             'part_no' => $part_no,
@@ -416,16 +399,10 @@ class Service_Prx396_Extraction
 
     private function refresh_batch_progress(int $batch_id): void
     {
-        $counts = $this->one('SELECT '
-            ."COUNT(*) FILTER (WHERE status = 'done') AS done, COUNT(*) AS total, "
-            ."COALESCE(SUM(text_bytes) FILTER (WHERE status = 'done'), 0) AS bytes "
-            .'FROM prx_396_parts WHERE batch_id = '.$batch_id);
+        $counts = Model_Prx396_Parts::counts_by_batch($batch_id);
         if ( ! $counts) return;
         $all_done = (int) $counts['total'] > 0 && (int) $counts['done'] === (int) $counts['total'];
-        $status_sql = $all_done ? ", status = 'done', error_code = NULL" : ", status = 'running'";
-        Prx_Db::execute(
-            'UPDATE prx_396_batches SET text_bytes = '.((int) $counts['bytes']).$status_sql
-            .' WHERE id = '.$batch_id." AND status IN ('queued','running','done')");
+        Model_Prx396_Batches::update_progress($batch_id, (int) $counts['bytes'], $all_done ? 'done' : 'running');
     }
 
     public function complete(int $batch_id, int $attempt, array $body = []): array
@@ -442,31 +419,23 @@ class Service_Prx396_Extraction
             throw new Prx396_Error($error, 503);
         }
 
-        $counts = $this->one('SELECT '
-            ."COUNT(*) FILTER (WHERE status = 'done') AS done, COUNT(*) AS total "
-            .'FROM prx_396_parts WHERE batch_id = '.$batch_id);
+        $counts = Model_Prx396_Parts::counts_by_batch($batch_id);
         if ( ! $counts || (int) $counts['total'] === 0 || (int) $counts['done'] !== (int) $counts['total'])
             throw new Prx396_Error('batch_incomplete', 409);
 
         $this->refresh_batch_progress($batch_id);
-        Prx_Db::execute(
-            "UPDATE prx_396_batches SET status = 'done', error_code = NULL WHERE id = ".$batch_id
-            ." AND status IN ('running','done')");
+        Model_Prx396_Batches::mark_done($batch_id);
         return ['batch_id' => $batch_id, 'status' => 'done'];
     }
 
     private function fail_batch(int $batch_id, string $code): void
     {
-        Prx_Db::execute(
-            'UPDATE prx_396_batches SET status = \'failed\', error_code = :code'
-            .' WHERE id = '.$batch_id." AND status IN ('queued','running','failed')",
-            [':code' => $code]);
+        Model_Prx396_Batches::fail($batch_id, $code);
     }
 
     private function check_lease(int $batch_id, int $attempt): array
     {
-        $row = $this->one('SELECT id, job_id, owner_id, file_id, file_sha256, pages_total, status, error_code, config_snapshot '
-            .'FROM prx_396_batches WHERE id = '.$batch_id.' AND expires_at > now()');
+        $row = Model_Prx396_Batches::find_lease($batch_id);
         if ( ! $row) throw new Prx396_Error('not_found', 404);
         $job = $this->queue->get((int) $row['job_id']);
         if ( ! $job || $job['channel'] !== self::CHANNEL || $job['status'] !== 'processing' || (int) $job['attempts'] !== $attempt)
@@ -485,14 +454,11 @@ class Service_Prx396_Extraction
     public function result_parts(Prx_Principal $principal, int $id): array
     {
         $owner = Policy_Prx396_Extraction::ownerId($principal);
-        $batch = $this->one('SELECT id, status FROM prx_396_batches WHERE id = '.$id
-            .' AND owner_id = '.(int) $owner.' AND expires_at > now()');
+        $batch = Model_Prx396_Batches::find_for_owner($id, $owner);
         if ( ! $batch) throw new Prx396_Error('not_found', 404);
         if ($batch['status'] !== 'done') throw new Prx396_Error('result_not_ready', 409);
 
-        $rows = Prx_Db::select(
-            'SELECT part_no, text_file_id, text_bytes, status FROM prx_396_parts '
-            .'WHERE batch_id = '.$id.' ORDER BY part_no');
+        $rows = Model_Prx396_Parts::find_result_rows($id);
         $parts = [];
         foreach ($rows as $r)
         {
@@ -506,8 +472,7 @@ class Service_Prx396_Extraction
 
     public function purge(): array
     {
-        $expired = Prx_Db::select(
-            'SELECT id FROM prx_396_batches WHERE expires_at <= now() ORDER BY expires_at, id LIMIT 100');
+        $expired = Model_Prx396_Batches::find_expired(100);
         $report = ['purged' => 0, 'orphans' => 0, 'errors' => 0];
         foreach ($expired as $candidate)
         {
@@ -521,8 +486,7 @@ class Service_Prx396_Extraction
         }
         foreach (Storage::owned_ids_before(self::MODULE, 48) as $file_id)
         {
-            if ($this->one('SELECT 1 FROM prx_396_batches WHERE file_id = '.$file_id
-                .' UNION ALL SELECT 1 FROM prx_396_parts WHERE text_file_id = '.$file_id.' LIMIT 1')) continue;
+            if (Model_Prx396_Batches::has_file($file_id)) continue;
             try {
                 if ( ! Storage::delete_owned($file_id, self::MODULE)) throw new RuntimeException('Артефакт не удалён');
                 $report['orphans']++;
@@ -537,18 +501,19 @@ class Service_Prx396_Extraction
     private function purge_one(int $id): bool
     {
         return Prx_Db::transaction(function () use ($id) {
-            $row = $this->one('SELECT file_id FROM prx_396_batches WHERE id = '.$id.' AND expires_at <= now() FOR UPDATE');
+            $row = Model_Prx396_Batches::lock_expired($id);
             if ($row)
             {
-                $parts = Prx_Db::select(
-                    'SELECT text_file_id FROM prx_396_parts WHERE batch_id = '.$id.' AND text_file_id IS NOT NULL');
                 $file_ids = [(int) $row['file_id']];
-                foreach ($parts as $p) $file_ids[] = (int) $p['text_file_id'];
+                foreach (Model_Prx396_Parts::find_text_files($id) as $p)
+                {
+                    $file_ids[] = (int) $p['text_file_id'];
+                }
                 foreach ($file_ids as $file_id) {
                     if ($file_id > 0 && ! Storage::delete_owned($file_id, self::MODULE))
                         throw new RuntimeException('Артефакт не удалён');
                 }
-                Prx_Db::execute('DELETE FROM prx_396_batches WHERE id = '.$id);
+                Model_Prx396_Batches::delete($id);
             }
             return (bool) $row;
         });
@@ -564,8 +529,4 @@ class Service_Prx396_Extraction
         Log_Plain::event(Log::ERROR, 'prx396 stage=discard file_id=:id', [':id' => $file_id]);
     }
 
-    private function one(string $sql, array $params = []): ?array
-    {
-        return Prx_Db::one($sql, $params);
-    }
 }
