@@ -34,20 +34,23 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
     /** GET /prx595/admin — список пользователей (+поиск ?q=, ?page=). */
     public function action_index()
     {
-        $db  = Database::instance();
         $q   = trim((string) $this->request->query('q'));
         $per = 30;
         $page = max(1, (int) $this->request->query('page'));
-        $where = $q !== ''
-            ? 'WHERE u.email ILIKE '.$db->quote('%'.$q.'%').' OR u.username ILIKE '.$db->quote('%'.$q.'%')
-            : '';
+        $params = [];
+        $where = '';
+        if ($q !== '')
+        {
+            $where = 'WHERE u.email ILIKE :like OR u.username ILIKE :like';
+            $params[':like'] = '%'.$q.'%';
+        }
 
         try
         {
-            $total = (int) $db->query(Database::SELECT,
-                'SELECT count(*) AS c FROM users u '.$where, FALSE)->get('c');
+            $total_row = Prx_Db::one('SELECT count(*) AS c FROM users u '.$where, $params);
+            $total = (int) ($total_row['c'] ?? 0);
 
-            $rows = $db->query(Database::SELECT,
+            $rows = Prx_Db::select(
                 'SELECT u.id, u.email, u.username, u.logins, u.last_login,
                         COALESCE(array_agg(r.name ORDER BY r.name) FILTER (WHERE r.name IS NOT NULL), \'{}\') AS roles
                  FROM users u
@@ -55,7 +58,7 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
                  LEFT JOIN roles r ON r.id = ru.role_id
                  '.$where.'
                  GROUP BY u.id ORDER BY u.id DESC
-                 LIMIT '.$per.' OFFSET '.(($page - 1) * $per), FALSE)->as_array();
+                 LIMIT '.$per.' OFFSET '.(($page - 1) * $per), $params);
         }
         catch (Throwable $e)
         {
@@ -119,16 +122,15 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
                 $user->password = $password; // ORM Auth сам хэширует при записи
                 $user->create();
 
-                $db = Database::instance();
-                $db->query(Database::SELECT,
+                Prx_Db::execute(
                     'INSERT INTO roles_users (user_id, role_id)
-                     SELECT '.(int) $user->id.', id FROM roles WHERE name = \'login\'', FALSE);
+                     SELECT '.(int) $user->id.', id FROM roles WHERE name = \'login\'');
 
                 if ($as_admin)
                 {
-                    $db->query(Database::SELECT,
+                    Prx_Db::execute(
                         'INSERT INTO roles_users (user_id, role_id)
-                         SELECT '.(int) $user->id.', id FROM roles WHERE name = \'admin\'', FALSE);
+                         SELECT '.(int) $user->id.', id FROM roles WHERE name = \'admin\'');
                 }
 
                 $this->redirect('/prx595/admin?flash='.urlencode('Пользователь создан: '.$username.' (id '.$user->id.')'));
@@ -157,12 +159,11 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
             throw HTTP_Exception::factory(404, 'Пользователь не найден');
         }
 
-        $db    = Database::instance();
-        $roles = $db->query(Database::SELECT, 'SELECT * FROM roles ORDER BY id', FALSE)->as_array();
+        $roles = Prx_Db::select('SELECT * FROM roles ORDER BY id');
         $mine  = [];
 
-        foreach ($db->query(Database::SELECT,
-            'SELECT role_id FROM roles_users WHERE user_id = '.(int) $user->id, FALSE)->as_array() as $r)
+        foreach (Prx_Db::select(
+            'SELECT role_id FROM roles_users WHERE user_id = '.(int) $user->id) as $r)
         {
             $mine[(int) $r['role_id']] = TRUE;
         }
@@ -197,7 +198,6 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
             throw HTTP_Exception::factory(404, 'Пользователь не найден');
         }
 
-        $db       = Database::instance();
         $email    = trim((string) Arr::get($_POST, 'email', ''));
         $username = trim((string) Arr::get($_POST, 'username', ''));
         $password = (string) Arr::get($_POST, 'password', '');
@@ -233,18 +233,19 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
             $user->update();
 
             // роли: перезаписываем набор целиком
-            $db->query(Database::SELECT, 'DELETE FROM roles_users WHERE user_id = '.$id, FALSE);
+            Prx_Db::execute('DELETE FROM roles_users WHERE user_id = '.$id);
 
             foreach ($picked as $role_name)
             {
-                $db->query(Database::SELECT,
+                Prx_Db::execute(
                     'INSERT INTO roles_users (user_id, role_id)
-                     SELECT '.$id.', id FROM roles WHERE name = '.$db->quote((string) $role_name), FALSE);
+                     SELECT '.$id.', id FROM roles WHERE name = :role',
+                    [':role' => (string) $role_name]);
             }
 
-            if ($is_self AND ! $db->query(Database::SELECT,
+            if ($is_self AND ! Prx_Db::one(
                 'SELECT 1 AS x FROM roles_users ru JOIN roles r ON r.id = ru.role_id
-                 WHERE ru.user_id = '.$id.' AND r.name = \'admin\'', FALSE)->current())
+                 WHERE ru.user_id = '.$id.' AND r.name = \'admin\''))
             {
                 throw new Exception('Роль admin потеряна — возвращаю');
             }
@@ -277,9 +278,9 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
 
             try
             {
-                Database::instance()->query(Database::SELECT,
-                    'INSERT INTO roles (name, description) VALUES ('.Database::instance()->quote($name).', '
-                    .Database::instance()->quote(mb_substr($desc, 0, 200)).')', FALSE);
+                Prx_Db::execute(
+                    'INSERT INTO roles (name, description) VALUES (:name, :desc)',
+                    [':name' => $name, ':desc' => mb_substr($desc, 0, 200)]);
                 $this->redirect('/prx595/admin/roles?flash='.urlencode('Роль добавлена: '.$name));
             }
             catch (Throwable $e)
@@ -288,11 +289,10 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
             }
         }
 
-        $db    = Database::instance();
-        $roles = $db->query(Database::SELECT,
+        $roles = Prx_Db::select(
             'SELECT r.*, count(ru.user_id) AS users
              FROM roles r LEFT JOIN roles_users ru ON ru.role_id = r.id
-             GROUP BY r.id ORDER BY r.id', FALSE)->as_array();
+             GROUP BY r.id ORDER BY r.id');
 
         $this->template->content = View::factory('prx595/roles', [
             'roles' => $roles,
@@ -314,11 +314,10 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
 
         try
         {
-            $db = Database::instance();
-            $used = (int) $db->query(Database::SELECT,
-                'SELECT count(*) AS c FROM roles_users WHERE role_id = '.$id, FALSE)->get('c');
-            $core = in_array((string) $db->query(Database::SELECT,
-                'SELECT name FROM roles WHERE id = '.$id, FALSE)->get('name'), ['login', 'admin'], TRUE);
+            $used_row = Prx_Db::one('SELECT count(*) AS c FROM roles_users WHERE role_id = '.$id);
+            $used = (int) ($used_row['c'] ?? 0);
+            $name_row = Prx_Db::one('SELECT name FROM roles WHERE id = '.$id);
+            $core = in_array((string) ($name_row['name'] ?? ''), ['login', 'admin'], TRUE);
 
             if ($core)
             {
@@ -330,7 +329,7 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
                 $this->redirect('/prx595/admin/roles?flash='.urlencode('У роли есть пользователи ('.$used.') — сначала снимите её'));
             }
 
-            $db->query(Database::SELECT, 'DELETE FROM roles WHERE id = '.$id, FALSE);
+            Prx_Db::execute('DELETE FROM roles WHERE id = '.$id);
             $this->redirect('/prx595/admin/roles?flash='.urlencode('Роль удалена'));
         }
         catch (Throwable $e)
@@ -342,8 +341,6 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
     /** GET /prx595/admin/activity — последняя активность системы (u:/g:ubid). */
     public function action_activity()
     {
-        $db = Database::instance();
-
         try
         {
             $activity = Service_Prx120_JobQueue::instance()->admin_activity();
@@ -351,9 +348,9 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
             $channels = $activity['channels'];
             $jobs = $activity['jobs'];
 
-            $new_users = $db->query(Database::SELECT,
+            $new_users = Prx_Db::select(
                 'SELECT id, email, username, created_at FROM users
-                 ORDER BY id DESC LIMIT 8', FALSE)->as_array();
+                 ORDER BY id DESC LIMIT 8');
         }
         catch (Throwable $e)
         {
