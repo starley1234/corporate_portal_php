@@ -129,20 +129,60 @@ from classes_lint import errors as classes_lint_errors  # noqa: E402
 errors.extend(classes_lint_errors(ROOT))
 
 # Стиль SQL (docs/FOUNDATION.md §2, docs/SKELETON-ADR.md Д1): бизнес-код модулей
-# идёт через Prx_Db, а не склеивает SQL с ручным $db->quote(). Это отчёт о долге
-# миграции, а не ошибка: legacy приводим по мере захода, но новые модули должны
-# быть чистыми, иначе список начнёт расти.
-raw_sql_modules = set()
-for path in (ROOT / 'application/modules').glob('*/classes/Service/**/*.php'):
-    if '->quote(' in path.read_text(encoding='utf-8'):
-        raw_sql_modules.add(path.relative_to(ROOT / 'application/modules').parts[0])
+# идёт через Prx_Db, а не через Database::instance() и ручной $db->quote().
+# Сырой DB легален только в инфраструктуре ядра (application/classes/Prx/*,
+# Prx_Idempotency) и в модулях из INFRA_SQL_MODULES (Kohana-драйверы БД и очередь
+# prx120). Раньше здесь ловился только '->quote()' в Service/* и выдавался note —
+# но реальный паттерн сырого DB в модулях это Database::instance(), и он не
+# проверялся вовсе (см. решение инцидента 28.09.2026 в php_sql_lint.py).
+#
+# Гейт вооружён инкрементально. Модули из LEGACY_SQL_MODULES — известный долг
+# миграции Д1: сообщаем note, не ошибку. Любой модуль ВНЕ этого списка,
+# использующий сырой DB, — жёсткая ошибка make check. Чтобы вооружить гейт для
+# модуля, вычеркните его из LEGACY_SQL_MODULES только ПОСЛЕ полного перевода на
+# Prx_Db; тогда возврат к Database::instance() сразу покраснеет. Новые модули
+# (не в списке) тоже фейлят с первого коммита — чистый образец обязателен.
+INFRA_SQL_MODULES = {'prx120_jobs', 'PostgreSQL', 'PostgreSQL_PDO'}
+LEGACY_SQL_MODULES = {
+    'prx100_search', 'prx102_core', 'prx103_platform', 'prx115_semantic',
+    'prx218_module_manager', 'prx300_employee', 'prx390_intake', 'prx391_documents',
+    'prx392_analysis', 'prx393_workflow', 'prx395_document_extract', 'prx396_pdf_chunks',
+    'prx397_invoice', 'prx398_doc_router', 'prx560_knowledge', 'prx595_useradmin',
+    'prx597_notifications', 'prx599_account',
+}
+RAW_DB_PATTERNS = ('Database::instance()', '->quote(')
+
+actual_raw = set()
+for path in (ROOT / 'application/modules').glob('*'):
+    module = path.parts[-1]
+    if module in INFRA_SQL_MODULES or not (path / 'classes').is_dir():
+        continue
+    for php in path.glob('classes/**/*.php'):
+        if not php.is_file():
+            continue
+        try:
+            text = php.read_text(encoding='utf-8', errors='replace')
+        except OSError:
+            continue
+        if any(pat in text for pat in RAW_DB_PATTERNS):
+            actual_raw.add(module)
+            break
+
+debt = actual_raw & LEGACY_SQL_MODULES
+if debt:
+    print('note: Д1 долг миграции (не ошибка): ' + ', '.join(sorted(debt)))
+for module in sorted(actual_raw - LEGACY_SQL_MODULES):
+    errors.append(
+        f'Д1: модуль {module} использует сырой Database::instance()/quote() вне '
+        f'инфраструктуры — переведите на Prx_Db (docs/SKELETON-ADR.md Д1)')
+stale = LEGACY_SQL_MODULES - actual_raw
+if stale:
+    print('note: устаревшие записи LEGACY_SQL_MODULES (модуль очищен — уберите из '
+          'списка): ' + ', '.join(sorted(stale)))
 
 if errors:
     print('\n'.join('FAIL: ' + item for item in errors))
     sys.exit(1)
-if raw_sql_modules:
-    print('note: SQL-стиль — склейка/quote() вне Prx_Db (долг миграции, не ошибка): '
-          + ', '.join(sorted(raw_sql_modules)))
 optional_count = sum(status == '$docflow_status' for _, status in plan_entries)
 planned_count = sum(status == 'planned' for _, status in plan_entries)
 print(f'PRX contracts OK: {len(registered)} available modules, {len(classes)} PHP classes, '
