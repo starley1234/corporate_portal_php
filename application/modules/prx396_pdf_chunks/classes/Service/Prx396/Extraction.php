@@ -26,13 +26,12 @@ class Service_Prx396_Extraction
         'invalid_part', 'invalid_plan', 'invalid_result', 'invalid_attempt', 'method_not_allowed',
     ];
 
-    private Database $db;
     private Service_Prx120_JobQueue $queue;
 
     public function __construct()
     {
-        // JobQueue::push и INSERT регистрации должны использовать одно соединение.
-        $this->db = Database::instance(Kohana::$config->load('prx120_jobs.db_group'));
+        // JobQueue::push, INSERT регистрации и ключ идемпотентности идут через
+        // одно соединение: все берут default-группу (db_group конфига = NULL).
         $this->queue = Service_Prx120_JobQueue::instance();
     }
 
@@ -57,7 +56,7 @@ class Service_Prx396_Extraction
 
         try
         {
-            $idem = Prx_Idempotency::begin(self::SCOPE, (string) $owner, $key, $sha, $this->db);
+            $idem = Prx_Idempotency::begin(self::SCOPE, (string) $owner, $key, $sha);
         }
         catch (Throwable $e)
         {
@@ -99,21 +98,20 @@ class Service_Prx396_Extraction
                 'visitor_id' => Visitor::uid(),
             ]);
             if ($job_id < 1) throw new RuntimeException('Отсутствует ID задачи');
-            $this->db->query(Database::UPDATE,
-                'UPDATE prx_396_batches SET job_id = '.$job_id.' WHERE id = '.$batch_id, FALSE);
-            Prx_Idempotency::finish((int) $idem['id'], ['batch_id' => $batch_id], $this->db);
+            Prx_Db::execute('UPDATE prx_396_batches SET job_id = '.$job_id.' WHERE id = '.$batch_id);
+            Prx_Idempotency::finish((int) $idem['id'], ['batch_id' => $batch_id]);
         }
         catch (Prx120_Budget_Exception $e)
         {
             // Владелец исчерпал бюджет токенов: снимаем файл и ключ, чтобы
             // повтор после пополнения прошёл с тем же Idempotency-Key.
-            Prx_Idempotency::abort($this->db);
+            Prx_Idempotency::abort();
             $this->discard($file_id);
             throw new Prx396_Error('budget_exceeded', 429);
         }
         catch (Throwable $e)
         {
-            Prx_Idempotency::abort($this->db);
+            Prx_Idempotency::abort();
             $this->discard($file_id);
             throw $e;
         }
@@ -126,10 +124,12 @@ class Service_Prx396_Extraction
     {
         $row = $this->one('INSERT INTO prx_396_batches '
             .'(job_id, owner_id, request_key, file_sha256, file_id, chunk_pages, status, config_snapshot, expires_at) VALUES ('
-            .'0,'.(int) $owner.','.$this->db->quote($key_hash).','.$this->db->quote($sha).','.$file_id.','
+            .'0,'.(int) $owner.',:key_hash,:sha,'.$file_id.','
             .Service_Prx396_Limits::get('chunk_pages').",'queued',"
-            .$this->db->quote(json_encode($snapshot, JSON_THROW_ON_ERROR)).'::jsonb,'
-            ."now() + ({$ttl} * interval '1 hour')) RETURNING id");
+            .':snapshot::jsonb,'
+            ."now() + ({$ttl} * interval '1 hour')) RETURNING id",
+            [':key_hash' => $key_hash, ':sha' => $sha,
+             ':snapshot' => json_encode($snapshot, JSON_THROW_ON_ERROR)]);
         if ( ! $row) throw new RuntimeException('Не создана партия');
         return (int) $row['id'];
     }
@@ -260,9 +260,9 @@ class Service_Prx396_Extraction
             $this->create_parts($batch_id, $pages_total, (int) ($batch['snapshot']['chunk_pages'] ?? Service_Prx396_Limits::get('chunk_pages')));
         }
 
-        $this->db->query(Database::UPDATE,
+        Prx_Db::execute(
             "UPDATE prx_396_batches SET status = 'running', error_code = NULL WHERE id = ".$batch_id
-            ." AND status IN ('queued','running')", FALSE);
+            ." AND status IN ('queued','running')");
         return $this->plan_payload($batch_id, 'running');
     }
 
@@ -278,20 +278,20 @@ class Service_Prx396_Extraction
             $part_no++;
         }
         if ( ! $values) throw new Prx396_Error('invalid_plan', 400);
-        $this->db->query(Database::INSERT,
+        Prx_Db::execute(
             'INSERT INTO prx_396_parts (batch_id, part_no, page_from, page_to, status, updated_at) VALUES '
             .implode(',', $values)
-            .' ON CONFLICT (batch_id, part_no) DO NOTHING', FALSE);
-        $this->db->query(Database::UPDATE,
+            .' ON CONFLICT (batch_id, part_no) DO NOTHING');
+        Prx_Db::execute(
             'UPDATE prx_396_batches SET pages_total = '.$pages_total.', status = \'running\' WHERE id = '.$batch_id
-            .' AND pages_total IS NULL', FALSE);
+            .' AND pages_total IS NULL');
     }
 
     private function plan_payload(int $batch_id, string $status): array
     {
-        $parts = $this->db->query(Database::SELECT,
+        $parts = Prx_Db::select(
             'SELECT part_no, page_from, page_to, status, text_bytes, error_code FROM prx_396_parts '
-            .'WHERE batch_id = '.$batch_id.' ORDER BY part_no', FALSE)->as_array();
+            .'WHERE batch_id = '.$batch_id.' ORDER BY part_no');
         $out = [];
         foreach ($parts as $p)
         {
@@ -371,10 +371,10 @@ class Service_Prx396_Extraction
         try
         {
             $this->check_lease($batch_id, $attempt);
-            $updated = $this->db->query(Database::UPDATE,
+            $updated = Prx_Db::execute(
                 'UPDATE prx_396_parts SET status = \'done\', text_file_id = '.$file_id.', text_bytes = '.$text_bytes.', '
                 ."error_code = NULL, updated_at = now() WHERE batch_id = ".$batch_id.' AND part_no = '.$part_no
-                ." AND status IN ('pending','failed','running')", FALSE);
+                ." AND status IN ('pending','failed','running')");
             if ( ! is_numeric($updated) || (int) $updated < 1)
             {
                 // Race or already done - check
@@ -423,9 +423,9 @@ class Service_Prx396_Extraction
         if ( ! $counts) return;
         $all_done = (int) $counts['total'] > 0 && (int) $counts['done'] === (int) $counts['total'];
         $status_sql = $all_done ? ", status = 'done', error_code = NULL" : ", status = 'running'";
-        $this->db->query(Database::UPDATE,
+        Prx_Db::execute(
             'UPDATE prx_396_batches SET text_bytes = '.((int) $counts['bytes']).$status_sql
-            .' WHERE id = '.$batch_id." AND status IN ('queued','running','done')", FALSE);
+            .' WHERE id = '.$batch_id." AND status IN ('queued','running','done')");
     }
 
     public function complete(int $batch_id, int $attempt, array $body = []): array
@@ -449,17 +449,18 @@ class Service_Prx396_Extraction
             throw new Prx396_Error('batch_incomplete', 409);
 
         $this->refresh_batch_progress($batch_id);
-        $this->db->query(Database::UPDATE,
+        Prx_Db::execute(
             "UPDATE prx_396_batches SET status = 'done', error_code = NULL WHERE id = ".$batch_id
-            ." AND status IN ('running','done')", FALSE);
+            ." AND status IN ('running','done')");
         return ['batch_id' => $batch_id, 'status' => 'done'];
     }
 
     private function fail_batch(int $batch_id, string $code): void
     {
-        $this->db->query(Database::UPDATE,
-            'UPDATE prx_396_batches SET status = \'failed\', error_code = '.$this->db->quote($code)
-            .' WHERE id = '.$batch_id." AND status IN ('queued','running','failed')", FALSE);
+        Prx_Db::execute(
+            'UPDATE prx_396_batches SET status = \'failed\', error_code = :code'
+            .' WHERE id = '.$batch_id." AND status IN ('queued','running','failed')",
+            [':code' => $code]);
     }
 
     private function check_lease(int $batch_id, int $attempt): array
@@ -489,9 +490,9 @@ class Service_Prx396_Extraction
         if ( ! $batch) throw new Prx396_Error('not_found', 404);
         if ($batch['status'] !== 'done') throw new Prx396_Error('result_not_ready', 409);
 
-        $rows = $this->db->query(Database::SELECT,
+        $rows = Prx_Db::select(
             'SELECT part_no, text_file_id, text_bytes, status FROM prx_396_parts '
-            .'WHERE batch_id = '.$id.' ORDER BY part_no', FALSE)->as_array();
+            .'WHERE batch_id = '.$id.' ORDER BY part_no');
         $parts = [];
         foreach ($rows as $r)
         {
@@ -505,8 +506,8 @@ class Service_Prx396_Extraction
 
     public function purge(): array
     {
-        $expired = $this->db->query(Database::SELECT,
-            'SELECT id FROM prx_396_batches WHERE expires_at <= now() ORDER BY expires_at, id LIMIT 100', FALSE)->as_array();
+        $expired = Prx_Db::select(
+            'SELECT id FROM prx_396_batches WHERE expires_at <= now() ORDER BY expires_at, id LIMIT 100');
         $report = ['purged' => 0, 'orphans' => 0, 'errors' => 0];
         foreach ($expired as $candidate)
         {
@@ -535,27 +536,22 @@ class Service_Prx396_Extraction
 
     private function purge_one(int $id): bool
     {
-        if ( ! $this->db->begin()) throw new RuntimeException('Не начата транзакция очистки');
-        try {
+        return Prx_Db::transaction(function () use ($id) {
             $row = $this->one('SELECT file_id FROM prx_396_batches WHERE id = '.$id.' AND expires_at <= now() FOR UPDATE');
             if ($row)
             {
-                $parts = $this->db->query(Database::SELECT,
-                    'SELECT text_file_id FROM prx_396_parts WHERE batch_id = '.$id.' AND text_file_id IS NOT NULL', FALSE)->as_array();
+                $parts = Prx_Db::select(
+                    'SELECT text_file_id FROM prx_396_parts WHERE batch_id = '.$id.' AND text_file_id IS NOT NULL');
                 $file_ids = [(int) $row['file_id']];
                 foreach ($parts as $p) $file_ids[] = (int) $p['text_file_id'];
                 foreach ($file_ids as $file_id) {
                     if ($file_id > 0 && ! Storage::delete_owned($file_id, self::MODULE))
                         throw new RuntimeException('Артефакт не удалён');
                 }
-                $this->db->query(Database::DELETE, 'DELETE FROM prx_396_batches WHERE id = '.$id, FALSE);
+                Prx_Db::execute('DELETE FROM prx_396_batches WHERE id = '.$id);
             }
-            if ( ! $this->db->commit()) throw new RuntimeException('Не подтверждена очистка');
             return (bool) $row;
-        } catch (Throwable $e) {
-            $this->db->rollback();
-            throw $e;
-        }
+        });
     }
 
     private function discard(int $file_id): void
@@ -568,9 +564,8 @@ class Service_Prx396_Extraction
         Log_Plain::event(Log::ERROR, 'prx396 stage=discard file_id=:id', [':id' => $file_id]);
     }
 
-    private function one(string $sql): ?array
+    private function one(string $sql, array $params = []): ?array
     {
-        $row = $this->db->query(Database::SELECT, $sql, FALSE)->current();
-        return $row ? (array) $row : NULL;
+        return Prx_Db::one($sql, $params);
     }
 }
