@@ -502,6 +502,16 @@ class Service_Prx396_Extraction
     {
         return Prx_Db::transaction(function () use ($id) {
             $row = Model_Prx396_Batches::lock_expired($id);
+            // Гонка TTL и очереди (как в prx397): партия, чья задача ещё
+            // ждёт/выполняется, файлом жива — доберём после завершения.
+            if ($row)
+            {
+                $job = $this->queue->get((int) $row['job_id']);
+                if ($job !== NULL && in_array((string) $job['status'], ['pending', 'processing'], TRUE))
+                {
+                    return FALSE;
+                }
+            }
             if ($row)
             {
                 $file_ids = [(int) $row['file_id']];

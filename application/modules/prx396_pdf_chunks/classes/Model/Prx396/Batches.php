@@ -118,7 +118,7 @@ class Model_Prx396_Batches {
 	public static function lock_expired(int $batch_id): ?array
 	{
 		return Prx_Db::one(
-			'SELECT file_id FROM prx_396_batches
+			'SELECT id, job_id, file_id FROM prx_396_batches
 			 WHERE id = :id AND expires_at <= now()
 			 FOR UPDATE',
 			[':id' => $batch_id]);

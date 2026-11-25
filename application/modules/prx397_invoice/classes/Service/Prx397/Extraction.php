@@ -340,6 +340,13 @@ class Service_Prx397_Extraction
         foreach ($expired as $row) {
             $id = (int) $row['job_id'];
             $file_id = (int) $row['file_id'];
+            // Гонка TTL и очереди (прод 25.11.2026: file_unavailable): если
+            // задача ещё ждёт/выполняется, файл ей нужен — партию пропускаем,
+            // purge доберёт её после завершения задачи.
+            $job = $this->queue->get($id);
+            if ($job !== NULL && in_array((string) $job['status'], ['pending', 'processing'], TRUE)) {
+                continue;
+            }
             try {
                 if ($file_id > 0) Storage::delete_owned($file_id, self::MODULE);
                 Prx_Db::execute('DELETE FROM prx_397_invoices WHERE job_id = '.$id.' AND expires_at <= now()');
