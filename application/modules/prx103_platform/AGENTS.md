@@ -18,10 +18,14 @@ Scaffold создаёт закрытый модуль, проверяет ID и�
 - `module:list`, `module:scaffold`, `dev:doctor`, `portal:maintain`.
   `dev:doctor` проверяет приватный storage и runtime без создания каталогов; права
   и владельца задаёт `bin/setup.sh`. Каталоги архивного docflow не проверяются.
-- `Service_Prx103_Health`, `Service_Prx103_Ratelimit` — общие помощники.
-- `/admin`, `/dashboard`, `/prx100/errors`, `/prx100/logs`, `/prx100/cleanup`, `/prx100/update`.
+- `Service_Prx103_Health`, `Service_Prx103_Ratelimit`, `Service_Prx103_Doctor` — общие помощники.
+- `/admin`, `/dashboard`, `/prx100/errors`, `/prx100/logs`, `/prx100/cleanup`, `/prx100/update`, `/prx100/selfcheck`.
 - `/prx100/logs` — «Логи платформы» (`Service_Prx103_Logs`): журнал сайта (Log_Plain) и
   php-лог Kohana по дням/уровням, панель «где что пишется». Только чтение.
+- `/prx100/selfcheck` — «Проверка сервера»: `Service_Prx103_Doctor::run(TRUE)` кнопкой
+  из браузера (то же, что `dev:doctor`, плюс php -l по всему коду через один
+  дочерний процесс; при запрещённом proc_open — WARN с подсказкой make lint).
+  POST + CSRF, право `prx100.admin`, ничего не меняет. Только чтение.
 - Реестр подключения: application/config/modules.php. Новый ID не переиспользовать.
 
 ## Проверки

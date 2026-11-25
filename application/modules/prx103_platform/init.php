@@ -5,7 +5,7 @@
  *
  * CLI-инструменты (Minion): module:list, module:scaffold, dev:doctor.
  * Страницы управления платформой: /dashboard, /admin, /prx100/cleanup,
- * /prx100/errors, /prx100/update.
+ * /prx100/errors, /prx100/update, /prx100/selfcheck.
  */
 
 // Системный дашборд (/dashboard): админу — обзор системы, пользователю — его задачи
@@ -63,6 +63,14 @@ Route::set('prx100_errors', 'prx100/errors')
 Route::set('prx100_logs', 'prx100/logs')
     ->defaults([
         'controller' => 'Prx103_Logs',
+        'action'     => 'index',
+    ]);
+
+// «Проверка сервера» — управление: проверки dev:doctor + php -l по всему коду
+// кнопкой из браузера (после деплоя, без shell)
+Route::set('prx100_selfcheck', 'prx100/selfcheck')
+    ->defaults([
+        'controller' => 'Prx103_Selfcheck',
         'action'     => 'index',
     ]);
 

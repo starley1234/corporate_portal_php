@@ -18,5 +18,5 @@ return [
     'group' => 'Платформа',
     'audience' => 'admin',
     'title' => 'Инструменты платформы',
-    'short' => 'CLI-инструменты: `module:list`, `module:scaffold`, `dev:doctor`',
+    'short' => 'CLI (`module:list`, `module:scaffold`, `dev:doctor`) и страница самопроверки `/prx100/selfcheck`',
 ];

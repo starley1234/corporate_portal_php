@@ -3,6 +3,10 @@
 /**
  * Диагностика окружения и платформы: bin/console dev:doctor
  *
+ * С 25.11.2026 проверки живут в Service_Prx103_Doctor — их же выполняет
+ * веб-страница «Проверка сервера» (/prx100/selfcheck). Задача остаётся
+ * CLI-обёрткой: тот же набор, но без php -l (быстрый прогон в терминале).
+ *
  * Проверяет: PHP и расширения, .env и секреты, каталоги для записи,
  * соединение с PostgreSQL, миграции, таблицы очереди, покрытие модулей
  * AGENTS.md. Поломанное показывает с подсказкой как чинить.
@@ -11,33 +15,18 @@ class Task_Dev_Doctor extends Minion_Task {
 
     protected $_options = [];
 
-    /** @var array [строка статуса, сообщение, критично ли] */
-    protected $_report = [];
-
     protected function _execute(array $params)
     {
-        $this->_check_php();
-        $this->_check_extensions();
-        $this->_check_env();
-        $this->_check_dirs();
+        $rows = Service_Prx103_Doctor::run();
 
-        if ($this->_check_database())
-        {
-            $this->_check_migrations();
-            $this->_check_queue();
-        }
-
-        $this->_check_modules_docs();
-
-        // --- отчёт -----------------------------------------------------------
         $lines = ['', 'PRX — диагностика', str_repeat('-', 60)];
-        foreach ($this->_report as [$status, $message])
+        foreach ($rows as $row)
         {
-            $lines[] = "[$status] $message";
+            $lines[] = sprintf('[%s] %s', $row['status'] === 'OK' ? ' OK ' : $row['status'], $row['message']);
         }
 
-        $fails = count(array_filter($this->_report, function ($r) {
-            return $r[0] === 'FAIL';
+        $fails = count(array_filter($rows, function ($row) {
+            return $row['status'] === 'FAIL';
         }));
 
         $lines[] = str_repeat('-', 60);
@@ -46,165 +35,5 @@ class Task_Dev_Doctor extends Minion_Task {
             : 'Всё критичное в порядке. Хорошей работы!';
 
         Minion_CLI::write(implode("\n", $lines));
-    }
-
-    protected function _ok($message)   { $this->_report[] = [' OK ', $message]; }
-    protected function _warn($message) { $this->_report[] = ['WARN', $message]; }
-    protected function _fail($message) { $this->_report[] = ['FAIL', $message]; }
-
-    protected function _check_php()
-    {
-        $version = PHP_VERSION;
-        if (version_compare($version, '8.4.0', '>='))
-        {
-            $this->_ok("PHP $version");
-        }
-        else
-        {
-            $this->_fail("PHP $version — требуется 8.4+ (bin/restore-env.sh ставит Sury php8.4)");
-        }
-    }
-
-    protected function _check_extensions()
-    {
-        foreach (['pgsql', 'mbstring', 'json', 'curl', 'openssl'] as $ext)
-        {
-            if (extension_loaded($ext))
-            {
-                $this->_ok("ext/$ext");
-            }
-            else
-            {
-                $this->_fail("ext/$ext не загружен — php8.4-pgsql / php8.4-mbstring / php8.4-curl");
-            }
-        }
-    }
-
-    protected function _check_env()
-    {
-        if ( ! is_file(DOCROOT.'../.env') AND ! getenv('DB_DEFAULT_HOST'))
-        {
-            $this->_fail('.env не найден — bash bin/setup.sh');
-            return;
-        }
-
-        foreach (['COOKIE_SALT', 'AUTH_HASH_KEY'] as $key)
-        {
-            if (strlen((string) getenv($key)) < 16)
-            {
-                $this->_warn("$key пустой/короткий — сгенерирует bin/setup.sh");
-            }
-            else
-            {
-                $this->_ok("$key задан");
-            }
-        }
-    }
-
-    protected function _check_dirs()
-    {
-        $dirs = ['application/cache', 'application/logs', 'application/sessions',
-                 'storage', 'storage/prx212_file_storage/files'];
-        foreach ($dirs as $dir)
-        {
-            $path = rtrim(dirname(APPPATH), '/').'/'.$dir;
-            if ($dir === 'storage' OR strpos($dir, 'storage/') === 0)
-            {
-                try
-                {
-                    $path = Storage_Path::absolute($path);
-                }
-                catch (InvalidArgumentException $e)
-                {
-                    $this->_fail("$dir: ".$e->getMessage());
-                    continue;
-                }
-            }
-            if ( ! is_dir($path))
-            {
-                $this->_fail("$dir не найден — подготовьте каталоги через bash bin/setup.sh");
-            }
-            elseif (is_writable($path))
-            {
-                $this->_ok("$dir записываем");
-            }
-            else
-            {
-                $this->_fail("$dir не записываем — проверьте владельца и права процесса php");
-            }
-        }
-    }
-
-    protected function _check_database()
-    {
-        try
-        {
-            $version = Prx_Db::one('SHOW server_version');
-            $this->_ok('PostgreSQL '.((array) $version)['server_version']);
-            return TRUE;
-        }
-        catch (Exception $e)
-        {
-            $this->_fail('PostgreSQL недоступен: '.$e->getMessage());
-            return FALSE;
-        }
-    }
-
-    protected function _check_migrations()
-    {
-        try
-        {
-            $applied = (int) Prx_Db::one('SELECT COUNT(*) AS c FROM migrations_pg')['c'];
-            $this->_ok("миграции применены: $applied");
-        }
-        catch (Exception $e)
-        {
-            $this->_warn('таблица migrations_pg отсутствует — bin/console db:migrate');
-        }
-    }
-
-    protected function _check_queue()
-    {
-        try
-        {
-            $row = Service_Prx120_JobQueue::instance()->stats();
-
-            $parts = [];
-            foreach ($row as $status => $count)
-            {
-                if ($count > 0) $parts[] = $status.': '.$count;
-            }
-            $this->_ok('очередь prx_120_jobs'.($parts ? ' ('.implode(', ', $parts).')' : ' (пуста)'));
-        }
-        catch (Exception $e)
-        {
-            $this->_warn('таблицы очереди prx_120_* отсутствуют — bin/console db:migrate');
-        }
-    }
-
-    protected function _check_modules_docs()
-    {
-        $dir = APPPATH.'modules';
-        $missing = [];
-
-        foreach (scandir($dir) as $name)
-        {
-            if ($name[0] === '.' OR ! is_dir($dir.'/'.$name))
-                continue;
-
-            if ( ! is_file($dir.'/'.$name.'/AGENTS.md'))
-            {
-                $missing[] = $name;
-            }
-        }
-
-        if ($missing)
-        {
-            $this->_warn('нет AGENTS.md у модулей: '.implode(', ', $missing).' (шаблон docs/templates/module-AGENTS.md)');
-        }
-        else
-        {
-            $this->_ok('AGENTS.md есть у всех модулей');
-        }
     }
 }
