@@ -109,8 +109,8 @@
 
 * PostgreSQL BOOLEAN приходит как `'t'`/`'f'` — приводить через
   `Service_Prx597_Base::_truthy()`, иначе «выключить» не выключалось.
-* `Database::query(Database::UPDATE, …)->execute()` — фатал: драйвер
-  возвращает int. Только `query()`.
+* SQL — только через `Prx_Db::select/one/execute/insert`; сырой
+  `Database::instance()` в модулях запрещён гейтом `make check`.
 * Схема создаётся сама (`Schema::ensure()` из `Ensure_tables()`): миграции не
   обязательны, но DDL правится ТОЛЬКО в `Schema.php` — иначе разъезд.
 * Счётчик непрочитанных держит триггер (`prx_597_unread`), не `COUNT(*)`.
