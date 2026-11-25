@@ -66,9 +66,10 @@ Route::set('prx100_logs', 'prx100/logs')
         'action'     => 'index',
     ]);
 
-// «Проверка сервера» — управление: проверки dev:doctor + php -l по всему коду
-// кнопкой из браузера (после деплоя, без shell)
-Route::set('prx100_selfcheck', 'prx100/selfcheck')
+// «Проверка сервера» — управление: проверки dev:doctor + php -l по порциям
+// (быстрые проверки POST-ом, компиляция — AJAX-порциями из браузера:
+// 750+ файлов одним запросом не влезают в таймауты веб-хостинга, 502)
+Route::set('prx100_selfcheck', 'prx100/selfcheck(/<action>)', ['action' => '[a-z_]+'])
     ->defaults([
         'controller' => 'Prx103_Selfcheck',
         'action'     => 'index',

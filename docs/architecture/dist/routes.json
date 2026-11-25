@@ -121,8 +121,8 @@
     },
     {
       "name": "prx100_selfcheck",
-      "uri": "prx100/selfcheck",
-      "regex": "",
+      "uri": "prx100/selfcheck(/<action>)",
+      "regex": "['action' => '[a-z_]+']",
       "controller": "Prx103_Selfcheck",
       "action": "index",
       "module": "prx103_platform",

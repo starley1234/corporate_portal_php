@@ -2,7 +2,9 @@
 
 /**
  * prx100/selfcheck — «Проверка сервера»: одна кнопка, отчёт по среде, БД,
- * миграциям, очереди, докам модулей и синтаксису всего php-кода.
+ * миграциям, очереди, докам модулей — сразу; компиляция php-кода — порциями
+ * из браузера с прогресс-баром (750+ файлов одним запросом = 502 от nginx,
+ * прод 25.11.2026). CSRF-заголовок к fetch добавляет глобальный хук app.js.
  */
 
 $counts = ['OK' => 0, 'WARN' => 0, 'FAIL' => 0];
@@ -37,8 +39,9 @@ $badge = [
         <i class="fas fa-clipboard-check mr-2 text-emerald-600 dark:text-emerald-400"></i>Проверка сервера
     </h1>
     <p class="prx-hint max-w-3xl">
-        Те же проверки, что и <code>bin/console dev:doctor</code>, плюс компиляция всех php-файлов (<code>php&nbsp;-l</code>).
-        Ничего не исполняется и не меняется — только читается состояние. Полный прогон может занять до минуты.
+        Проверки <code>bin/console dev:doctor</code> плюс компиляция всех php-файлов (<code>php&nbsp;-l</code>) по частям.
+        Ничего не исполняется и не меняется — только читается состояние. Быстрая часть — секунды,
+        компиляция идёт после неё порциями с прогрессом.
     </p>
 
     <?php if ( ! empty($flash)): ?>
@@ -53,12 +56,13 @@ $badge = [
     </form>
 
     <?php if ($results !== NULL): ?>
+
     <div class="mt-5 max-w-4xl">
         <p class="text-xs font-semibold mb-2
             <?php echo $counts['FAIL'] > 0
                 ? 'text-red-600 dark:text-red-400'
                 : ($counts['WARN'] > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'); ?>">
-            Итог: <?php echo $counts['OK']; ?> в порядке,
+            Быстрые проверки — итог: <?php echo $counts['OK']; ?> в порядке,
             <?php echo $counts['WARN']; ?> предупреждений,
             <?php echo $counts['FAIL']; ?> проблем
         </p>
@@ -82,6 +86,117 @@ $badge = [
             <?php endforeach; ?>
         </div>
     </div>
+
+    <?php if ($lint_max > 0): ?>
+    <div id="prx-selfcheck-lint" class="mt-4 max-w-4xl prx-card" data-total="<?php echo (int) $lint_max; ?>">
+        <div class="flex items-center justify-between gap-3 px-3.5 pt-3">
+            <p class="text-sm font-bold text-gray-900 dark:text-white">
+                <i class="fas fa-code mr-1.5 text-gray-400"></i>Синтаксис PHP
+                <span class="ml-1 text-xs font-semibold text-gray-400">— <?php echo (int) $lint_max; ?> файлов, идёт по частям…</span>
+            </p>
+            <span data-lint-counter class="shrink-0 prx-count">0 / <?php echo (int) $lint_max; ?></span>
+        </div>
+        <div class="px-3.5 pt-2">
+            <div class="h-2 rounded bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                <div data-lint-bar class="h-full w-0 bg-emerald-500 transition-all"></div>
+            </div>
+        </div>
+        <div data-lint-status class="px-3.5 py-2 text-xs text-gray-500 dark:text-gray-400">подождите…</div>
+        <div data-lint-bad class="px-3.5 pb-3 hidden">
+            <p class="text-[11px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 pb-1">Ошибки</p>
+            <div data-lint-list class="space-y-1.5"></div>
+        </div>
+    </div>
+    <?php elseif ($lint_note !== ''): ?>
+    <div class="mt-4 max-w-4xl prx-flash prx-flash-info text-xs font-semibold block"><?php echo HTML::chars($lint_note); ?></div>
+    <?php endif; ?>
+
     <?php endif; ?>
 
 </div>
+
+<?php if ($results !== NULL AND $lint_max > 0): ?>
+<script>
+(function () {
+    'use strict';
+    var root = document.getElementById('prx-selfcheck-lint');
+    if (!root || typeof window.fetch !== 'function') return;
+
+    var total = parseInt(root.dataset.total || '0', 10);
+    if (!total) return;
+
+    var bar = root.querySelector('[data-lint-bar]');
+    var counter = root.querySelector('[data-lint-counter]');
+    var status = root.querySelector('[data-lint-status]');
+    var badBox = root.querySelector('[data-lint-bad]');
+    var list = root.querySelector('[data-lint-list]');
+    var CHUNK = 40;
+    var offset = 0;
+    var badCount = 0;
+    var stopped = false;
+
+    function note(text) {
+        status.textContent = text;
+        status.classList.remove('text-gray-500', 'dark:text-gray-400');
+        status.classList.add('text-amber-600', 'dark:text-amber-400');
+    }
+
+    function finalLine(text, ok) {
+        status.textContent = text;
+        status.classList.remove('text-gray-500', 'dark:text-gray-400');
+        status.classList.add(ok ? 'text-emerald-600' : 'text-red-600', ok ? 'dark:text-emerald-400' : 'dark:text-red-400');
+    }
+
+    function appendBad(rows) {
+        if (!rows.length) return;
+        badBox.classList.remove('hidden');
+        rows.forEach(function (item) {
+            var line = document.createElement('p');
+            line.className = 'text-xs text-red-600 dark:text-red-400 break-words';
+            line.textContent = item.file + ': ' + item.text;
+            list.appendChild(line);
+        });
+    }
+
+    function step() {
+        if (stopped) return;
+        var body = new FormData();
+        body.append('offset', String(offset));
+        body.append('count', String(CHUNK));
+
+        fetch('/prx100/selfcheck/lint', { method: 'POST', body: body })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data || data.ok !== true) {
+                    stopped = true;
+                    bar.classList.remove('bg-emerald-500');
+                    bar.classList.add('bg-amber-500');
+                    note((data && data.note) ? data.note : 'проверка синтаксиса не смогла начаться — обновите страницу');
+                    return;
+                }
+                offset = Math.max(offset, data.done);
+                badCount += data.bad.length;
+                appendBad(data.bad);
+                bar.style.width = Math.round((offset / data.total) * 100) + '%';
+                if (counter) counter.textContent = offset + ' / ' + data.total;
+
+                if (data.finished) {
+                    if (bar) bar.classList.toggle('bg-emerald-500', badCount === 0);
+                    if (badCount === 0) bar.classList.add('bg-emerald-500');
+                    finalLine(badCount === 0
+                        ? 'php -l: ' + data.linted + ' файлов — ошибок нет'
+                        : 'php -l: ' + data.linted + ' файлов, найдено ошибок: ' + badCount, badCount === 0);
+                    return;
+                }
+                step();
+            })
+            .catch(function () {
+                stopped = true;
+                note('связь прервана на позиции ' + offset + ' — обновите страницу, чтобы продолжить');
+            });
+    }
+
+    step();
+})();
+</script>
+<?php endif; ?>

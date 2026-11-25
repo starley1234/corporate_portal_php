@@ -8,12 +8,19 @@
  * кавычек это пропустил, а прод упал с ParseError. Логика доктора жила в CLI и
  * была недоступна из браузера — вынесена в сервис, чтобы после деплоя
  * администратор прогонял те же проверки кнопкой; веб-вариант дополнительно
- * компилирует все php-файлы (php -l) и показывает точное место каждой ошибки.
+ * компилирует php-файлы (php -l) и показывает точное место каждой ошибки.
  *
  * run() возвращает плоский список строк отчёта:
  *   ['status' => 'OK'|'WARN'|'FAIL', 'group' => строка-раздел, 'message' => текст]
  *
  * Все проверки только читают состояние; php -l компилирует файлы, не исполняя их.
+ *
+ * Компиляция кода — отдельная история: прод 25.11.2026 показал два ограничениях
+ * веб-режима. (1) PHP_BINARY под fpm/cgi не CLI и скрипты не исполняет — CLI
+ * ищется зондом _cli_binary(). (2) 750+ файлов одним HTTP-запросом дольше
+ * таймаутов nginx/php-fpm (502) — файлы проверяются ПОРЦИЯМИ: lint_chunk() для
+ * одной порции, список порций отдаёт php_files(); веб-страница гонит порции
+ * последовательно из браузера, CLI прогоняет всё одним вызовом.
  */
 class Service_Prx103_Doctor {
 
@@ -23,10 +30,10 @@ class Service_Prx103_Doctor {
 		'img', 'storage', 'sessions', 'cache', 'logs',
 	];
 
-	/** @var int сколько ошибок синтаксиса показывать целиком */
-	protected const LINT_MAX_REPORTED = 50;
+	/** @var int сколько ошибок синтаксиса показывать целиком в CLI-отчёте */
+	public const LINT_MAX_REPORTED = 50;
 
-	public static function run(bool $with_lint = FALSE): array
+	public static function run(): array
 	{
 		$rows = [];
 
@@ -42,11 +49,6 @@ class Service_Prx103_Doctor {
 		}
 
 		self::_check_modules_docs($rows);
-
-		if ($with_lint)
-		{
-			self::_check_syntax($rows);
-		}
 
 		return $rows;
 	}
@@ -223,50 +225,88 @@ class Service_Prx103_Doctor {
 	}
 
 	/**
-	 * Компиляция всех php-файлов (php -l) одним дочерним процессом: в stdin
-	 * уходит список файлов, в stdout — JSON с ошибками. Так один процесс
-	 * вместо сотни, а точное место ошибки печатает сам php.
-	 *
-	 * 25.11.2026, прод: fwrite(): Broken pipe — под веб-SAPI (fpm/cgi)
-	 * PHP_BINARY не CLI-интерпретатор и умирал до чтения stdin. Теперь ищем
-	 * настоящий CLI коротким зондом (строго PHP_SAPI === 'cli' и доступный
-	 * exec внутри дочернего php.ini); если CLI нет — WARN с подсказкой
-	 * make lint, страница не падает. stderr потомка — в /dev/null, чтобы
-	 * переполнение его пайпа не подвесило чтение stdout.
+	 * Список php-файлов для компиляции (php -l): application, modules,
+	 * public_html, bin без генерируемых каталогов. Отдаётся веб-страницей
+	 * в сессию, порции гоняются из браузера; CLI использует весь список.
 	 */
-	protected static function _check_syntax(array &$rows): void
+	public static function php_files(): array
 	{
-		$files = self::_php_files();
+		$root = rtrim(dirname(APPPATH), '/');
+		$out = [];
+
+		foreach (['application', 'modules', 'public_html', 'bin'] as $dir)
+		{
+			$base = $root.'/'.$dir;
+
+			if ( ! is_dir($base))
+			{
+				continue;
+			}
+
+			$it = new RecursiveIteratorIterator(
+				new RecursiveDirectoryIterator($base, FilesystemIterator::SKIP_DOTS));
+
+			foreach ($it as $file)
+			{
+				if ($file->getExtension() !== 'php')
+				{
+					continue;
+				}
+
+				$parts = explode('/', $file->getPathname());
+
+				foreach (self::LINT_SKIP_DIRS as $skip)
+				{
+					if (in_array($skip, $parts, TRUE))
+					{
+						continue 2;
+					}
+				}
+
+				$out[] = $file->getPathname();
+			}
+		}
+
+		sort($out);
+
+		return $out;
+	}
+
+	/**
+	 * Компиляция ПОРЦИИ php-файлов (php -l) одним дочерним процессом: в stdin
+	 * уходит список файлов порции, в stdout — JSON с ошибками. Порция держится
+	 * в таймаутах веб-хостинга; полный список — php_files().
+	 *
+	 * Возвращает ['ok' => bool, 'total' => int, 'bad' => [[файл, текст], …]].
+	 * ok = FALSE — дочерний процесс не запустился/не отработал (в 'bad' пусто,
+	 * сообщение о причине не нужно: вызывающий сам знает контекст).
+	 */
+	public static function lint_chunk(array $files): array
+	{
+		$empty = ['ok' => FALSE, 'total' => 0, 'bad' => []];
 
 		if ($files === [])
 		{
-			self::_add($rows, 'WARN', 'Синтаксис PHP', 'php-файлы не найдены');
-			return;
+			return ['ok' => TRUE, 'total' => 0, 'bad' => []];
 		}
 
 		if ( ! function_exists('proc_open'))
 		{
-			self::_add($rows, 'WARN', 'Синтаксис PHP',
-				'proc_open запрещён на этом хостинге — выполните проверку вручную: make lint');
-			return;
+			return $empty;
 		}
 
 		$php = self::_cli_binary();
 
 		if ($php === NULL)
 		{
-			self::_add($rows, 'WARN', 'Синтаксис PHP',
-				'CLI-интерпретатор PHP не найден (веб-режим '.PHP_SAPI.') — сайт не затронут; '
-				.'запустите проверку по SSH: make lint');
-			return;
+			return $empty;
 		}
 
 		$probe = tempnam(sys_get_temp_dir(), 'prxlnt');
 
 		if ($probe === FALSE)
 		{
-			self::_add($rows, 'WARN', 'Синтаксис PHP', 'не удалось создать временный файл для php -l');
-			return;
+			return $empty;
 		}
 
 		file_put_contents($probe, <<<'PROBE'
@@ -309,29 +349,10 @@ PROBE);
 
 		if ($total === 0 AND $bad === [])
 		{
-			self::_add($rows, 'WARN', 'Синтаксис PHP',
-				"дочерний процесс php не отработал ($php) — выполните make lint по SSH");
-			return;
+			return $empty;
 		}
 
-		if ($bad === [])
-		{
-			self::_add($rows, 'OK', 'Синтаксис PHP', "php -l: $total файлов — ошибок нет");
-			return;
-		}
-
-		foreach ($bad as $i => [$file, $error])
-		{
-			if ($i >= self::LINT_MAX_REPORTED)
-			{
-				self::_add($rows, 'FAIL', 'Синтаксис PHP',
-					'…и ещё '.(count($bad) - self::LINT_MAX_REPORTED).' ошибок — полный список: make lint');
-				break;
-			}
-
-			self::_add($rows, 'FAIL', 'Синтаксис PHP',
-				preg_replace('/^Errors parsing [^ ]+/', '', $error, 1, $cnt) ?: $error);
-		}
+		return ['ok' => TRUE, 'total' => $total, 'bad' => $bad];
 	}
 
 	/**
@@ -387,46 +408,9 @@ PROBE);
 		return is_string($out) ? trim($out) : NULL;
 	}
 
-	protected static function _php_files(): array
+	/** Строка ошибки php -l без служебного префикса «Errors parsing …». */
+	public static function lint_error_text(string $error): string
 	{
-		$root = rtrim(dirname(APPPATH), '/');
-		$out = [];
-
-		foreach (['application', 'modules', 'public_html', 'bin'] as $dir)
-		{
-			$base = $root.'/'.$dir;
-
-			if ( ! is_dir($base))
-			{
-				continue;
-			}
-
-			$it = new RecursiveIteratorIterator(
-				new RecursiveDirectoryIterator($base, FilesystemIterator::SKIP_DOTS));
-
-			foreach ($it as $file)
-			{
-				if ($file->getExtension() !== 'php')
-				{
-					continue;
-				}
-
-				$parts = explode('/', $file->getPathname());
-
-				foreach (self::LINT_SKIP_DIRS as $skip)
-				{
-					if (in_array($skip, $parts, TRUE))
-					{
-						continue 2;
-					}
-				}
-
-				$out[] = $file->getPathname();
-			}
-		}
-
-		sort($out);
-
-		return $out;
+		return (preg_replace('/^Errors parsing [^ ]+/', '', $error, 1, $cnt) ?: $error);
 	}
 }
