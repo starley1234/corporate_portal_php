@@ -94,8 +94,9 @@ abstract class Controller_Prx102_Base extends Controller {
         {
             $user_model = Auth::instance()->get_user();
             // Деактивированный не ходит по сайту: живая сессия закрывается на
-            // первом же запросе после выключения (prx595).
-            if (isset($user_model->active) AND ! (int) $user_model->active)
+            // первом же запросе после выключения (prx595). PDO отдаёт BOOLEAN
+            // строкой 't'/'f' — только Model_Prx102_User::is_active(), не (int).
+            if (isset($user_model->active) AND ! Model_Prx102_User::is_active($user_model->active))
             {
                 Auth::instance()->logout();
                 throw HTTP_Exception::factory(302)->location(

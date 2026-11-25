@@ -55,6 +55,20 @@ class Model_Prx102_User extends Model_Auth_User {
     protected static $_names_cache = null;
 
     /**
+     * Строгая «активность» пользователя. PostgreSQL BOOLEAN приходит из
+     * PDO/pgsql строкой 't'/'f' — (int) 't' === 0, поэтому users.active
+     * читается только этим предикатом (урок prx597: Service_Prx597_Base::_truthy).
+     *
+     * @param mixed $value сырое значение users.active (TRUE/1/'1'/'t'/'true'/…)
+     * @return bool
+     */
+    public static function is_active($value)
+    {
+        return in_array($value, [TRUE, 1, '1', 't', 'true'], TRUE);
+    }
+
+
+    /**
      * Получает список всех имен и должностей пользователей из профилей.
      * Использует статический кеш для предотвращения повторных запросов к БД.
      *

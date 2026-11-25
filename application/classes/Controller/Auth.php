@@ -88,7 +88,7 @@ class Controller_Auth extends Controller_Prx102_Auth {
             if (Auth::instance()->login($this->request->post('username'), $this->request->post('password'), (bool)$this->request->post('remember')))
             {
                 $user = Auth::instance()->get_user();
-                if (isset($user->active) AND ! (int) $user->active)
+                if (isset($user->active) AND ! Model_Prx102_User::is_active($user->active))
                 {
                     Auth::instance()->logout();
                     $errors[] = 'Аккаунт деактивирован администратором.';

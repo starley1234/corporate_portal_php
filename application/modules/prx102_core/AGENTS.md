@@ -111,3 +111,13 @@ UI требует CSRF независимо от Authorization/X-Worker-Token. �
 модулей. Модуль не подключён — обработчика нет, поведение деградирует мягко.
 Имена точек: `nav.favorites`, `actor.org`, `auth.session_check`. Решение и
 границы — `docs/SKELETON-ADR.md` (Д2, Д7).
+
+## PostgreSQL BOOLEAN: только Model_Prx102_User::is_active() (26.11.2026)
+
+PDO/pgsql возвращает BOOLEAN строкой `'t'`/`'f'`; `(int) 't' === 0`, поэтому
+любое `(int)`-приведение users.active считает всех деактивированными (прод-инцидент
+26.11: «Аккаунт деактивирован администратором» при `active = t`). Единственный
+способ чтения — предикат `Model_Prx102_User::is_active($value)`
+(`TRUE/1/'1'/'t'/'true'`, strict). Место-прецедент: `Service_Prx597_Base::_truthy()`
+и prx597/AGENTS.md. Гварды входа/сессии (Prx102 Base/Auth, application Auth)
+и виды prx595 обязаны идти через него; в SQL — литералы TRUE/FALSE.
