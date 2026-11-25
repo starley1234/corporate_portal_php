@@ -30,7 +30,8 @@ class Controller_Prx450_Api extends Controller_Prx150_Machine
             $result = Service_Prx450_Ocr::parse(
                 $_FILES['file'] ?? NULL,
                 $this->request->query(),
-                NULL, $this->principal()->id()
+                NULL, $this->principal()->id(),
+                $this->principal()->fileLimits()
             );
 
             $this->_json_response($result, 200);

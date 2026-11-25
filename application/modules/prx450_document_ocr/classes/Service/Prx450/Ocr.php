@@ -27,11 +27,32 @@ class Service_Prx450_Ocr
      * @param array      $options  query/post запроса; применяются только client_overrides
      * @return array {file, content, cached, cache_source, engine_used, llm_fixed, raw_result}
      */
-    public static function parse($upload, array $options = [], ?int $initiator_id = NULL, ?int $api_client_id = NULL): array
+    public static function parse($upload, array $options = [], ?int $initiator_id = NULL, ?int $api_client_id = NULL, ?array $key_file_limits = NULL): array
     {
         $config = Kohana::$config->load('prx450_document_ocr')->as_array();
         self::assert_request_size((int) ($_SERVER['CONTENT_LENGTH'] ?? 0), (string) ini_get('post_max_size'));
         $file = self::_validate_upload($upload, $config);
+        // Файловые лимиты ключа prx150 (Д8-сосед: правка ключа без отзыва).
+        // Отсутствующий ключ = безлимит по ключу; глобальные лимиты модуля
+        // уже проверены выше и в силе.
+        if (is_array($key_file_limits))
+        {
+            $limit_bytes = $key_file_limits['max_file_bytes'] ?? NULL;
+            if ($limit_bytes !== NULL AND (int) $limit_bytes > 0 AND (int) $file['size'] > (int) $limit_bytes)
+            {
+                throw new Prx450_Error('file_too_large', 413, ['limit_bytes' => (int) $limit_bytes]);
+            }
+
+            $formats = $key_file_limits['allowed_formats'] ?? [];
+            if (is_array($formats) AND $formats !== [])
+            {
+                $ext = strtolower((string) pathinfo((string) ($upload['name'] ?? ''), PATHINFO_EXTENSION));
+                if ($ext === '' OR ! in_array($ext, array_map('strval', $formats), TRUE))
+                {
+                    throw new Prx450_Error('format_not_allowed', 415, ['allowed' => array_values($formats)]);
+                }
+            }
+        }
         $values = self::_values($config, $options);
         $query = self::_query($values);
 

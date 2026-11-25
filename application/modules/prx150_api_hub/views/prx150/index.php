@@ -137,6 +137,7 @@ $when = function ($value): string {
                             <td class="tabular-nums"><?php echo (int) $key['requests_24h']; ?></td>
                             <td class="text-right">
                                 <?php if ($key['status'] === 'active'): ?>
+                                <a href="/prx150_api_hub/edit/<?php echo (int) $key['id']; ?>" class="prx-btn-secondary prx-btn-sm mr-1" title="Править: лимиты, права, файловые ограничения"><i class="fas fa-pen"></i><span class="sr-only">Править</span></a>
                                 <form method="post" action="/prx150_api_hub/revoke/<?php echo (int) $key['id']; ?>" class="inline">
                                     <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
                                     <button type="submit" class="prx-btn-danger prx-btn-sm" data-prx-arm="Отозвать ключ?"><i class="fas fa-ban"></i><span data-prx-arm-label>Отозвать</span></button>

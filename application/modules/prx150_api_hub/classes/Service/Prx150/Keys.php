@@ -44,8 +44,138 @@ class Service_Prx150_Keys
             (int) ($row['id'] ?? 0),
             (string) ($row['name'] ?? ''),
             $organization > 0 ? $organization : NULL,
-            is_array($scopes) ? array_map('strval', $scopes) : []
+            is_array($scopes) ? array_map('strval', $scopes) : [],
+            self::file_limits($row)
         );
+    }
+
+    /**
+     * Файловые лимиты строки ключа → нормализованный массив.
+     * max_file_bytes: ?int (NULL = безлимит), max_files_per_request: ?int,
+     * allowed_formats: список нижнерегистровых расширений или [].
+     */
+    public static function file_limits(array $row): array
+    {
+        $raw = json_decode((string) ($row['file_limits'] ?? '{}'), TRUE);
+        $raw = is_array($raw) ? $raw : [];
+
+        $bytes = (int) ($raw['max_file_bytes'] ?? 0);
+        $files = (int) ($raw['max_files_per_request'] ?? 0);
+        $formats = array_values(array_unique(array_filter(array_map(
+            static function ($f) {
+                $f = strtolower(trim((string) $f));
+                return preg_match('/\A[a-z0-9]{1,8}\z/', $f) ? $f : '';
+            }, (array) ($raw['allowed_formats'] ?? [])
+        ))));
+
+        return [
+            'max_file_bytes' => $bytes > 0 ? $bytes : NULL,
+            'max_files_per_request' => $files > 0 ? $files : NULL,
+            'allowed_formats' => $formats,
+        ];
+    }
+
+    /** Нормализованные лимиты формы → JSONB-строка ({} = безлимит). */
+    public static function file_limits_json(?int $max_file_bytes, ?int $max_files, array $formats): string
+    {
+        $formats = array_values(array_filter(array_map('strtolower', array_map('trim', $formats))));
+        $out = [];
+        if ($max_file_bytes !== NULL AND $max_file_bytes > 0)
+        {
+            $out['max_file_bytes'] = $max_file_bytes;
+        }
+        if ($max_files !== NULL AND $max_files > 0)
+        {
+            $out['max_files_per_request'] = $max_files;
+        }
+        if ($formats !== [])
+        {
+            $out['allowed_formats'] = array_values(array_unique($formats));
+        }
+
+        return json_encode($out, JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * Правка ключа БЕЗ отзыва: имя, скоупы, rate-limit, срок, заметка,
+     * организация, файловые лимиты. key_hash/key_prefix не меняются —
+     * потребителю ничего передавать заново не нужно.
+     */
+    public static function update(
+        int $id,
+        string $name,
+        array $scopes,
+        int $rate_limit,
+        ?string $expires_at,
+        string $note = '',
+        ?int $organization_id = NULL,
+        string $file_limits_json = '{}'
+    ): void {
+        $row = Prx_Db::one('SELECT id, status FROM prx_150_api_clients WHERE id = :id', [':id' => $id]);
+
+        if ( ! $row)
+        {
+            throw new Prx150_Error('not_found', 404);
+        }
+
+        if ($row['status'] !== 'active')
+        {
+            throw new Prx150_Error('key_revoked', 409);
+        }
+
+        $name = trim($name);
+
+        if ($name === '' OR mb_strlen($name) > 120)
+        {
+            throw new Prx150_Error('invalid_name', 422);
+        }
+
+        if ($organization_id !== NULL AND ( ! class_exists('Service_Prx300_Directory')
+            OR ! Service_Prx300_Directory::organization_exists($organization_id)))
+        {
+            throw new Prx150_Error('invalid_organization', 422);
+        }
+
+        $known = Service_Prx150_Services::scopes();
+        $scopes = array_values(array_intersect(array_unique($scopes), array_keys($known)));
+
+        if ($scopes === [])
+        {
+            throw new Prx150_Error('invalid_scopes', 422);
+        }
+
+        sort($scopes);
+        $rate_limit = max(1, min(600, $rate_limit));
+
+        $expires = NULL;
+
+        if ($expires_at !== NULL AND trim($expires_at) !== '')
+        {
+            $ts = strtotime($expires_at);
+
+            if ($ts === FALSE)
+            {
+                throw new Prx150_Error('invalid_expires', 422);
+            }
+
+            $expires = date('Y-m-d H:i:s', $ts);
+        }
+
+        Prx_Db::execute(
+            'UPDATE prx_150_api_clients SET name = :name, scopes = CAST(:scopes AS jsonb), '
+            .'rate_limit_per_min = :limit, expires_at = :expires, note = :note, '
+            .'organization_id = :org, file_limits = CAST(:flimits AS jsonb), updated_at = now() '
+            .'WHERE id = :id',
+            [
+                ':name' => $name,
+                ':scopes' => json_encode($scopes, JSON_UNESCAPED_UNICODE),
+                ':limit' => $rate_limit,
+                ':expires' => $expires,
+                ':note' => mb_substr(trim($note), 0, 500),
+                ':org' => $organization_id,
+                ':flimits' => $file_limits_json === '' ? '{}' : $file_limits_json,
+                ':id' => $id,
+            ]);
     }
 
     /**

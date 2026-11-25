@@ -116,6 +116,78 @@ class Controller_Prx150_Admin extends Controller_Prx102_Base
         HTTP::redirect('/prx150_api_hub', 303);
     }
 
+    /** GET /prx150_api_hub/edit/<id> — правка ключа без отзыва. */
+    public function action_edit()
+    {
+        $id = (int) $this->request->param('id');
+        $row = Prx_Db::one('SELECT * FROM prx_150_api_clients WHERE id = :id', [':id' => $id]);
+
+        if ( ! $row)
+        {
+            throw HTTP_Exception::factory(404, 'Ключ не найден');
+        }
+
+        $scopes_all = Service_Prx150_Services::scopes();
+        $scopes_have = Service_Prx150_Keys::principal((array) $row)->scopes();
+        $limits = Service_Prx150_Keys::file_limits((array) $row);
+
+        $this->set_title('Ключ «'.(string) $row['name'].'» — правка');
+
+        $this->template->content = View::factory('prx150/edit', [
+            'key'         => (array) $row,
+            'scopes_all'  => $scopes_all,
+            'scopes_have' => $scopes_have,
+            'limits'      => $limits,
+            'csrf'        => Security::token(),
+            'flash'       => isset($_GET['flash']) ? (string) $_GET['flash'] : '',
+        ]);
+    }
+
+    /** POST /prx150_api_hub/save/<id> — сохранить правку (ключ не перевыпускается). */
+    public function action_save()
+    {
+        $id = (int) $this->request->param('id');
+
+        if ($this->request->method() !== Request::POST
+            OR ! Security::check((string) $this->request->post('csrf')))
+        {
+            HTTP::redirect('/prx150_api_hub/edit/'.$id.'?flash='.urlencode('Сессия устарела'), 303);
+        }
+
+        $bytes_raw = trim((string) $this->request->post('max_file_bytes'));
+        $files_raw = trim((string) $this->request->post('max_files_per_request'));
+
+        try
+        {
+            Service_Prx150_Keys::update(
+                $id,
+                (string) $this->request->post('name'),
+                array_map('strval', (array) $this->request->post('scopes')),
+                (int) $this->request->post('rate_limit'),
+                trim((string) $this->request->post('expires_at')),
+                (string) $this->request->post('note'),
+                (int) $this->request->post('organization_id') ?: NULL,
+                Service_Prx150_Keys::file_limits_json(
+                    $bytes_raw !== '' ? (int) $bytes_raw : NULL,
+                    $files_raw !== '' ? (int) $files_raw : NULL,
+                    preg_split('/[\s,;]+/u', (string) $this->request->post('allowed_formats'), -1, PREG_SPLIT_NO_EMPTY) ?: []
+                ));
+
+            Session::instance()->set('prx150_flash', ['type' => 'ok', 'text' => 'Ключ сохранён: значение и префикс не менялись, потребителю ничего обновлять не нужно.']);
+        }
+        catch (Prx150_Error $e)
+        {
+            Session::instance()->set('prx150_flash', ['type' => 'err', 'text' => 'Не удалось сохранить: '.$e->getMessage()]);
+        }
+        catch (Throwable $e)
+        {
+            Kohana::$log->add(Log::ERROR, 'prx150: save key failed: :e', [':e' => $e->getMessage()]);
+            Session::instance()->set('prx150_flash', ['type' => 'err', 'text' => 'Не удалось сохранить ключ.']);
+        }
+
+        HTTP::redirect('/prx150_api_hub/edit/'.$id, 303);
+    }
+
     /** Отзыв ключа: POST, необратимо. */
     public function action_revoke()
     {
