@@ -226,6 +226,13 @@ class Service_Prx103_Doctor {
 	 * Компиляция всех php-файлов (php -l) одним дочерним процессом: в stdin
 	 * уходит список файлов, в stdout — JSON с ошибками. Так один процесс
 	 * вместо сотни, а точное место ошибки печатает сам php.
+	 *
+	 * 25.11.2026, прод: fwrite(): Broken pipe — под веб-SAPI (fpm/cgi)
+	 * PHP_BINARY не CLI-интерпретатор и умирал до чтения stdin. Теперь ищем
+	 * настоящий CLI коротким зондом (строго PHP_SAPI === 'cli' и доступный
+	 * exec внутри дочернего php.ini); если CLI нет — WARN с подсказкой
+	 * make lint, страница не падает. stderr потомка — в /dev/null, чтобы
+	 * переполнение его пайпа не подвесило чтение stdout.
 	 */
 	protected static function _check_syntax(array &$rows): void
 	{
@@ -237,10 +244,20 @@ class Service_Prx103_Doctor {
 			return;
 		}
 
-		if ( ! function_exists('proc_open') OR ! function_exists('exec'))
+		if ( ! function_exists('proc_open'))
 		{
 			self::_add($rows, 'WARN', 'Синтаксис PHP',
-				'proc_open/exec запрещены на этом хостинге — выполните проверку вручную: make lint');
+				'proc_open запрещён на этом хостинге — выполните проверку вручную: make lint');
+			return;
+		}
+
+		$php = self::_cli_binary();
+
+		if ($php === NULL)
+		{
+			self::_add($rows, 'WARN', 'Синтаксис PHP',
+				'CLI-интерпретатор PHP не найден (веб-режим '.PHP_SAPI.') — сайт не затронут; '
+				.'запустите проверку по SSH: make lint');
 			return;
 		}
 
@@ -254,11 +271,12 @@ class Service_Prx103_Doctor {
 
 		file_put_contents($probe, <<<'PROBE'
 <?php
+$lint = $argv[2] ?? 'php';
 $list = json_decode(stream_get_contents(STDIN), TRUE) ?: [];
 $bad = [];
 foreach ($list as $f) {
     $out = [];
-    exec(escapeshellarg(PHP_BINARY).' -l '.escapeshellarg($f).' 2>&1', $out, $code);
+    exec(escapeshellarg($lint).' -l '.escapeshellarg($f).' 2>&1', $out, $code);
     if ($code !== 0) {
         $bad[] = [$f, implode(' ', array_filter(array_map('trim', $out)))];
     }
@@ -267,26 +285,32 @@ echo json_encode(['total' => count($list), 'bad' => $bad]);
 PROBE);
 
 		$res = NULL;
-		$proc = proc_open([PHP_BINARY, $probe], [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']], $pipes);
+		$proc = @proc_open([$php, $probe, $php],
+			[['pipe', 'r'], ['pipe', 'w'], ['file', '/dev/null', 'r']], $pipes);
 
 		if (is_resource($proc))
 		{
-			fwrite($pipes[0], json_encode($files));
+			$written = @fwrite($pipes[0], json_encode($files));
 			fclose($pipes[0]);
-			$res = json_decode(stream_get_contents($pipes[1]), TRUE);
+
+			if ($written !== FALSE)
+			{
+				$res = json_decode((string) @stream_get_contents($pipes[1]), TRUE);
+			}
+
 			fclose($pipes[1]);
-			fclose($pipes[2]);
 			proc_close($proc);
 		}
 
-		unlink($probe);
+		@unlink($probe);
 
 		$total = (int) ($res['total'] ?? 0);
 		$bad = is_array($res['bad'] ?? NULL) ? $res['bad'] : [];
 
 		if ($total === 0 AND $bad === [])
 		{
-			self::_add($rows, 'WARN', 'Синтаксис PHP', 'дочерний процесс php не запустился — выполните make lint вручную');
+			self::_add($rows, 'WARN', 'Синтаксис PHP',
+				"дочерний процесс php не отработал ($php) — выполните make lint по SSH");
 			return;
 		}
 
@@ -308,6 +332,59 @@ PROBE);
 			self::_add($rows, 'FAIL', 'Синтаксис PHP',
 				preg_replace('/^Errors parsing [^ ]+/', '', $error, 1, $cnt) ?: $error);
 		}
+	}
+
+	/**
+	 * Настоящий CLI-интерпретатор для дочерних запусков. Под веб-SAPI
+	 * (fpm/cgi) PHP_BINARY скрипты не исполняет (прод 25.11.2026: Broken
+	 * pipe), а exec может быть запрещён php.ini — зонд требует строго
+	 * PHP_SAPI === 'cli' И доступный exec в дочернем процессе. /usr/bin/php
+	 * проверяем первым: на типовом хостинге это CLI, и бинарник fpm не
+	 * зондируется вовсе.
+	 */
+	protected static function _cli_binary(): ?string
+	{
+		$candidates = [];
+
+		foreach (['/usr/bin/php', '/usr/local/bin/php', '/usr/bin/php8.4', '/usr/bin/php8.3', PHP_BINARY] as $cand)
+		{
+			if ($cand !== '' AND ! in_array($cand, $candidates, TRUE) AND @is_executable($cand))
+			{
+				$candidates[] = $cand;
+			}
+		}
+
+		foreach ($candidates as $cand)
+		{
+			$answer = self::_spawn([$cand, '-r',
+				'echo PHP_SAPI === \'cli\' && function_exists(\'exec\') ? \'ok\' : \'no\';']);
+
+			if ($answer === 'ok')
+			{
+				return $cand;
+			}
+		}
+
+		return NULL;
+	}
+
+	/** Разовый дочерний процесс без stdin; stdout — строка или NULL. */
+	protected static function _spawn(array $cmd): ?string
+	{
+		$pipes = [];
+		$proc = @proc_open($cmd, [['pipe', 'r'], ['pipe', 'w'], ['file', '/dev/null', 'r']], $pipes);
+
+		if ( ! is_resource($proc))
+		{
+			return NULL;
+		}
+
+		fclose($pipes[0]);
+		$out = @stream_get_contents($pipes[1]);
+		fclose($pipes[1]);
+		proc_close($proc);
+
+		return is_string($out) ? trim($out) : NULL;
 	}
 
 	protected static function _php_files(): array
