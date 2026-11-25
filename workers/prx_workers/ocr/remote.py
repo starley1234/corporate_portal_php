@@ -25,7 +25,7 @@ async def extract_remote(path: Path, pages: int, *, max_text_bytes: int, transpo
         # URL может содержать свои query-параметры; обязательные параметры
         # профиля переопределяются здесь, а не отправляются в multipart data.
         target = httpx.URL(settings.url).copy_merge_params({
-            **settings.extra_params, "engine": "auto", "output_format": "md", "do_ocr": "true",
+            **settings.extra_params, "engine": "auto", "output_format": "md", "ocr": "true",
         })
         headers = settings.headers()
         headers.setdefault("Accept-Encoding", "identity")

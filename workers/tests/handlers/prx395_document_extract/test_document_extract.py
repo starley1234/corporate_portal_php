@@ -24,12 +24,12 @@ def remote(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_remote_multipart_query_and_content_contract(blank_pdf, remote, monkeypatch):
-    monkeypatch.setenv("OCR_EXTRA_PARAMS", '{"profile":"test","do_ocr":"false"}')
+    monkeypatch.setenv("OCR_EXTRA_PARAMS", '{"profile":"test","ocr":"false"}')
     monkeypatch.setenv("OCR_API_KEY", "test-only")
 
     def adapter(req):
         assert req.method == "POST" and req.url.path == "/parse"
-        assert dict(req.url.params) == {"lang": "ru", "engine": "auto", "output_format": "md", "do_ocr": "true", "profile": "test"}
+        assert dict(req.url.params) == {"lang": "ru", "engine": "auto", "output_format": "md", "ocr": "true", "profile": "test"}
         assert req.headers["Authorization"] == "Bearer test-only"
         assert b'name="file"; filename="document.pdf"' in req.content
         assert blank_pdf.read_bytes() in req.content
