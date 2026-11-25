@@ -143,9 +143,7 @@ errors.extend(classes_lint_errors(ROOT))
 # Prx_Db; тогда возврат к Database::instance() сразу покраснеет. Новые модули
 # (не в списке) тоже фейлят с первого коммита — чистый образец обязателен.
 INFRA_SQL_MODULES = {'prx120_jobs', 'PostgreSQL', 'PostgreSQL_PDO'}
-LEGACY_SQL_MODULES = {
-    'prx115_semantic',
-}
+LEGACY_SQL_MODULES = set()  # спринт Д1 завершён: сырой DB в бизнес-модулях не остался
 RAW_DB_PATTERNS = ('Database::instance()', '->quote(')
 
 actual_raw = set()

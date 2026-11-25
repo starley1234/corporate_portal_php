@@ -38,24 +38,24 @@ class Service_Prx115_Semantic {
      */
     public static function ensure_collection($name, $description = '')
     {
-        $db = Database::instance();
         $name = (string) $name;
 
-        $row = $db->query(Database::SELECT,
-            "SELECT id FROM prx_115_collections WHERE name = ".$db->quote($name), FALSE)->current();
+        $row = Prx_Db::one("SELECT id FROM prx_115_collections WHERE name = :name",
+            [':name' => $name]);
 
         if ($row)
             return (int) $row['id'];
 
         list($model, $dims) = self::_embedding_defaults();
 
-        $result = $db->query(Database::SELECT,
+        $result = Prx_Db::one(
             "INSERT INTO prx_115_collections (name, model, dims, description)
-             VALUES (".$db->quote($name).", ".$db->quote($model).", ".(int) $dims.", ".$db->quote((string) $description).")
+             VALUES (:name, :model, ".(int) $dims.", :description)
              ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
-             RETURNING id", FALSE);
+             RETURNING id",
+            [':name' => $name, ':model' => (string) $model, ':description' => (string) $description]);
 
-        return (int) $result->current()['id'];
+        return (int) $result['id'];
     }
 
     // ---------------------------------------------------------------------
@@ -153,7 +153,6 @@ class Service_Prx115_Semantic {
      */
     public static function pending_items($collection, $entity, array $items)
     {
-        $db  = Database::instance();
         $by_id = [];
 
         foreach ($items as $item)
@@ -171,18 +170,26 @@ class Service_Prx115_Semantic {
             return [];
         }
 
-        $list = implode(',', array_map([$db, 'quote'], array_keys($by_id)));
+        $id_params = [];
+        $in_parts = [];
+        foreach (array_keys($by_id) as $i => $key)
+        {
+            $in_parts[] = ':id'.$i;
+            $id_params[':id'.$i] = (string) $key;
+        }
+        $list = implode(',', $in_parts);
         $stored = [];
 
         try
         {
-            foreach ($db->query(Database::SELECT,
+            foreach (Prx_Db::select(
                 "SELECT v.entity_id, v.content_hash
                  FROM prx_115_vectors v
                  JOIN prx_115_collections c ON c.id = v.collection_id
-                 WHERE c.name = ".$db->quote((string) $collection)."
-                   AND v.entity = ".$db->quote((string) $entity)."
-                   AND v.entity_id IN (".$list.")", FALSE)->as_array() as $row)
+                 WHERE c.name = :collection
+                   AND v.entity = :entity
+                   AND v.entity_id IN (".$list.")",
+                [':collection' => (string) $collection, ':entity' => (string) $entity] + $id_params) as $row)
             {
                 $row = (array) $row;
                 $stored[(string) $row['entity_id']] = (string) $row['content_hash'];
@@ -216,19 +223,26 @@ class Service_Prx115_Semantic {
      */
     public static function delete_entity($collection, $entity, array $entity_ids)
     {
-        $db = Database::instance();
         if (empty($entity_ids))
             return;
 
-        $list = implode(',', array_map([$db, 'quote'], array_map('strval', $entity_ids)));
+        $params = [':collection' => (string) $collection, ':entity' => (string) $entity];
+        $in_parts = [];
+        foreach (array_values($entity_ids) as $i => $eid)
+        {
+            $in_parts[] = ':eid'.$i;
+            $params[':eid'.$i] = (string) $eid;
+        }
+        $list = implode(',', $in_parts);
 
-        $db->query(Database::DELETE,
+        Prx_Db::execute(
             "DELETE FROM prx_115_vectors v
              USING prx_115_collections c
              WHERE c.id = v.collection_id
-               AND c.name = ".$db->quote((string) $collection)."
-               AND v.entity = ".$db->quote((string) $entity)."
-               AND v.entity_id IN (".$list.")");
+               AND c.name = :collection
+               AND v.entity = :entity
+               AND v.entity_id IN (".$list.")",
+            $params);
     }
 
     // ---------------------------------------------------------------------
@@ -294,15 +308,14 @@ class Service_Prx115_Semantic {
 
         $cfg     = (array) Kohana::$config->load('prx115.cache');
         $enabled = (( ! isset($cfg['enabled']) OR $cfg['enabled']) AND class_exists('Database'));
-        $db      = Database::instance();
         $qhash   = md5($model."\n".$text);
 
         if ($enabled)
         {
             try
             {
-                $row = $db->query(Database::SELECT,
-                    "SELECT vector FROM prx_115_query_cache WHERE qhash = ".$db->quote($qhash), FALSE)->current();
+                $row = Prx_Db::one("SELECT vector FROM prx_115_query_cache WHERE qhash = :qhash",
+                    [':qhash' => $qhash]);
 
                 if ($row)
                 {
@@ -310,9 +323,10 @@ class Service_Prx115_Semantic {
 
                     if (is_array($cached) AND ! empty($cached))
                     {
-                        $db->query(Database::UPDATE,
+                        Prx_Db::execute(
                             "UPDATE prx_115_query_cache SET hits = hits + 1, used_at = now()
-                             WHERE qhash = ".$db->quote($qhash), FALSE);
+                             WHERE qhash = :qhash",
+                            [':qhash' => $qhash]);
 
                         self::$_embed_cached = TRUE;
 
@@ -342,14 +356,16 @@ class Service_Prx115_Semantic {
             {
                 $json = json_encode(array_map('floatval', array_values($vector)));
 
-                $db->query(Database::INSERT,
+                Prx_Db::execute(
                     "INSERT INTO prx_115_query_cache (qhash, query, model, vector, dims, hits)
-                     VALUES (".$db->quote($qhash).", ".$db->quote(mb_substr($text, 0, 1000)).",
-                             ".$db->quote($model).", ".$db->quote($json)."::jsonb,
+                     VALUES (:qhash, :query,
+                             :model, :vector::jsonb,
                              ".(int) count($vector).", 1)
                      ON CONFLICT (qhash) DO UPDATE SET
                         vector = EXCLUDED.vector, model = EXCLUDED.model,
-                        dims = EXCLUDED.dims, used_at = now()", FALSE);
+                        dims = EXCLUDED.dims, used_at = now()",
+                    [':qhash' => $qhash, ':query' => mb_substr($text, 0, 1000),
+                     ':model' => (string) $model, ':vector' => $json]);
 
                 self::_cache_sweep($cfg);
             }
@@ -374,27 +390,28 @@ class Service_Prx115_Semantic {
             return [];
         }
 
-        $db     = Database::instance();
         $needle = str_replace(['\\', '%', '_'], ['', '\\%', '\\_'], $query);
         $like   = '%'.$needle.'%';
 
-        $where = "WHERE c.name = ".$db->quote((string) $collection)
-                 ." AND v.content ILIKE ".$db->quote($like);
+        $params = [':collection' => (string) $collection, ':like' => $like];
+        $where = "WHERE c.name = :collection
+                 AND v.content ILIKE :like";
 
         if ($entity !== NULL)
         {
-            $where .= " AND v.entity = ".$db->quote((string) $entity);
+            $where .= " AND v.entity = :entity";
+            $params[':entity'] = (string) $entity;
         }
 
         $rows = [];
 
-        foreach ($db->query(Database::SELECT,
+        foreach (Prx_Db::select(
             "SELECT v.entity, v.entity_id, v.content, v.metadata, v.model
              FROM prx_115_vectors v
              JOIN prx_115_collections c ON c.id = v.collection_id
              ".$where."
              ORDER BY v.updated_at DESC
-             LIMIT ".max(1, (int) $limit), FALSE)->as_array() as $row)
+             LIMIT ".max(1, (int) $limit), $params) as $row)
         {
             $row = (array) $row;
 
@@ -416,13 +433,14 @@ class Service_Prx115_Semantic {
      */
     public static function search_by_vector($collection, array $vector, $limit = 10, $entity = NULL, array $opts = [])
     {
-        $db = Database::instance();
         $limit = max(1, (int) $limit);
 
-        $where = "WHERE c.name = ".$db->quote((string) $collection);
+        $params = [':collection' => (string) $collection];
+        $where = "WHERE c.name = :collection";
         if ($entity !== NULL)
         {
-            $where .= " AND v.entity = ".$db->quote((string) $entity);
+            $where .= " AND v.entity = :entity";
+            $params[':entity'] = (string) $entity;
         }
 
         $literal = self::_vector_literal($vector);
@@ -446,14 +464,14 @@ class Service_Prx115_Semantic {
             $where .= " AND (".$order.") <= ".(float) $max_distance;
         }
 
-        $result = $db->query(Database::SELECT,
+        $result = Prx_Db::select(
             "SELECT v.entity, v.entity_id, v.content, v.metadata, v.model,
                     ".$order." AS distance
              FROM prx_115_vectors v
              JOIN prx_115_collections c ON c.id = v.collection_id
              ".$where."
              ORDER BY ".$order." ASC
-             LIMIT ".$limit, FALSE);
+             LIMIT ".$limit, $params);
 
         $rows = [];
         foreach ($result as $row)
@@ -574,8 +592,6 @@ class Service_Prx115_Semantic {
      */
     public static function reindex($only_collection = NULL, $limit = 200, array $opts = [])
     {
-        $db = Database::instance();
-
         // Потолок на один проход: слишком большая пачка = сотни задач в очереди
         // и часы нагрузки на эмбеддинг-сервер. Лучше несколько осознанных кликов.
         $limit  = min(self::REINDEX_MAX, max(1, (int) $limit));
@@ -588,24 +604,25 @@ class Service_Prx115_Semantic {
                 continue;
             }
 
-            $collection = $db->quote($source['collection']);
-            $entity     = $db->quote($source['entity']);
+            $collection = (string) $source['collection'];
+            $entity     = (string) $source['entity'];
 
             try
             {
-                $rows = $db->query(Database::SELECT,
+                $rows = Prx_Db::select(
                     "WITH src AS (".$source['sql'].")
                      SELECT src.id::text AS id,
                             src.content AS content,
                             COALESCE(src.metadata, '{}'::jsonb) AS metadata
                      FROM src
-                     LEFT JOIN prx_115_collections c ON c.name = ".$collection."
+                     LEFT JOIN prx_115_collections c ON c.name = :collection
                      LEFT JOIN prx_115_vectors v ON v.collection_id = c.id
-                                               AND v.entity = ".$entity."
+                                               AND v.entity = :entity
                                                AND v.entity_id = src.id::text
                      WHERE v.id IS NULL OR v.content_hash = '' OR v.content_hash <> md5(src.content)
                      ORDER BY src.id
-                     LIMIT ".$limit, FALSE)->as_array();
+                     LIMIT ".$limit,
+                    [':collection' => $collection, ':entity' => $entity]);
             }
             catch (Throwable $e)
             {
@@ -676,7 +693,6 @@ class Service_Prx115_Semantic {
      */
     public static function prune($only_collection = NULL, $older_days = 7)
     {
-        $db   = Database::instance();
         $days = max(0, (int) $older_days);
         $gone = 0;
 
@@ -687,18 +703,20 @@ class Service_Prx115_Semantic {
                 continue;
             }
 
-            $where = "c.name = ".$db->quote($source['collection'])."
-                        AND v.entity = ".$db->quote($source['entity'])."
+            $params = [':collection' => (string) $source['collection'],
+                       ':entity' => (string) $source['entity']];
+            $where = "c.name = :collection
+                        AND v.entity = :entity
                         AND v.updated_at < now() - ".$days." * interval '1 day'
                         AND NOT EXISTS (SELECT 1 FROM (".$source['sql'].") s WHERE s.id::text = v.entity_id)";
 
             try
             {
-                $row = (array) $db->query(Database::SELECT,
+                $row = (array) Prx_Db::one(
                     "SELECT COUNT(*) AS cnt
                      FROM prx_115_vectors v
                      JOIN prx_115_collections c ON c.id = v.collection_id
-                     WHERE ".$where, FALSE)->current();
+                     WHERE ".$where, $params);
 
                 $cnt = (int) $row['cnt'];
 
@@ -707,10 +725,10 @@ class Service_Prx115_Semantic {
                     continue;
                 }
 
-                $db->query(Database::DELETE,
+                Prx_Db::execute(
                     "DELETE FROM prx_115_vectors v
                      USING prx_115_collections c
-                     WHERE v.collection_id = c.id AND ".$where, FALSE);
+                     WHERE v.collection_id = c.id AND ".$where, $params);
 
                 $gone += $cnt;
             }
@@ -845,12 +863,10 @@ class Service_Prx115_Semantic {
             return 0;
         }
 
-        $db = Database::instance();
         $collection_id = self::ensure_collection($collection);
         $dims_expected = 0;
 
-        $row = $db->query(Database::SELECT,
-            "SELECT dims FROM prx_115_collections WHERE id = ".(int) $collection_id, FALSE)->current();
+        $row = Prx_Db::one("SELECT dims FROM prx_115_collections WHERE id = ".(int) $collection_id);
 
         if ($row)
         {
@@ -885,13 +901,13 @@ class Service_Prx115_Semantic {
                 ? json_encode($item['metadata'], JSON_UNESCAPED_UNICODE)
                 : '{}';
 
-            $db->query(Database::INSERT,
+            Prx_Db::execute(
                 "INSERT INTO prx_115_vectors
                     (collection_id, entity, entity_id, content, metadata, embedding, model, dims, content_hash)
-                 VALUES (".(int) $collection_id.", ".$db->quote((string) $entity).", ".$db->quote($id).",
-                         ".$db->quote($content).", ".$db->quote((string) $metadata)."::jsonb,
-                         ".$db->quote($literal).$cast.", ".$db->quote((string) $model).", ".(int) count($vector).",
-                         ".$db->quote(self::content_hash($content)).")
+                 VALUES (".(int) $collection_id.", :entity, :entity_id,
+                         :content, :metadata::jsonb,
+                         ".$literal.$cast.", :model, ".(int) count($vector).",
+                         :content_hash)
                  ON CONFLICT (collection_id, entity, entity_id) DO UPDATE SET
                     content   = EXCLUDED.content,
                     metadata  = EXCLUDED.metadata,
@@ -899,7 +915,10 @@ class Service_Prx115_Semantic {
                     model     = EXCLUDED.model,
                     dims      = EXCLUDED.dims,
                     content_hash = EXCLUDED.content_hash,
-                    updated_at = now()", FALSE);
+                    updated_at = now()",
+                [':entity' => (string) $entity, ':entity_id' => (string) $id,
+                 ':content' => (string) $content, ':metadata' => (string) $metadata,
+                 ':model' => (string) $model, ':content_hash' => self::content_hash($content)]);
 
             $written++;
         }
@@ -907,9 +926,10 @@ class Service_Prx115_Semantic {
         // Новая модель — запоминаем в коллекции: в панели видно, чем считали.
         if ($model !== '')
         {
-            $db->query(Database::UPDATE,
-                "UPDATE prx_115_collections SET model = ".$db->quote((string) $model)."
-                  WHERE id = ".(int) $collection_id." AND model = ''", FALSE);
+            Prx_Db::execute(
+                "UPDATE prx_115_collections SET model = :model
+                  WHERE id = ".(int) $collection_id." AND model = ''",
+                [':model' => (string) $model]);
         }
 
         return $written;
@@ -935,16 +955,15 @@ class Service_Prx115_Semantic {
      */
     protected static function _cache_sweep(array $cfg)
     {
-        $db  = Database::instance();
         $ttl = max(1, (int) (isset($cfg['ttl_days']) ? $cfg['ttl_days'] : 30));
         $max = max(50, (int) (isset($cfg['max_rows']) ? $cfg['max_rows'] : 500));
 
-        $db->query(Database::UPDATE,
-            "DELETE FROM prx_115_query_cache WHERE used_at < now() - ".$ttl." * interval '1 day'", FALSE);
+        Prx_Db::execute(
+            "DELETE FROM prx_115_query_cache WHERE used_at < now() - ".$ttl." * interval '1 day'");
 
-        $db->query(Database::UPDATE,
+        Prx_Db::execute(
             "DELETE FROM prx_115_query_cache WHERE qhash IN (
-                SELECT qhash FROM prx_115_query_cache ORDER BY used_at DESC OFFSET ".$max.")", FALSE);
+                SELECT qhash FROM prx_115_query_cache ORDER BY used_at DESC OFFSET ".$max.")");
     }
 
     /**
@@ -962,10 +981,9 @@ class Service_Prx115_Semantic {
     {
         if (self::$_pgvector === NULL)
         {
-            $db = Database::instance();
-            $row = $db->query(Database::SELECT,
+            $row = Prx_Db::one(
                 "SELECT data_type FROM information_schema.columns
-                 WHERE table_name = 'prx_115_vectors' AND column_name = 'embedding'", FALSE)->current();
+                 WHERE table_name = 'prx_115_vectors' AND column_name = 'embedding'");
 
             self::$_pgvector = ($row AND (array) $row['data_type'] !== NULL AND strtolower((string) $row['data_type']) !== 'array');
         }

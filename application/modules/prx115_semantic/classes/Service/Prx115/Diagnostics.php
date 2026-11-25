@@ -5,14 +5,12 @@ final class Service_Prx115_Diagnostics
 {
     public static function panel($engine, array $embedding, array $search)
     {
-        $db = Database::instance();
-
         // 1. Коллекции: сколько векторов, сколько сущностей, когда обновлялись.
         $collections = [];
 
         try
         {
-            foreach ($db->query(Database::SELECT,
+            foreach (Prx_Db::select(
                 "SELECT c.id, c.name, c.description, c.model, c.dims, c.created_at,
                         COUNT(v.id) AS vectors,
                         COUNT(DISTINCT v.entity) AS entities,
@@ -21,7 +19,7 @@ final class Service_Prx115_Diagnostics
                  FROM prx_115_collections c
                  LEFT JOIN prx_115_vectors v ON v.collection_id = c.id
                  GROUP BY c.id, c.name, c.description, c.model, c.dims, c.created_at
-                 ORDER BY COUNT(v.id) DESC, c.name ASC", FALSE)->as_array() as $row)
+                 ORDER BY COUNT(v.id) DESC, c.name ASC") as $row)
             {
                 $row = (array) $row;
                 $collections[] = [
@@ -130,9 +128,9 @@ final class Service_Prx115_Diagnostics
 
         try
         {
-            $row = (array) Database::instance()->query(Database::SELECT,
+            $row = (array) Prx_Db::one(
                 "SELECT (SELECT COUNT(*) FROM prx_115_collections) AS collections,
-                        (SELECT COUNT(*) FROM prx_115_vectors) AS vectors", FALSE)->current();
+                        (SELECT COUNT(*) FROM prx_115_vectors) AS vectors");
 
             $collections = (int) $row['collections'];
             $vectors     = (int) $row['vectors'];
@@ -150,8 +148,8 @@ final class Service_Prx115_Diagnostics
         {
             try
             {
-                $row = (array) Database::instance()->query(Database::SELECT,
-                    "SELECT COUNT(*) AS c FROM prx_115_vectors WHERE content_hash = ''", FALSE)->current();
+                $row = (array) Prx_Db::one(
+                    "SELECT COUNT(*) AS c FROM prx_115_vectors WHERE content_hash = ''");
 
                 $no_hash = (int) $row['c'];
             }
@@ -248,13 +246,12 @@ final class Service_Prx115_Diagnostics
 
     public static function stats()
     {
-        $db = Database::instance();
-        $result = $db->query(Database::SELECT,
+        $result = Prx_Db::select(
             "SELECT c.name, c.model, c.dims, COUNT(v.id) AS vectors
              FROM prx_115_collections c
              LEFT JOIN prx_115_vectors v ON v.collection_id = c.id
              GROUP BY c.id, c.name, c.model, c.dims
-             ORDER BY c.name", FALSE);
+             ORDER BY c.name");
 
         $stats = [];
         foreach ($result as $row)

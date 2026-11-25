@@ -34,7 +34,6 @@ final class Service_Prx115_Sources
 
     public static function coverage($only_collection = NULL)
     {
-        $db  = Database::instance();
         $out = [];
 
         foreach (self::sources() as $source)
@@ -44,14 +43,14 @@ final class Service_Prx115_Sources
                 continue;
             }
 
-            $collection = $db->quote($source['collection']);
-            $entity     = $db->quote($source['entity']);
+            $collection = (string) $source['collection'];
+            $entity     = (string) $source['entity'];
 
             $sql = "WITH src AS (".$source['sql']."),
-                        col AS (SELECT id FROM prx_115_collections WHERE name = ".$collection."),
+                        col AS (SELECT id FROM prx_115_collections WHERE name = :collection),
                         vec AS (SELECT v.entity_id, v.content_hash
                                 FROM prx_115_vectors v, col
-                                WHERE v.collection_id = col.id AND v.entity = ".$entity.")
+                                WHERE v.collection_id = col.id AND v.entity = :entity)
                     SELECT (SELECT COUNT(*) FROM src) AS total,
                            (SELECT COUNT(*) FROM vec) AS have,
                            (SELECT COUNT(*) FROM vec JOIN src ON src.id::text = vec.entity_id
@@ -61,7 +60,7 @@ final class Service_Prx115_Sources
 
             try
             {
-                $row = (array) $db->query(Database::SELECT, $sql, FALSE)->current();
+                $row = (array) Prx_Db::one($sql, [':collection' => $collection, ':entity' => $entity]);
             }
             catch (Throwable $e)
             {

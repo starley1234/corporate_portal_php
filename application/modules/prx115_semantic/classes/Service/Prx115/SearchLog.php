@@ -7,8 +7,6 @@ final class Service_Prx115_SearchLog
     {
         try
         {
-            $db = Database::instance();
-
             $vector_hits = 0;
             $text_hits   = 0;
 
@@ -26,19 +24,23 @@ final class Service_Prx115_SearchLog
                 }
             }
 
-            $db->query(Database::INSERT,
+            Prx_Db::execute(
                 "INSERT INTO prx_115_searches
                     (collection, entity, query, results, vector_hits, text_hits, cached, ms, error, user_id)
-                 VALUES (".$db->quote((string) $collection).",
-                         ".$db->quote((string) (isset($meta['entity']) ? $meta['entity'] : '')).",
-                         ".$db->quote(mb_substr((string) $query, 0, 500)).",
+                 VALUES (:collection,
+                         :entity,
+                         :query,
                          ".(int) count($results).",
                          ".(int) $vector_hits.",
                          ".(int) $text_hits.",
                          ".( ! empty($meta['cached']) ? 'TRUE' : 'FALSE').",
                          ".(int) (isset($meta['ms']) ? $meta['ms'] : 0).",
-                         ".$db->quote(mb_substr((string) (isset($meta['error']) ? $meta['error'] : ''), 0, 500)).",
-                         ".( ! empty($meta['user_id']) ? (int) $meta['user_id'] : 'NULL').")", FALSE);
+                         :error,
+                         ".( ! empty($meta['user_id']) ? (int) $meta['user_id'] : 'NULL').")",
+                [':collection' => (string) $collection,
+                 ':entity' => (string) (isset($meta['entity']) ? $meta['entity'] : ''),
+                 ':query' => mb_substr((string) $query, 0, 500),
+                 ':error' => mb_substr((string) (isset($meta['error']) ? $meta['error'] : ''), 0, 500)]);
 
             self::_searches_sweep();
         }
@@ -55,11 +57,11 @@ final class Service_Prx115_SearchLog
 
         try
         {
-            $rows = Database::instance()->query(Database::SELECT,
+            $rows = Prx_Db::select(
                 "SELECT collection, entity, query, results, vector_hits, text_hits,
                         cached, ms, error, created_at
                  FROM prx_115_searches
-                 ORDER BY id DESC LIMIT ".$limit, FALSE)->as_array();
+                 ORDER BY id DESC LIMIT ".$limit);
         }
         catch (Throwable $e)
         {
@@ -93,7 +95,7 @@ final class Service_Prx115_SearchLog
 
         try
         {
-            $row = Database::instance()->query(Database::SELECT,
+            $row = Prx_Db::one(
                 "SELECT COUNT(*) AS total,
                         COUNT(*) FILTER (WHERE results = 0 AND error = '') AS empty,
                         COUNT(*) FILTER (WHERE error <> '') AS errors,
@@ -101,7 +103,7 @@ final class Service_Prx115_SearchLog
                         COALESCE(AVG(ms) FILTER (WHERE NOT cached), 0) AS avg_ms,
                         MAX(created_at) AS last_at
                  FROM prx_115_searches
-                 WHERE created_at > now() - ".(int) max(1, (int) $hours)." * interval '1 hour'", FALSE)->current();
+                 WHERE created_at > now() - ".(int) max(1, (int) $hours)." * interval '1 hour'");
         }
         catch (Throwable $e)
         {
@@ -135,8 +137,8 @@ final class Service_Prx115_SearchLog
             return;
         }
 
-        Database::instance()->query(Database::DELETE,
+        Prx_Db::execute(
             "DELETE FROM prx_115_searches
-              WHERE id NOT IN (SELECT id FROM prx_115_searches ORDER BY id DESC LIMIT ".$keep.")", FALSE);
+              WHERE id NOT IN (SELECT id FROM prx_115_searches ORDER BY id DESC LIMIT ".$keep.")");
     }
 }
