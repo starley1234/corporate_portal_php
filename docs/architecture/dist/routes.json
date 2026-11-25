@@ -978,10 +978,10 @@
       "name": "prx599_2fa",
       "uri": "auth/2fa",
       "regex": "",
-      "controller": "Auth",
-      "action": "2fa",
+      "controller": "Prx599_2fa",
+      "action": "index",
       "module": "prx599_account",
-      "file": "application/classes/Controller/Auth.php"
+      "file": "application/modules/prx599_account/classes/Controller/Prx599/2fa.php"
     },
     {
       "name": "module_home_alias",

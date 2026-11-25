@@ -180,6 +180,98 @@ if stale:
     print('note: устаревшие записи LEGACY_SQL_MODULES (модуль очищен — уберите из '
           'списка): ' + ', '.join(sorted(stale)))
 
+# Граница ядро ↔ модуль (docs/SKELETON-ADR.md Д2/Д7): application/classes не
+# знает о бизнес-модулях — ни классов (Service_Prx599…), ни слагов
+# (prx599_account), ни любых токенов prx### в коде. Ядро зовёт модуль только
+# через Prx_Hooks/фасад/событие. Легален каркас prx102 (наследование
+# Controller/Model_Prx102_*) и фасады с подменной реализацией prx208 (Event) и
+# prx212 (Storage) — они и есть объявленный контракт Д7. Комментарии не
+# считаются: в документации и примерах называть модули можно.
+CORE_REF_ALLOW = {'prx102', 'prx208', 'prx212'}
+PRX_TOKEN = re.compile(r'prx\d{3}', re.I)
+
+
+def php_code_only(text: str) -> str:
+    """Код PHP без комментариев (комментарии → пробелы, переводы строк сохраняем).
+
+    Строки сохраняются целиком: слаги модулей живут именно в строках
+    ($modules['prx599_account'], View::factory('prx599/2fa')).
+    """
+    out = []
+    i, n = 0, len(text)
+    state = 'code'  # code | squote | dquote | line | block
+    while i < n:
+        ch = text[i]
+        nxt = text[i + 1] if i + 1 < n else ''
+        if state == 'code':
+            if ch == "'":
+                state = 'squote'
+                out.append(ch)
+            elif ch == '"':
+                state = 'dquote'
+                out.append(ch)
+            elif ch == '/' and nxt == '/':
+                state = 'line'
+                i += 1
+            elif ch == '#':
+                if nxt == '[':  # PHP 8-атрибут — не комментарий
+                    out.append(ch)
+                else:
+                    state = 'line'
+            elif ch == '/' and nxt == '*':
+                state = 'block'
+                i += 1
+            else:
+                out.append(ch)
+        elif state == 'squote':
+            out.append(ch)
+            if ch == '\\' and i + 1 < n:
+                i += 1
+                out.append(text[i])
+            elif ch == "'":
+                state = 'code'
+        elif state == 'dquote':
+            out.append(ch)
+            if ch == '\\' and i + 1 < n:
+                i += 1
+                out.append(text[i])
+            elif ch == '"':
+                state = 'code'
+        elif state == 'line':
+            if ch == '\n':
+                state = 'code'
+                out.append(ch)
+            else:
+                out.append(' ')
+        else:  # block
+            if ch == '*' and nxt == '/':
+                state = 'code'
+                i += 1
+                out.append(' ')
+            elif ch == '\n':
+                out.append(ch)
+            else:
+                out.append(' ')
+        i += 1
+    return ''.join(out)
+
+
+for php in sorted((ROOT / 'application/classes').rglob('*.php')):
+    try:
+        text = php.read_text(encoding='utf-8', errors='replace')
+    except OSError:
+        continue
+    code = php_code_only(text)
+    for match in PRX_TOKEN.finditer(code):
+        token = match.group(0).lower()
+        if token in CORE_REF_ALLOW:
+            continue
+        line = code.count('\n', 0, match.start()) + 1
+        errors.append(
+            f'Д2/Д7: ядро ссылается на модуль {token} '
+            f'({php.relative_to(ROOT)}:{line}) — только через Prx_Hooks/фасад '
+            f'(docs/SKELETON-ADR.md Д2/Д7)')
+
 if errors:
     print('\n'.join('FAIL: ' + item for item in errors))
     sys.exit(1)

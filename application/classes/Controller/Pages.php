@@ -14,18 +14,14 @@ class Controller_Pages extends Controller_Base {
         parent::before();
 
         // меню раздела — в левую панель «Навигация» (группа «Страницы»);
-        // чипы шапки для раздела считает Service_Prx110_Catalog::header_nav()
-        $items = class_exists('Service_Prx110_Catalog')
-            ? Service_Prx110_Catalog::menu_items()
-            : [];
+        // ядро спрашивает точку расширения prx110 вместо прямого вызова сервиса
+        // (docs/SKELETON-ADR.md Д2/Д7). Без модуля каталога меню пусто.
+        $items = Prx_Hooks::call('nav.catalog_menu') ?: [];
 
-        if (class_exists('Service_Prx110_Catalog'))
+        foreach ((Prx_Hooks::call('nav.catalog_pages') ?: []) as $pg)
         {
-            foreach (Service_Prx110_Catalog::pages_items() as $pg)
-            {
-                $pg['group'] = 'Страницы';
-                $items[] = $pg;
-            }
+            $pg['group'] = 'Страницы';
+            $items[] = $pg;
         }
 
         $this->set_menu($items);

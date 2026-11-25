@@ -37,3 +37,26 @@ Prx_Hooks::on('nav.favorites', function ($user_id, $uri) {
 
     return Service_Prx110_Favorites::mark_active($items, $uri);
 });
+
+// Меню раздела «Страницы», палитра сервисов и план «Рабочего стола»: ядро
+// спрашивает точки расширения вместо прямого вызова сервиса каталога
+// (docs/SKELETON-ADR.md Д2/Д7). Без модуля каталога — пусто.
+Prx_Hooks::on('nav.catalog_menu', function () {
+    return Service_Prx110_Catalog::menu_items();
+});
+Prx_Hooks::on('nav.catalog_pages', function () {
+    return Service_Prx110_Catalog::pages_items();
+});
+Prx_Hooks::on('nav.catalog_plan', function () {
+    return Service_Prx110_Catalog::plan_modules();
+});
+
+// План «Рабочего стола»: какие сервисы в какую колонку. Ядро не знает слагов
+// модулей — имена приходят отсюда, видимость из каталога, доступ по ACL из
+// манифеста (проверка остаётся в ядре).
+Prx_Hooks::on('nav.welcome_plan', function () {
+    return [
+        'work'  => ['prx395_document_extract', 'prx597_notifications'],
+        'stand' => ['prx390_intake', 'prx391_documents', 'prx392_analysis', 'prx393_workflow'],
+    ];
+});

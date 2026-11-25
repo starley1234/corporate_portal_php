@@ -54,3 +54,10 @@ Route::set('prx120_monitor', 'prx120/monitor')
         'controller' => 'Prx120_Monitor',
         'action'     => 'index',
     ]);
+
+// Точка расширения для «Рабочего стола»: ядро спрашивает имя ACL монитора,
+// не зная о модуле (docs/SKELETON-ADR.md Д2/Д7). Без модуля хука нет —
+// блок «Монитор воркеров» на главной не показывается.
+Prx_Hooks::on('nav.monitor_acl', function () {
+    return 'prx120.monitor';
+});

@@ -3,10 +3,11 @@
 /**
  * Точка переопределения логина (приложение, не frozen-модуль).
  *
- * prx599_account: после верных логина/пароля, если у пользователя включена
- * двухфакторка (TOTP), завершаем парольный этап и показываем /auth/2fa —
- * ввод одноразового кода из приложения-аутентификатора. Без 2FA — как
- * раньше, плюс запись в журнал входов и регистрация активной сессии.
+ * После верных логина/пароля ядро спрашивает точку расширения
+ * account.login_stage2 (docs/SKELETON-ADR.md Д2/Д7): модуль второго фактора
+ * возвращает URL второго шага (и сам готовит пейлоад сессии), иначе NULL —
+ * вход завершается как раньше, плюс журнал через account.after_login.
+ * Второй шаг (ввод TOTP) живёт в модуле: Controller_Prx599_2fa.
  * Логика родителя сохранена один-в-один (вью, Яндекс-кнопка, гейт
  * email_confirmed).
  *
@@ -90,31 +91,28 @@ class Controller_Auth extends Controller_Prx102_Auth {
                     Auth::instance()->logout();
                     $errors[] = 'Пожалуйста, подтвердите ваш email.';
                 }
-                elseif (Service_Prx599_Account::totp_enabled((int) $user->id))
-                {
-                    // --- prx599: двухфакторка включена — второй шаг ---
-                    Auth::instance()->logout();
-
-                    Session::instance()->set('prx599_pending', [
-                        'uid'      => (int) $user->id,
-                        'remember' => (bool) $this->request->post('remember'),
-                        'redirect' => (string) Session::instance()->get('login_redirect', '/'),
-                        'tries'    => 0,
-                        'ts'       => time(),
-                    ]);
-
-                    throw HTTP_Exception::factory(302)->location('/auth/2fa');
-                }
                 else
                 {
-                    // --- prx599: журнал входа + регистрация активной сессии ---
+                    // Д2/Д7: вторым фактором управляет модуль — ядро получает
+                    // URL второго шага или NULL (вход по паролю завершён).
+                    $stage2 = Prx_Hooks::call('account.login_stage2',
+                        (int) $user->id,
+                        (bool) $this->request->post('remember'),
+                        (string) Session::instance()->get('login_redirect', '/'));
+
+                    if ($stage2 !== NULL)
+                    {
+                        throw HTTP_Exception::factory(302)->location($stage2);
+                    }
+
+                    // журнал входа + регистрация активной сессии (точка расширения)
                     try
                     {
-                        Service_Prx599_Account::after_login((int) $user->id, 'password');
+                        Prx_Hooks::call('account.after_login', (int) $user->id, 'password');
                     }
                     catch (Throwable $e)
                     {
-                        Kohana::$log->add(Log::WARNING, 'prx599: after_login: :e', [':e' => $e->getMessage()]);
+                        Kohana::$log->add(Log::WARNING, 'account.after_login: :e', [':e' => $e->getMessage()]);
                     }
 
                     $redirect_url = Session::instance()->get_once('login_redirect', '/');
@@ -133,78 +131,5 @@ class Controller_Auth extends Controller_Prx102_Auth {
         $this->template->title = 'Вход';
         $this->template->content = View::factory('auth/login')
             ->bind('errors', $errors);
-    }
-
-    /**
-     * prx599: второй шаг входа — одноразовый код TOTP (6 цифр) из приложения.
-     * Пейлоад живёт 10 минут в сессии, не более 5 попыток.
-     */
-    public function action_2fa()
-    {
-        if (Auth::instance()->logged_in())
-        {
-            throw HTTP_Exception::factory(302)->location('/');
-        }
-
-        $session = Session::instance();
-        $pending = $session->get('prx599_pending');
-
-        if ( ! is_array($pending) OR empty($pending['uid'])
-            OR (time() - (int) Arr::get($pending, 'ts', 0)) > 600)
-        {
-            $session->delete('prx599_pending');
-            throw HTTP_Exception::factory(302)->location('/auth/login');
-        }
-
-        $errors = array();
-
-        if ($this->request->method() === Request::POST)
-        {
-            if (! Security::check((string) $this->request->post('csrf')))
-            {
-                throw HTTP_Exception::factory(403, 'Сессия формы устарела');
-            }
-            if ((int) Arr::get($pending, 'tries', 0) >= 5)
-            {
-                $session->delete('prx599_pending');
-                throw HTTP_Exception::factory(302)->location('/auth/login');
-            }
-
-            $pending['ts'] = time();
-
-            if (Service_Prx599_Account::totp_verify(
-                    (string) Arr::get(Service_Prx599_Account::totp_row((int) $pending['uid']) ?: [], 'secret'),
-                    (string) $this->request->post('code')))
-            {
-                $user = ORM::factory('User', (int) $pending['uid']);
-
-                if ($user->loaded())
-                {
-                    Auth::instance()->force_login($user);
-                    $session->delete('prx599_pending');
-
-                    try
-                    {
-                        Service_Prx599_Account::after_login((int) $user->id, '2fa');
-                    }
-                    catch (Throwable $e)
-                    {
-                        Kohana::$log->add(Log::WARNING, 'prx599: after_login: :e', [':e' => $e->getMessage()]);
-                    }
-
-                    throw HTTP_Exception::factory(302)->location((string) Arr::get($pending, 'redirect', '/'));
-                }
-            }
-
-            $pending['tries'] = (int) Arr::get($pending, 'tries', 0) + 1;
-            $session->set('prx599_pending', $pending);
-            $errors[] = 'Код не подошёл — введите актуальный из приложения-аутентификатора.';
-        }
-
-        $this->template->title = 'Двухфакторный вход';
-
-        $this->template->content = View::factory('prx599/2fa')
-            ->bind('errors', $errors)
-            ->set('csrf', Security::token());
     }
 }
