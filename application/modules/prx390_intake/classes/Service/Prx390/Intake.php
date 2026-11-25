@@ -440,9 +440,9 @@ class Service_Prx390_Intake
         $row = self::_row("
             INSERT INTO prx_390_texts (message_id, file_id, text, chars, pages, engine, status, confidence)
             VALUES (
-                ".(int) $message_id.", ".$file_id.", ":text", ".$chars.",
+                ".(int) $message_id.", ".$file_id.", :text, ".$chars.",
                 ".self::_int_or_null($data['pages'] ?? NULL).", :engine,
-                :status, ".self::_num_or_null($data['confidence'] ?? NULL).",
+                :status, ".self::_num_or_null($data['confidence'] ?? NULL)."
             )
             ON CONFLICT (message_id, file_id) DO UPDATE SET
                 text = EXCLUDED.text,

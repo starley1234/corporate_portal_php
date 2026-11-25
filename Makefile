@@ -181,6 +181,11 @@ check: ## все статические контракты: манифесты, 
 	python3 .tools/route_registry.py
 	python3 .tools/doc_links_check.py
 	python3 .tools/js_csrf_lint.py
+	@if command -v node >/dev/null 2>&1 && [ -d node_modules/php-parser ]; then \
+		node .tools/php_lint.js; \
+	else \
+		echo "php_lint: пропущен — нужны node и php-parser (npm install)"; \
+	fi
 	python3 -m unittest discover -s tests/Tooling -p 'test_*.py'
 
 .PHONY: test-contracts

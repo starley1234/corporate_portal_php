@@ -75,10 +75,10 @@ class Controller_Prx103_Errors extends Controller_Prx102_Base {
                 // COALESCE(finished_at, ...) в PostgreSQL падает ещё на этапе
                 // разбора, если первой колонки нет. Выбираем существующую.
                 $column_rows = Prx_Db::select(
-                    'SELECT column_name FROM information_schema.columns
+                    "SELECT column_name FROM information_schema.columns
                      WHERE table_schema = current_schema()
                        AND table_name = :table
-                       AND column_name IN ('finished_at', 'updated_at', 'created_at')',
+                       AND column_name IN ('finished_at', 'updated_at', 'created_at')",
                     [':table' => $table]);
                 $available = [];
 
