@@ -10,12 +10,17 @@
  *
  * Механика (прод 25.11.2026: 750+ файлов одним запросом = 502 от nginx):
  *  - POST /prx100/selfcheck — быстрые проверки (среда, БД, миграции, очередь,
- *    каталоги) и подготовка: полный список php-файлов кладётся в СЕССИЮ
- *    (пути никогда не приходят от клиента), страница отдаёт общее число;
- *  - POST /prx100/selfcheck/lint — AJAX-порции: offset/count в границах
- *    сохранённого списка, Service_Prx103_Doctor::lint_chunk() компилирует
- *    порцию одним дочерним процессом, JSON уходит браузеру, тот продолжает
- *    до конца — каждый запрос укладывается в таймауты хостинга.
+ *    каталоги), страница отдаёт общее число php-файлов;
+ *  - POST /prx100/selfcheck/lint — AJAX-порции: offset/count, список файлов
+ *    ПЕРЕСЧИТЫВАЕТСЯ в каждом запросе (php_files() — детерминированный
+ *    sorted-список; скан каталогов ~миллисекунды; клиент путей не присылает
+ *    никогда), lint_chunk() компилирует порцию одним дочерним процессом.
+ *
+ * Ответы JSON — напрямую через $this->response: Controller_Prx102_Base
+ * расширяет КОРЕНЬ Controller и НЕ имеет _json_response (тот живёт в
+ * Controller_Base — ветке страниц; прод 25.11.2026: lint-запрос падал фаталом
+ * «undefined method» и браузер получал HTML вместо JSON).
+ *
  * Проверки только читают состояние; php -l компилирует файлы без исполнения.
  * CSRF: Prx_PostGuard (токен формы / глобальный fetch-хук X-CSRF-Token).
  * Доступ — право prx100.admin.
@@ -64,12 +69,8 @@ class Controller_Prx103_Selfcheck extends Controller_Prx102_Base {
 			{
 				try
 				{
-					$results = Service_Prx103_Doctor::run();
-
-					// Список файлов живёт в сессии: клиент шлёт только offset/count
-					$files = Service_Prx103_Doctor::php_files();
-					Session::instance()->set('prx100_selfcheck_files', $files);
-					$lint_max = count($files);
+					$results  = Service_Prx103_Doctor::run();
+					$lint_max = count(Service_Prx103_Doctor::php_files());
 
 					if ($lint_max === 0)
 					{
@@ -100,17 +101,16 @@ class Controller_Prx103_Selfcheck extends Controller_Prx102_Base {
 
 		if ($this->request->method() !== Request::POST)
 		{
-			$this->_json_response(['ok' => FALSE, 'note' => 'нужен POST'], 405);
+			$this->_json(['ok' => FALSE, 'note' => 'нужен POST'], 405);
 			return;
 		}
 
-		$session = Session::instance();
-		$files   = $session->get('prx100_selfcheck_files');
-		$total   = is_array($files) ? count($files) : 0;
+		$files = Service_Prx103_Doctor::php_files();
+		$total = count($files);
 
 		if ($total === 0)
 		{
-			$this->_json_response(['ok' => FALSE, 'note' => 'список устарел — запустите проверку заново'], 409);
+			$this->_json(['ok' => FALSE, 'note' => 'php-файлы не найдены — компиляция пропущена']);
 			return;
 		}
 
@@ -122,9 +122,9 @@ class Controller_Prx103_Selfcheck extends Controller_Prx102_Base {
 
 		if ( ! $res['ok'])
 		{
-			$this->_json_response(['ok' => FALSE, 'note' =>
+			$this->_json(['ok' => FALSE, 'note' =>
 				'CLI-интерпретатор PHP не найден или proc_open запрещён — '
-				.'запустите проверку по SSH: make lint'], 200);
+				.'запустите проверку по SSH: make lint']);
 			return;
 		}
 
@@ -137,13 +137,22 @@ class Controller_Prx103_Selfcheck extends Controller_Prx102_Base {
 			];
 		}
 
-		$this->_json_response([
-			'ok'         => TRUE,
-			'total'      => $total,
-			'done'       => min($total, $offset + count($slice)),
-			'linted'     => $res['total'],
-			'bad'        => $bad,
-			'finished'   => ($offset + count($slice)) >= $total,
+		$this->_json([
+			'ok'       => TRUE,
+			'total'    => $total,
+			'done'     => min($total, $offset + count($slice)),
+			'linted'   => $res['total'],
+			'bad'      => $bad,
+			'finished' => ($offset + count($slice)) >= $total,
 		]);
+	}
+
+	/** JSON-ответ без зависимости от Controller_Base (Prx102_Base — корень). */
+	protected function _json(array $payload, int $code = 200): void
+	{
+		$this->response
+			->status($code)
+			->headers('Content-Type', 'application/json; charset=utf-8')
+			->body(json_encode($payload, JSON_UNESCAPED_UNICODE));
 	}
 }

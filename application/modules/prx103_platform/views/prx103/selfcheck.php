@@ -165,13 +165,26 @@ $badge = [
         body.append('count', String(CHUNK));
 
         fetch('/prx100/selfcheck/lint', { method: 'POST', body: body })
-            .then(function (r) { return r.json(); })
+            .then(function (r) {
+                return r.text().then(function (text) {
+                    var data = null;
+                    try { data = JSON.parse(text); } catch (e) { /* не JSON */ }
+                    if (!r.ok || !data || data.ok === undefined) {
+                        stopped = true;
+                        note('сервер ответил HTTP ' + r.status + ' вместо JSON — '
+                            + 'подробности в /prx100/logs (HTTP-лог Kohana)');
+                        return null;
+                    }
+                    return data;
+                });
+            })
             .then(function (data) {
-                if (!data || data.ok !== true) {
+                if (!data || stopped) return;
+                if (data.ok !== true) {
                     stopped = true;
                     bar.classList.remove('bg-emerald-500');
                     bar.classList.add('bg-amber-500');
-                    note((data && data.note) ? data.note : 'проверка синтаксиса не смогла начаться — обновите страницу');
+                    note(data.note || 'проверка синтаксиса не смогла начаться — обновите страницу');
                     return;
                 }
                 offset = Math.max(offset, data.done);
