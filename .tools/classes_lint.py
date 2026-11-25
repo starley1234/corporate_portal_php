@@ -82,6 +82,19 @@ def errors(root: Path = ROOT) -> list[str]:
                     if rel == 'application/modules/prx102_core/classes/Controller/Prx102/Auth.php' and target in {'auth', 'emails'}:
                         continue
                     found.append(f'{rel}:{line}: View::factory с {target}/, ожидалось {expected}/ или partials/')
+
+    # Д7 (docs/SKELETON-ADR.md): фундамент application/classes/Prx/** не знает
+    # бизнес-модулей. Поперечные вещи — через Manifest, события или точки
+    # расширения Prx_Hooks, а не прямым вызовом чужого сервиса.
+    prx_foundation = root / 'application/classes/Prx'
+    if prx_foundation.is_dir():
+        for path in sorted(prx_foundation.rglob('*.php')):
+            rel = path.relative_to(root).as_posix()
+            code = strip_code(path.read_text(encoding='utf-8'))
+            for n, line in enumerate(code.splitlines(), 1):
+                ref = re.search(r'\b(?:Service|Model|Policy|Controller)_Prx[0-9]{3}\w*', line)
+                if ref:
+                    found.append(f'{rel}:{n}: фундамент не должен ссылаться на модуль {ref.group(0)}')
     return found
 
 

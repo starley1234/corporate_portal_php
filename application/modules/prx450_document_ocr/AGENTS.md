@@ -1,12 +1,12 @@
 # prx450_document_ocr — распознавание документов
 
 <!-- context-index:begin -->
-<!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index application/modules/prx450_document_ocr/AGENTS.md --write. Руками не править. -->
+<!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index application\modules\prx450_document_ocr\AGENTS.md --write. Руками не править. -->
 | Раздел | Строка | Размер |
 |---|---|---|
 |   Назначение | 15 | 0,4 КБ |
 |   Синхронный или асинхронный | 21 | 0,5 КБ |
-|   Контракты | 28 | 1,1 КБ |
+|   Контракты | 28 | 1,2 КБ |
 |   Переключение шлюза | 43 | 0,4 КБ |
 |   Состояние | 52 | 1,2 КБ |
 |   Карта | 66 | 0,4 КБ |
