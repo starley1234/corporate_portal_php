@@ -19,4 +19,5 @@ def limits() -> dict[str, int]:
         "max_pdf_bytes": _int("PRX397_MAX_PDF_BYTES", 10 * MIB, MIB, 100 * MIB),
         "max_pages": _int("PRX397_MAX_PAGES", 20, 1, 200),
         "max_llm_chars": _int("PRX397_MAX_LLM_CHARS", 60000, 1000, 500000),
+        "pdf_memory_mb": _int("PRX397_PDF_MEMORY_MB", 512, 64, 4096),
     }

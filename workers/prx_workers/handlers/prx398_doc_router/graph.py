@@ -1,7 +1,8 @@
 """LangGraph маршрутизации документа (prx398).
 
 Граф: ocr -> classify -> extract -> validate -> route|retry|manual.
-retry ведёт обратно в extract (attempts < max_retries), иначе manual.
+retry ведёт обратно в classify (attempts < max_retries), иначе manual:
+уверенность даёт classify, поэтому повтор только extract её не меняет.
 Чекпойнт: postgres (AsyncPostgresSaver) или memory (только тесты).
 """
 from __future__ import annotations
@@ -12,7 +13,7 @@ from typing import Any, TypedDict
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
 
-from ...langchain_llm import run_structured
+from ...langchain_llm import arun_structured
 
 
 ROUTES = {"invoice": "erp", "contract": "legal", "letter": "inbox", "other": "inbox"}
@@ -56,7 +57,7 @@ amount - сумма если есть, иначе null, summary - краткое
 
 async def classify_node(state: DocState) -> dict:
     text = state.get("text", "")
-    parsed, _ = await run_structured(ClassifyOut, CLASSIFY_SYSTEM, f"Текст документа:\n\n{text[:60000]}")
+    parsed, _ = await arun_structured(ClassifyOut, CLASSIFY_SYSTEM, f"Текст документа:\n\n{text[:60000]}")
     doc_type = (parsed.doc_type or "other").strip().lower()
     if doc_type not in ROUTES:
         doc_type = "other"
@@ -68,7 +69,7 @@ async def classify_node(state: DocState) -> dict:
 async def extract_node(state: DocState) -> dict:
     text = state.get("text", "")
     attempts = int(state.get("attempts") or 0) + 1
-    parsed, _ = await run_structured(ExtractOut, EXTRACT_SYSTEM, f"Тип: {state.get('doc_type','other')}\n\nТекст документа:\n\n{text[:60000]}")
+    parsed, _ = await arun_structured(ExtractOut, EXTRACT_SYSTEM, f"Тип: {state.get('doc_type','other')}\n\nТекст документа:\n\n{text[:60000]}")
     fields = parsed.model_dump() if hasattr(parsed, "model_dump") else dict(parsed)
     # normalize amount
     amt = fields.get("amount")
@@ -143,7 +144,7 @@ def build_graph(*, ocr_node):
     g.add_edge("ocr", "classify")
     g.add_edge("classify", "extract")
     g.add_edge("extract", "validate")
-    g.add_conditional_edges("validate", decide_after_validate, {"route": "route", "retry": "extract", "manual": "manual"})
+    g.add_conditional_edges("validate", decide_after_validate, {"route": "route", "retry": "classify", "manual": "manual"})
     g.add_edge("route", END)
     g.add_edge("manual", END)
     return g
@@ -194,3 +195,19 @@ async def close_checkpointer(saver):
                 await r
         except Exception:  # noqa: BLE001
             pass
+
+
+async def forget_thread(saver, thread_id: str) -> None:
+    """Удалить чекпойнт потока: он хранит полный OCR-текст.
+
+    Вызывается после терминального результата (done/review/failed) — повтор
+    такого задания уже не нужен. Ошибку глушим: уборка не должна ронять уже
+    сохранённый результат; остаток по TTL добирает purge() на стороне PHP.
+    """
+    deleter = getattr(saver, "adelete_thread", None)
+    if not callable(deleter):
+        return
+    try:
+        await deleter(str(thread_id))
+    except Exception:  # noqa: BLE001
+        pass

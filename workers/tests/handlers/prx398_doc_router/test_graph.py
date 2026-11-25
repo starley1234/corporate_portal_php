@@ -29,7 +29,7 @@ async def test_routes_contract_to_legal(monkeypatch):
         g.ClassifyOut(doc_type="contract", confidence=0.95),
         g.ExtractOut(title="Contract", counterparty="A/B", date="2026-01-01", amount=100.0, summary="Agreement"),
     ])
-    monkeypatch.setattr(g, "run_structured", fake)
+    monkeypatch.setattr(g, "arun_structured", fake)
     saver = MemorySaver()
     app = g.build_graph(ocr_node=_ocr_node).compile(checkpointer=saver)
     out = await app.ainvoke({"file_path": "/tmp/fake.pdf", "_confidence_min": 0.8, "_max_retries": 2, "attempts": 0, "reasons": []},
@@ -47,7 +47,7 @@ async def test_resume_after_classify(monkeypatch):
         g.ClassifyOut(doc_type="invoice", confidence=0.9),
         RuntimeError("llm temporary failure"),
     ])
-    monkeypatch.setattr(g, "run_structured", fake1)
+    monkeypatch.setattr(g, "arun_structured", fake1)
     saver = MemorySaver()
     app = g.build_graph(ocr_node=_ocr_node).compile(checkpointer=saver)
     config = {"configurable": {"thread_id": "job-2"}}
@@ -58,7 +58,7 @@ async def test_resume_after_classify(monkeypatch):
     fake2 = FakeLLM([
         g.ExtractOut(title="Invoice 1", counterparty="X", date="2026-01-01", amount=10.0, summary="Inv"),
     ])
-    monkeypatch.setattr(g, "run_structured", fake2)
+    monkeypatch.setattr(g, "arun_structured", fake2)
     out = await app.ainvoke(None, config=config)
     assert out["doc_type"] == "invoice"
     assert out["route"] == "erp"
@@ -67,12 +67,15 @@ async def test_resume_after_classify(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_low_confidence_retries_then_manual(monkeypatch):
+    # retry ведёт обратно в classify: классификация повторяется вместе с
+    # извлечением (уверенность даёт именно classify).
     fake = FakeLLM([
         g.ClassifyOut(doc_type="other", confidence=0.2),
         g.ExtractOut(title="", counterparty="", date="", amount=None, summary=""),
+        g.ClassifyOut(doc_type="other", confidence=0.2),
         g.ExtractOut(title="", counterparty="", date="", amount=None, summary=""),
     ])
-    monkeypatch.setattr(g, "run_structured", fake)
+    monkeypatch.setattr(g, "arun_structured", fake)
     saver = MemorySaver()
     app = g.build_graph(ocr_node=_ocr_node).compile(checkpointer=saver)
     out = await app.ainvoke({"file_path": "/tmp/fake.pdf", "_confidence_min": 0.8, "_max_retries": 2, "attempts": 0, "reasons": []},

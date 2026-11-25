@@ -29,6 +29,9 @@ async def probe_pdf(path: Path, local: bool, *, limits: dict,
     """Проба PDF. text=False — только структура и число страниц (без
     текстовых слоев); text=True — плюс слои страниц, при заданном диапазоне
     [page_from..page_to] — только их (часть prx396, а не весь документ)."""
+    for key in ("max_pages", "max_text_bytes", "pdf_memory_mb"):
+        if key not in limits:
+            raise PermanentJobError("worker_config")
     payload: dict = {
         "max_pages": int(limits["max_pages"]),
         "max_text_bytes": int(limits["max_text_bytes"]),

@@ -5,6 +5,17 @@ class Service_Prx397_Extraction
     const CHANNEL = 'invoice.extract';
     const MODULE = 'prx397';
     const SCOPE = 'prx397.extract';
+    /**
+     * Терминальные коды: задание дальше не станет успешным. Нужны, чтобы
+     * error_code() не выдавал произвольную строку из очереди как код ошибки.
+     */
+    const FAILED_CODES = [
+        'invalid_pdf', 'encrypted_pdf', 'page_limit', 'result_too_large', 'no_text',
+        'text_too_large_for_llm', 'ocr_config', 'ocr_unavailable', 'ocr_auth', 'ocr_rejected',
+        'ocr_invalid_response', 'ocr_incomplete', 'ocr_page_failed', 'file_unavailable',
+        'worker_auth', 'worker_endpoint_unavailable', 'worker_config', 'lease_lost',
+        'invalid_result', 'invalid_attempt', 'method_not_allowed', 'pdf_required',
+    ];
 
     private Database $db;
     private Service_Prx120_JobQueue $queue;
@@ -55,6 +66,8 @@ class Service_Prx397_Extraction
                 'module' => self::MODULE,
                 'max_attempts' => Service_Prx397_Limits::get('max_attempts'),
                 'timeout_sec' => Service_Prx397_Limits::get('task_timeout_sec'),
+                // Правило prx120: без visitor_id задача не попадает в «Мои задачи».
+                'visitor_id' => Visitor::uid(),
             ]);
             if ($job_id < 1) throw new RuntimeException('Отсутствует ID задачи');
             $ttl = Service_Prx397_Limits::get('result_ttl_hours');
@@ -129,15 +142,16 @@ class Service_Prx397_Extraction
         if (in_array($db_status, ['done', 'review', 'failed'], TRUE)) return $db_status;
         if ( ! $job) return 'queued';
         $map = ['pending' => 'queued', 'processing' => 'running', 'done' => 'running', 'failed' => 'failed', 'cancelled' => 'canceled'];
-        $js = $map[$job['status'] ?? ''] ?? 'queued';
-        if ($js === 'failed' && $db_status !== 'failed') return 'queued'; // retry
-        return $js;
+        // failed в очереди — финал (попытки исчерпаны или PermanentJobError):
+        // показывать «queued» значит врать владельцу, что будет повтор.
+        return $map[$job['status'] ?? ''] ?? 'queued';
     }
 
     public static function error_code(string $error, bool $found = TRUE): string
     {
         if ( ! $found) return 'job_unavailable';
-        if (preg_match('/\A(?:DocumentJobError|PermanentJobError): ([a-z_]+)\z/', $error, $m)) return $m[1];
+        if (preg_match('/\A(?:DocumentJobError|PermanentJobError): ([a-z_]+)\z/', $error, $m)
+            && in_array($m[1], self::FAILED_CODES, TRUE)) return $m[1];
         if (str_starts_with($error, 'Превышен таймаут задачи')) return 'job_timeout';
         return 'job_failed';
     }
@@ -194,8 +208,17 @@ class Service_Prx397_Extraction
         $str = static fn($v) => is_scalar($v) ? trim((string) $v) : '';
         $num = static function ($v) {
             if (is_int($v) || is_float($v)) return (float) $v;
-            if (is_string($v) && preg_match('/\A-?[0-9]+(?:[.,][0-9]+)?\z/', trim($v))) return (float) str_replace(',', '.', trim($v));
-            return NULL;
+            if ( ! is_string($v)) return NULL;
+            // Суммы из OCR/LLM приходят с пробелами, знаком валюты и
+            // разными разделителями: «1 000,00 ₽», «1,000.00», «1.000.000,00».
+            $s = (string) preg_replace('/[\s\x{00A0}\x{202F}]+/u', '', trim($v));
+            $s = (string) preg_replace('/(?:₽|руб\.?|RUB|USD|EUR|RUR)/iu', '', $s);
+            $s = (string) preg_replace('/\x{2212}/u', '-', $s);
+            if ( ! preg_match('/\A-?[0-9.,]+\z/', $s)) return NULL;
+            if (preg_match('/\A-?\d{1,3}(?:\.\d{3})+(?:,\d+)?\z/', $s)) $s = str_replace(['.', ','], ['', '.'], $s);
+            elseif (preg_match('/\A-?\d{1,3}(?:,\d{3})+(?:\.\d+)?\z/', $s)) $s = str_replace(',', '', $s);
+            else $s = str_replace(',', '.', $s);
+            return preg_match('/\A-?\d+(?:\.\d+)?\z/', $s) ? (float) $s : NULL;
         };
         $party = static fn($v) => [
             'name' => $str(is_array($v) ? ($v['name'] ?? '') : ''),
@@ -244,22 +267,26 @@ class Service_Prx397_Extraction
         $total = $f['total']; $vat = $f['vat'];
         $lines_sum = 0.0; $has_line_sum = FALSE;
         foreach ($f['lines'] as $ln) { if ($ln['sum'] !== NULL) { $lines_sum += (float) $ln['sum']; $has_line_sum = TRUE; } }
-        $checks[] = ['code' => 'total_matches_lines', 'ok' => ($total === NULL || ! $has_line_sum) ? FALSE : abs((float) $total - $lines_sum) <= 0.01];
-        $checks[] = ['code' => 'vat_range', 'ok' => ($vat === NULL || $total === NULL) ? FALSE : ($vat >= 0 && $vat <= (float) $total)];
+        // Кросс-проверки «не применимо — не ошибка»: счёт без табличной части
+        // или без НДС не должен уходить в ручную проверку только из-за этого
+        // (обязательные поля проверяются отдельно в required_*).
+        $checks[] = ['code' => 'total_matches_lines', 'ok' => ! $has_line_sum ? TRUE : ($total !== NULL && abs((float) $total - $lines_sum) <= 0.01)];
+        $checks[] = ['code' => 'vat_range', 'ok' => $vat === NULL ? TRUE : ($total !== NULL && $vat >= 0 && $vat <= (float) $total)];
 
         return $checks;
     }
 
     private static function date_parseable(string $date): bool
     {
+        $date = trim($date);
         if ($date === '') return FALSE;
-        $ts = strtotime($date);
-        if ($ts !== FALSE) return TRUE;
-        // DD.MM.YYYY
-        if (preg_match('/\A(\d{2})\.(\d{2})\.(\d{4})\z/', $date, $m)) {
+        // Сначала строгие форматы: strtotime нормализует 31.02.2024 в 2 марта,
+        // поэтому невозможная дата не должна проходить как валидная.
+        if (preg_match('/\A(\d{2})\.(\d{2})\.(\d{4})\z/', $date, $m))
             return checkdate((int) $m[2], (int) $m[1], (int) $m[3]);
-        }
-        return FALSE;
+        if (preg_match('/\A(\d{4})-(\d{2})-(\d{2})\z/', $date, $m))
+            return checkdate((int) $m[2], (int) $m[3], (int) $m[1]);
+        return strtotime($date) !== FALSE;
     }
 
     public static function inn_valid(string $inn): bool

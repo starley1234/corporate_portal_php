@@ -5,6 +5,18 @@ class Service_Prx398_Route
     const CHANNEL = 'doc.route';
     const MODULE = 'prx398';
     const SCOPE = 'prx398.route';
+    /** Терминальные коды: задание дальше не станет успешным. */
+    const FAILED_CODES = [
+        'invalid_pdf', 'encrypted_pdf', 'page_limit', 'result_too_large', 'no_text',
+        'ocr_config', 'ocr_unavailable', 'ocr_auth', 'ocr_rejected', 'ocr_invalid_response',
+        'ocr_incomplete', 'ocr_page_failed', 'file_unavailable', 'worker_auth',
+        'worker_endpoint_unavailable', 'worker_config', 'lease_lost', 'invalid_result',
+        'invalid_attempt', 'method_not_allowed', 'pdf_required', 'graph_unavailable',
+    ];
+    /** Таблицы чекпойнтов LangGraph, которые создаёт AsyncPostgresSaver. */
+    const CHECKPOINT_TABLES = ['checkpoints', 'checkpoint_blobs', 'checkpoint_writes'];
+
+    private ?array $checkpoint_tables = NULL;
 
     private Database $db;
     private Service_Prx120_JobQueue $queue;
@@ -50,6 +62,8 @@ class Service_Prx398_Route
                 'module' => self::MODULE,
                 'max_attempts' => (int) Service_Prx398_Limits::get('max_attempts'),
                 'timeout_sec' => (int) Service_Prx398_Limits::get('task_timeout_sec'),
+                // Правило prx120: без visitor_id задача не попадает в «Мои задачи».
+                'visitor_id' => Visitor::uid(),
             ]);
             if ($job_id < 1) throw new RuntimeException('Отсутствует ID задачи');
             $ttl = (int) Service_Prx398_Limits::get('result_ttl_hours');
@@ -120,15 +134,15 @@ class Service_Prx398_Route
         if (in_array($db_status, ['done', 'review', 'failed'], TRUE)) return $db_status;
         if ( ! $job) return 'queued';
         $map = ['pending' => 'queued', 'processing' => 'running', 'done' => 'running', 'failed' => 'failed', 'cancelled' => 'canceled'];
-        $js = $map[$job['status'] ?? ''] ?? 'queued';
-        if ($js === 'failed' && $db_status !== 'failed') return 'queued';
-        return $js;
+        // failed в очереди — финал (попытки исчерпаны или PermanentJobError).
+        return $map[$job['status'] ?? ''] ?? 'queued';
     }
 
     public static function error_code(string $error, bool $found = TRUE): string
     {
         if ( ! $found) return 'job_unavailable';
-        if (preg_match('/\A(?:DocumentJobError|PermanentJobError): ([a-z_]+)\z/', $error, $m)) return $m[1];
+        if (preg_match('/\A(?:DocumentJobError|PermanentJobError): ([a-z_]+)\z/', $error, $m)
+            && in_array($m[1], self::FAILED_CODES, TRUE)) return $m[1];
         if (str_starts_with($error, 'Превышен таймаут задачи')) return 'job_timeout';
         return 'job_failed';
     }
@@ -163,6 +177,8 @@ class Service_Prx398_Route
                 .', confidence='.($confidence === NULL ? 'NULL' : number_format((float)$confidence,3,'.',''))
                 .', state='.($state_data ? $this->db->quote(json_encode($state_data, JSON_UNESCAPED_UNICODE)).'::jsonb' : 'NULL')
                 .', updated_at=now() WHERE job_id='.(int)$id, FALSE);
+            // Терминальный отказ: продолжение не нужно, чекпойнт с текстом убираем.
+            $this->forget_checkpoint((int) $id);
             return ['status' => 'failed', 'error_code' => $error_code];
         }
 
@@ -205,6 +221,7 @@ class Service_Prx398_Route
             try {
                 if ($file_id > 0) Storage::delete_owned($file_id, self::MODULE);
                 $this->db->query(Database::DELETE, 'DELETE FROM prx_398_routes WHERE job_id = '.$id.' AND expires_at <= now()', FALSE);
+                $this->forget_checkpoint($id);
                 $report['purged']++;
             } catch (Throwable $e) { $report['errors']++; Log_Plain::event(Log::ERROR, 'prx398 job_id=:id stage=purge error_type=:type', [':id'=>$id,':type'=>get_class($e)]); }
         }
@@ -219,6 +236,38 @@ class Service_Prx398_Route
     {
         try { if (Storage::delete_owned($file_id, self::MODULE)) return; } catch (Throwable $e) {}
         Log_Plain::event(Log::ERROR, 'prx398 stage=discard file_id=:id', [':id' => $file_id]);
+    }
+
+    private function existing_checkpoint_tables(): array
+    {
+        if ($this->checkpoint_tables !== NULL) return $this->checkpoint_tables;
+        $found = [];
+        foreach (self::CHECKPOINT_TABLES as $table)
+        {
+            if ($this->one('SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() '
+                .'AND table_name = '.$this->db->quote($table))) $found[] = $table;
+        }
+        return $this->checkpoint_tables = $found;
+    }
+
+    /**
+     * Удалить чекпойнт потока (thread_id = job_id). Чекпойнт LangGraph хранит
+     * полный OCR-текст, а не только публичное состояние графа, поэтому его
+     * нельзя оставлять после истечения TTL. Таблиц может не быть (чекпойнт
+     * memory) — тогда молча ничего не делаем.
+     */
+    private function forget_checkpoint(int $job_id): void
+    {
+        foreach ($this->existing_checkpoint_tables() as $table)
+        {
+            try {
+                $this->db->query(Database::DELETE,
+                    'DELETE FROM '.$table.' WHERE thread_id = '.$this->db->quote((string) $job_id), FALSE);
+            } catch (Throwable $e) {
+                Log_Plain::event(Log::ERROR, 'prx398 job_id=:id stage=checkpoint_purge error_type=:type',
+                    [':id' => $job_id, ':type' => get_class($e)]);
+            }
+        }
     }
 
     private function one(string $sql): ?array

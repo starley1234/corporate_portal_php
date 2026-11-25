@@ -32,7 +32,12 @@ def limits() -> dict:
     return {
         "max_pdf_bytes": _int("PRX398_MAX_PDF_BYTES", 10 * MIB, MIB, 100 * MIB),
         "max_pages": _int("PRX398_MAX_PAGES", 20, 1, 200),
+        "max_text_bytes": _int("PRX398_MAX_TEXT_BYTES", 5 * MIB, MIB, 64 * MIB),
+        "pdf_memory_mb": _int("PRX398_PDF_MEMORY_MB", 512, 64, 4096),
         "confidence_min": _float("PRX398_CONFIDENCE_MIN", 0.8, 0.0, 1.0),
         "max_retries": _int("PRX398_MAX_RETRIES", 2, 0, 10),
         "checkpoint": mode,
+        # Отдельный DSN чекпойнта для режима WORKER_QUEUE_MODE=http, когда
+        # воркер не подключается к очереди напрямую и ctx.config.pg_dsn пуст.
+        "checkpoint_dsn": os.getenv("PRX398_CHECKPOINT_DSN", "").strip(),
     }

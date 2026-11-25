@@ -14,13 +14,18 @@ import httpx
 from ... import site
 from ...base import HandlerContext, PermanentJobError
 from ...ocr import extract_pdf
-from .graph import build_graph, close_checkpointer, make_checkpointer
+from .graph import build_graph, close_checkpointer, forget_thread, make_checkpointer
 from .limits import limits
 
 CHANNEL = "doc.route"
 log = logging.getLogger("prx.doc_router")
 
-PERMANENT_CODES = {"invalid_pdf", "encrypted_pdf", "page_limit", "ocr_unavailable", "graph_unavailable"}
+PERMANENT_CODES = {
+    "invalid_pdf", "encrypted_pdf", "page_limit", "result_too_large", "no_text",
+    "ocr_config", "ocr_unavailable", "ocr_auth", "ocr_rejected", "ocr_invalid_response",
+    "ocr_incomplete", "ocr_page_failed", "file_unavailable", "worker_auth", "lease_lost",
+    "invalid_result", "invalid_attempt", "method_not_allowed", "graph_unavailable",
+}
 
 
 class DocumentJobError(RuntimeError):
@@ -41,7 +46,11 @@ def _check(response: httpx.Response) -> dict | None:
     if code in (408, 429) or code >= 500:
         raise DocumentJobError("worker_endpoint_unavailable")
     if not response.is_success:
-        raise PermanentJobError("worker_endpoint_unavailable")
+        # 4xx — настоящий код ошибки из тела ответа (result_too_large и пр.),
+        # а не «недоступен»; 413 без тела (отрезал прокси) — тоже
+        # result_too_large: результат не влез в запрос.
+        detail = _error_code(response)
+        raise PermanentJobError(detail or ("result_too_large" if code == 413 else "job_failed"))
     if response.content:
         try:
             return response.json()
@@ -80,6 +89,20 @@ async def _post_result(client: httpx.AsyncClient, url: str, body: dict) -> dict:
     response = await client.post(url, json=body)
     data = _check(response)
     return data if isinstance(data, dict) else {}
+
+
+async def _report_failure(headers: dict, url: str, code: str, **extra) -> None:
+    """Best-effort: сообщить PHP терминальный код, чтобы запись стала failed.
+
+    Иначе задача уходит в повтор, а UI показывает «В очереди» до истечения TTL.
+    """
+    body = {"error_code": code, "status": "failed"}
+    body.update(extra)
+    try:
+        async with httpx.AsyncClient(headers=headers, timeout=30, follow_redirects=False) as client:
+            await _post_result(client, url + "/result", body)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _public_state(state: dict) -> dict:
@@ -123,21 +146,26 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
         ocr = await extract_pdf(Path(file_path), limits={
             "max_pdf_bytes": lim["max_pdf_bytes"],
             "max_pages": lim["max_pages"],
-            "max_text_bytes": 5 * 1024 * 1024,
+            "max_text_bytes": lim["max_text_bytes"],
+            "pdf_memory_mb": lim["pdf_memory_mb"],
         }, progress=lambda stage, detail="": ctx.progress(stage, detail))
         text = ocr.get("text", "")
         return {"text": text}
 
     saver = None
+    terminal = False
     try:
+        # DSN чекпойнта: явный PRX398_CHECKPOINT_DSN, иначе режим pg даёт
+        # ctx.config.pg_dsn. В режиме http (воркер без прямого доступа к БД)
+        # без своего DSN чекпойнт недоступен — это честный graph_unavailable,
+        # а не тихий откат на memory.
+        dsn = lim.get("checkpoint_dsn") or getattr(ctx.config, "pg_dsn", None)
         try:
-            saver = await make_checkpointer(getattr(ctx.config, "pg_dsn", None), lim["checkpoint"])
+            saver = await make_checkpointer(dsn, lim["checkpoint"])
         except RuntimeError as e:
             if str(e) == "graph_unavailable":
-                # report to PHP
-                async with httpx.AsyncClient(headers=headers, timeout=30, follow_redirects=False) as client:
-                    await _post_result(client, url + "/result", {"error_code": "graph_unavailable", "status": "failed"})
-            raise PermanentJobError("graph_unavailable")
+                await _report_failure(headers, url, "graph_unavailable")
+            raise PermanentJobError("graph_unavailable") from None
 
         graph = build_graph(ocr_node=ocr_node).compile(checkpointer=saver)
         config = {"configurable": {"thread_id": str(job_id)}}
@@ -166,12 +194,8 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
                     final = await graph.ainvoke(initial, config)
 
             state_out = _public_state(final)
+            # Маршрут выставлен => done; пустой (manual) => ручная проверка.
             status = "done" if final.get("route") else "review"
-            # if route set (non-empty) => done, if manual/empty route => review
-            if not final.get("route"):
-                status = "review"
-            else:
-                status = "done"
             await ctx.progress("store")
             await _post_result(client, url + "/result", {
                 "status": status,
@@ -181,16 +205,17 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
                 "attempts": int(final.get("attempts") or 0),
                 "state": state_out,
             })
+            terminal = True
             return {"status": status, "job_id": job_id, "doc_type": final.get("doc_type"), "route": final.get("route")}
     except PermanentJobError as e:
         code = str(e)
-        if code in PERMANENT_CODES or code == "graph_unavailable":
-            try:
-                async with httpx.AsyncClient(headers=headers, timeout=30, follow_redirects=False) as client:
-                    await _post_result(client, url + "/result", {"error_code": code, "status": "failed"})
-            except Exception:  # noqa: BLE001
-                pass
+        if code in PERMANENT_CODES:
+            await _report_failure(headers, url, code)
+        # Повтор такого задания не нужен: чекпойнт с текстом можно убрать.
+        terminal = True
         raise
     finally:
         if saver is not None:
+            if terminal:
+                await forget_thread(saver, str(job_id))
             await close_checkpointer(saver)
