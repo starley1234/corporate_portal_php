@@ -35,7 +35,7 @@ polling, приватные артефакты `prx212` с TTL 24 ч. Модул
 - Настройки: `config/prx450_document_ocr.php`; секреты — только в `.env`
   (`PRX450_OCR_BASE_URL`, `PRX450_OCR_API_KEY`).
 - Параметры потребителя ограничены `client_overrides`; остальное — только конфиг.
-- Ошибки: `Prx450_Error` (наследует `Prx150_Error`) → JSON, без внутренностей.
+- Ошибки: `Prx450_Error` (наследует нейтральную `Prx_DomainError`) → JSON, без внутренностей.
 - Событие: `prx450.document.parsed` (engine, duration_ms, cached, api_client_id);
   пользователь передаётся отдельным initiator_id. Отпечаток документа не публикуется.
 - Машинный контракт: `openapi/prx450.yaml`; ключи сверяются с whitelist тестом.
