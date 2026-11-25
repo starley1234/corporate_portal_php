@@ -23,14 +23,6 @@
  */
 class Service_Prx560_Knowledge {
 
-    /** @var Database */
-    protected static $_db;
-
-    protected static function _db()
-    {
-        return self::$_db !== NULL ? self::$_db : self::$_db = Database::instance();
-    }
-
     protected static function _cfg($key, $default = NULL)
     {
         static $cfg = NULL;
@@ -76,30 +68,35 @@ class Service_Prx560_Knowledge {
      */
     public static function remember($source, $kind, $key, $title, $content, array $meta = [], $summary = NULL, $index = TRUE)
     {
-        $db   = self::_db();
         $key  = (string) $key;
-        $meta = self::_quote_json($db, $meta ?: NULL);
+        $meta = $meta ?: NULL;
+        $params = [
+            ':source' => (string) $source, ':kind' => (string) $kind, ':key' => $key,
+            ':title' => (string) $title, ':content' => (string) $content,
+            ':summary' => ($summary === '' OR $summary === NULL) ? NULL : (string) $summary,
+            ':meta' => $meta,
+        ];
 
-        $row = $db->query(Database::SELECT,
+        $row = Prx_Db::one(
             'UPDATE prx_560_docs
-             SET hits = hits + 1, last_seen_at = now(), title = '.$db->quote((string) $title).',
-                 content = '.$db->quote((string) $content).',
-                 summary = '.self::_quote_nullable($db, $summary).',
-                 meta = prx_560_docs.meta || '.($meta === 'NULL' ? "'{}'::jsonb" : $meta).'
-             WHERE source_module = '.$db->quote((string) $source).' AND entity_key = '.$db->quote($key).'
-             RETURNING id', FALSE)->current();
+             SET hits = hits + 1, last_seen_at = now(), title = :title,
+                 content = :content,
+                 summary = :summary,
+                 meta = prx_560_docs.meta || COALESCE(:meta::jsonb, \'{}\'::jsonb)
+             WHERE source_module = :source AND entity_key = :key
+             RETURNING id', $params);
 
         if ($row)
         {
             return ['status' => 'known', 'id' => (int) $row['id']];
         }
 
-        $row = $db->query(Database::SELECT,
+        $row = Prx_Db::one(
             'INSERT INTO prx_560_docs (source_module, kind, entity_key, title, content, summary, meta)
-             VALUES ('.$db->quote((string) $source).', '.$db->quote((string) $kind).', '.$db->quote($key).',
-                     '.$db->quote((string) $title).', '.$db->quote((string) $content).',
-                     '.self::_quote_nullable($db, $summary).', '.($meta === 'NULL' ? "'{}'::jsonb" : $meta).')
-             RETURNING id', FALSE)->current();
+             VALUES (:source, :kind, :key,
+                     :title, :content,
+                     :summary, COALESCE(:meta::jsonb, \'{}\'::jsonb))
+             RETURNING id', $params);
 
         if ( ! $row)
         {
@@ -139,10 +136,11 @@ class Service_Prx560_Knowledge {
     {
         $days = (int) ($days ?? self::_cfg('fresh_days', 14));
 
-        $row = self::_db()->query(Database::SELECT,
+        $row = Prx_Db::one(
             'SELECT * FROM prx_560_docs
-             WHERE source_module = '.self::_db()->quote((string) $source).' AND entity_key = '.self::_db()->quote((string) $key)."
-               AND last_seen_at > now() - interval '".(int) $days." days' LIMIT 1", FALSE)->current();
+             WHERE source_module = :source AND entity_key = :key
+               AND last_seen_at > now() - interval \''.(int) $days.' days\' LIMIT 1',
+            [':source' => (string) $source, ':key' => (string) $key]);
 
         return $row ? (array) $row : NULL;
     }
@@ -156,27 +154,29 @@ class Service_Prx560_Knowledge {
      */
     public static function search($query, array $opts = [])
     {
-        $db    = self::_db();
         $limit = max(1, min(50, (int) ($opts['limit'] ?? 10)));
         $like  = '%'.str_replace(['%', '_'], ['\\%', '\\_'], trim((string) $query)).'%';
         $out   = ['text' => [], 'semantic' => []];
 
-        $where = 'WHERE (title ILIKE '.$db->quote($like).' OR content ILIKE '.$db->quote($like).' OR summary ILIKE '.$db->quote($like).')';
+        $params = [':like' => $like];
+        $where = 'WHERE (title ILIKE :like OR content ILIKE :like OR summary ILIKE :like)';
 
         if ( ! empty($opts['source']))
         {
-            $where .= ' AND source_module = '.$db->quote((string) $opts['source']);
+            $where .= ' AND source_module = :source';
+            $params[':source'] = (string) $opts['source'];
         }
 
         if ( ! empty($opts['kind']))
         {
-            $where .= ' AND kind = '.$db->quote((string) $opts['kind']);
+            $where .= ' AND kind = :kind';
+            $params[':kind'] = (string) $opts['kind'];
         }
 
-        $out['text'] = $db->query(Database::SELECT,
+        $out['text'] = Prx_Db::select(
             'SELECT id, source_module, kind, title, summary,
                     LEFT(content, 5000) AS content, hits, created_at, last_seen_at
-             FROM prx_560_docs '.$where.' ORDER BY last_seen_at DESC LIMIT '.$limit, FALSE)->as_array();
+             FROM prx_560_docs '.$where.' ORDER BY last_seen_at DESC LIMIT '.$limit, $params);
 
         if ( ! empty($opts['semantic']) AND class_exists('Service_Prx115_Semantic'))
         {
@@ -208,16 +208,14 @@ class Service_Prx560_Knowledge {
     /** Статистика для админки. */
     public static function stats()
     {
-        $db = self::_db();
-
-        $totals = $db->query(Database::SELECT,
+        $totals = Prx_Db::one(
             'SELECT COUNT(*) AS docs, COALESCE(SUM(hits), 0) AS hits,
                     COUNT(*) FILTER (WHERE last_seen_at > now() - interval \'7 days\') AS fresh
-             FROM prx_560_docs', FALSE)->current();
+             FROM prx_560_docs');
 
-        $by_source = $db->query(Database::SELECT,
+        $by_source = Prx_Db::select(
             'SELECT source_module, kind, COUNT(*) AS cnt
-             FROM prx_560_docs GROUP BY source_module, kind ORDER BY cnt DESC LIMIT 20', FALSE)->as_array();
+             FROM prx_560_docs GROUP BY source_module, kind ORDER BY cnt DESC LIMIT 20');
 
         return [
             'docs'      => (int) ($totals['docs'] ?? 0),
@@ -230,9 +228,9 @@ class Service_Prx560_Knowledge {
     /** Последние документы (админка). */
     public static function recent($limit = 30)
     {
-        return self::_db()->query(Database::SELECT,
+        return Prx_Db::select(
             'SELECT id, source_module, kind, title, summary, hits, created_at, last_seen_at
-             FROM prx_560_docs ORDER BY last_seen_at DESC LIMIT '.max(1, (int) $limit), FALSE)->as_array();
+             FROM prx_560_docs ORDER BY last_seen_at DESC LIMIT '.max(1, (int) $limit));
     }
 
     /** Удалить документ (и его векторы). */
@@ -251,7 +249,7 @@ class Service_Prx560_Knowledge {
             // вектор мог не успеть проиндексироваться — не мешаем удалить документ
         }
 
-        self::_db()->query(Database::DELETE, 'DELETE FROM prx_560_docs WHERE id = '.(int) $id, FALSE);
+        Prx_Db::execute('DELETE FROM prx_560_docs WHERE id = '.(int) $id);
 
         return ['ok' => TRUE];
     }
@@ -262,9 +260,8 @@ class Service_Prx560_Knowledge {
     {
         $days = (int) ($days ?? self::_cfg('retention_days', 180));
 
-        $rows = self::_db()->query(Database::SELECT,
-            "SELECT id FROM prx_560_docs WHERE last_seen_at < now() - interval '".(int) $days." days'",
-            FALSE)->as_array();
+        $rows = Prx_Db::select(
+            "SELECT id FROM prx_560_docs WHERE last_seen_at < now() - interval '".(int) $days."' days'");
 
         foreach ($rows as $row)
         {
@@ -274,13 +271,4 @@ class Service_Prx560_Knowledge {
         return count($rows);
     }
 
-    protected static function _quote_nullable(Database $db, $value)
-    {
-        return ($value === '' OR $value === NULL) ? 'NULL' : $db->quote((string) $value);
-    }
-
-    protected static function _quote_json(Database $db, $value)
-    {
-        return $value === NULL ? 'NULL' : $db->quote(json_encode($value, JSON_UNESCAPED_UNICODE)).'::jsonb';
-    }
 }
