@@ -149,8 +149,7 @@ class Service_Prx597_Engine extends Service_Prx597_Base
 	/** Сообщения, «зависшие» в sending из-за упавшего процесса. */
 	protected static function _requeue_stuck($minutes = 30)
 	{
-		self::_exec(Database::UPDATE,
-			'UPDATE "prx_597_outbox" SET "status" = \'pending\', "last_error" = \'процесс прервался — возвращено в очередь\'
+		self::_exec('UPDATE "prx_597_outbox" SET "status" = \'pending\', "last_error" = \'процесс прервался — возвращено в очередь\'
 			  WHERE "status" = \'sending\' AND "created_at" < now() - interval \''.(int) $minutes.' minutes\'');
 	}
 
@@ -621,10 +620,11 @@ class Service_Prx597_Engine extends Service_Prx597_Base
 			$sent_today = (int) self::_val(
 				'SELECT count(*) AS c FROM "prx_597_outbox"
 				  WHERE "user_id" = '.$user_id.'
-				    AND "channel" = '.self::_q($channel).'
+				    AND "channel" = :channel
 				    AND "status" = \'sent\'
 				    AND "group_key" LIKE \'digest:%\'
-				    AND "sent_at" >= date_trunc(\'day\', now())', 0);
+				    AND "sent_at" >= date_trunc(\'day\', now())', 0,
+				[':channel' => (string) $channel]);
 
 			if ($sent_today >= $per_day)
 			{
@@ -747,8 +747,8 @@ class Service_Prx597_Engine extends Service_Prx597_Base
 	/** Успех/провал/пропуск: смена статуса строки outbox. */
 	protected static function _status($id, $status, array $extra = [])
 	{
-		$db = self::_db();
-		$set = ['"status" = '.$db->quote($status)];
+		$set    = ['"status" = :status'];
+		$params = [':status' => (string) $status];
 
 		if ($status === 'sent')
 		{
@@ -757,34 +757,41 @@ class Service_Prx597_Engine extends Service_Prx597_Base
 
 		foreach ($extra as $column => $value)
 		{
-			$set[] = '"'.$column.'" = '.($value === NULL ? 'NULL' : (is_int($value) ? (string) $value : $db->quote((string) $value)));
+			if ($value === NULL)
+			{
+				$set[] = '"'.$column.'" = NULL';
+			}
+			elseif (is_int($value))
+			{
+				$set[] = '"'.$column.'" = '.(int) $value;
+			}
+			else
+			{
+				$set[] = '"'.$column.'" = :x_'.$column;
+				$params[':x_'.$column] = (string) $value;
+			}
 		}
 
-		self::_exec(Database::UPDATE,
-			'UPDATE "prx_597_outbox" SET '.implode(', ', $set).' WHERE "id" = '.((int) $id));
+		self::_exec('UPDATE "prx_597_outbox" SET '.implode(', ', $set).' WHERE "id" = '.((int) $id), $params);
 	}
 
 	/** Отложить: вернуть в pending с новой попыткой через $delay секунд. */
 	protected static function _defer($id, $reason, $delay = 600)
 	{
-		$db = self::_db();
-
-		self::_exec(Database::UPDATE,
-			'UPDATE "prx_597_outbox" SET "status" = \'pending\',
-			     "last_error" = '.$db->quote(self::_cut($reason, 300)).',
+		self::_exec('UPDATE "prx_597_outbox" SET "status" = \'pending\',
+			     "last_error" = :reason,
 			     "next_attempt_at" = now() + interval \''.max(30, (int) $delay).' seconds\'
-			 WHERE "id" = '.((int) $id));
+			 WHERE "id" = '.((int) $id),
+			[':reason' => (string) self::_cut($reason, 300)]);
 	}
 
 	/** Пропустить навсегда (причину пишем в журнал и в строку). */
 	protected static function _skip($id, $reason)
 	{
-		$db = self::_db();
-
-		self::_exec(Database::UPDATE,
-			'UPDATE "prx_597_outbox" SET "status" = \'skipped\',
-			     "last_error" = '.$db->quote(self::_cut($reason, 300)).'
-			 WHERE "id" = '.((int) $id));
+		self::_exec('UPDATE "prx_597_outbox" SET "status" = \'skipped\',
+			     "last_error" = :reason
+			 WHERE "id" = '.((int) $id),
+			[':reason' => (string) self::_cut($reason, 300)]);
 
 		$row = self::_one('SELECT * FROM "prx_597_outbox" WHERE "id" = '.((int) $id));
 
@@ -801,14 +808,12 @@ class Service_Prx597_Engine extends Service_Prx597_Base
 		$index   = max(0, min(count($backoff) - 1, $attempt - 1));
 		$delay   = (int) Arr::get($backoff, $index, 3600);
 
-		$db = self::_db();
-
-		self::_exec(Database::UPDATE,
-			'UPDATE "prx_597_outbox" SET "status" = \'pending\',
+		self::_exec('UPDATE "prx_597_outbox" SET "status" = \'pending\',
 			     "attempts" = '.(int) $attempt.',
-			     "last_error" = '.$db->quote(self::_cut($error, 300)).',
+			     "last_error" = :error,
 			     "next_attempt_at" = now() + interval \''.$delay.' seconds\'
-			 WHERE "id" = '.((int) $id));
+			 WHERE "id" = '.((int) $id),
+			[':error' => (string) self::_cut($error, 300)]);
 	}
 
 	/** Массовая смена статуса (сводка). */
@@ -819,14 +824,20 @@ class Service_Prx597_Engine extends Service_Prx597_Base
 			return;
 		}
 
-		$db  = self::_db();
 		$ids = implode(',', array_map('intval', $ids));
 
-		self::_exec(Database::UPDATE,
-			'UPDATE "prx_597_outbox" SET "status" = '.$db->quote($status)
-			.', "last_error" = '.($error === NULL ? 'NULL' : $db->quote(self::_cut($error, 300)))
+		$params = [':status' => (string) $status];
+		$error_sql = 'NULL';
+		if ($error !== NULL)
+		{
+			$error_sql = ':error';
+			$params[':error'] = (string) self::_cut($error, 300);
+		}
+
+		self::_exec('UPDATE "prx_597_outbox" SET "status" = :status'
+			.', "last_error" = '.$error_sql
 			.($status === 'sent' ? ', "sent_at" = now(), "attempts" = "attempts" + 1' : '')
-			.' WHERE "id" IN ('.$ids.')');
+			.' WHERE "id" IN ('.$ids.')', $params);
 	}
 
 	/** JSON-поле payload строки outbox. */
@@ -849,17 +860,18 @@ class Service_Prx597_Engine extends Service_Prx597_Base
 	/** Строка журнала доставки. */
 	protected static function _log_row(array $row, $attempt, $ok, $code, $message)
 	{
-		$db = self::_db();
-
 		try
 		{
-			$db->query(Database::INSERT,
+			Prx_Db::execute(
 				'INSERT INTO "prx_597_log" ("outbox_id", "user_id", "channel", "attempt", "ok", "response_code", "message", "created_at")
 				 VALUES ('.((int) Arr::get($row, 'id', 0)).', '.((int) Arr::get($row, 'user_id', 0)).',
-				         '.$db->quote(self::_cut((string) Arr::get($row, 'channel', ''), 20)).',
+				         :channel,
 				         '.((int) $attempt).', '.($ok ? 'TRUE' : 'FALSE').',
-				         '.$db->quote(self::_cut((string) $code, 20)).',
-				         '.$db->quote(self::_cut((string) $message, 2000)).', now())', FALSE);
+				         :code,
+				         :message, now())',
+				[':channel' => (string) self::_cut((string) Arr::get($row, 'channel', ''), 20),
+				 ':code' => (string) self::_cut((string) $code, 20),
+				 ':message' => (string) self::_cut((string) $message, 2000)]);
 		}
 		catch (Throwable $e)
 		{
@@ -990,12 +1002,9 @@ class Service_Prx597_Engine extends Service_Prx597_Base
 	/** Вернуть DLQ в работу (кнопка администратора). */
 	public static function retry_dead($limit = 50)
 	{
-		$db = self::_db();
-
-		$db->query(Database::UPDATE,
-			'UPDATE "prx_597_outbox" SET "status" = \'pending\', "attempts" = 0, "next_attempt_at" = now()
+		Prx_Db::execute('UPDATE "prx_597_outbox" SET "status" = \'pending\', "attempts" = 0, "next_attempt_at" = now()
 			  WHERE "id" IN (SELECT "id" FROM "prx_597_outbox" WHERE "status" IN (\'dead\', \'failed\') ORDER BY "id" DESC LIMIT '
-			.((int) max(1, min(500, (int) $limit))).')', FALSE);
+			.((int) max(1, min(500, (int) $limit))).')');
 
 		return TRUE;
 	}
@@ -1053,7 +1062,14 @@ class Service_Prx597_Engine extends Service_Prx597_Base
 
 		foreach ($groups as $key => $statuses)
 		{
-			$in = implode(', ', array_map(function ($one) { return self::_q($one); }, $statuses));
+			$in_parts = [];
+			$params = [];
+			foreach ($statuses as $i => $one)
+			{
+				$in_parts[] = ':st'.$i;
+				$params[':st'.$i] = (string) $one;
+			}
+			$in = implode(', ', $in_parts);
 
 			try
 			{
@@ -1061,11 +1077,11 @@ class Service_Prx597_Engine extends Service_Prx597_Base
 				// «email_status = pending», и без письма метка осталась бы
 				// висеть в ленте навсегда.
 				$ids = self::_all('SELECT DISTINCT "inbox_id" FROM "prx_597_outbox"
-				                    WHERE "status" IN ('.$in.') AND "inbox_id" IS NOT NULL');
+				                    WHERE "status" IN ('.$in.') AND "inbox_id" IS NOT NULL', $params);
 
 				$out[$key] = (int) self::_val(
 					'WITH d AS (DELETE FROM "prx_597_outbox" WHERE "status" IN ('.$in.') RETURNING 1)
-					 SELECT count(*) AS c FROM d', 0);
+					 SELECT count(*) AS c FROM d', 0, $params);
 
 				if ($ids)
 				{
@@ -1132,11 +1148,13 @@ class Service_Prx597_Engine extends Service_Prx597_Base
 			// Кого затронули — считаем ДО удаления: счётчик непрочитанных ведёт
 			// триггер, но после массовой уборки его стоит сверить.
 			$users = array_slice(self::_all('SELECT DISTINCT "user_id" FROM "prx_597_notifications"
-			                                  WHERE "event_alias" = '.self::_q($alias).' LIMIT 500'), 0, 500);
+			                                  WHERE "event_alias" = :alias LIMIT 500',
+			    [':alias' => (string) $alias]), 0, 500);
 
 			$row = self::_one('WITH d AS (DELETE FROM "prx_597_notifications"
-			                     WHERE "event_alias" = '.self::_q($alias).' RETURNING "user_id")
-			                   SELECT count(*) AS "c", count(DISTINCT "user_id") AS "users" FROM d');
+			                     WHERE "event_alias" = :alias RETURNING "user_id")
+			                   SELECT count(*) AS "c", count(DISTINCT "user_id") AS "users" FROM d',
+			    [':alias' => (string) $alias]);
 		}
 		catch (Throwable $e)
 		{
@@ -1154,20 +1172,18 @@ class Service_Prx597_Engine extends Service_Prx597_Base
 
 			try
 			{
-				self::_exec(Database::INSERT,
-					'INSERT INTO "prx_597_unread" ("user_id", "count", "updated_at")
-					 SELECT n."user_id", count(*), now() FROM "prx_597_notifications" n
-					  WHERE n."user_id" IN ('.$list.') AND n."read_at" IS NULL AND n."archived_at" IS NULL
-					  GROUP BY n."user_id"
-					 ON CONFLICT ("user_id") DO UPDATE
-					     SET "count" = EXCLUDED."count", "updated_at" = now()');
+				self::_exec('INSERT INTO "prx_597_unread" ("user_id", "count", "updated_at")
+				 SELECT n."user_id", count(*), now() FROM "prx_597_notifications" n
+				  WHERE n."user_id" IN ('.$list.') AND n."read_at" IS NULL AND n."archived_at" IS NULL
+				  GROUP BY n."user_id"
+				  ON CONFLICT ("user_id") DO UPDATE
+				     SET "count" = EXCLUDED."count", "updated_at" = now()');
 
-				self::_exec(Database::UPDATE,
-					'UPDATE "prx_597_unread" SET "count" = 0, "updated_at" = now()
-					  WHERE "user_id" IN ('.$list.') AND "count" <> 0
-					    AND NOT EXISTS (SELECT 1 FROM "prx_597_notifications" n
-					                     WHERE n."user_id" = "prx_597_unread"."user_id"
-					                       AND n."read_at" IS NULL AND n."archived_at" IS NULL)');
+				self::_exec('UPDATE "prx_597_unread" SET "count" = 0, "updated_at" = now()
+				  WHERE "user_id" IN ('.$list.') AND "count" <> 0
+				    AND NOT EXISTS (SELECT 1 FROM "prx_597_notifications" n
+				                     WHERE n."user_id" = "prx_597_unread"."user_id"
+				                       AND n."read_at" IS NULL AND n."archived_at" IS NULL)');
 			}
 			catch (Throwable $e)
 			{

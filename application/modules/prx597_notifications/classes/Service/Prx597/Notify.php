@@ -132,11 +132,6 @@ SQL
         }
     }
 
-    protected static function _db()
-    {
-        return Database::instance();
-    }
-
     /**
      * OUTBOX-доставка (21.09): python-воркеры в режиме pg завершают задачи
      * ПРЯМО в БД, мимо PHP JobQueue::complete() — хук уведомлений там мёртв.
@@ -482,8 +477,6 @@ SQL
             $group = 'digest:'.$channel.':'.$deadline;
         }
 
-        $db = self::_db();
-
         $payload = ['data' => $data];
 
         // Признак «своё событие» едет вместе со строкой очереди: между
@@ -502,27 +495,43 @@ SQL
 
         try
         {
-            $row = $db->query(Database::SELECT,
-                'INSERT INTO "prx_597_outbox"
+            $params = [
+                ':event_alias' => (string) self::_cut((string) Arr::get($message, 'event_alias', 'system'), 120),
+                ':channel' => (string) self::_cut($channel, 20),
+                ':destination' => (string) self::_cut($destination, 200),
+                ':subject' => (string) self::_cut((string) Arr::get($message, 'subject', ''), 300),
+                ':body' => (string) self::_cut((string) Arr::get($message, 'body', ''), 4000),
+                ':href' => (string) self::_cut((string) Arr::get($message, 'href', ''), 300),
+                ':payload' => $payload,
+            ];
+            if ($dedup !== '')
+            {
+                $params[':dedup'] = (string) $dedup;
+            }
+            if ($group !== '')
+            {
+                $params[':group'] = (string) self::_cut($group, 160);
+            }
+            $row = Prx_Db::one('INSERT INTO "prx_597_outbox"
                      ("user_id", "event_alias", "channel", "destination", "subject", "body", "href",
                       "payload", "priority", "status", "next_attempt_at", "dedup_key", "group_key", "inbox_id", "created_at")
                  VALUES ('.$user_id.',
-                         '.$db->quote(self::_cut((string) Arr::get($message, 'event_alias', 'system'), 120)).',
-                         '.$db->quote(self::_cut($channel, 20)).',
-                         '.$db->quote(self::_cut($destination, 200)).',
-                         '.$db->quote(self::_cut((string) Arr::get($message, 'subject', ''), 300)).',
-                         '.$db->quote(self::_cut((string) Arr::get($message, 'body', ''), 4000)).',
-                         '.$db->quote(self::_cut((string) Arr::get($message, 'href', ''), 300)).',
-                         '.$db->quote($payload).'::jsonb,
+                         :event_alias,
+                         :channel,
+                         :destination,
+                         :subject,
+                         :body,
+                         :href,
+                         :payload::jsonb,
                          '.$priority.',
                          \'pending\',
                          '.($deadline > 0 ? 'to_timestamp('.(int) $deadline.')' : 'now()').',
-                         '.($dedup === '' ? 'NULL' : $db->quote($dedup)).',
-                         '.($group === '' ? 'NULL' : $db->quote(self::_cut($group, 160))).',
+                         '.($dedup === '' ? 'NULL' : ':dedup').',
+                         '.($group === '' ? 'NULL' : ':group').',
                          '.((int) Arr::get($message, 'inbox_id', 0) ?: 'NULL').',
                          now())
                  ON CONFLICT DO NOTHING
-                 RETURNING "id"', FALSE)->current();
+                 RETURNING "id"', $params);
         }
         catch (Throwable $e)
         {
@@ -543,9 +552,9 @@ SQL
         // видно, что событие не «проигнорировано», а ждёт отправки.
         if ($channel === 'email' AND (int) Arr::get($message, 'inbox_id', 0) > 0)
         {
-            $db->query(Database::UPDATE,
-                'UPDATE "prx_597_notifications" SET "email_status" = \'pending\', "email_to" = '.$db->quote($destination).'
-                  WHERE "id" = '.((int) $message['inbox_id']), FALSE);
+            Prx_Db::execute('UPDATE "prx_597_notifications" SET "email_status" = \'pending\', "email_to" = :destination
+                  WHERE "id" = '.((int) $message['inbox_id']),
+                [':destination' => (string) $destination]);
         }
 
         return ['queued' => TRUE, 'reason' => '', 'id' => $id];
@@ -647,18 +656,17 @@ SQL
             return 0;
         }
 
-        $db      = self::_db();
         $group   = trim((string) Arr::get($data, 'group_key', ''));
         $payload = json_encode((array) Arr::get($data, 'data', []), JSON_UNESCAPED_UNICODE);
 
         // Склейка: одна строка на группу, пока её не прочитали.
         if ($group !== '')
         {
-            $exists = $db->query(Database::SELECT,
-                'SELECT "id", "data" FROM "prx_597_notifications"
-                  WHERE "user_id" = '.$user_id.' AND "group_key" = '.$db->quote(self::_cut($group, 160)).'
+            $exists = self::_one('SELECT "id", "data" FROM "prx_597_notifications"
+                  WHERE "user_id" = '.$user_id.' AND "group_key" = :group
                     AND "read_at" IS NULL AND "archived_at" IS NULL
-                  ORDER BY "id" DESC LIMIT 1', FALSE)->current();
+                  ORDER BY "id" DESC LIMIT 1',
+                [':group' => (string) self::_cut($group, 160)]);
 
             if ($exists)
             {
@@ -670,37 +678,54 @@ SQL
                     'last'  => Arr::get($data, 'data', []),
                 ]);
 
-                $db->query(Database::UPDATE,
-                    'UPDATE "prx_597_notifications" SET
-                         "title" = '.$db->quote(self::_cut($title, 300)).',
-                         "body"  = '.$db->quote(self::_cut((string) Arr::get($data, 'body', ''), 2000)).',
-                         "href"  = '.$db->quote(self::_cut((string) Arr::get($data, 'href', ''), 300)).',
-                         "data"  = '.$db->quote(json_encode($merged, JSON_UNESCAPED_UNICODE)).'::jsonb,
+                Prx_Db::execute('UPDATE "prx_597_notifications" SET
+                         "title" = :title,
+                         "body"  = :body,
+                         "href"  = :href,
+                         "data"  = :data::jsonb,
                          "created_at" = now()
-                      WHERE "id" = '.((int) $exists['id']), FALSE);
+                      WHERE "id" = '.((int) $exists['id']),
+                    [':title' => (string) self::_cut($title, 300),
+                     ':body' => (string) self::_cut((string) Arr::get($data, 'body', ''), 2000),
+                     ':href' => (string) self::_cut((string) Arr::get($data, 'href', ''), 300),
+                     ':data' => json_encode($merged, JSON_UNESCAPED_UNICODE)]);
 
                 return (int) $exists['id'];
             }
         }
 
-        $row = $db->query(Database::SELECT,
-            'INSERT INTO "prx_597_notifications"
+        $params = [
+            ':kind' => (string) self::_cut((string) Arr::get($data, 'kind', 'system'), 32),
+            ':event_alias' => (string) self::_cut((string) Arr::get($data, 'event_alias', 'system'), 120),
+            ':category' => (string) self::_cut((string) Arr::get($data, 'category', 'system'), 40),
+            ':icon' => (string) self::_cut((string) Arr::get($data, 'icon', 'fas fa-bell'), 60),
+            ':title' => (string) self::_cut($title, 300),
+            ':body' => (string) self::_cut((string) Arr::get($data, 'body', ''), 2000),
+            ':href' => (string) self::_cut((string) Arr::get($data, 'href', ''), 300),
+            ':payload' => $payload,
+            ':email_status' => (string) self::_cut((string) Arr::get($data, 'email_status', 'none'), 16),
+        ];
+        if ($group !== '')
+        {
+            $params[':group'] = (string) self::_cut($group, 160);
+        }
+        $row = Prx_Db::one('INSERT INTO "prx_597_notifications"
                  ("user_id", "kind", "event_alias", "category", "icon", "title", "body", "href",
                   "priority", "data", "group_key", "email_status", "created_at")
              VALUES ('.$user_id.',
-                     '.$db->quote(self::_cut((string) Arr::get($data, 'kind', 'system'), 32)).',
-                     '.$db->quote(self::_cut((string) Arr::get($data, 'event_alias', 'system'), 120)).',
-                     '.$db->quote(self::_cut((string) Arr::get($data, 'category', 'system'), 40)).',
-                     '.$db->quote(self::_cut((string) Arr::get($data, 'icon', 'fas fa-bell'), 60)).',
-                     '.$db->quote(self::_cut($title, 300)).',
-                     '.$db->quote(self::_cut((string) Arr::get($data, 'body', ''), 2000)).',
-                     '.$db->quote(self::_cut((string) Arr::get($data, 'href', ''), 300)).',
+                     :kind,
+                     :event_alias,
+                     :category,
+                     :icon,
+                     :title,
+                     :body,
+                     :href,
                      '.((int) Arr::get($data, 'priority', 5)).',
-                     '.$db->quote($payload).'::jsonb,
-                     '.($group === '' ? 'NULL' : $db->quote(self::_cut($group, 160))).',
-                     '.$db->quote(self::_cut((string) Arr::get($data, 'email_status', 'none'), 16)).',
+                     :payload::jsonb,
+                     '.($group === '' ? 'NULL' : ':group').',
+                     :email_status,
                      now())
-             RETURNING "id"', FALSE)->current();
+             RETURNING "id"', $params);
 
         return (int) Arr::get((array) $row, 'id', 0);
     }
@@ -798,10 +823,9 @@ SQL
 
         try
         {
-            self::_db()->query(Database::INSERT,
-                'INSERT INTO "prx_597_presence" ("user_id", "seen_at") VALUES ('.$user_id.', now())
+            Prx_Db::execute('INSERT INTO "prx_597_presence" ("user_id", "seen_at") VALUES ('.$user_id.', now())
                  ON CONFLICT ("user_id") DO UPDATE SET "seen_at" = now()
-                   WHERE "prx_597_presence"."seen_at" < now() - interval \'20 seconds\'', FALSE);
+                   WHERE "prx_597_presence"."seen_at" < now() - interval \'20 seconds\'');
         }
         catch (Throwable $e)
         {
@@ -859,8 +883,7 @@ SQL
     {
         try
         {
-            self::_db()->query(Database::DELETE,
-                'DELETE FROM "prx_597_presence" WHERE "seen_at" < now() - interval \'30 days\'', FALSE);
+            Prx_Db::execute('DELETE FROM "prx_597_presence" WHERE "seen_at" < now() - interval \'30 days\'');
         }
         catch (Throwable $e)
         {
@@ -1051,13 +1074,12 @@ SQL
     public static function send_digests($user_limit = 100, $per_user = 30)
     {
         self::ensure_tables();
-        $db = self::_db();
 
         // Критично: два параллельных пинка не должны выбрать один pending-набор
         // до его перевода в sending. Без advisory lock один и тот же digest мог
         // уйти несколько раз при совпавших cron/worker-запросах.
-        $lock = $db->query(Database::SELECT,
-            'SELECT pg_try_advisory_lock(597597)', FALSE)->get('pg_try_advisory_lock');
+        $lock_row = Prx_Db::one('SELECT pg_try_advisory_lock(597597)');
+        $lock = $lock_row['pg_try_advisory_lock'] ?? NULL;
 
         if ($lock !== TRUE AND $lock !== 't' AND $lock !== '1')
         {
@@ -1071,29 +1093,26 @@ SQL
             // После аварийного завершения процесса sending не должен зависать
             // навсегда и не должен блокировать следующую сводку.
             // Драйвер возвращает для UPDATE число строк (int) ->execute() тут фатал.
-            $db->query(Database::UPDATE,
-                "UPDATE prx_597_notifications SET email_status = 'pending'
-                 WHERE email_status = 'sending' AND created_at < now() - interval '30 minutes'", FALSE);
+            Prx_Db::execute("UPDATE prx_597_notifications SET email_status = 'pending'
+                 WHERE email_status = 'sending' AND created_at < now() - interval '30 minutes'");
 
             // Важно: берём только те строки, для которых НЕТ сообщения в
             // prx_597_outbox — с появлением движка письмо уходит оттуда, и
             // сводка иначе отправила бы его второй раз.
-            $users = $db->query(Database::SELECT,
-            'SELECT user_id, count(*) AS total FROM prx_597_notifications n
+            $users = self::_all('SELECT user_id, count(*) AS total FROM prx_597_notifications n
              WHERE n.email_status = \'pending\'
                AND NOT EXISTS (SELECT 1 FROM prx_597_outbox o WHERE o.inbox_id = n.id)
-             GROUP BY user_id ORDER BY min(id) LIMIT '.(int) $user_limit, FALSE)->as_array();
+             GROUP BY user_id ORDER BY min(id) LIMIT '.(int) $user_limit);
         $sent = 0;
         $failed = 0;
 
         foreach ($users as $u)
         {
             $uid = (int) $u['user_id'];
-            $rows = $db->query(Database::SELECT,
-                'SELECT * FROM prx_597_notifications n WHERE n.user_id = '.$uid.'
+            $rows = self::_all('SELECT * FROM prx_597_notifications n WHERE n.user_id = '.$uid.'
                  AND n.email_status = \'pending\'
                  AND NOT EXISTS (SELECT 1 FROM prx_597_outbox o WHERE o.inbox_id = n.id)
-                 ORDER BY n.id ASC LIMIT '.(int) $per_user, FALSE)->as_array();
+                 ORDER BY n.id ASC LIMIT '.(int) $per_user);
             $ids = array_map('intval', array_column($rows, 'id'));
 
             if ( ! $ids)
@@ -1101,10 +1120,9 @@ SQL
                 continue;
             }
 
-            $db->query(Database::UPDATE,
-                'UPDATE prx_597_notifications SET email_status = \'sending\'
+            self::_exec('UPDATE prx_597_notifications SET email_status = \'sending\'
                  WHERE user_id = '.$uid.' AND email_status = \'pending\'
-                 AND id IN ('.implode(',', $ids).')', FALSE);
+                 AND id IN ('.implode(',', $ids).')');
             $to = self::_email_of($uid);
 
             if ($to === '')
@@ -1151,28 +1169,38 @@ SQL
         }
         finally
         {
-            // SELECT возвращает Database_Result — у него нет ->execute().
-            $db->query(Database::SELECT, 'SELECT pg_advisory_unlock(597597)', FALSE);
+            // Тем же соединением, что брал lock: advisory lock сессионный.
+            Prx_Db::one('SELECT pg_advisory_unlock(597597)');
         }
     }
 
     protected static function _email_batch_fix(array $ids, $status, $error = NULL)
     {
         if ( ! $ids) return;
-        $db = self::_db();
-        $db->query(Database::UPDATE,
-            'UPDATE prx_597_notifications SET email_status = '.$db->quote($status).',
-             email_error = '.($error === NULL ? 'NULL' : $db->quote(mb_substr($error, 0, 300))).'
-             WHERE id IN ('.implode(',', array_map('intval', $ids)).')', FALSE);
+        $params = [':status' => (string) $status];
+        $error_sql = 'NULL';
+        if ($error !== NULL)
+        {
+            $error_sql = ':error';
+            $params[':error'] = (string) mb_substr($error, 0, 300);
+        }
+        self::_exec('UPDATE prx_597_notifications SET email_status = :status,
+             email_error = '.$error_sql.'
+             WHERE id IN ('.implode(',', array_map('intval', $ids)).')', $params);
     }
 
     protected static function _email_fix($id, $status, $error)
     {
-        $db = self::_db();
-        $db->query(Database::UPDATE,
-            'UPDATE prx_597_notifications SET email_status = '.$db->quote($status).',
-             email_error = '.($error === NULL ? 'NULL' : $db->quote(mb_substr($error, 0, 300))).'
-             WHERE id = '.(int) $id, FALSE);
+        $params = [':status' => (string) $status];
+        $error_sql = 'NULL';
+        if ($error !== NULL)
+        {
+            $error_sql = ':error';
+            $params[':error'] = (string) mb_substr($error, 0, 300);
+        }
+        self::_exec('UPDATE prx_597_notifications SET email_status = :status,
+             email_error = '.$error_sql.'
+             WHERE id = '.(int) $id, $params);
     }
 
     protected static function _email_of($user_id)
@@ -1489,18 +1517,15 @@ SQL
     public static function admin_stats()
     {
         self::ensure_tables();
-        $db  = self::_db();
 
-        $n = $db->query(Database::SELECT,
-            'SELECT count(*) AS total,
+        $n = self::_one('SELECT count(*) AS total,
                     count(*) FILTER (WHERE read_at IS NULL) AS unread,
                     count(*) FILTER (WHERE email_status = \'sent\') AS sent,
                     count(*) FILTER (WHERE email_status = \'failed\') AS failed,
                     count(*) FILTER (WHERE email_status = \'pending\') AS pending
-             FROM prx_597_notifications', FALSE)->current();
+             FROM prx_597_notifications');
 
-        $u = (int) $db->query(Database::SELECT,
-            'SELECT count(*) AS c FROM users', FALSE)->get('c');
+        $u = (int) self::_val('SELECT count(*) AS c FROM users', 0);
 
         return [
             'total'  => (int) ($n['total'] ?? 0),
@@ -1517,10 +1542,9 @@ SQL
     {
         self::ensure_tables();
 
-        return self::_db()->query(Database::SELECT,
-            'SELECT n.*, u.username, u.email
+        return self::_all('SELECT n.*, u.username, u.email
              FROM prx_597_notifications n LEFT JOIN users u ON u.id = n.user_id
-             ORDER BY n.id DESC LIMIT '.(int) $limit, FALSE)->as_array();
+             ORDER BY n.id DESC LIMIT '.(int) $limit);
     }
 
     /**
@@ -1531,10 +1555,8 @@ SQL
     public static function resend_failed($limit = 100)
     {
         self::ensure_tables();
-        $db = self::_db();
-        $rows = $db->query(Database::SELECT,
-            'SELECT "id", "user_id", "title", "body", "href", "email_to" FROM "prx_597_notifications"
-             WHERE "email_status" IN (\'failed\', \'dead\') ORDER BY "id" DESC LIMIT '.(int) $limit, FALSE)->as_array();
+        $rows = self::_all('SELECT "id", "user_id", "title", "body", "href", "email_to" FROM "prx_597_notifications"
+             WHERE "email_status" IN (\'failed\', \'dead\') ORDER BY "id" DESC LIMIT '.(int) $limit);
 
         $queued = 0;
 
@@ -1558,9 +1580,8 @@ SQL
 
             if ($out['queued'])
             {
-                $db->query(Database::UPDATE,
-                    'UPDATE "prx_597_notifications" SET "email_status" = \'pending\', "email_error" = NULL
-                      WHERE "id" = '.((int) $row['id']), FALSE);
+                self::_exec('UPDATE "prx_597_notifications" SET "email_status" = \'pending\', "email_error" = NULL
+                      WHERE "id" = '.((int) $row['id']));
                 $queued++;
             }
         }

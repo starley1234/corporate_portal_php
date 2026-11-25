@@ -99,9 +99,10 @@ class Service_Prx597_Limits extends Service_Prx597_Base
 		{
 			$row = self::_one(
 				'INSERT INTO "prx_597_rate" ("bucket", "count", "updated_at")
-				 VALUES ('.self::_q($bucket).', 1, now())
+				 VALUES (:bucket, 1, now())
 				 ON CONFLICT ("bucket") DO UPDATE SET "count" = "prx_597_rate"."count" + 1, "updated_at" = now()
-				 RETURNING "count"');
+				 RETURNING "count"',
+				[':bucket' => (string) $bucket]);
 		}
 		catch (Throwable $e)
 		{
@@ -118,7 +119,8 @@ class Service_Prx597_Limits extends Service_Prx597_Base
 	{
 		try
 		{
-			return (int) self::_val('SELECT "count" FROM "prx_597_rate" WHERE "bucket" = '.self::_q($bucket), 0);
+			return (int) self::_val('SELECT "count" FROM "prx_597_rate" WHERE "bucket" = :bucket', 0,
+				[':bucket' => (string) $bucket]);
 		}
 		catch (Throwable $e)
 		{
@@ -129,7 +131,7 @@ class Service_Prx597_Limits extends Service_Prx597_Base
 	/** Обнулить все вёдра (кнопка администратора «сбросить счётчики»). */
 	public static function reset()
 	{
-		self::_exec(Database::DELETE, 'DELETE FROM "prx_597_rate"');
+		self::_exec('DELETE FROM "prx_597_rate"');
 
 		return TRUE;
 	}

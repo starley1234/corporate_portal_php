@@ -53,8 +53,7 @@ final class Service_Prx597_Preferences extends Service_Prx597_Base
     /** Настройки пользователя (defaults, если не менял). */
     public static function get($user_id)
     {
-        $row = self::_db()->query(Database::SELECT,
-            'SELECT * FROM prx_597_prefs WHERE user_id = '.(int) $user_id, FALSE)->current();
+        $row = self::_one('SELECT * FROM prx_597_prefs WHERE user_id = '.(int) $user_id);
 
         if ( ! $row)
         {
@@ -110,8 +109,6 @@ final class Service_Prx597_Preferences extends Service_Prx597_Base
     /** Сохранить настройки (только известные ключи-булевы). Атомарный upsert. */
     public static function save($user_id, array $p)
     {
-        $db = self::_db();
-
         $values = [];
 
         foreach (self::FIELDS as $field => $type)
@@ -147,25 +144,24 @@ final class Service_Prx597_Preferences extends Service_Prx597_Base
         }
 
         $columns = array_keys($values);
+        $params  = [':user_id' => (int) $user_id];
         $insert  = [];
         $update  = [];
 
         foreach ($values as $field => $value)
         {
-            $literal = is_bool($value) ? ($value ? 'TRUE' : 'FALSE')
-                : (is_int($value) ? (string) $value : $db->quote((string) $value));
-
-            $insert[] = $literal;
+            // Булевы — числами 0/1: драйвер и PG читают их однозначно.
+            $insert[] = ':p_'.$field;
+            $params[':p_'.$field] = is_bool($value) ? (int) $value : $value;
             $update[] = $field.' = EXCLUDED.'.$field;
         }
 
         // Один атомарный запрос вместо UPDATE-then-INSERT (гонки двух вкладок).
-        // ВАЖНО: у этого драйвера query(Database::INSERT) возвращает массив —
-        // никакого ->execute() поверх.
-        $db->query(Database::INSERT,
+        Prx_Db::execute(
             'INSERT INTO prx_597_prefs (user_id, '.implode(', ', $columns).', updated_at)
-             VALUES ('.(int) $user_id.', '.implode(', ', $insert).', now())
-             ON CONFLICT (user_id) DO UPDATE SET '.implode(', ', $update).', updated_at = now()', FALSE);
+             VALUES (:user_id, '.implode(', ', $insert).', now())
+             ON CONFLICT (user_id) DO UPDATE SET '.implode(', ', $update).', updated_at = now()',
+            $params);
 
         $saved = self::get($user_id);
 
@@ -202,19 +198,16 @@ final class Service_Prx597_Preferences extends Service_Prx597_Base
             return 0;
         }
 
-        $db = self::_db();
-
         try
         {
-            $db->query(Database::UPDATE,
+            Prx_Db::execute(
                 'UPDATE "prx_597_prefs" p
                     SET "email_enabled" = FALSE, "telegram_enabled" = FALSE,
                         "max_enabled" = FALSE, "on_done" = FALSE, "on_failed" = FALSE,
                         "updated_at" = now()
                   WHERE ("email_enabled" IS TRUE OR "telegram_enabled" IS TRUE
                          OR "max_enabled" IS TRUE OR "on_done" IS TRUE OR "on_failed" IS TRUE)
-                    AND NOT EXISTS (SELECT 1 FROM "prx_597_subs" s WHERE s."user_id" = p."user_id")',
-                FALSE);   // драйвер отдаёт число, а не объект результата
+                    AND NOT EXISTS (SELECT 1 FROM "prx_597_subs" s WHERE s."user_id" = p."user_id")');
 
             self::set_setting('prefs.defaults_off', '1');
         }

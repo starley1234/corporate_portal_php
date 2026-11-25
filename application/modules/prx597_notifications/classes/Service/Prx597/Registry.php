@@ -164,31 +164,28 @@ class Service_Prx597_Registry extends Service_Prx597_Base
 			return FALSE;
 		}
 
-		$db = self::_db();
-
 		$channels = implode(',', self::_csv(Arr::get($data, 'default_channels', Arr::get($data, 'channels', 'in_app')))) ?: 'in_app';
 		$roles    = implode(',', self::_csv(Arr::get($data, 'allowed_roles', Arr::get($data, 'roles', 'login')))) ?: 'login';
 		$ability  = trim((string) Arr::get($data, 'ability', ''));
 
-		$db->query(Database::INSERT,
-			'INSERT INTO "prx_597_events"
+		$sql = 'INSERT INTO "prx_597_events"
 			     ("alias", "module", "title", "description", "category", "icon",
 			      "default_channels", "allowed_roles", "ability", "mandatory",
 			      "enabled", "digest", "source", "placeholders", "created_at", "updated_at")
-			 VALUES ('.$db->quote($alias).',
-			         '.$db->quote(self::_cut(Arr::get($data, 'module', ''), 80)).',
-			         '.$db->quote(self::_cut(Arr::get($data, 'title', $alias), 200)).',
-			         '.$db->quote((string) Arr::get($data, 'description', '')).',
-			         '.$db->quote(self::_cut(Arr::get($data, 'category', 'system'), 40)).',
-			         '.$db->quote(self::_cut(Arr::get($data, 'icon', 'fas fa-bell'), 60)).',
-			         '.$db->quote($channels).',
-			         '.$db->quote($roles).',
-			         '.($ability === '' ? 'NULL' : $db->quote(self::_cut($ability, 80))).',
+			 VALUES (:alias,
+			         :module,
+			         :title,
+			         :description,
+			         :category,
+			         :icon,
+			         :channels,
+			         :roles,
+			         '.($ability === '' ? 'NULL' : ':ability').',
 			         '.(! empty($data['mandatory']) ? 'TRUE' : 'FALSE').',
 			         '.((! empty($data['enabled']) OR ! array_key_exists('enabled', $data)) ? 'TRUE' : 'FALSE').',
 			         '.(! empty($data['digest']) ? 'TRUE' : 'FALSE').',
-			         '.$db->quote(self::_cut(Arr::get($data, 'source', 'db'), 16)).',
-			         '.$db->quote(self::_cut(Arr::get($data, 'placeholders', ''), 1000)).',
+			         :source,
+			         :placeholders,
 			         now(), now())
 			 ON CONFLICT ("alias") DO UPDATE SET
 			     "module"           = EXCLUDED."module",
@@ -203,8 +200,24 @@ class Service_Prx597_Registry extends Service_Prx597_Base
 			     "enabled"         = EXCLUDED."enabled",
 			     "digest"          = EXCLUDED."digest",
 			     "placeholders"    = EXCLUDED."placeholders",
-			     "updated_at"      = now()',
-			FALSE);
+			     "updated_at"      = now()';
+		$params = [
+			':alias' => (string) $alias,
+			':module' => (string) self::_cut(Arr::get($data, 'module', ''), 80),
+			':title' => (string) self::_cut(Arr::get($data, 'title', $alias), 200),
+			':description' => (string) Arr::get($data, 'description', ''),
+			':category' => (string) self::_cut(Arr::get($data, 'category', 'system'), 40),
+			':icon' => (string) self::_cut(Arr::get($data, 'icon', 'fas fa-bell'), 60),
+			':channels' => (string) $channels,
+			':roles' => (string) $roles,
+			':source' => (string) self::_cut(Arr::get($data, 'source', 'db'), 16),
+			':placeholders' => (string) self::_cut(Arr::get($data, 'placeholders', ''), 1000),
+		];
+		if ($ability !== '')
+		{
+			$params[':ability'] = self::_cut($ability, 80);
+		}
+		Prx_Db::execute($sql, $params);
 
 		// Сбросить кеш: следующий events() перечитает базу.
 		self::forget_events();
@@ -215,11 +228,9 @@ class Service_Prx597_Registry extends Service_Prx597_Base
 	/** Включить/выключить событие (кнопка в админке). */
 	public static function toggle_event($alias, $enabled)
 	{
-		$db = self::_db();
-
-		$db->query(Database::UPDATE,
-			'UPDATE "prx_597_events" SET "enabled" = '.($enabled ? 'TRUE' : 'FALSE').', "updated_at" = now()
-			 WHERE "alias" = '.$db->quote(self::_alias($alias)), FALSE);
+		Prx_Db::execute('UPDATE "prx_597_events" SET "enabled" = '.($enabled ? 'TRUE' : 'FALSE').', "updated_at" = now()
+			 WHERE "alias" = :alias',
+			[':alias' => (string) self::_alias($alias)]);
 
 		self::forget_events();
 
@@ -500,9 +511,10 @@ class Service_Prx597_Registry extends Service_Prx597_Base
 		try
 		{
 			$row = self::_one('SELECT * FROM "prx_597_templates"
-			                    WHERE "event_alias" = '.self::_q($alias).'
-			                      AND "channel" = '.self::_q($channel).'
-			                    LIMIT 1');
+			                    WHERE "event_alias" = :alias
+			                      AND "channel" = :channel
+			                    LIMIT 1',
+			    [':alias' => (string) $alias, ':channel' => (string) $channel]);
 		}
 		catch (Throwable $e)
 		{
@@ -536,8 +548,9 @@ class Service_Prx597_Registry extends Service_Prx597_Base
 		try
 		{
 			$rows = self::_all('SELECT * FROM "prx_597_templates"'
-				.($alias === NULL ? '' : ' WHERE "event_alias" = '.self::_q(self::_alias($alias)))
-				.' ORDER BY "event_alias", "channel"');
+				.($alias === NULL ? '' : ' WHERE "event_alias" = :alias')
+				.' ORDER BY "event_alias", "channel"',
+				$alias === NULL ? [] : [':alias' => (string) self::_alias($alias)]);
 		}
 		catch (Throwable $e)
 		{
@@ -573,13 +586,11 @@ class Service_Prx597_Registry extends Service_Prx597_Base
 			return FALSE;
 		}
 
-		$db = self::_db();
-
 		if ($subject === '' AND $body === '')
 		{
-			$db->query(Database::DELETE,
-				'DELETE FROM "prx_597_templates"
-				  WHERE "event_alias" = '.$db->quote($alias).' AND "channel" = '.$db->quote($channel), FALSE);
+			self::_exec('DELETE FROM "prx_597_templates"
+				  WHERE "event_alias" = :alias AND "channel" = :channel',
+				[':alias' => (string) $alias, ':channel' => (string) $channel]);
 
 			return TRUE;
 		}
@@ -591,12 +602,12 @@ class Service_Prx597_Registry extends Service_Prx597_Base
 			$format = 'text';
 		}
 
-		$db->query(Database::INSERT,
+		Prx_Db::execute(
 			'INSERT INTO "prx_597_templates"
 			     ("event_alias", "channel", "subject", "body", "format", "is_active", "updated_at", "updated_by")
-			 VALUES ('.$db->quote($alias).', '.$db->quote($channel).',
-			         '.$db->quote(self::_cut($subject, 300)).', '.$db->quote($body).',
-			         '.$db->quote($format).', '.(! empty($data['is_active']) ? 'TRUE' : 'FALSE').',
+			 VALUES (:alias, :channel,
+			         :subject, :body,
+			         :format, '.(! empty($data['is_active']) ? 'TRUE' : 'FALSE').',
 			         now(), '.((int) $user_id ?: 'NULL').')
 			 ON CONFLICT ("event_alias", "channel") DO UPDATE SET
 			     "subject"    = EXCLUDED."subject",
@@ -605,7 +616,9 @@ class Service_Prx597_Registry extends Service_Prx597_Base
 			     "is_active"  = EXCLUDED."is_active",
 			     "updated_at" = now(),
 			     "updated_by" = EXCLUDED."updated_by"',
-			FALSE);
+			[':alias' => (string) $alias, ':channel' => (string) $channel,
+			 ':subject' => (string) self::_cut($subject, 300), ':body' => (string) $body,
+			 ':format' => (string) $format]);
 
 		return TRUE;
 	}
@@ -645,8 +658,6 @@ class Service_Prx597_Registry extends Service_Prx597_Base
 	 */
 	public static function save_sub($user_id, $alias, $channel, $enabled)
 	{
-		$db = self::_db();
-
 		if ($enabled)
 		{
 			$gate = 'email_enabled';
@@ -667,13 +678,13 @@ class Service_Prx597_Registry extends Service_Prx597_Base
 			}
 		}
 
-		$db->query(Database::INSERT,
+		Prx_Db::execute(
 			'INSERT INTO "prx_597_subs" ("user_id", "event_alias", "channel", "enabled", "updated_at")
-			 VALUES ('.((int) $user_id).', '.$db->quote(self::_alias($alias)).', '.$db->quote(self::_cut($channel, 20)).',
+			 VALUES ('.(int) $user_id.', :alias, :channel,
 			         '.($enabled ? 'TRUE' : 'FALSE').', now())
 			 ON CONFLICT ("user_id", "event_alias", "channel") DO UPDATE SET
 			     "enabled" = EXCLUDED."enabled", "updated_at" = now()',
-			FALSE);
+			[':alias' => (string) self::_alias($alias), ':channel' => (string) self::_cut($channel, 20)]);
 
 		return TRUE;
 	}
@@ -681,8 +692,7 @@ class Service_Prx597_Registry extends Service_Prx597_Base
 	/** Сбросить матрицу пользователя к умолчаниям событий. */
 	public static function reset_subs($user_id)
 	{
-		self::_exec(Database::DELETE,
-			'DELETE FROM "prx_597_subs" WHERE "user_id" = '.((int) $user_id));
+		self::_exec('DELETE FROM "prx_597_subs" WHERE "user_id" = '.((int) $user_id));
 
 		return TRUE;
 	}

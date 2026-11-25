@@ -48,17 +48,16 @@ class Service_Prx597_Bind extends Service_Prx597_Base
 		}
 
 		$code = self::_new_code();
-		$db   = self::_db();
 
 		// Код одноразовый: новая попытка обнуляет старую привязку канала,
 		// поэтому чужой chat_id не останется привязанным к пользователю.
-		$db->query(Database::INSERT,
+		Prx_Db::execute(
 			'INSERT INTO "prx_597_channels" ("user_id", "channel", "destination", "status", "bind_code", "created_at", "updated_at")
-			 VALUES ('.$user_id.', '.$db->quote($channel).', \'\', \'pending\', '.$db->quote($code).', now(), now())
+			 VALUES ('.$user_id.', :channel, \'\', \'pending\', :code, now(), now())
 			 ON CONFLICT ("user_id", "channel") DO UPDATE SET
 			     "status" = \'pending\', "bind_code" = EXCLUDED."bind_code",
 			     "destination" = \'\', "external_id" = NULL, "verified_at" = NULL, "updated_at" = now()',
-			FALSE);
+			[':channel' => (string) $channel, ':code' => (string) $code]);
 
 		return [
 			'code'    => $code,
@@ -88,27 +87,30 @@ class Service_Prx597_Bind extends Service_Prx597_Base
 		}
 
 		$row = self::_one('SELECT * FROM "prx_597_channels"
-		                    WHERE "bind_code" = '.self::_q($code).'
-		                      AND "channel" = '.self::_q($channel).'
+		                    WHERE "bind_code" = :code
+		                      AND "channel" = :channel
 		                      AND "updated_at" > now() - interval \''.self::CODE_TTL.' seconds\'
-		                    LIMIT 1');
+		                    LIMIT 1',
+		    [':code' => (string) $code, ':channel' => (string) $channel]);
 
 		if ( ! $row)
 		{
 			return ['error' => 'Код не найден или устарел — запросите новый в центре уведомлений'];
 		}
 
-		$db = self::_db();
-		$db->query(Database::UPDATE,
+		Prx_Db::execute(
 			'UPDATE "prx_597_channels" SET
 			     "status" = \'active\',
-			     "destination" = '.$db->quote(self::_cut($destination, 200)).',
-			     "external_id" = '.$db->quote(self::_cut($external_id, 80)).',
-			     "title" = '.$db->quote(self::_cut($external_id !== '' ? $external_id : $destination, 120)).',
+			     "destination" = :destination,
+			     "external_id" = :external_id,
+			     "title" = :title,
 			     "bind_code" = NULL,
 			     "verified_at" = now(),
 			     "updated_at" = now()
-			 WHERE "id" = '.((int) $row['id']), FALSE);
+			 WHERE "id" = '.((int) $row['id']),
+			[':destination' => (string) self::_cut($destination, 200),
+			 ':external_id' => (string) self::_cut($external_id, 80),
+			 ':title' => (string) self::_cut($external_id !== '' ? $external_id : $destination, 120)]);
 
 		self::_log(Log::INFO, 'канал :ch привязан к пользователю :u',
 			[':ch' => $channel, ':u' => (int) $row['user_id']]);
@@ -156,10 +158,9 @@ class Service_Prx597_Bind extends Service_Prx597_Base
 	/** Отвязать канал (пользователь или администратор). */
 	public static function unbind($user_id, $channel)
 	{
-		$db = self::_db();
-		$db->query(Database::UPDATE,
-			'UPDATE "prx_597_channels" SET "status" = \'blocked\', "bind_code" = NULL, "updated_at" = now()
-			 WHERE "user_id" = '.((int) $user_id).' AND "channel" = '.self::_q(self::_channel($channel)), FALSE);
+		Prx_Db::execute('UPDATE "prx_597_channels" SET "status" = \'blocked\', "bind_code" = NULL, "updated_at" = now()
+			 WHERE "user_id" = '.((int) $user_id).' AND "channel" = :channel',
+			[':channel' => (string) self::_channel($channel)]);
 
 		return TRUE;
 	}
@@ -216,7 +217,8 @@ class Service_Prx597_Bind extends Service_Prx597_Base
 
 		try
 		{
-			$row = self::_one('SELECT * FROM "prx_597_bots" WHERE "channel" = '.self::_q($channel).' LIMIT 1');
+			$row = self::_one('SELECT * FROM "prx_597_bots" WHERE "channel" = :channel LIMIT 1',
+			    [':channel' => (string) $channel]);
 		}
 		catch (Throwable $e)
 		{
@@ -230,10 +232,10 @@ class Service_Prx597_Bind extends Service_Prx597_Base
 
 		$secret = self::_new_code(24);
 
-		self::_exec(Database::INSERT,
-			'INSERT INTO "prx_597_bots" ("channel", "mode", "secret", "updated_at")
-			 VALUES ('.self::_q($channel).', \'webhook\', '.self::_q($secret).', now())
-			 ON CONFLICT ("channel") DO UPDATE SET "secret" = EXCLUDED."secret", "updated_at" = now()');
+		self::_exec('INSERT INTO "prx_597_bots" ("channel", "mode", "secret", "updated_at")
+			 VALUES (:channel, \'webhook\', :secret, now())
+			 ON CONFLICT ("channel") DO UPDATE SET "secret" = EXCLUDED."secret", "updated_at" = now()',
+			[':channel' => (string) $channel, ':secret' => (string) $secret]);
 
 		return $secret;
 	}
@@ -251,7 +253,8 @@ class Service_Prx597_Bind extends Service_Prx597_Base
 	{
 		try
 		{
-			$value = self::_val('SELECT "mode" FROM "prx_597_bots" WHERE "channel" = '.self::_q(self::_channel($channel)), 'webhook');
+			$value = self::_val('SELECT "mode" FROM "prx_597_bots" WHERE "channel" = :channel', 'webhook',
+				[':channel' => (string) self::_channel($channel)]);
 		}
 		catch (Throwable $e)
 		{
@@ -269,10 +272,11 @@ class Service_Prx597_Bind extends Service_Prx597_Base
 			return FALSE;
 		}
 
-		self::_exec(Database::INSERT,
-			'INSERT INTO "prx_597_bots" ("channel", "mode", "secret", "updated_at")
-			 VALUES ('.self::_q(self::_channel($channel)).', '.self::_q($mode).', '.self::_q(self::secret($channel)).', now())
-			 ON CONFLICT ("channel") DO UPDATE SET "mode" = EXCLUDED."mode", "updated_at" = now()');
+		self::_exec('INSERT INTO "prx_597_bots" ("channel", "mode", "secret", "updated_at")
+			 VALUES (:channel, :mode, :secret, now())
+			 ON CONFLICT ("channel") DO UPDATE SET "mode" = EXCLUDED."mode", "updated_at" = now()',
+			[':channel' => (string) self::_channel($channel), ':mode' => (string) $mode,
+			 ':secret' => (string) self::secret($channel)]);
 
 		return TRUE;
 	}
@@ -540,7 +544,8 @@ class Service_Prx597_Bind extends Service_Prx597_Base
 	{
 		try
 		{
-			$row = self::_one('SELECT * FROM "prx_597_bots" WHERE "channel" = '.self::_q($channel).' LIMIT 1');
+			$row = self::_one('SELECT * FROM "prx_597_bots" WHERE "channel" = :channel LIMIT 1',
+			    [':channel' => (string) $channel]);
 		}
 		catch (Throwable $e)
 		{
@@ -552,18 +557,18 @@ class Service_Prx597_Bind extends Service_Prx597_Base
 
 	protected static function _bot_offset($channel, $offset)
 	{
-		self::_exec(Database::UPDATE,
-			'UPDATE "prx_597_bots" SET "update_offset" = '.((int) $offset).', "last_poll_at" = now(),
+		self::_exec('UPDATE "prx_597_bots" SET "update_offset" = '.((int) $offset).', "last_poll_at" = now(),
 			     "last_error" = NULL, "updated_at" = now()
-			 WHERE "channel" = '.self::_q($channel));
+			 WHERE "channel" = :channel',
+			[':channel' => (string) $channel]);
 	}
 
 	protected static function _bot_error($channel, $error)
 	{
-		self::_exec(Database::UPDATE,
-			'UPDATE "prx_597_bots" SET "last_error" = '.self::_q(self::_cut($error, 300)).',
+		self::_exec('UPDATE "prx_597_bots" SET "last_error" = :error,
 			     "last_poll_at" = now(), "updated_at" = now()
-			 WHERE "channel" = '.self::_q($channel));
+			 WHERE "channel" = :channel',
+			[':error' => (string) self::_cut($error, 300), ':channel' => (string) $channel]);
 	}
 
 	// ---------------------------------------------------------------- помощники

@@ -8,9 +8,8 @@
  *   * config()           — config/prx597_notifications.php как массив;
  *   * setting($key)      — настройка администратора (таблица prx_597_settings)
  *                          с умолчанием из конфига; секреты — только из env;
- *   * _db/_q/_one/_all/_exec — тонкая обёртка над Database (драйвер проекта
- *                          возвращает на SELECT результат, на остальном — число,
- *                          поэтому ->execute() поверх query() звать нельзя);
+ *   * _one/_all/_exec/_val   — тонкая обёртка над Prx_Db (параметры :name,
+ *                          ручной quote и склейка значений запрещены);
  *   * _bool()            — PostgreSQL BOOLEAN приходит строкой 't'/'f', а
  *                          (bool)'f' в PHP это TRUE. Это уже стоило проекту
  *                          «выключенных» настроек, которые оставались включены.
@@ -93,13 +92,10 @@ abstract class Service_Prx597_Base
 	/** Записать настройку администратора (атомарный upsert). */
 	public static function set_setting($key, $value)
 	{
-		$db = self::_db();
-
-		$db->query(Database::INSERT,
-			'INSERT INTO "prx_597_settings" ("key", "value", "updated_at")
-			 VALUES ('.$db->quote((string) $key).', '.$db->quote((string) $value).', now())
-			 ON CONFLICT ("key") DO UPDATE SET "value" = EXCLUDED."value", "updated_at" = now()',
-			FALSE);
+		Prx_Db::execute('INSERT INTO "prx_597_settings" ("key", "value", "updated_at")
+		 VALUES (:key, :value, now())
+		 ON CONFLICT ("key") DO UPDATE SET "value" = EXCLUDED."value", "updated_at" = now()',
+			[':key' => (string) $key, ':value' => (string) $value]);
 
 		self::forget_settings();
 
@@ -244,49 +240,28 @@ abstract class Service_Prx597_Base
 
 	// -------------------------------------------------------------------- БД
 
-	protected static function _db()
-	{
-		return Database::instance();
-	}
-
-	/** Кавычки для значения (все значения в SQL идут через него). */
-	protected static function _q($value)
-	{
-		return self::_db()->quote((string) $value);
-	}
-
 	/** Одна строка (массив) или NULL. */
-	protected static function _one($sql)
+	protected static function _one($sql, array $params = [])
 	{
-		$row = self::_db()->query(Database::SELECT, $sql, FALSE)->current();
-
-		return $row ? (array) $row : NULL;
+		return Prx_Db::one($sql, $params);
 	}
 
 	/** Все строки: массив массивов. */
-	protected static function _all($sql)
+	protected static function _all($sql, array $params = [])
 	{
-		$rows = self::_db()->query(Database::SELECT, $sql, FALSE)->as_array();
-		$out  = [];
-
-		foreach ($rows as $row)
-		{
-			$out[] = (array) $row;
-		}
-
-		return $out;
+		return Prx_Db::select($sql, $params);
 	}
 
 	/** Запрос без выборки: INSERT/UPDATE/DELETE/DDL. */
-	protected static function _exec($type, $sql)
+	protected static function _exec($sql, array $params = [])
 	{
-		return self::_db()->query($type, $sql, FALSE);
+		return Prx_Db::execute($sql, $params);
 	}
 
 	/** Скаляр: одно значение первой строки. */
-	protected static function _val($sql, $default = NULL)
+	protected static function _val($sql, $default = NULL, array $params = [])
 	{
-		$row = self::_one($sql);
+		$row = self::_one($sql, $params);
 
 		if ( ! $row)
 		{

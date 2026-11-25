@@ -80,7 +80,8 @@ abstract class Service_Prx597_Channel extends Service_Prx597_Base
 		{
 			$row = self::_one('SELECT * FROM "prx_597_channels"
 			                    WHERE "user_id" = '.((int) $user_id).'
-			                      AND "channel" = '.self::_q(self::id()).' LIMIT 1');
+			                      AND "channel" = :channel LIMIT 1',
+			    [':channel' => (string) self::id()]);
 		}
 		catch (Throwable $e)
 		{

@@ -6,12 +6,14 @@ final class Service_Prx597_EngineReports extends Service_Prx597_Base
 	public static function journal($limit = 100, array $filter = [])
 	{
 		$where = [];
+		$params = [];
 
 		$channel = trim((string) Arr::get($filter, 'channel', ''));
 
 		if ($channel !== '')
 		{
-			$where[] = 'l."channel" = '.self::_q($channel);
+			$where[] = 'l."channel" = :channel';
+			$params[':channel'] = (string) $channel;
 		}
 
 		$status = trim((string) Arr::get($filter, 'status', ''));
@@ -25,7 +27,8 @@ final class Service_Prx597_EngineReports extends Service_Prx597_Base
 
 		if ($event !== '')
 		{
-			$where[] = 'o."event_alias" = '.self::_q($event);
+			$where[] = 'o."event_alias" = :event';
+			$params[':event'] = (string) $event;
 		}
 
 		// Код события живёт в очереди, а не в журнале: джойним, чтобы в
@@ -37,7 +40,7 @@ final class Service_Prx597_EngineReports extends Service_Prx597_Base
 
 		try
 		{
-			return self::_all($sql);
+			return self::_all($sql, $params);
 		}
 		catch (Throwable $e)
 		{
@@ -49,10 +52,12 @@ final class Service_Prx597_EngineReports extends Service_Prx597_Base
 	{
 		$status = array_values(array_filter(array_map('strval', $status)));
 		$list   = [];
+		$params = [];
 
-		foreach ($status as $one)
+		foreach ($status as $i => $one)
 		{
-			$list[] = self::_q($one);
+			$list[] = ':st'.$i;
+			$params[':st'.$i] = (string) $one;
 		}
 
 		$sql = 'SELECT * FROM "prx_597_outbox"
@@ -62,7 +67,7 @@ final class Service_Prx597_EngineReports extends Service_Prx597_Base
 
 		try
 		{
-			$rows = self::_all($sql);
+			$rows = self::_all($sql, $params);
 		}
 		catch (Throwable $e)
 		{

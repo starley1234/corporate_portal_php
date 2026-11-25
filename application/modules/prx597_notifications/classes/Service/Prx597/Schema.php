@@ -340,11 +340,9 @@ SQL,
 	public static function ensure()
 	{
 		$errors = [];
-		$db = NULL;
 		$locked = FALSE;
 		try
 		{
-			$db = Database::instance();
 			$val = self::_val('SELECT pg_try_advisory_lock(597599)', FALSE);
 			if (self::_truthy($val))
 			{
@@ -367,7 +365,7 @@ SQL,
 			{
 				try
 				{
-					self::_exec(Database::UPDATE, $sql);
+					self::_exec($sql);
 				}
 				catch (Throwable $e)
 				{
@@ -383,9 +381,9 @@ SQL,
 		}
 		finally
 		{
-			if ($locked AND $db !== NULL)
+			if ($locked)
 			{
-				try { $db->query(Database::SELECT, 'SELECT pg_advisory_unlock(597599)', FALSE); } catch (Throwable $e) {}
+				try { Prx_Db::one('SELECT pg_advisory_unlock(597599)'); } catch (Throwable $e) {}
 			}
 		}
 

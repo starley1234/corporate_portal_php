@@ -30,8 +30,7 @@ trait Service_Prx597_Notify_Inbox
 
         try
         {
-            $row = self::_db()->query(Database::SELECT,
-                'SELECT "count" FROM "prx_597_unread" WHERE "user_id" = '.$user_id, FALSE)->current();
+            $row = self::_one('SELECT "count" FROM "prx_597_unread" WHERE "user_id" = '.$user_id);
 
             if ($row)
             {
@@ -43,16 +42,14 @@ trait Service_Prx597_Notify_Inbox
             // Таблицы счётчика нет — считаем по ленте ниже.
         }
 
-        $count = (int) self::_db()->query(Database::SELECT,
-            'SELECT count(*) AS c FROM prx_597_notifications
-             WHERE user_id = '.$user_id.' AND read_at IS NULL AND archived_at IS NULL', FALSE)->get('c');
+        $count = (int) self::_val('SELECT count(*) AS c FROM prx_597_notifications
+             WHERE user_id = '.$user_id.' AND read_at IS NULL AND archived_at IS NULL', 0);
 
         try
         {
-            self::_db()->query(Database::INSERT,
-                'INSERT INTO "prx_597_unread" ("user_id", "count", "updated_at")
+            self::_exec('INSERT INTO "prx_597_unread" ("user_id", "count", "updated_at")
                  VALUES ('.$user_id.', '.$count.', now())
-                 ON CONFLICT ("user_id") DO UPDATE SET "count" = EXCLUDED."count", "updated_at" = now()', FALSE);
+                 ON CONFLICT ("user_id") DO UPDATE SET "count" = EXCLUDED."count", "updated_at" = now()');
         }
         catch (Throwable $e)
         {
@@ -72,14 +69,12 @@ trait Service_Prx597_Notify_Inbox
             return 0;
         }
 
-        $count = (int) self::_db()->query(Database::SELECT,
-            'SELECT count(*) AS c FROM prx_597_notifications
-             WHERE user_id = '.$user_id.' AND read_at IS NULL AND archived_at IS NULL', FALSE)->get('c');
+        $count = (int) self::_val('SELECT count(*) AS c FROM prx_597_notifications
+             WHERE user_id = '.$user_id.' AND read_at IS NULL AND archived_at IS NULL', 0);
 
-        self::_db()->query(Database::INSERT,
-            'INSERT INTO "prx_597_unread" ("user_id", "count", "updated_at")
+        self::_exec('INSERT INTO "prx_597_unread" ("user_id", "count", "updated_at")
              VALUES ('.$user_id.', '.$count.', now())
-             ON CONFLICT ("user_id") DO UPDATE SET "count" = EXCLUDED."count", "updated_at" = now()', FALSE);
+             ON CONFLICT ("user_id") DO UPDATE SET "count" = EXCLUDED."count", "updated_at" = now()');
 
         return $count;
     }
@@ -88,13 +83,11 @@ trait Service_Prx597_Notify_Inbox
     public static function archive($user_id, array $ids = NULL)
     {
         self::ensure_tables();
-        $db = self::_db();
 
         if ($ids === NULL)
         {
-            $db->query(Database::UPDATE,
-                'UPDATE "prx_597_notifications" SET "archived_at" = now()
-                  WHERE "user_id" = '.((int) $user_id).' AND "read_at" IS NOT NULL AND "archived_at" IS NULL', FALSE);
+            self::_exec('UPDATE "prx_597_notifications" SET "archived_at" = now()
+                  WHERE "user_id" = '.((int) $user_id).' AND "read_at" IS NOT NULL AND "archived_at" IS NULL');
 
             return self::recount((int) $user_id);
         }
@@ -103,9 +96,8 @@ trait Service_Prx597_Notify_Inbox
 
         if ($ids)
         {
-            $db->query(Database::UPDATE,
-                'UPDATE "prx_597_notifications" SET "archived_at" = now()
-                  WHERE "user_id" = '.((int) $user_id).' AND "read_at" IS NOT NULL AND "id" IN ('.implode(',', $ids).')', FALSE);
+            self::_exec('UPDATE "prx_597_notifications" SET "archived_at" = now()
+                  WHERE "user_id" = '.((int) $user_id).' AND "read_at" IS NOT NULL AND "id" IN ('.implode(',', $ids).')');
         }
 
         return self::recount((int) $user_id);
@@ -118,10 +110,9 @@ trait Service_Prx597_Notify_Inbox
     public static function latest($user_id, $limit = 8, $with_archived = FALSE)
     {
         self::ensure_tables();
-        $rows = self::_db()->query(Database::SELECT,
-            'SELECT * FROM prx_597_notifications WHERE user_id = '.(int) $user_id
+        $rows = self::_all('SELECT * FROM prx_597_notifications WHERE user_id = '.(int) $user_id
             .($with_archived ? '' : ' AND archived_at IS NULL')
-            .' ORDER BY id DESC LIMIT '.(int) $limit, FALSE)->as_array();
+            .' ORDER BY id DESC LIMIT '.(int) $limit);
 
         foreach ($rows as &$row)
         {
@@ -164,13 +155,11 @@ trait Service_Prx597_Notify_Inbox
     public static function mark_read($user_id, array $ids = NULL)
     {
         self::ensure_tables();
-        $db = self::_db();
 
         if ($ids === NULL)
         {
-            $db->query(Database::UPDATE,
-                'UPDATE prx_597_notifications SET read_at = now()
-                 WHERE user_id = '.(int) $user_id.' AND read_at IS NULL', FALSE);
+            self::_exec('UPDATE prx_597_notifications SET read_at = now()
+                 WHERE user_id = '.(int) $user_id.' AND read_at IS NULL');
             self::recount((int) $user_id);
 
             return;
@@ -180,9 +169,8 @@ trait Service_Prx597_Notify_Inbox
 
         if ($ids)
         {
-            $db->query(Database::UPDATE,
-                'UPDATE prx_597_notifications SET read_at = now()
-                 WHERE user_id = '.(int) $user_id.' AND id IN ('.implode(',', $ids).')', FALSE);
+            self::_exec('UPDATE prx_597_notifications SET read_at = now()
+                 WHERE user_id = '.(int) $user_id.' AND id IN ('.implode(',', $ids).')');
         }
     }
 
@@ -190,10 +178,9 @@ trait Service_Prx597_Notify_Inbox
     public static function clear_read($user_id)
     {
         self::ensure_tables();
-        $c = (int) self::_db()->query(Database::SELECT,
-            'WITH d AS (DELETE FROM prx_597_notifications
+        $c = (int) self::_val('WITH d AS (DELETE FROM prx_597_notifications
                 WHERE user_id = '.(int) $user_id.' AND read_at IS NOT NULL RETURNING 1)
-             SELECT count(*) AS c FROM d', FALSE)->get('c');
+             SELECT count(*) AS c FROM d', 0);
 
         return $c;
     }

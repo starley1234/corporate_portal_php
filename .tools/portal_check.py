@@ -145,7 +145,6 @@ errors.extend(classes_lint_errors(ROOT))
 INFRA_SQL_MODULES = {'prx120_jobs', 'PostgreSQL', 'PostgreSQL_PDO'}
 LEGACY_SQL_MODULES = {
     'prx115_semantic',
-    'prx597_notifications',
 }
 RAW_DB_PATTERNS = ('Database::instance()', '->quote(')
 
