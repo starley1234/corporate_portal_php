@@ -90,16 +90,17 @@ class Service_Prx392_Analysis
 
         // Прогон и запись в prx120 фиксируются вместе; параллельные клики
         // для одного документа не должны создавать две задачи.
-        self::_db()->begin();
-        try
-        {
+        return Prx_Db::transaction(function () use ($document_id, $message_id, $profile_code, $profile, $restart, $input_hash, $actor) {
             self::_row('SELECT pg_advisory_xact_lock(392, '.$document_id.')');
             $existing = self::_row("
                 SELECT * FROM prx_392_runs
-                WHERE document_id = ".$document_id." AND profile = ".self::_q($profile_code)."
-                  ".($restart ? '' : 'AND input_hash = '.self::_q($input_hash))."
+                WHERE document_id = ".$document_id." AND profile = :profile
+                  ".($restart ? '' : 'AND input_hash = :input_hash')."
                 ORDER BY id DESC LIMIT 1
-            ");
+            ", [
+                ':profile'    => $profile_code,
+                ':input_hash' => $input_hash,
+            ]);
             if ($existing)
             {
                 $job = !empty($existing['job_id']) ? Service_Prx120_JobQueue::instance()->get((int) $existing['job_id']) : NULL;
@@ -109,7 +110,6 @@ class Service_Prx392_Analysis
                     && (int) ($payload['run_id'] ?? 0) === (int) $existing['id']
                     && in_array($job['status'], ['pending', 'processing'], TRUE)))
                 {
-                    self::_db()->commit();
                     return (int) $existing['id'];
                 }
                 if ($restart) $existing = NULL;
@@ -129,12 +129,18 @@ class Service_Prx392_Analysis
                     INSERT INTO prx_392_runs
                         (document_id, message_id, profile, model, prompt_version, schema_version, input_hash, status, created_by)
                     VALUES (
-                        ".$document_id.", ".$message_id.", ".self::_q($profile_code).", ".self::_q($profile['model']).",
-                        ".self::_q($profile['prompt_version']).", ".self::_q($profile['schema_version']).",
-                        ".self::_q($input_hash).", 'queued', ".self::_int_or_null($actor ? $actor->id() : NULL)."
+                        ".$document_id.", ".$message_id.", :profile, :model,
+                        :prompt_version, :schema_version,
+                        :input_hash, 'queued', "._int_or_null($actor ? $actor->id() : NULL)."
                     )
                     RETURNING id
-                ");
+                ", [
+                    ':profile'        => $profile_code,
+                    ':model'          => $profile['model'],
+                    ':prompt_version' => $profile['prompt_version'],
+                    ':schema_version' => $profile['schema_version'],
+                    ':input_hash'     => $input_hash,
+                ]);
 
             }
 
@@ -154,14 +160,8 @@ class Service_Prx392_Analysis
 
             self::_exec("UPDATE prx_392_runs SET job_id = ".(int) $job_id." WHERE id = ".$run_id);
 
-            self::_db()->commit();
             return $run_id;
-        }
-        catch (Throwable $e)
-        {
-            self::_db()->rollback();
-            throw $e;
-        }
+        });
     }
 
 
@@ -317,7 +317,7 @@ class Service_Prx392_Analysis
             INSERT INTO prx_392_suggestions (run_id, document_id, payload, confidence, status)
             VALUES (
                 ".(int) $run_id.", ".(int) $run['document_id'].",
-                ".self::_q(json_encode($normalized, JSON_UNESCAPED_UNICODE))."::jsonb,
+                :payload::jsonb,
                 ".self::_num_or_null($normalized['type_confidence']).", 'proposed'
             )
             ON CONFLICT (run_id) DO UPDATE SET payload = EXCLUDED.payload, confidence = EXCLUDED.confidence
@@ -612,11 +612,11 @@ class Service_Prx392_Analysis
 
         self::_exec("
             UPDATE prx_392_suggestions
-            SET status = ".self::_q(empty($overrides) ? 'accepted' : 'edited').",
+            SET status = :status,
                 reviewed_by = ".self::_int_or_null($actor ? $actor->id() : NULL).",
                 reviewed_at = now()
             WHERE id = ".(int) $suggestion_id."
-        ");
+        ", [':status' => empty($overrides) ? 'accepted' : 'edited']);
 
         return $result;
     }
@@ -649,9 +649,9 @@ class Service_Prx392_Analysis
     protected static function _fail_run($run_id, $error)
     {
         self::_exec("
-            UPDATE prx_392_runs SET status = 'failed', error = ".self::_q($error).", finished_at = now()
+            UPDATE prx_392_runs SET status = 'failed', error = :error, finished_at = now()
             WHERE id = ".(int) $run_id."
-        ");
+        ", [':error' => $error]);
     }
 
     protected static function _confidence($value)
@@ -673,16 +673,6 @@ class Service_Prx392_Analysis
     // Мини-слой БД
     // ------------------------------------------------------------------
 
-    protected static function _db()
-    {
-        return Database::instance();
-    }
-
-    protected static function _q($value)
-    {
-        return self::_db()->quote((string) $value);
-    }
-
     protected static function _int_or_null($value)
     {
         return ($value === NULL OR $value === '') ? 'NULL' : (string) (int) $value;
@@ -693,27 +683,18 @@ class Service_Prx392_Analysis
         return ($value === NULL OR $value === '') ? 'NULL' : (string) (float) $value;
     }
 
-    protected static function _row($sql)
+    protected static function _row($sql, array $params = [])
     {
-        $res = self::_db()->query(Database::SELECT, $sql, FALSE);
-        $row = $res->current();
-
-        return $row ?: NULL;
+        return Prx_Db::one($sql, $params);
     }
 
-    protected static function _all($sql)
+    protected static function _all($sql, array $params = [])
     {
-        $out = [];
-        foreach (self::_db()->query(Database::SELECT, $sql, FALSE) as $row)
-        {
-            $out[] = $row;
-        }
-
-        return $out;
+        return Prx_Db::select($sql, $params);
     }
 
-    protected static function _exec($sql)
+    protected static function _exec($sql, array $params = [])
     {
-        return self::_db()->query(Database::UPDATE, $sql, FALSE);
+        return Prx_Db::execute($sql, $params);
     }
 }

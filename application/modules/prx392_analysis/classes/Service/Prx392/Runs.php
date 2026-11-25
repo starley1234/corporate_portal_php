@@ -123,27 +123,13 @@ class Service_Prx392_Runs
         return $row;
     }
 
-    protected static function _db()
+    protected static function _row($sql, array $params = [])
     {
-        return Database::instance();
+        return Prx_Db::one($sql, $params);
     }
 
-    protected static function _row($sql)
+    protected static function _all($sql, array $params = [])
     {
-        $res = self::_db()->query(Database::SELECT, $sql, FALSE);
-        $row = $res->current();
-
-        return $row ?: NULL;
-    }
-
-    protected static function _all($sql)
-    {
-        $out = [];
-        foreach (self::_db()->query(Database::SELECT, $sql, FALSE) as $row)
-        {
-            $out[] = $row;
-        }
-
-        return $out;
+        return Prx_Db::select($sql, $params);
     }
 }

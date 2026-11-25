@@ -146,7 +146,7 @@ INFRA_SQL_MODULES = {'prx120_jobs', 'PostgreSQL', 'PostgreSQL_PDO'}
 LEGACY_SQL_MODULES = {
     'prx100_search', 'prx102_core', 'prx103_platform', 'prx115_semantic',
     'prx218_module_manager', 'prx300_employee', 'prx391_documents',
-    'prx392_analysis', 'prx395_document_extract', 'prx396_pdf_chunks',
+    'prx395_document_extract', 'prx396_pdf_chunks',
     'prx397_invoice', 'prx398_doc_router', 'prx560_knowledge', 'prx595_useradmin',
     'prx597_notifications',
 }
