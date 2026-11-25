@@ -95,7 +95,7 @@
                                    class="min-h-[40px] w-full rounded-lg border border-gray-300 bg-white px-3 text-[16px] text-gray-900 outline-none focus:border-blue-500 focus:ring-3 focus:ring-blue-500/15 sm:text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white">
                         </div>
                         <div id="gsearch-results" class="max-h-[60vh] overflow-y-auto sm:max-h-96">
-                            <p class="px-4 py-6 text-center text-xs text-gray-400">Ищет досье, компании, 3D-модели, базу знаний, организации и вакансии.</p>
+                            <p class="px-4 py-6 text-center text-xs text-gray-400">Ищет сервисы каталога<?php echo class_exists('Service_Prx100_Search') ? implode('', array_map(function ($l) { return ', '.HTML::chars(mb_strtolower((string) $l['label'])); }, Service_Prx100_Search::sources())) : ''; ?>.</p>
                         </div>
                     </div>
                 </div>

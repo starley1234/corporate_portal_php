@@ -42,4 +42,25 @@ return [
             'href' => '/prx300/admin/import/',
         ],
     ],
+
+    // Глобальный поиск (шапка): активные сотрудники справочника.
+    'search' => ['employee' => [
+        'label'  => 'Сотрудники',
+        'icon'   => 'fas fa-users',
+        'sort'   => 20,
+        'module' => 'prx300_employee',
+        'scope'  => 'all',
+        'sql'    => "SELECT 'employee' AS kind,"
+            ." (e.last_name || ' ' || e.first_name || ' ' || e.middle_name) AS t1,"
+            ." COALESCE(NULLIF(e.position_title, ''), e.work_email) AS t2,"
+            ." '' AS sub, '/employee/colleague/' || e.id AS url, e.created_at"
+            ." FROM prx_300_employees e"
+            ." WHERE e.employment_status <> 'terminated'"
+            ." AND (lower(e.last_name || ' ' || e.first_name || ' ' || e.middle_name) LIKE lower(:l)"
+            ." OR lower(e.work_email) LIKE lower(:l)"
+            ." OR lower(e.position_title) LIKE lower(:l)"
+            ." OR lower(e.personnel_number) LIKE lower(:l))"
+            ." ORDER BY e.last_name, e.first_name LIMIT :per",
+    ]],
+
 ];

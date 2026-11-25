@@ -43,4 +43,19 @@ return [
                                 SELECT id FROM prx_391_field_events WHERE created_at < now() - :old LIMIT :limit)',
         ],
     ],
+
+    // Глобальный поиск (шапка): карточки входящих документов по теме и рег. номеру.
+    'search' => ['document' => [
+        'label'  => 'Входящие документы',
+        'icon'   => 'fas fa-inbox',
+        'sort'   => 21,
+        'module' => 'prx391_documents',
+        'scope'  => 'all',
+        'sql'    => "SELECT 'document' AS kind, d.subject AS t1, d.reg_no AS t2,"
+            ." COALESCE(d.status, '') AS sub, '/prx391_documents/' || d.id AS url, d.created_at"
+            ." FROM prx_391_documents d"
+            ." WHERE d.subject ILIKE :l OR d.reg_no ILIKE :l"
+            ." ORDER BY d.created_at DESC LIMIT :per",
+    ]],
+
 ];

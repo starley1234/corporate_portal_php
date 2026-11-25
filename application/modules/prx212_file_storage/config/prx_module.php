@@ -20,4 +20,19 @@ return [
     'audience' => 'admin',
     'title' => 'Файловое хранилище',
     'short' => 'локальный и S3 бэкенды',
+
+    // Глобальный поиск (шапка): файлы хранилища по имени (карточка файла).
+    'search' => ['file' => [
+        'label'  => 'Файлы',
+        'icon'   => 'fas fa-folder-open',
+        'sort'   => 23,
+        'module' => 'prx212_file_storage',
+        'scope'  => 'all',
+        'sql'    => "SELECT 'file' AS kind, f.filename AS t1, f.mime_type AS t2,"
+            ." '' AS sub, '/prx212_file_storage/file/' || f.id AS url, f.created_at"
+            ." FROM prx_212_files f"
+            ." WHERE f.filename ILIKE :l"
+            ." ORDER BY f.created_at DESC LIMIT :per",
+    ]],
+
 ];

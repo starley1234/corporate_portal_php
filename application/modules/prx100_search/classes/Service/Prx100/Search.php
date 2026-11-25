@@ -13,7 +13,9 @@ class Service_Prx100_Search
      */
     public static function sources()
     {
-        $out = [];
+        // Сервисы каталога — встроенный источник (видны только доступные
+        // пользователю); сущности объявляют модули-владельцы секцией `search`.
+        $out = ['service' => ['label' => 'Сервисы', 'icon' => 'fas fa-grip']];
 
         foreach (Manifest::search() as $type => $spec)
         {
@@ -77,9 +79,48 @@ class Service_Prx100_Search
         $scope = $user_id ? 'AND user_id = '.(int) $user_id : '';
         $qenc  = '/prx560?q='.rawurlencode($like);
 
+        // Контекст пользователя — для фильтра аудитории источников и сервиса.
+        $ctx = class_exists('Service_Prx110_Catalog')
+            ? Service_Prx110_Catalog::user_context()
+            : ['admin' => FALSE, 'logged' => TRUE, 'guest' => FALSE, 'agent' => FALSE];
+        $manifests = Manifest::all();
+
+        // Встроенный источник «Сервисы»: карточки каталога, доступные
+        // текущему пользователю (search_json уже отфильтрован по аудитории).
+        if (isset($filter['service']) AND class_exists('Service_Prx110_Catalog'))
+        {
+            $qcmp = mb_strtolower($q);
+
+            foreach (Service_Prx110_Catalog::search_json($ctx)['items'] as $item)
+            {
+                $hay = mb_strtolower($item['title'].' '.$item['short'].' '.$item['keywords']);
+
+                if ($qcmp !== '' AND mb_stripos($hay, $qcmp) === FALSE) { continue; }
+
+                $out[] = [
+                    'kind'  => 'Сервисы',
+                    'type'  => 'service',
+                    'title' => (string) $item['title'],
+                    'sub'   => trim((string) $item['short']),
+                    'url'   => (string) $item['href'],
+                    'ts'    => PHP_INT_MAX, // сервисы — вверху выдачи
+                ];
+            }
+        }
+
         foreach (Manifest::search() as $type => $spec)
         {
             if (Arr::get($spec, 'scope') === 'user' AND ! $user_id) { continue; }
+
+            // Источник виден только той аудитории, которой виден его модуль
+            // (например, «База знаний» и «Файлы» — только админам).
+            $mod = (string) Arr::get($spec, 'module', '');
+            if ($mod !== '' AND isset($manifests[$mod])
+                AND ($manifests[$mod]['audience'] ?? 'auth') === 'admin' AND empty($ctx['admin']))
+            {
+                continue;
+            }
+
             $sql = (string) Arr::get($spec, 'sql', '');
 
             // не вошёл в фильтр only_types или объявлен без запроса
