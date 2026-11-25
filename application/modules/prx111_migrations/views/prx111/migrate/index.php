@@ -32,6 +32,7 @@ $dark_init = 'try{if(localStorage.getItem("theme")==="dark"||(!localStorage.getI
         'lead'   => 'Проверка и обновление структуры базы без командной строки.',
     ]); ?>
 
+    <div class="mt-5 space-y-5">
     <?php if ( ! empty($configuration_warning)): ?>
         <div role="alert" class="prx-flash prx-flash-err block"><strong>Ошибка настройки баз:</strong> <?php echo HTML::chars($configuration_warning); ?></div>
     <?php endif; ?>
@@ -126,5 +127,6 @@ $dark_init = 'try{if(localStorage.getItem("theme")==="dark"||(!localStorage.getI
     </div>
 
     <p><a href="/" class="text-sm font-semibold text-blue-600 hover:underline dark:text-blue-400">← На главную PRX</a></p>
+    </div><!-- /space-y -->
 </div>
 </body></html>
