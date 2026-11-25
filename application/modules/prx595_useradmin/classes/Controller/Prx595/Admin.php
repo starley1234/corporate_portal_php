@@ -34,16 +34,20 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
     /** GET /prx595/admin — список пользователей (+поиск ?q=, ?page=). */
     public function action_index()
     {
-        $q   = trim((string) $this->request->query('q'));
-        $per = 30;
+        $q    = trim((string) $this->request->query('q'));
+        $per  = 30;
         $page = max(1, (int) $this->request->query('page'));
+        // Вкладка списка: активные по умолчанию, деактивированные — отдельно
+        // (?show=inactive), чтобы списки по умолчанию не засорялись.
+        $show = (string) $this->request->query('show') === 'inactive' ? 'inactive' : 'active';
         $params = [];
-        $where = '';
+        $conds = [$show === 'inactive' ? 'u.active = FALSE' : 'u.active = TRUE'];
         if ($q !== '')
         {
-            $where = 'WHERE u.email ILIKE :like OR u.username ILIKE :like';
+            $conds[] = '(u.email ILIKE :like OR u.username ILIKE :like)';
             $params[':like'] = '%'.$q.'%';
         }
+        $where = 'WHERE '.implode(' AND ', $conds);
 
         try
         {
@@ -76,7 +80,46 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
             'me_id'  => (int) $this->_current_user->id,
             'csrf'   => Security::token(),
             'flash'  => isset($_GET['flash']) ? (string) $_GET['flash'] : '',
+            'show'   => $show,
         ]);
+    }
+
+    /** POST /prx595/admin/state/<id> — деактивировать/вернуть пользователя. */
+    public function action_state()
+    {
+        $id = (int) $this->request->param('id');
+
+        if ($this->request->method() !== Request::POST
+            OR ! Security::check((string) Arr::get($_POST, 'csrf', '')))
+        {
+            $this->redirect('/prx595/admin/user/'.$id.'?flash='.urlencode('Сессия устарела'));
+        }
+
+        $activate = (string) Arr::get($_POST, 'state') === 'activate';
+
+        if ($id === (int) $this->_current_user->id)
+        {
+            $this->redirect('/prx595/admin/user/'.$id.'?flash='.urlencode('Себя деактивировать нельзя'));
+        }
+
+        try
+        {
+            Prx_Db::execute(
+                'UPDATE users SET active = :active, updated_at = now() WHERE id = :id',
+                [':active' => $activate ? 'true' : 'false', ':id' => $id]);
+
+            Log_Plain::event(Log::NOTICE, 'prx595 user_id=:id state=:state by=:by', [
+                ':id' => $id, ':state' => $activate ? 'activated' : 'deactivated',
+                ':by' => (int) $this->_current_user->id,
+            ]);
+            $msg = $activate ? 'Пользователь возвращён' : 'Пользователь деактивирован: вход закрыт, роли сохранены';
+        }
+        catch (Throwable $e)
+        {
+            $msg = 'Не удалось: '.mb_substr($e->getMessage(), 0, 160);
+        }
+
+        $this->redirect('/prx595/admin/user/'.$id.'?flash='.urlencode($msg));
     }
 
     /** POST /prx595/admin/create — создать пользователя (email, username, пароль, роль admin?). */
@@ -120,6 +163,9 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
                 $user->email    = $email;
                 $user->username = $username;
                 $user->password = $password; // ORM Auth сам хэширует при записи
+                // Создан администратором: подтверждение почты не требуется
+                // (письмо с токеном этому пользователю не отправляется).
+                $user->email_confirmed = 1;
                 $user->create();
 
                 Prx_Db::execute(
@@ -177,6 +223,7 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
             'me_id'  => (int) $this->_current_user->id,
             'csrf'   => Security::token(),
             'flash'  => isset($_GET['flash']) ? (string) $_GET['flash'] : '',
+            'is_me'  => (int) $user->id === (int) $this->_current_user->id,
         ]);
     }
 

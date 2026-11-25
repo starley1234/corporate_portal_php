@@ -93,6 +93,14 @@ abstract class Controller_Prx102_Base extends Controller {
         if (Auth::instance()->logged_in('login'))
         {
             $user_model = Auth::instance()->get_user();
+            // Деактивированный не ходит по сайту: живая сессия закрывается на
+            // первом же запросе после выключения (prx595).
+            if (isset($user_model->active) AND ! (int) $user_model->active)
+            {
+                Auth::instance()->logout();
+                throw HTTP_Exception::factory(302)->location(
+                    '/auth/login?flash='.urlencode('Аккаунт деактивирован администратором'));
+            }
             $this->_current_user = $user_model;
 
             $roles = [];

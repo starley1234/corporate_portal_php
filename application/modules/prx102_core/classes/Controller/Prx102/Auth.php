@@ -19,6 +19,8 @@ class Controller_Prx102_Auth extends Controller_Prx102_Base {
 
         if ($this->request->method() === Request::POST)
         {
+            // AUTH_REQUIRE_EMAIL_CONFIRMATION=0 в .env — подтверждение почты не требуется
+            $require_confirm = getenv('AUTH_REQUIRE_EMAIL_CONFIRMATION') !== '0';
             $username = $this->request->post('username');
             $password = $this->request->post('password');
             $remember = (bool) $this->request->post('remember');
@@ -26,7 +28,12 @@ class Controller_Prx102_Auth extends Controller_Prx102_Base {
             if (Auth::instance()->login($username, $password, $remember))
             {
                 $user = Auth::instance()->get_user();
-                if ($user->email_confirmed != 1)
+                if (isset($user->active) AND ! (int) $user->active)
+                {
+                    Auth::instance()->logout();
+                    $errors[] = 'Аккаунт деактивирован администратором.';
+                }
+                elseif ($require_confirm AND $user->email_confirmed != 1)
                 {
                     Auth::instance()->logout();
                     $errors[] = 'Пожалуйста, подтвердите ваш email.';

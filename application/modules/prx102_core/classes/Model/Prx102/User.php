@@ -21,6 +21,7 @@ class Model_Prx102_User extends Model_Auth_User {
         'logins'                => ['type' => 'int'],
         'last_login'            => ['type' => 'int'],
         'last_ip'               => ['type' => 'string'],
+        'active'                => ['type' => 'int'],
         'email_confirmed'       => ['type' => 'int'],
         'confirmation_token'    => ['type' => 'string'],
         'failed_login_attempts' => ['type' => 'int'],

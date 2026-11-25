@@ -24,6 +24,15 @@ $role_badge = function ($name) {
     </div>
     <?php endif; ?>
 
+    <div class="mt-4 flex flex-wrap items-center gap-2 text-xs font-semibold">
+        <a href="/prx595/admin" class="prx-btn-sm <?php echo ($show ?? 'active') === 'active' ? 'prx-btn-cta' : 'prx-btn-secondary'; ?>">
+            <i class="fas fa-users mr-1"></i>Активные
+        </a>
+        <a href="/prx595/admin?show=inactive" class="prx-btn-sm <?php echo ($show ?? 'active') === 'inactive' ? 'prx-btn-cta' : 'prx-btn-secondary'; ?>">
+            <i class="fas fa-user-slash mr-1"></i>Деактивированные
+        </a>
+    </div>
+
     <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div class="prx-card">
             <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Пользователей</p>

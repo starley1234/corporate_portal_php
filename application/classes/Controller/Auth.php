@@ -79,6 +79,8 @@ class Controller_Auth extends Controller_Prx102_Auth {
 
         if ($this->request->method() === Request::POST)
         {
+            // AUTH_REQUIRE_EMAIL_CONFIRMATION=0 в .env — подтверждение почты не требуется
+            $require_confirm = getenv('AUTH_REQUIRE_EMAIL_CONFIRMATION') !== '0';
             if (! Security::check((string) $this->request->post('csrf')))
             {
                 throw HTTP_Exception::factory(403, 'Сессия формы устарела');
@@ -86,7 +88,12 @@ class Controller_Auth extends Controller_Prx102_Auth {
             if (Auth::instance()->login($this->request->post('username'), $this->request->post('password'), (bool)$this->request->post('remember')))
             {
                 $user = Auth::instance()->get_user();
-                if ($user->email_confirmed != 1)
+                if (isset($user->active) AND ! (int) $user->active)
+                {
+                    Auth::instance()->logout();
+                    $errors[] = 'Аккаунт деактивирован администратором.';
+                }
+                elseif ($require_confirm AND $user->email_confirmed != 1)
                 {
                     Auth::instance()->logout();
                     $errors[] = 'Пожалуйста, подтвердите ваш email.';
