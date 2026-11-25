@@ -66,42 +66,41 @@ class Service_Prx218_Scanner {
             $module_path = $fileinfo->getRealPath();
             $metadata = $this->_extract_metadata($module_path);
             
-            $db = Database::instance();
-            $db->begin();
-            
             try 
             {
-                $module = ORM::factory('Prx218_Module')
-                    ->where('system_name', '=', $system_name)
-                    ->find();
+                [$module, $is_new] = Prx_Db::transaction(function () use ($system_name, $module_path, $metadata, $user_id) {
+                    $module = ORM::factory('Prx218_Module')
+                        ->where('system_name', '=', $system_name)
+                        ->find();
 
-                $is_new = ! $module->loaded();
+                    $is_new = ! $module->loaded();
                 
-                $data = [
-                    'system_name'  => $system_name,
-                    'display_name' => ($metadata['name'] ?? '') ?: $system_name,
-                    // 'description'  => Arr::get($metadata, 'description'),
-                    'version'      => Arr::get($metadata, 'version', '1.0.0'),
-                    'path'         => $module_path,
-                    'created_by'   => $user_id,
-                ];
+                    $data = [
+                        'system_name'  => $system_name,
+                        'display_name' => ($metadata['name'] ?? '') ?: $system_name,
+                        // 'description'  => Arr::get($metadata, 'description'),
+                        'version'      => Arr::get($metadata, 'version', '1.0.0'),
+                        'path'         => $module_path,
+                        'created_by'   => $user_id,
+                    ];
 
-                if ($is_new)
-                {
-                    $module->values($data)->save();
+                    if ($is_new)
+                    {
+                        $module->values($data)->save();
                     
-                    // Создаем запись для LLM анализа
-                    $this->_init_llm_analysis($module->id, Arr::get($metadata, 'raw_readme'), $user_id);
-                }
-                else
-                {
-                    // Обновляем только путь и описание, если оно изменилось
-                    $module->path = $module_path;
-                    // if (empty($module->description)) $module->description = $data['description'];
-                    $module->save();
-                }
+                        // Создаем запись для LLM анализа
+                        $this->_init_llm_analysis($module->id, Arr::get($metadata, 'raw_readme'), $user_id);
+                    }
+                    else
+                    {
+                        // Обновляем только путь и описание, если оно изменилось
+                        $module->path = $module_path;
+                        // if (empty($module->description)) $module->description = $data['description'];
+                        $module->save();
+                    }
 
-                $db->commit();
+                    return [$module, $is_new];
+                });
                 $stats[$is_new ? 'created' : 'updated']++;
 
                 // После коммита: подписчик читает уже сохранённый модуль.
@@ -116,7 +115,6 @@ class Service_Prx218_Scanner {
             }
             catch (Exception $e)
             {
-                $db->rollback();
                 Kohana_Exception::log($e);
                 $stats['skipped']++;
             }
@@ -219,21 +217,20 @@ class Service_Prx218_Scanner {
             throw new Validation_Exception($validation);
         }
 
-        $db = Database::instance();
-        $db->begin();
-
         try
         {
-            $dependency = ORM::factory('Prx218_Dependency');
-            $dependency_values = [
-                'module_id'          => $data['module_id'],
-                'required_module_id' => $data['required_module_id'],
-                'min_version'        => Arr::get($data, 'min_version'),
-                'created_by'         => $user_id
-            ];
-            $dependency->values($dependency_values)->save();
+            $dependency = Prx_Db::transaction(function () use ($data, $user_id) {
+                $dependency = ORM::factory('Prx218_Dependency');
+                $dependency_values = [
+                    'module_id'          => $data['module_id'],
+                    'required_module_id' => $data['required_module_id'],
+                    'min_version'        => Arr::get($data, 'min_version'),
+                    'created_by'         => $user_id
+                ];
+                $dependency->values($dependency_values)->save();
 
-            $db->commit();
+                return $dependency;
+            });
 
             Event::publish('prx218.dependency.added', [
                 'dependency_id'      => (int) $dependency->id,
@@ -246,7 +243,6 @@ class Service_Prx218_Scanner {
         }
         catch (Exception $e)
         {
-            $db->rollback();
             throw $e;
         }
     }

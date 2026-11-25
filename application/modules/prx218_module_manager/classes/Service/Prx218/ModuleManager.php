@@ -74,15 +74,12 @@ class Service_Prx218_ModuleManager {
      */
     public function update_module_metadata(Model_Prx218_Module $module, array $data, ?int $actor_id = NULL)
     {
-        $db = Database::instance();
-        $db->begin();
-
         try
         {
-            $module->values($data);
-            $module->save();
-
-            $db->commit();
+            Prx_Db::transaction(function () use ($module, $data) {
+                $module->values($data);
+                $module->save();
+            });
 
             Audit::log('module_manager', 'metadata_updated', $module->id, $data);
             Event::publish('prx218.module.metadata_updated', [
@@ -95,7 +92,6 @@ class Service_Prx218_ModuleManager {
         }
         catch (Exception $e)
         {
-            $db->rollback();
             Kohana_Exception::log($e);
             throw new Kohana_Exception('Failed to update module metadata: :error', [':error' => $e->getMessage()]);
         }
@@ -124,16 +120,14 @@ class Service_Prx218_ModuleManager {
             throw new Kohana_Exception('Invalid module status: :status', [':status' => $new_status]);
         }
 
-        $db = Database::instance();
-        $db->begin();
+        $old_status = $module->status;
 
         try
         {
-            $old_status = $module->status;
-            $module->status = $new_status;
-            $module->save();
-
-            $db->commit();
+            Prx_Db::transaction(function () use ($module, $new_status) {
+                $module->status = $new_status;
+                $module->save();
+            });
 
             Audit::log('module_manager', 'status_changed', $module->id, ['old_status' => $old_status, 'new_status' => $new_status]);
             Event::publish('prx218.module.status_changed', [
@@ -147,7 +141,6 @@ class Service_Prx218_ModuleManager {
         }
         catch (Exception $e)
         {
-            $db->rollback();
             Kohana_Exception::log($e);
             throw new Kohana_Exception('Failed to update module status: :error', [':error' => $e->getMessage()]);
         }
@@ -173,24 +166,23 @@ class Service_Prx218_ModuleManager {
             throw new Kohana_Exception('Module with ID :id not found', [':id' => $module_id]);
         }
 
-        $db = Database::instance();
-        $db->begin();
-
         try
         {
-            $history = ORM::factory('Prx218_History');
-            $history->module_id = $module_id;
-            $history->version = $version;
-            $history->change_log = $change_log;
-            $history->release_date = $release_date ?: date('Y-m-d');
-            $history->created_by = $user_id;
-            $history->save();
+            $history = Prx_Db::transaction(function () use ($module_id, $version, $change_log, $release_date, $user_id, $module) {
+                $history = ORM::factory('Prx218_History');
+                $history->module_id = $module_id;
+                $history->version = $version;
+                $history->change_log = $change_log;
+                $history->release_date = $release_date ?: date('Y-m-d');
+                $history->created_by = $user_id;
+                $history->save();
 
-            // Обновляем текущую версию модуля
-            $module->version = $version;
-            $module->save();
+                // Обновляем текущую версию модуля
+                $module->version = $version;
+                $module->save();
 
-            $db->commit();
+                return $history;
+            });
 
             Audit::log('module_manager', 'version_history_added', $module->id, ['version' => $version, 'change_log' => $change_log]);
             Event::publish('prx218.module.version_history_added', [
@@ -205,7 +197,6 @@ class Service_Prx218_ModuleManager {
         }
         catch (Exception $e)
         {
-            $db->rollback();
             Kohana_Exception::log($e);
             throw new Kohana_Exception('Failed to add version history: :error', [':error' => $e->getMessage()]);
         }
@@ -228,21 +219,18 @@ class Service_Prx218_ModuleManager {
             throw new Kohana_Exception('Module with ID :id not found', [':id' => $module_id]);
         }
 
-        $db = Database::instance();
-        $db->begin();
-
         try
         {
-            $module->is_deleted = 1;
-            $module->save();
+            Prx_Db::transaction(function () use ($module, $module_id) {
+                $module->is_deleted = 1;
+                $module->save();
 
-            // Также мягко удаляем связанные зависимости, историю и LLM-анализ
-            DB::update('prx_218_dependencies')->set(['is_deleted' => 1])->where('module_id', '=', $module_id)->execute();
-            DB::update('prx_218_dependencies')->set(['is_deleted' => 1])->where('required_module_id', '=', $module_id)->execute();
-            DB::update('prx_218_version_history')->set(['is_deleted' => 1])->where('module_id', '=', $module_id)->execute();
-            DB::update('prx_218_llm_analysis')->set(['is_deleted' => 1])->where('module_id', '=', $module_id)->execute();
-
-            $db->commit();
+                // Также мягко удаляем связанные зависимости, историю и LLM-анализ
+                DB::update('prx_218_dependencies')->set(['is_deleted' => 1])->where('module_id', '=', $module_id)->execute();
+                DB::update('prx_218_dependencies')->set(['is_deleted' => 1])->where('required_module_id', '=', $module_id)->execute();
+                DB::update('prx_218_version_history')->set(['is_deleted' => 1])->where('module_id', '=', $module_id)->execute();
+                DB::update('prx_218_llm_analysis')->set(['is_deleted' => 1])->where('module_id', '=', $module_id)->execute();
+            });
 
             Audit::log('module_manager', 'module_deleted', $module->id);
             Event::publish('prx218.module.deleted', [
@@ -254,7 +242,6 @@ class Service_Prx218_ModuleManager {
         }
         catch (Exception $e)
         {
-            $db->rollback();
             Kohana_Exception::log($e);
             throw new Kohana_Exception('Failed to delete module: :error', [':error' => $e->getMessage()]);
         }
@@ -277,20 +264,17 @@ class Service_Prx218_ModuleManager {
             throw new Kohana_Exception('Module with ID :id not found', [':id' => $module_id]);
         }
 
-        $db = Database::instance();
-        $db->begin();
-
         try
         {
-            $module->is_deleted = 0;
-            $module->save();
+            Prx_Db::transaction(function () use ($module, $module_id) {
+                $module->is_deleted = 0;
+                $module->save();
 
-            // Восстанавливаем связанные записи
-            DB::update('prx_218_dependencies')->set(['is_deleted' => 0])->where('module_id', '=', $module_id)->execute();
-            DB::update('prx_218_version_history')->set(['is_deleted' => 0])->where('module_id', '=', $module_id)->execute();
-            DB::update('prx_218_llm_analysis')->set(['is_deleted' => 0])->where('module_id', '=', $module_id)->execute();
-
-            $db->commit();
+                // Восстанавливаем связанные записи
+                DB::update('prx_218_dependencies')->set(['is_deleted' => 0])->where('module_id', '=', $module_id)->execute();
+                DB::update('prx_218_version_history')->set(['is_deleted' => 0])->where('module_id', '=', $module_id)->execute();
+                DB::update('prx_218_llm_analysis')->set(['is_deleted' => 0])->where('module_id', '=', $module_id)->execute();
+            });
 
             Audit::log('module_manager', 'module_restored', $module->id);
             Event::publish('prx218.module.restored', [
@@ -302,7 +286,6 @@ class Service_Prx218_ModuleManager {
         }
         catch (Exception $e)
         {
-            $db->rollback();
             Kohana_Exception::log($e);
             throw new Kohana_Exception('Failed to restore module: :error', [':error' => $e->getMessage()]);
         }

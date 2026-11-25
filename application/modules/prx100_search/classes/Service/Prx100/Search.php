@@ -66,17 +66,16 @@ class Service_Prx100_Search
         $cap = (int) ($cfg ? $cfg->get('total_cap', 40) : 40);
 
         $like = self::_escape_like($q);
-        $db   = Database::instance();
         $out  = [];
 
         // Что искать — объявляет владелец таблицы (секция `search` его манифеста).
         // Как искать — сортировку, лимит на источник и общий потолок — решает
         // агрегатор. Пользовательский запрос попадает в SQL только через
-        // плейсхолдеры, и только пропущенным через Database::quote().
+        // плейсхолдеры :l/:qenc — их подставляет Prx_Db (quote на стороне ядра).
         //
         // Пробел перед :scope уже стоит в шаблоне — здесь его быть не должно.
         $scope = $user_id ? 'AND user_id = '.(int) $user_id : '';
-        $qenc  = $db->quote('/prx560?q='.rawurlencode($like));
+        $qenc  = '/prx560?q='.rawurlencode($like);
 
         foreach (Manifest::search() as $type => $spec)
         {
@@ -92,14 +91,15 @@ class Service_Prx100_Search
             $label = (string) Arr::get($spec, 'label', $type);
             $sql   = strtr($sql, [
                 ':scope' => Arr::get($spec, 'scope') === 'user' ? $scope : '',
-                ':qenc'  => $qenc,
                 ':per'   => (string) (int) $per,
-                ':l'     => $db->quote('%'.$like.'%'),
             ]);
 
             try
             {
-                $rows = $db->query(Database::SELECT, $sql, FALSE)->as_array();
+                $rows = Prx_Db::select($sql, [
+                    ':qenc' => $qenc,
+                    ':l'    => '%'.$like.'%',
+                ]);
             }
             catch (Throwable $e)
             {

@@ -53,11 +53,9 @@ class Task_Auth_User extends Minion_Task {
 			return 1;
 		}
 
-		$db = Database::instance();
-
-		$exists = $db->query(Database::SELECT,
-			'SELECT id FROM users WHERE email = '.$db->quote($email)
-			.' OR username = '.$db->quote($username).' LIMIT 1');
+		$exists = Prx_Db::select(
+			'SELECT id FROM users WHERE email = :email OR username = :username LIMIT 1',
+			[':email' => $email, ':username' => $username]);
 
 		if (count($exists) > 0)
 		{
@@ -77,15 +75,17 @@ class Task_Auth_User extends Minion_Task {
 			$user->email_confirmed = 1;
 			$user->create();
 
-			$db->query(Database::SELECT,
+			Prx_Db::execute(
 				'INSERT INTO roles_users (user_id, role_id)
-				 SELECT '.(int) $user->id.', id FROM roles WHERE name = \'login\'', FALSE);
+				 SELECT :uid, id FROM roles WHERE name = \'login\'',
+				[':uid' => (int) $user->id]);
 
 			if ($as_admin)
 			{
-				$db->query(Database::SELECT,
+				Prx_Db::execute(
 					'INSERT INTO roles_users (user_id, role_id)
-					 SELECT '.(int) $user->id.', id FROM roles WHERE name = \'admin\'', FALSE);
+					 SELECT :uid, id FROM roles WHERE name = \'admin\'',
+					[':uid' => (int) $user->id]);
 			}
 
 			Minion_CLI::write('✔ Пользователь создан: '.$username.' (id '.$user->id.')'
