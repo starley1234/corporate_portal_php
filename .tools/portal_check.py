@@ -128,9 +128,21 @@ from classes_lint import errors as classes_lint_errors  # noqa: E402
 
 errors.extend(classes_lint_errors(ROOT))
 
+# Стиль SQL (docs/FOUNDATION.md §2, docs/SKELETON-ADR.md Д1): бизнес-код модулей
+# идёт через Prx_Db, а не склеивает SQL с ручным $db->quote(). Это отчёт о долге
+# миграции, а не ошибка: legacy приводим по мере захода, но новые модули должны
+# быть чистыми, иначе список начнёт расти.
+raw_sql_modules = set()
+for path in (ROOT / 'application/modules').glob('*/classes/Service/**/*.php'):
+    if '->quote(' in path.read_text(encoding='utf-8'):
+        raw_sql_modules.add(path.relative_to(ROOT / 'application/modules').parts[0])
+
 if errors:
     print('\n'.join('FAIL: ' + item for item in errors))
     sys.exit(1)
+if raw_sql_modules:
+    print('note: SQL-стиль — склейка/quote() вне Prx_Db (долг миграции, не ошибка): '
+          + ', '.join(sorted(raw_sql_modules)))
 optional_count = sum(status == '$docflow_status' for _, status in plan_entries)
 planned_count = sum(status == 'planned' for _, status in plan_entries)
 print(f'PRX contracts OK: {len(registered)} available modules, {len(classes)} PHP classes, '

@@ -16,3 +16,9 @@ Route::set('prx599_2fa', 'auth/2fa')
         'controller' => 'Auth',
         'action'     => '2fa',
     ]);
+
+// «Выйти везде»: сторож сессии, который база страницы вызывает через точку
+// расширения (docs/SKELETON-ADR.md Д2). Без модуля проверок нет.
+Prx_Hooks::on('auth.session_check', function ($user_id) {
+    return Service_Prx599_Account::session_valid($user_id);
+});

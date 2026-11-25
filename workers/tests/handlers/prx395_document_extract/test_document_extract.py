@@ -41,8 +41,19 @@ async def test_remote_multipart_query_and_content_contract(blank_pdf, remote, mo
                       "pages_processed": None, "warnings": []}
 
 
+@pytest.mark.asyncio
+async def test_remote_accepts_legacy_text_field(blank_pdf, remote):
+    """Старый контракт шлюза отдаёт `text`; принимаем как фолбэк к `content`."""
+
+    def adapter(req):
+        return httpx.Response(200, json={"text": "legacy contract"})
+
+    result = await ocr.extract_remote(blank_pdf, 1, transport=httpx.MockTransport(adapter))
+    assert result["text"] == "legacy contract"
+    assert result["provider"] == "remote"
+
+
 @pytest.mark.parametrize(("status", "body", "error", "kind"), [
-    (200, {"text": "legacy"}, "ocr_invalid_response", PermanentJobError),
     (200, {"content": "   "}, "no_text", PermanentJobError),
     (200, {"content": "Текст", "pages": 0}, "ocr_incomplete", PermanentJobError),
     (401, {}, "ocr_auth", PermanentJobError),

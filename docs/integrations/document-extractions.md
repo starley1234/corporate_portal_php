@@ -41,8 +41,9 @@ Tesseract, ответ `202` + polling, срок хранения настраи�
      **от имени процесса воркера**. На Debian/Ubuntu это `poppler-utils`,
      `tesseract-ocr`, `tesseract-ocr-rus`, `tesseract-ocr-eng`.
    - `OCR_PROVIDER=remote`: укажите полный `OCR_SERVICE_URL` до `/parse`.
-     Запрос `POST`, `multipart file`, query `engine=auto&output_format=md&do_ocr=true`,
-     ответ JSON с `content`. `OCR_EXTRA_PARAMS` добавляет query-параметры,
+     Запрос `POST`, `multipart file`, query `engine=auto&output_format=md&ocr=true`,
+     ответ JSON с `content` (старое поле `text` принимается как фолбэк).
+     `OCR_EXTRA_PARAMS` добавляет query-параметры,
      `OCR_API_KEY` / `OCR_AUTH_HEADER_NAME` — опциональная авторизация;
      `OCR_TIMEOUT` по умолчанию 120 с, таймаут попытки очереди —
      `PRX395_TASK_TIMEOUT_SEC` (по умолчанию 300 с).

@@ -3,34 +3,10 @@
 /**
  * Публичная ошибка машинного API: стабильный код + HTTP-статус.
  *
- * В коде и details нет внутренних путей, токенов и чужих данных. Ответ
- * всегда одинаковый: {"error":{"code":"…","details":{…}}}.
+ * Частный случай `Prx_DomainError`: тот же код/статус/детали и payload
+ * `{"error":{"code","details"}}`, но с явным намерением «это ответ машинного
+ * канала». Сервисы модулей бросают `Prx_DomainError` (или своего наследника) и
+ * не зависят от prx150; `Controller_Prx150_Machine::respond()` ловит общий
+ * `Prx_DomainError`, поэтому ловит и то, и другое.
  */
-class Prx150_Error extends RuntimeException
-{
-    private array $details;
-
-    public function __construct(string $code, int $status, array $details = [])
-    {
-        parent::__construct($code);
-        $this->code = $status;
-        $this->details = $details;
-    }
-
-    public function details(): array
-    {
-        return $this->details;
-    }
-
-    public function payload(): array
-    {
-        $error = ['code' => $this->getMessage()];
-
-        if ($this->details !== [])
-        {
-            $error['details'] = $this->details;
-        }
-
-        return ['error' => $error];
-    }
-}
+class Prx150_Error extends Prx_DomainError {}

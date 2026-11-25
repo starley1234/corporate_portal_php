@@ -17,6 +17,12 @@
  * с quoting. Идентификаторы (таблицы/колонки) — только через identifier().
  * Это не ORM и не query builder: сложные запросы остаются SQL, но без ручной
  * склейки значений.
+ *
+ * Соединение: по умолчанию — дефолтное. Если операции нужен конкретный коннект
+ * (например, очередь prx120 и её транзакция), передайте его третьим аргументом
+ * `$db`: тогда значения остаются именованными, а ручной quote() не нужен.
+ * `Database::instance()` и `$db->quote()` — только внутри инфраструктуры
+ * (Prx_Db, Prx_Idempotency, prx120), не в бизнес-коде модулей.
  */
 final class Prx_Db
 {
@@ -24,39 +30,37 @@ final class Prx_Db
     private static array $transactions = [];
 
     /** @return array<int, array> */
-    public static function select(string $sql, array $params = []): array
+    public static function select(string $sql, array $params = [], ?Database $db = NULL): array
     {
-        return DB::query(Database::SELECT, $sql)
-            ->parameters($params)
-            ->execute()
-            ->as_array();
+        return self::_run(Database::SELECT, $sql, $params, $db)->as_array();
     }
 
     /** Одна строка или NULL. */
-    public static function one(string $sql, array $params = []): ?array
+    public static function one(string $sql, array $params = [], ?Database $db = NULL): ?array
     {
-        $row = DB::query(Database::SELECT, $sql)
-            ->parameters($params)
-            ->execute()
-            ->current();
+        $row = self::_run(Database::SELECT, $sql, $params, $db)->current();
 
         return $row ? (array) $row : NULL;
     }
 
     /** UPDATE/DELETE и другие запросы без возвращаемых строк. */
-    public static function execute(string $sql, array $params = []): int
+    public static function execute(string $sql, array $params = [], ?Database $db = NULL): int
     {
-        return (int) DB::query(Database::UPDATE, $sql)
-            ->parameters($params)
-            ->execute();
+        return (int) self::_run(Database::UPDATE, $sql, $params, $db);
     }
 
     /** INSERT; возвращает [insert_id, rows]. */
-    public static function insert(string $sql, array $params = []): array
+    public static function insert(string $sql, array $params = [], ?Database $db = NULL): array
     {
-        return (array) DB::query(Database::INSERT, $sql)
-            ->parameters($params)
-            ->execute();
+        return (array) self::_run(Database::INSERT, $sql, $params, $db);
+    }
+
+    /** Выполнить запрос на выбранном соединении (по умолчанию — дефолтном). */
+    private static function _run(string $type, string $sql, array $params, ?Database $db)
+    {
+        $db = $db ?? Database::instance();
+
+        return $db->query($type, $sql)->parameters($params)->execute($db);
     }
 
     /**

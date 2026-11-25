@@ -29,3 +29,11 @@ Route::set('prx110_catalog_api', 'prx110/api(/<action>)')
         'controller' => 'Prx110_Api',
         'action'     => 'catalog',
     ]);
+
+// Избранное для sidebar: база страницы спрашивает точку расширения, модуль
+// отвечает сам (docs/SKELETON-ADR.md Д2). Без этого модуля избранного нет.
+Prx_Hooks::on('nav.favorites', function ($user_id, $uri) {
+    $items = Service_Prx110_Favorites::items($user_id);
+
+    return Service_Prx110_Favorites::mark_active($items, $uri);
+});

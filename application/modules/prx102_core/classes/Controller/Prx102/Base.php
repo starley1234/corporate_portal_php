@@ -101,29 +101,25 @@ abstract class Controller_Prx102_Base extends Controller {
             }
             $this->_current_user_roles = $roles;
 
-            // prx599 «Выйти везде»: сессия, убитая kick-меткой, разлогинивается
-            // на первом же запросе; живая — обновляет last_seen. try/catch:
-            // сбой учёта не должен ломать страницу.
-            if (class_exists('Service_Prx599_Account'))
+            // «Выйти везде» и другие сторожа сессии — через точку расширения,
+            // а не прямым вызовом prx599: база страницы не знает бизнес-модулей.
+            // Модуль регистрирует сторож в init.php; не подключён — проверок нет.
+            // try/catch: сбой учёта не должен ломать страницу.
+            try
             {
-                try
-                {
-                    // session_valid() обновляет last_seen не чаще одного раза
-                    // в 5 минут; отдельный upsert на каждой странице не нужен.
-                    $session_valid = Service_Prx599_Account::session_valid((int) $user_model->id);
-                }
-                catch (Throwable $e)
-                {
-                    $session_valid = TRUE;
-                    Kohana::$log->add(Log::WARNING, 'prx599: enforce: :e', [':e' => $e->getMessage()]);
-                }
-                if ( ! $session_valid)
-                {
-                    // HTTP::redirect бросает исключение; не поглощаем его
-                    // общим catch, иначе продолжится запрос прежнего аккаунта.
-                    Auth::instance()->logout(TRUE);
-                    HTTP::redirect('/auth/login?kick=1', 302);
-                }
+                $guards = Prx_Hooks::all('auth.session_check', (int) $user_model->id);
+            }
+            catch (Throwable $e)
+            {
+                $guards = [];
+                Kohana::$log->add(Log::WARNING, 'auth: session guard: :e', [':e' => $e->getMessage()]);
+            }
+            if (in_array(FALSE, $guards, TRUE))
+            {
+                // HTTP::redirect бросает исключение; не поглощаем его
+                // общим catch, иначе продолжится запрос прежнего аккаунта.
+                Auth::instance()->logout(TRUE);
+                HTTP::redirect('/auth/login?kick=1', 302);
             }
         }
         else
@@ -341,13 +337,15 @@ abstract class Controller_Prx102_Base extends Controller {
                 try
                 {
                     $nav_favorites['csrf'] = Security::token();
-                    $items = Service_Prx110_Favorites::items($nav_favorites['user_id']);
-                    $nav_favorites['items'] = Service_Prx110_Favorites::mark_active($items, '/'.ltrim($this->request->uri(), '/'));
+                    // Избранное собирает модуль-владелец (prx110) через точку
+                    // расширения; база страницы о каталоге не знает.
+                    $items = Prx_Hooks::call('nav.favorites', $nav_favorites['user_id'], '/'.ltrim($this->request->uri(), '/'));
+                    $nav_favorites['items'] = is_array($items) ? $items : [];
                     $nav_favorites['status'] = 'ready';
                 }
                 catch (Throwable $e)
                 {
-                    Kohana::$log->add(Log::ERROR, 'prx110: не удалось отобразить Избранное (:type)', [':type' => get_class($e)]);
+                    Kohana::$log->add(Log::ERROR, 'nav: не удалось отобразить Избранное (:type)', [':type' => get_class($e)]);
                 }
             }
             // Доступно и общему шаблону, и ещё не отрендеренным карточкам каталога.
@@ -449,16 +447,16 @@ abstract class Controller_Prx102_Base extends Controller {
         }
 
         $org = [];
-        if (class_exists('Service_Prx300_Directory'))
+        try
         {
-            try
-            {
-                $org = (array) Service_Prx300_Directory::context_for_user((int) $this->_current_user->id);
-            }
-            catch (Throwable $e)
-            {
-                Kohana::$log->add(Log::WARNING, 'actor: org context: :e', [':e' => $e->getMessage()]);
-            }
+            // Оргконтекст даёт модуль-владелец через точку расширения; база
+            // страницы о prx300 не знает. Модуль не подключён — контекст пуст.
+            $context = Prx_Hooks::call('actor.org', (int) $this->_current_user->id);
+            $org = is_array($context) ? $context : [];
+        }
+        catch (Throwable $e)
+        {
+            Kohana::$log->add(Log::WARNING, 'actor: org context: :e', [':e' => $e->getMessage()]);
         }
 
         return $this->_actor = new Prx_Actor(

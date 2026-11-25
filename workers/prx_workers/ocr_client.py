@@ -20,6 +20,9 @@ filename `document.pdf`) и ждёт JSON:
 
     {"text": "...", "pages": 3, "engine": "docling", "confidence": 0.93}
 
+Поле `text` — каноничное для этого провайдера; `content` (/parse-контракт
+prx450) принимается как фолбэк, чтобы один шлюз годился обоим адаптерам.
+
 Сетевая ошибка, таймаут, 4xx/5xx и невалидный JSON — это инцидент: пишем его
 в лог и возвращаем `engine="failed", text=""`, чтобы вызывающий код мог
 попробовать следующий файл или честно завершить задачу ошибкой. Тело ответа
@@ -385,9 +388,13 @@ class RemoteOcrProvider(BaseOcrProvider):
                    site.safe_origin(self.settings.service_url))
             return ExtractedText.failed()
 
+        # Канонично `text` (контракт OcrSettings); `content` — поле
+        # /parse-совместимого шлюза (prx450). Принимаем оба.
         text = data.get("text")
         if not isinstance(text, str):
-            _event(logging.ERROR, "remote", "origin=%s вернул поле text не строкой",
+            text = data.get("content")
+        if not isinstance(text, str):
+            _event(logging.ERROR, "remote", "origin=%s вернул текст не строкой",
                    site.safe_origin(self.settings.service_url))
             return ExtractedText.failed()
 

@@ -1,19 +1,18 @@
 """Извлечение полей счёта/УПД из PDF (prx397).
 
 PHP (job+file) → worker: OCR → LangChain structured output → POST /result.
-В очереди/БД не хранится текст.
+В очереди/БД не хранится текст. HTTP-протокол — общий `job_api` (Д6).
 """
 from __future__ import annotations
 
 import logging
 import tempfile
 from pathlib import Path
-from typing import Any
 
 import httpx
 from pydantic import BaseModel, Field
 
-from ... import site
+from ... import job_api, site
 from ...base import HandlerContext, PermanentJobError
 from ...langchain_llm import arun_structured
 from ...ocr import extract_pdf
@@ -78,82 +77,6 @@ SYSTEM = """Ты извлекаешь поля из счёта или УПД. В
 - lines: каждая позиция с name, qty, price, sum (null если неизвестно)."""
 
 
-def _check(response: httpx.Response) -> dict | None:
-    code = response.status_code
-    if code in (401, 403):
-        raise PermanentJobError("worker_auth")
-    if code == 409:
-        raise PermanentJobError("lease_lost")
-    if code in (410, 404):
-        raise PermanentJobError("file_unavailable")
-    if code == 422:
-        detail = _error_code(response)
-        raise PermanentJobError(detail or "job_failed")
-    if code in (408, 429) or code >= 500:
-        raise DocumentJobError("worker_endpoint_unavailable")
-    if not response.is_success:
-        # 4xx — настоящий код ошибки из тела ответа (result_too_large и пр.),
-        # а не «недоступен»; 413 без тела (отрезал прокси) — тоже
-        # result_too_large: результат/файл не влез в запрос.
-        detail = _error_code(response)
-        raise PermanentJobError(detail or ("result_too_large" if code == 413 else "job_failed"))
-    if response.content:
-        try:
-            return response.json()
-        except ValueError:
-            return None
-    return None
-
-
-def _error_code(response: httpx.Response) -> str:
-    try:
-        data = response.json()
-        code = data.get("error", {}).get("code")
-        return code if isinstance(code, str) else ""
-    except Exception:  # noqa: BLE001
-        return ""
-
-
-class DocumentJobError(RuntimeError):
-    pass
-
-
-async def _download(client: httpx.AsyncClient, url: str, path: Path, max_pdf_bytes: int) -> None:
-    async with client.stream("GET", url) as response:
-        _check(response)
-        ctype = response.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
-        if ctype != "application/pdf":
-            raise PermanentJobError("file_unavailable")
-        size = 0
-        with path.open("xb") as pdf:
-            async for block in response.aiter_bytes(chunk_size=65536):
-                size += len(block)
-                if size > max_pdf_bytes:
-                    raise PermanentJobError("file_unavailable")
-                pdf.write(block)
-        if not size:
-            raise PermanentJobError("file_unavailable")
-
-
-async def _post_result(client: httpx.AsyncClient, url: str, body: dict) -> dict:
-    response = await client.post(url, json=body)
-    data = _check(response)
-    return data if isinstance(data, dict) else {}
-
-
-async def _report_failure(headers: dict, url: str, code: str) -> None:
-    """Best-effort: сообщить PHP терминальный код, чтобы запись стала failed.
-
-    Без этого задача молча уходит в повтор и UI показывает «В очереди», пока
-    не истечёт TTL. Ошибку доставки глушим — исходная ошибка важнее.
-    """
-    try:
-        async with httpx.AsyncClient(headers=headers, timeout=30, follow_redirects=False) as client:
-            await _post_result(client, url + "/result", {"error_code": code, "fields": {}, "failed": True})
-    except Exception:  # noqa: BLE001
-        pass
-
-
 async def handle(ctx: HandlerContext, payload: dict) -> dict:
     job = ctx._current_job or {}
     job_id, attempt = int(job.get("id") or 0), int(job.get("attempts") or 0)
@@ -176,7 +99,7 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
             with tempfile.TemporaryDirectory(prefix="prx397_") as tmp:
                 path = Path(tmp) / "document.pdf"
                 await ctx.progress("download_pdf")
-                await _download(client, url + "/file", path, lim["max_pdf_bytes"])
+                await job_api.download_pdf(client, url + "/file", path, lim["max_pdf_bytes"])
 
                 await ctx.progress("ocr")
                 ocr = await extract_pdf(path, limits=ocr_limits(lim),
@@ -184,7 +107,7 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
                 text = ocr.get("text", "")
                 if len(text) > lim["max_llm_chars"]:
                     await ctx.progress("failed")
-                    await _post_result(client, url + "/result", {
+                    await job_api.post_result(client, url + "/result", {
                         "error_code": "text_too_large_for_llm", "fields": {}, "text_chars": len(text)})
                     return {"status": "failed", "error_code": "text_too_large_for_llm"}
 
@@ -193,7 +116,7 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
                 fields = parsed.model_dump() if hasattr(parsed, "model_dump") else dict(parsed)
 
                 await ctx.progress("store")
-                result = await _post_result(client, url + "/result", {
+                result = await job_api.post_result(client, url + "/result", {
                     "fields": fields,
                     "confidence": None,
                     "text_chars": len(text),
@@ -207,7 +130,7 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
         if code == "result_too_large":
             code = "text_too_large_for_llm"
         if code in PERMANENT_CODES:
-            await _report_failure(headers, url, code)
+            await job_api.report_failure(headers, url, code)
         if code != str(e):
             raise PermanentJobError(code) from None
         raise

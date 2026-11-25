@@ -1,9 +1,8 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
 /**
- * Публичный код ошибки без текста документа, ключа API или ответа шлюза.
- *
- * Наследует контракт машинного API: Controller_Prx150_Machine превращает
- * её в JSON {"error":{"code","details"}} с тем же HTTP-статусом.
+ * Ошибка документного сервиса: код + HTTP-статус. Наследует нейтральную
+ * `Prx_DomainError`, а не машинную `Prx150_Error`: одна и та же ошибка
+ * подходит и странице, и машинному API, а модуль не зависит от prx150.
  */
-class Prx395_Error extends Prx150_Error {}
+class Prx395_Error extends Prx_DomainError {}

@@ -13,7 +13,7 @@ from pathlib import Path
 import httpx
 
 from . import document_extract
-from ... import site
+from ... import job_api, site
 from ...base import HandlerContext, PermanentJobError
 from .document_extract import DocumentJobError
 from .limits import limits
@@ -24,37 +24,6 @@ CHANNEL = "document.extract"
 # модуль, чей токен показывать в --check-site — "worker" | "site").
 SITE = ("PRX395_DOCUMENT_EXTRACT", "/prx395/worker", "prx395", "worker")
 log = logging.getLogger("prx.document_extract")
-
-
-def _check(response: httpx.Response) -> None:
-    code = response.status_code
-    if code in (401, 403):
-        raise PermanentJobError("worker_auth")
-    if code == 409:
-        raise PermanentJobError("lease_lost")
-    if code == 410:
-        raise PermanentJobError("file_unavailable")
-    if code in (408, 429) or code >= 500:
-        raise DocumentJobError("worker_endpoint_unavailable")
-    if not response.is_success:
-        raise PermanentJobError("worker_endpoint_unavailable")
-
-
-async def _download(client: httpx.AsyncClient, url: str, path: Path) -> None:
-    max_pdf_bytes = limits()["max_pdf_bytes"]
-    async with client.stream("GET", url) as response:
-        _check(response)
-        if response.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/pdf":
-            raise PermanentJobError("file_unavailable")
-        size = 0
-        with path.open("xb") as pdf:
-            async for block in response.aiter_bytes(chunk_size=65536):
-                size += len(block)
-                if size > max_pdf_bytes:
-                    raise PermanentJobError("file_unavailable")
-                pdf.write(block)
-        if not size:
-            raise PermanentJobError("file_unavailable")
 
 
 async def handle(ctx: HandlerContext, payload: dict) -> dict:
@@ -76,13 +45,14 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
             with tempfile.TemporaryDirectory(prefix="prx395_") as tmp:
                 path = Path(tmp) / "document.pdf"
                 await ctx.progress("download_pdf")
-                await _download(client, url + "/file", path)
+                await job_api.download_pdf(client, url + "/file", path, limits()["max_pdf_bytes"])
                 result = await document_extract.extract(path, ctx.progress)
                 phase = "store_result"
                 await ctx.progress(phase)
-                response = await client.post(url + "/result", json=result)
-                _check(response)
-                receipt = response.json().get("receipt")
+                # job_api.post_result читает код ошибки из тела ответа PHP,
+                # поэтому invalid_result/result_too_large видны как есть, а не
+                # как worker_endpoint_unavailable.
+                receipt = (await job_api.post_result(client, url + "/result", result)).get("receipt")
                 if not isinstance(receipt, str) or not re.fullmatch(r"[a-f0-9]{32}", receipt):
                     raise ValueError
                 return {"receipt": receipt}

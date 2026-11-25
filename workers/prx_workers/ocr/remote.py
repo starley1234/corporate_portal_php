@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -13,6 +14,8 @@ from .errors import DocumentJobError
 from .text import bounded
 
 MIB = 1024 ** 2
+
+log = logging.getLogger("prx.ocr.remote")
 
 
 async def extract_remote(path: Path, pages: int, *, max_text_bytes: int, transport=None) -> dict:
@@ -66,13 +69,24 @@ async def extract_remote(path: Path, pages: int, *, max_text_bytes: int, transpo
     except (ValueError, RecursionError):
         raise PermanentJobError("ocr_invalid_response") from None
 
-    if not isinstance(data, dict) or not isinstance(data.get("content"), str):
+    if not isinstance(data, dict):
+        log.error("remote /parse вернул не объект: status=%s type=%s", status, type(data).__name__)
+        raise PermanentJobError("ocr_invalid_response")
+    # Канонично поле `content` (контракт /parse). `text` — старое поле
+    # (OcrSettings/RemoteOcrProvider); принимаем как фолбэк, чтобы смена шлюза
+    # не ломала документные пайплайны. Значения не логируем — это текст документа.
+    text = data.get("content")
+    if not isinstance(text, str):
+        text = data.get("text")
+    if not isinstance(text, str):
+        log.error("remote /parse вернул не по контракту: status=%s keys=%s", status, sorted(data.keys()))
         raise PermanentJobError("ocr_invalid_response")
     # По контракту прототипа гарантировано только content. Не придумываем
     # число обработанных страниц, когда шлюз его явно не указал числом.
     processed = data.get("pages")
     processed = processed if type(processed) is int else None
     if processed is not None and processed != pages:
+        log.error("remote /parse: pages=%s, а в PDF %s", processed, pages)
         raise PermanentJobError("ocr_incomplete")
-    return {"text": bounded(data["content"], max_text_bytes), "format": "markdown", "provider": "remote",
+    return {"text": bounded(text, max_text_bytes), "format": "markdown", "provider": "remote",
             "pages_total": pages, "pages_processed": processed, "warnings": []}

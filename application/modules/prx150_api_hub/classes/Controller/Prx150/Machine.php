@@ -13,7 +13,7 @@
  *       }
  *   }
  *
- * respond() проверяет ключ, scope и лимит, ловит Prx150_Error, пишет
+ * respond() проверяет ключ, scope и лимит, ловит Prx_DomainError, пишет
  * использование в finally и ставит X-Request-Id. Сессия и CSRF не нужны:
  * Контроллер явно объявляет машинный канал для Prx_PostGuard.
  */
@@ -49,8 +49,8 @@ abstract class Controller_Prx150_Machine extends Controller_Base
      * Выполнить действие с проверкой ключа и журналом использования.
      *
      * Ожидается, что действие само отвечает JSON через _json_response().
-     * Исключение Prx150_Error превращается в его HTTP-статус и код; всё
-     * остальное — 503 service_unavailable без внутренних деталей.
+     * Исключение Prx_DomainError (в т.ч. Prx150_Error) превращается в его
+     * HTTP-статус и код; всё остальное — 503 service_unavailable без деталей.
      */
     protected function respond(callable $action): void
     {
@@ -70,7 +70,7 @@ abstract class Controller_Prx150_Machine extends Controller_Base
             $action();
             $status = (int) $this->response->status();
         }
-        catch (Prx150_Error $e)
+        catch (Prx_DomainError $e)
         {
             $status = $e->getCode();
 

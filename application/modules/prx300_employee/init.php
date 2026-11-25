@@ -17,3 +17,9 @@ Route::set('prx300_employee_admin', 'prx300/admin(/<action>(/<id>))', [
         'id' => '\d+',
     ])
     ->defaults(['controller' => 'Prx300_Admin', 'action' => 'index']);
+
+// Оргконтекст для Prx_Actor: база страницы о prx300 не знает, спрашивает точку
+// расширения (docs/SKELETON-ADR.md Д2). Без модуля оргконтекст пуст.
+Prx_Hooks::on('actor.org', function ($user_id) {
+    return (array) Service_Prx300_Directory::context_for_user($user_id);
+});
