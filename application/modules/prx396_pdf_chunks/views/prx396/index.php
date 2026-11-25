@@ -15,6 +15,9 @@ $messages = [
     'worker_auth' => 'PHP не принял токен воркера. Сверьте WORKER_API_TOKEN на PHP и Python.',
     'result_not_ready' => 'Результат ещё не готов.',
     'batch_incomplete' => 'Обработаны не все части.',
+    'budget_exceeded' => 'Бюджет токенов исчерпан — задание не поставлено в очередь. Пополните бюджет или дождитесь сброса периода.',
+    'file_unavailable' => 'Исходный PDF недоступен: файл повреждён или удалён.',
+    'lease_lost' => 'Задание перезапущено другой попыткой. Обновите страницу.',
 ];
 $code = $error ?? $batch['error']['code'] ?? NULL;
 $pending = in_array($state, ['queued', 'running'], TRUE);

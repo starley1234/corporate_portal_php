@@ -25,5 +25,5 @@ def limits() -> dict[str, int]:
         "task_timeout_sec": _integer(os.getenv("PRX396_TASK_TIMEOUT_SEC"), 1800, 1, 7200),
         "max_attempts": _integer(os.getenv("PRX396_MAX_ATTEMPTS"), 3, 1, 10),
         "pdf_memory_mb": _integer(os.getenv("PRX396_PDF_MEMORY_MB"), 512, 64, 4096),
-        "parallel_parts": _integer(os.getenv("PRX396_PARALLEL_PARTS"), 1, 1, 8),
+        "probe_timeout_sec": _integer(os.getenv("PRX396_PROBE_TIMEOUT_SEC"), 60, 5, 600),
     }

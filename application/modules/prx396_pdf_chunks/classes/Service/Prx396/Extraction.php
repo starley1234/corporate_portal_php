@@ -11,8 +11,20 @@ class Service_Prx396_Extraction
         'ocr_unavailable', 'ocr_timeout', 'ocr_auth', 'ocr_config', 'ocr_rejected',
         'ocr_invalid_response', 'ocr_incomplete', 'ocr_page_failed', 'file_unavailable',
         'worker_auth', 'worker_endpoint_unavailable', 'worker_config', 'lease_lost',
+        'invalid_part', 'invalid_plan', 'invalid_result', 'invalid_attempt', 'method_not_allowed',
     ];
-    const PERMANENT_CODES = ['invalid_pdf', 'encrypted_pdf', 'page_limit'];
+    /**
+     * Коды, при которых задача воркера через plan/complete валит batch: повтор
+     * той же работы не поможет (битый PDF, нет текста/OCR, контрактная ошибка
+     * части). Остальные коды воркера получают 503 и ретраятся; сетевые сбои
+     * сюда не попадают вовсе — их воркер не отправляет как error_code.
+     */
+    const PERMANENT_CODES = [
+        'invalid_pdf', 'encrypted_pdf', 'page_limit', 'result_too_large', 'no_text',
+        'ocr_config', 'ocr_unavailable', 'ocr_auth', 'ocr_rejected', 'ocr_invalid_response',
+        'ocr_incomplete', 'ocr_page_failed', 'file_unavailable', 'lease_lost',
+        'invalid_part', 'invalid_plan', 'invalid_result', 'invalid_attempt', 'method_not_allowed',
+    ];
 
     private Database $db;
     private Service_Prx120_JobQueue $queue;
@@ -76,15 +88,28 @@ class Service_Prx396_Extraction
             $ttl = Service_Prx396_Limits::get('result_ttl_hours');
             $snapshot = self::config_snapshot();
             $batch_id = $this->insert_batch($owner, $key_hash, $sha, $file_id, $ttl, $snapshot);
-            $job_id = Service_Prx120_JobQueue::push(self::CHANNEL, ['batch_id' => $batch_id], [
+            // Снимок лимитов уходит в задачу: воркер обрабатывает по значениям
+            // на момент постановки, а не по тому, что сейчас в его .env.
+            // visitor_id — правило prx120: «Мои задачи» и бюджет владельца.
+            $job_id = Service_Prx120_JobQueue::push(self::CHANNEL,
+                ['batch_id' => $batch_id, 'limits' => $snapshot], [
                 'module' => self::MODULE,
                 'max_attempts' => Service_Prx396_Limits::get('max_attempts'),
                 'timeout_sec' => Service_Prx396_Limits::get('task_timeout_sec'),
+                'visitor_id' => Visitor::uid(),
             ]);
             if ($job_id < 1) throw new RuntimeException('Отсутствует ID задачи');
             $this->db->query(Database::UPDATE,
                 'UPDATE prx_396_batches SET job_id = '.$job_id.' WHERE id = '.$batch_id, FALSE);
             Prx_Idempotency::finish((int) $idem['id'], ['batch_id' => $batch_id], $this->db);
+        }
+        catch (Prx120_Budget_Exception $e)
+        {
+            // Владелец исчерпал бюджет токенов: снимаем файл и ключ, чтобы
+            // повтор после пополнения прошёл с тем же Idempotency-Key.
+            Prx_Idempotency::abort($this->db);
+            $this->discard($file_id);
+            throw new Prx396_Error('budget_exceeded', 429);
         }
         catch (Throwable $e)
         {
@@ -118,6 +143,8 @@ class Service_Prx396_Extraction
             'chunk_pages' => (int) $l['chunk_pages'],
             'max_text_bytes' => (int) $l['max_text_bytes'],
             'result_ttl_hours' => (int) $l['result_ttl_hours'],
+            'pdf_memory_mb' => (int) $l['pdf_memory_mb'],
+            'probe_timeout_sec' => (int) $l['probe_timeout_sec'],
         ];
     }
 
@@ -184,7 +211,8 @@ class Service_Prx396_Extraction
             'failed' => 'failed', 'cancelled' => 'canceled',
         ];
         $js = $map[$job['status'] ?? ''] ?? 'queued';
-        if ($js === 'failed' && $batch_status !== 'failed') return 'running'; // будет повторяться
+        // failed в очереди — финал (попытки исчерпаны или PermanentJobError):
+        // показывать «running» значит врать владельцу, что будет повтор.
         return $js === 'succeeded' ? 'running' : $js;
     }
 

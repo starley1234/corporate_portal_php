@@ -50,7 +50,7 @@ async def test_site_checks_both_real_paths_without_showing_tokens(monkeypatch, c
         if request.url.path == '/prx395/worker/health':
             assert request.headers['X-Worker-Token'] == 'secret-probe-token'
             return httpx.Response(200, json={'ok': True, 'module': 'prx395'})
-        if request.url.path == '/prx396/worker/health':
+        if request.url.path == '/prx396_pdf_chunks/worker/health':
             assert request.headers['X-Worker-Token'] == 'secret-probe-token'
             return httpx.Response(200, json={'ok': True, 'module': 'prx396'})
         assert request.url.path == '/prx390/api/health'

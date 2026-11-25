@@ -97,7 +97,7 @@ for path in (ROOT / 'workers/prx_workers').rglob('*.py'):
                   f'Пакет обработчика не называется как модуль-владелец: {path.relative_to(ROOT)}')
     elif handlers in path.parents and re.search(r'^CHANNEL = ', path.read_text(encoding='utf-8'), re.M):
         errors.append(f'Канал не зарегистрирован в handlers/__init__.py: {path.relative_to(ROOT)}')
-check(set(channel_names) == {'doc.analyze', 'doc.normalize', 'document.extract', 'echo', 'embeddings.index', 'llm.summarize', 'semantic.index'}, 'Лишние/потерянные worker-каналы')
+check(set(channel_names) == {'doc.analyze', 'doc.normalize', 'document.extract', 'echo', 'embeddings.index', 'llm.summarize', 'semantic.index', 'pdf.chunks', 'invoice.extract', 'doc.route'}, 'Лишние/потерянные worker-каналы')
 manifest_text = '\n'.join(p.read_text(encoding='utf-8') for p in (ROOT / 'application/modules').glob('*/config/prx_module.php'))
 for channel in channel_names:
     check(f"'{channel}'" in manifest_text, f'Канал не объявлен в манифесте: {channel}')

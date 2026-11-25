@@ -122,7 +122,7 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
     if not job_id or not attempt:
         raise PermanentJobError("worker_config")
 
-    base, source = site.module_api_config("PRX397_INVOICE", "/prx397/worker")
+    base, source = site.module_api_config("PRX397_INVOICE", "/prx397_invoice/worker")
     if not site.valid_http_base(base) or not ctx.config.api_token:
         log.error("invoice.extract job_id=%s php=%s (%s): проверьте адрес и WORKER_API_TOKEN",
                   job_id, site.safe_origin(base), source)

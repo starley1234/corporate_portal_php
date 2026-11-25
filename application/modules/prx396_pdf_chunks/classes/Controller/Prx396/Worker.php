@@ -89,7 +89,11 @@ class Controller_Prx396_Worker extends Controller
     {
         $this->respond(function () {
             [$id, $attempt] = $this->lease(Request::POST);
-            $max = min(Service_Prx396_Limits::get('max_text_bytes'), 32 * 1024 ** 2) + 65536;
+            // Потолок тела /part — как у prx395: JSON-экранирование текста
+            // (кавычки, \uXXXX для не-ASCII) растит тело до 6× длины текста.
+            // Прежний min(max_text, 32 МиБ) резал валидные части при
+            // max_text_bytes > 32 МиB (413 result_too_large на больших текстах).
+            $max = 6 * Service_Prx396_Limits::get('max_text_bytes') + 4096;
             $body = $this->json_body($max);
             $this->_json_response((new Service_Prx396_Extraction)->store_part($id, $attempt, $body));
         });
