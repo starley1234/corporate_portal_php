@@ -8,15 +8,26 @@
  * `PRX450_OCR_BASE_URL`, без правки кода.
  *
  * Секреты — только в .env: PRX450_OCR_API_KEY.
+ *
+ * Фолбэк 25.11.2026: если PRX450_OCR_BASE_URL не задан, берётся общий
+ * OCR-эндпоинт воркера OCR_SERVICE_URL (контракт тот же /parse — отрезаем
+ * хвост), поэтому «общий» больше не игнорируется этим модулем.
  */
+
+$prx450_general = rtrim((string) getenv('OCR_SERVICE_URL'), '/');
+$prx450_derived = ($prx450_general !== '' AND preg_match('~^(https?://.+)/parse/?$~', $prx450_general, $prx450_m))
+    ? $prx450_m[1]
+    : '';
+
 return [
     'upstream' => [
         // Origin без /parse; путь задаётся отдельно.
-        'base_url' => rtrim((string) (getenv('PRX450_OCR_BASE_URL') ?: 'http://127.0.0.1:8090'), '/'),
+        'base_url' => rtrim((string) (getenv('PRX450_OCR_BASE_URL')
+            ?: ($prx450_derived ?: 'http://127.0.0.1:8090')), '/'),
         'parse_path' => (string) (getenv('PRX450_OCR_PARSE_PATH') ?: '/parse'),
         'timeout' => max(5, (int) (getenv('PRX450_OCR_TIMEOUT') ?: 120)),
         'connect_timeout' => max(1, (int) (getenv('PRX450_OCR_CONNECT_TIMEOUT') ?: 5)),
-        'api_key' => (string) getenv('PRX450_OCR_API_KEY'),
+        'api_key' => (string) (getenv('PRX450_OCR_API_KEY') ?: getenv('OCR_API_KEY')),
         'auth_header' => (string) (getenv('PRX450_OCR_AUTH_HEADER') ?: 'Authorization'),
         'auth_scheme' => (string) (getenv('PRX450_OCR_AUTH_SCHEME') ?: 'Bearer'),
         'verify_tls' => getenv('PRX450_OCR_VERIFY_TLS') !== '0',

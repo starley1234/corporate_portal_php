@@ -46,7 +46,7 @@ async def extract_local(path: Path, probe: dict, progress) -> dict:
 
 
 async def extract_remote(path: Path, pages: int, *, transport=None) -> dict:
-    return await ocr_remote.extract_remote(path, pages, max_text_bytes=limits()["max_text_bytes"], transport=transport)
+    return await ocr_remote.extract_remote(path, pages, max_text_bytes=limits()["max_text_bytes"], transport=transport, module="PRX395")
 
 
 async def extract(path: Path, progress) -> dict:

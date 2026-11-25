@@ -32,7 +32,7 @@ def require_limits(limits: dict) -> None:
         raise PermanentJobError("worker_config")
 
 
-async def extract_pdf(path: Path, *, provider: str | None = None, limits: dict, progress) -> dict:
+async def extract_pdf(path: Path, *, provider: str | None = None, limits: dict, progress, module: str | None = None) -> dict:
     """Извлечь текст из PDF. Возвращает dict с text/format/provider/pages_total/pages_processed/warnings."""
     require_limits(limits)
     if provider is None:
@@ -60,4 +60,4 @@ async def extract_pdf(path: Path, *, provider: str | None = None, limits: dict, 
             "warnings": [] if all(values) else ["empty_page"],
         }
     await progress("ocr_remote")
-    return await extract_remote(path, probe["pages"], max_text_bytes=limits["max_text_bytes"])
+    return await extract_remote(path, probe["pages"], max_text_bytes=limits["max_text_bytes"], module=module)

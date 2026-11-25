@@ -197,8 +197,8 @@ $badge = [
                     if (bar) bar.classList.toggle('bg-emerald-500', badCount === 0);
                     if (badCount === 0) bar.classList.add('bg-emerald-500');
                     finalLine(badCount === 0
-                        ? 'php -l: ' + data.linted + ' файлов — ошибок нет'
-                        : 'php -l: ' + data.linted + ' файлов, найдено ошибок: ' + badCount, badCount === 0);
+                        ? 'php -l: ' + data.total + ' файлов — ошибок нет'
+                        : 'php -l: ' + data.total + ' файлов, найдено ошибок: ' + badCount, badCount === 0);
                     return;
                 }
                 step();

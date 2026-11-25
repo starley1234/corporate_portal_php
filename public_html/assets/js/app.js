@@ -521,7 +521,17 @@
         if (copyBtn) {
             var value = copyBtn.getAttribute('data-prx-copy');
             if (value) {
-                PRX.copyText(value).then(function () {
+                // Значением может быть селектор элемента (#id): копируем его
+                // содержимое, а не литеральную строку селектора (прод 25.11.2026:
+                // «Копировать» в prx395 клал в буфер «#prx395-text»).
+                var source = value.charAt(0) === '#' ? document.querySelector(value) : null;
+                var text = value;
+                if (source) {
+                    text = (source.tagName === 'INPUT' || source.tagName === 'TEXTAREA')
+                        ? (source.value || '')
+                        : (source.textContent || '');
+                }
+                PRX.copyText(text).then(function () {
                     var ico = copyBtn.querySelector('i');
                     if (!ico) { PRX.toast('Скопировано'); return; }
                     if (ico._prxCopyClass === undefined || ico._prxCopyClass === null) ico._prxCopyClass = ico.className;

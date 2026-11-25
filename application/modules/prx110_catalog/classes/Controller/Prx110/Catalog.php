@@ -92,7 +92,7 @@ class Controller_Prx110_Catalog extends Controller_Base {
             'gslug'     => $slug,
             'items'     => $items,
             'group_cnt' => count($items),
-            'preview'   => $preview,
+            'preview'   => FALSE, // совпадает с ctx выше; view флага не читает
         ]);
     }
 }

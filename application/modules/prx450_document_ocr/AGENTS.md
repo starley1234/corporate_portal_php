@@ -33,7 +33,9 @@ polling, приватные артефакты `prx212` с TTL 24 ч. Модул
 - Доступ: ключ prx150 + scope `prx450.parse`; лимит — в ключе.
 - Страница проверки: `/prx450_document_ocr` (право `prx450.view`, CSRF).
 - Настройки: `config/prx450_document_ocr.php`; секреты — только в `.env`
-  (`PRX450_OCR_BASE_URL`, `PRX450_OCR_API_KEY`).
+  (`PRX450_OCR_BASE_URL`, `PRX450_OCR_API_KEY`). Фолбэк (25.11.2026): если
+  `PRX450_OCR_BASE_URL` не задан — общий `OCR_SERVICE_URL` воркеров (хвост
+  /parse отрезается), ключ — `OCR_API_KEY`.
 - Параметры потребителя ограничены `client_overrides`; остальное — только конфиг.
 - Ошибки: `Prx450_Error` (наследует нейтральную `Prx_DomainError`) → JSON, без внутренностей.
 - Событие: `prx450.document.parsed` (engine, duration_ms, cached, api_client_id);

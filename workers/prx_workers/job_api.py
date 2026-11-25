@@ -74,7 +74,14 @@ def check(response: httpx.Response) -> dict | None:
         # а не «недоступен». 413 без тела (отрезал прокси) — тоже result_too_large.
         detail = error_code(response)
         raise PermanentJobError(detail or ("result_too_large" if code == 413 else "job_failed"))
-    if response.content:
+    try:
+        body = response.content
+    except httpx.ResponseNotRead:
+        # Под этот check не должен попадать streamed-ответ; если попал —
+        # тело недоступно, но по статусу кода уже достаточно (прод
+        # 25.11.2026: ResponseNotRead ронял задачи вместо кода ошибки).
+        return None
+    if body:
         try:
             return response.json()
         except ValueError:

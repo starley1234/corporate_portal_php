@@ -18,9 +18,9 @@ MIB = 1024 ** 2
 log = logging.getLogger("prx.ocr.remote")
 
 
-async def extract_remote(path: Path, pages: int, *, max_text_bytes: int, transport=None) -> dict:
+async def extract_remote(path: Path, pages: int, *, max_text_bytes: int, transport=None, module: str | None = None) -> dict:
     try:
-        settings = OcrSettings.from_env()
+        settings = OcrSettings.from_env(module)
         url = urlsplit(settings.url)
         if (url.scheme not in ("http", "https") or not url.hostname or url.username is not None
                 or url.fragment or not url.path.rstrip("/").endswith("/parse")):

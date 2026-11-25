@@ -102,7 +102,7 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
                 await job_api.download_pdf(client, url + "/file", path, lim["max_pdf_bytes"])
 
                 await ctx.progress("ocr")
-                ocr = await extract_pdf(path, limits=ocr_limits(lim),
+                ocr = await extract_pdf(path, limits=ocr_limits(lim), module="PRX397",
                                         progress=lambda stage, detail="": ctx.progress(stage, detail))
                 text = ocr.get("text", "")
                 if len(text) > lim["max_llm_chars"]:

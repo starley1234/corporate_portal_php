@@ -61,7 +61,11 @@ def _check(response: httpx.Response) -> dict | None:
         # (отрезал прокси) — тоже result_too_large: текст не влез в запрос.
         detail = _error_code(response)
         raise PermanentJobError(detail or ("result_too_large" if code == 413 else "job_failed"))
-    if response.content:
+    try:
+        body = response.content
+    except httpx.ResponseNotRead:
+        return None  # streamed-ответ: по статусу достаточно
+    if body:
         try:
             return response.json()
         except ValueError:
@@ -135,7 +139,7 @@ async def _extract_part_remote(path: Path, part: dict, progress, lim: dict) -> d
     with tempfile.TemporaryDirectory(prefix="prx396_part_") as tmp:
         part_pdf = Path(tmp) / "part.pdf"
         count = await slice_pdf(path, part_pdf, page_from, page_to, limits=lim)
-        result = await extract_remote(part_pdf, count, max_text_bytes=lim["max_text_bytes"])
+        result = await extract_remote(part_pdf, count, max_text_bytes=lim["max_text_bytes"], module="PRX396")
     result["pages_processed"] = result.get("pages_processed") if isinstance(result.get("pages_processed"), int) else total
     if result["pages_processed"] != total:
         raise PermanentJobError("ocr_incomplete")

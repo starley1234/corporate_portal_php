@@ -90,8 +90,7 @@ def _json_object(name: str) -> dict[str, Any]:
     return value
 
 
-def _timeout() -> float:
-    raw = _env("OCR_TIMEOUT", "")
+def _timeout_value(raw: str) -> float:
     if not raw:
         return DEFAULT_TIMEOUT
     try:
@@ -122,16 +121,40 @@ class OcrSettings:
     extra_headers: Mapping[str, str] = field(default_factory=dict)
 
     @classmethod
-    def from_env(cls) -> "OcrSettings":
+    def from_env(cls, module: str | None = None) -> "OcrSettings":
+        """Настройки из окружения.
+
+        `module` (например "PRX396") включает по-модульный override:
+        OCR_SERVICE_URL_PRX396 / OCR_API_KEY_PRX396 / OCR_TIMEOUT_PRX396 /
+        OCR_EXTRA_PARAMS_PRX396 / OCR_EXTRA_HEADERS_PRX396 /
+        OCR_AUTH_HEADER_NAME_PRX396. Любое отсутствующее значение берётся
+        из общего OCR_*: один шлюз по умолчанию, отдельный эндпоинт —
+        опция конкретного канала (прод 25.11.2026: prx395 было не указать
+        отдельно, общий при этом игнорировался прx450).
+        """
+        suffix = f"_{module}" if module else ""
+
+        def scoped(name: str) -> str:
+            value = _env(name + suffix).strip()
+            return value if value else _env(name).strip()
+
+        def scoped_json(name: str) -> dict:
+            if suffix and _env(name + suffix).strip():
+                return _json_object(name + suffix)
+            return _json_object(name)
+
+        raw_timeout = _env("OCR_TIMEOUT" + suffix).strip() or _env("OCR_TIMEOUT").strip()
+        timeout = _timeout_value(raw_timeout)
+
         return cls(
-            service_url=_env("OCR_SERVICE_URL").strip(),
-            timeout=_timeout(),
-            api_key=_env("OCR_API_KEY").strip(),
-            auth_header_name=_env("OCR_AUTH_HEADER_NAME").strip(),
-            extra_params=_json_object("OCR_EXTRA_PARAMS"),
+            service_url=scoped("OCR_SERVICE_URL"),
+            timeout=timeout,
+            api_key=scoped("OCR_API_KEY"),
+            auth_header_name=scoped("OCR_AUTH_HEADER_NAME"),
+            extra_params=scoped_json("OCR_EXTRA_PARAMS"),
             extra_headers={
                 str(key): str(value)
-                for key, value in _json_object("OCR_EXTRA_HEADERS").items()
+                for key, value in scoped_json("OCR_EXTRA_HEADERS").items()
             },
         )
 
