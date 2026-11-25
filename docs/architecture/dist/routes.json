@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "count": 101,
+  "count": 113,
   "routes": [
     {
       "name": "cookie_consent_close",
@@ -775,6 +775,114 @@
       "action": "index",
       "module": "prx395_document_extract",
       "file": "application/modules/prx395_document_extract/classes/Controller/Prx395/Legacy.php"
+    },
+    {
+      "name": "prx396_pdf_chunks_api",
+      "uri": "api/v1/pdf-chunks(/<id>(/<action>))",
+      "regex": "[\n    'id' => '[1-9][0-9]{0,17}',\n    'action' => 'result',\n]",
+      "controller": "Prx396_Api",
+      "action": "index",
+      "module": "prx396_pdf_chunks",
+      "file": "application/modules/prx396_pdf_chunks/classes/Controller/Prx396/Api.php"
+    },
+    {
+      "name": "prx396_worker_health",
+      "uri": "prx396_pdf_chunks/worker/health",
+      "regex": "",
+      "controller": "Prx396_Worker",
+      "action": "health",
+      "module": "prx396_pdf_chunks",
+      "file": "application/modules/prx396_pdf_chunks/classes/Controller/Prx396/Worker.php"
+    },
+    {
+      "name": "prx396_worker",
+      "uri": "prx396_pdf_chunks/worker/<id>/<action>",
+      "regex": "[\n    'id' => '[1-9][0-9]{0,17}',\n    'action' => 'file|plan|part|complete',\n]",
+      "controller": "Prx396_Worker",
+      "action": "index",
+      "module": "prx396_pdf_chunks",
+      "file": "application/modules/prx396_pdf_chunks/classes/Controller/Prx396/Worker.php"
+    },
+    {
+      "name": "prx396_pdf_chunks",
+      "uri": "prx396_pdf_chunks(/<id>(/<op>))",
+      "regex": "['id' => '[1-9][0-9]{0,17}', 'op' => 'download']",
+      "controller": "Prx396_Ui",
+      "action": "index",
+      "module": "prx396_pdf_chunks",
+      "file": "application/modules/prx396_pdf_chunks/classes/Controller/Prx396/Ui.php"
+    },
+    {
+      "name": "prx397_invoice_api",
+      "uri": "api/v1/invoice-extractions(/<id>)",
+      "regex": "['id' => '[1-9][0-9]{0,17}']",
+      "controller": "Prx397_Api",
+      "action": "index",
+      "module": "prx397_invoice",
+      "file": "application/modules/prx397_invoice/classes/Controller/Prx397/Api.php"
+    },
+    {
+      "name": "prx397_worker_health",
+      "uri": "prx397_invoice/worker/health",
+      "regex": "",
+      "controller": "Prx397_Worker",
+      "action": "health",
+      "module": "prx397_invoice",
+      "file": "application/modules/prx397_invoice/classes/Controller/Prx397/Worker.php"
+    },
+    {
+      "name": "prx397_worker",
+      "uri": "prx397_invoice/worker/<id>/<action>",
+      "regex": "[\n    'id' => '[1-9][0-9]{0,17}', 'action' => 'file|result',\n]",
+      "controller": "Prx397_Worker",
+      "action": "index",
+      "module": "prx397_invoice",
+      "file": "application/modules/prx397_invoice/classes/Controller/Prx397/Worker.php"
+    },
+    {
+      "name": "prx397_invoice",
+      "uri": "prx397_invoice(/<id>)",
+      "regex": "['id' => '[1-9][0-9]{0,17}']",
+      "controller": "Prx397_Ui",
+      "action": "index",
+      "module": "prx397_invoice",
+      "file": "application/modules/prx397_invoice/classes/Controller/Prx397/Ui.php"
+    },
+    {
+      "name": "prx398_doc_router_api",
+      "uri": "api/v1/document-routes(/<id>)",
+      "regex": "['id' => '[1-9][0-9]{0,17}']",
+      "controller": "Prx398_Api",
+      "action": "index",
+      "module": "prx398_doc_router",
+      "file": "application/modules/prx398_doc_router/classes/Controller/Prx398/Api.php"
+    },
+    {
+      "name": "prx398_worker_health",
+      "uri": "prx398_doc_router/worker/health",
+      "regex": "",
+      "controller": "Prx398_Worker",
+      "action": "health",
+      "module": "prx398_doc_router",
+      "file": "application/modules/prx398_doc_router/classes/Controller/Prx398/Worker.php"
+    },
+    {
+      "name": "prx398_worker",
+      "uri": "prx398_doc_router/worker/<id>/<action>",
+      "regex": "[\n    'id' => '[1-9][0-9]{0,17}', 'action' => 'file|result',\n]",
+      "controller": "Prx398_Worker",
+      "action": "index",
+      "module": "prx398_doc_router",
+      "file": "application/modules/prx398_doc_router/classes/Controller/Prx398/Worker.php"
+    },
+    {
+      "name": "prx398_doc_router",
+      "uri": "prx398_doc_router(/<id>)",
+      "regex": "['id' => '[1-9][0-9]{0,17}']",
+      "controller": "Prx398_Ui",
+      "action": "index",
+      "module": "prx398_doc_router",
+      "file": "application/modules/prx398_doc_router/classes/Controller/Prx398/Ui.php"
     },
     {
       "name": "prx450_document_ocr_api",

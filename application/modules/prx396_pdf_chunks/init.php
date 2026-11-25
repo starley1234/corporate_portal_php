@@ -5,10 +5,10 @@ Route::set('prx396_pdf_chunks_api', 'api/v1/pdf-chunks(/<id>(/<action>))', [
     'action' => 'result',
 ])->defaults(['controller' => 'Prx396_Api', 'action' => 'index']);
 
-Route::set('prx396_worker_health', 'prx396/worker/health')
+Route::set('prx396_worker_health', 'prx396_pdf_chunks/worker/health')
     ->defaults(['controller' => 'Prx396_Worker', 'action' => 'health']);
 
-Route::set('prx396_worker', 'prx396/worker/<id>/<action>', [
+Route::set('prx396_worker', 'prx396_pdf_chunks/worker/<id>/<action>', [
     'id' => '[1-9][0-9]{0,17}',
     'action' => 'file|plan|part|complete',
 ])->defaults(['controller' => 'Prx396_Worker']);

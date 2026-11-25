@@ -100,7 +100,7 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
     if not job_id or not attempt:
         raise PermanentJobError("worker_config")
 
-    base, source = site.module_api_config("PRX398_DOC_ROUTER", "/prx398/worker")
+    base, source = site.module_api_config("PRX398_DOC_ROUTER", "/prx398_doc_router/worker")
     if not site.valid_http_base(base) or not ctx.config.api_token:
         log.error("doc.route job_id=%s php=%s (%s): проверьте адрес и WORKER_API_TOKEN",
                   job_id, site.safe_origin(base), source)

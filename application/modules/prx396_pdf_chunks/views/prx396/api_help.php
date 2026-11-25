@@ -57,9 +57,10 @@ $labels = $limits['labels'];
             <li><code>PRX396_MAX_PAGES</code> — больше страниц: дольше обработка.</li>
             <li><code>PRX396_CHUNK_PAGES</code> — размер части: меньше — чаще прогресс и возобновление, больше — меньше накладных расходов.</li>
             <li><code>PRX396_MAX_TEXT_BYTES</code> — больше итогового текста: больше данных в ответе.</li>
-            <li><code>PRX396_TTL_HOURS</code> — дольше срок: дольше хранятся документы.</li>
+            <li><code>PRX396_TTL_HOURS</code> (алиас <code>PRX396_RESULT_TTL_HOURS</code>) — дольше срок: дольше хранятся документы.</li>
             <li><code>PRX396_TASK_TIMEOUT_SEC</code> и <code>PRX396_MAX_ATTEMPTS</code> — больше попыток/таймаут: дольше занят воркер при сбоях.</li>
             <li><code>PRX396_PDF_MEMORY_MB</code> — лимит памяти для разбора PDF.</li>
+            <li><code>PRX396_PROBE_TIMEOUT_SEC</code> — таймаут изолированного разбора PDF (проба страниц, нарезка части).</li>
         </ul>
     </details>
     <p class="prx-hint mt-3"><code>Idempotency-Key</code>: 1–128 символов <code>A–Z a–z 0–9 . _ : -</code>. Тот же ключ и файл возвращают ту же партию. Другой файл — 409; истёкший ключ — 409 <code>idempotency_key_expired</code>. Для нового документа используйте новый ключ.</p>

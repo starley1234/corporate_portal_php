@@ -17,7 +17,7 @@ from ... import site
 from ...base import HandlerContext, PermanentJobError
 from ...ocr.errors import DocumentJobError
 from ...ocr.page import tesseract_page
-from ...ocr.probe import probe_pdf
+from ...ocr.probe import probe_pdf, slice_pdf
 from ...ocr.remote import extract_remote
 from ...ocr.text import bounded
 from ...ocr_client import provider_name, tesseract_available
@@ -25,10 +25,18 @@ from .limits import limits
 
 CHANNEL = "pdf.chunks"
 
-SITE = ("PRX396_PDF_CHUNKS", "/prx396/worker", "prx396", "worker")
+SITE = ("PRX396_PDF_CHUNKS", "/prx396_pdf_chunks/worker", "prx396", "worker")
 log = logging.getLogger("prx.pdf_chunks")
 
-PERMANENT_CODES = {"invalid_pdf", "encrypted_pdf", "page_limit"}
+# Коды, при которых batch в PHP валится через complete(error_code) — те же,
+# что Service_Prx396_Extraction::PERMANENT_CODES. Сетевые/временные сюда не
+# входят: их воркер поднимает как DocumentJobError и ретраит.
+PERMANENT_CODES = {
+    "invalid_pdf", "encrypted_pdf", "page_limit", "result_too_large", "no_text",
+    "ocr_config", "ocr_unavailable", "ocr_auth", "ocr_rejected", "ocr_invalid_response",
+    "ocr_incomplete", "ocr_page_failed", "file_unavailable", "lease_lost",
+    "invalid_part", "invalid_plan", "invalid_result", "invalid_attempt", "method_not_allowed",
+}
 
 
 def _check(response: httpx.Response) -> dict | None:
@@ -40,19 +48,19 @@ def _check(response: httpx.Response) -> dict | None:
         if detail == "batch_incomplete":
             raise DocumentJobError("worker_endpoint_unavailable")
         raise PermanentJobError("lease_lost")
-    if code == 410:
-        raise PermanentJobError("file_unavailable")
-    if code == 404:
+    if code in (404, 410):
         raise PermanentJobError("file_unavailable")
     if code == 422:
         detail = _error_code(response)
-        if detail in PERMANENT_CODES:
-            raise PermanentJobError(detail)
         raise PermanentJobError(detail or "job_failed")
     if code in (408, 429) or code >= 500:
         raise DocumentJobError("worker_endpoint_unavailable")
     if not response.is_success:
-        raise PermanentJobError("worker_endpoint_unavailable")
+        # 4xx от /part и прочих методов: настоящий код ошибки из тела ответа
+        # (invalid_part, result_too_large, …), а не «недоступен». 413 без тела
+        # (отрезал прокси) — тоже result_too_large: текст не влез в запрос.
+        detail = _error_code(response)
+        raise PermanentJobError(detail or ("result_too_large" if code == 413 else "job_failed"))
     if response.content:
         try:
             return response.json()
@@ -86,38 +94,29 @@ async def _download(client: httpx.AsyncClient, url: str, path: Path, max_pdf_byt
             raise PermanentJobError("file_unavailable")
 
 
-def _slice_pdf(src: Path, dst: Path, page_from: int, page_to: int) -> int:
-    from pypdf import PdfReader, PdfWriter
-
-    reader = PdfReader(str(src), strict=False)
-    writer = PdfWriter()
-    total = len(reader.pages)
-    start = max(1, page_from)
-    end = min(total, page_to)
-    for i in range(start - 1, end):
-        writer.add_page(reader.pages[i])
-    with dst.open("wb") as fh:
-        writer.write(fh)
-    return end - start + 1
-
-
-async def _extract_part_local(path: Path, probe: dict, part: dict, progress) -> dict:
+async def _extract_part_local(path: Path, part: dict, progress, lim: dict) -> dict:
     page_from = int(part["page_from"])
     page_to = int(part["page_to"])
-    layers = probe["text_layers"]
     total = page_to - page_from + 1
-    needed = [i for i in range(page_from - 1, page_to) if not layers[i]]
+    # Слои только страниц части: проба всего документа с текстом убивала
+    # крупный валидный PDF по таймауту (invalid_pdf без возможности повтора).
+    part_probe = await probe_pdf(path, local=True, limits=lim, text=True,
+                                 page_from=page_from, page_to=page_to)
+    layers = part_probe.get("text_layers")
+    if not isinstance(layers, list) or len(layers) != total:
+        raise PermanentJobError("invalid_part")
+    needed = [i for i in range(total) if not layers[i]]
     if needed and not tesseract_available():
         raise PermanentJobError("ocr_unavailable")
     values: list[str] = []
-    for idx in range(page_from - 1, page_to):
-        if layers[idx]:
-            values.append(layers[idx])
+    for i in range(total):
+        if layers[i]:
+            values.append(layers[i])
         else:
-            page_no = idx + 1
-            await progress("ocr_page", f"{page_no}/{probe['pages']}")
+            page_no = page_from + i
+            await progress("ocr_page", f"{page_no}/{part_probe['pages']}")
             values.append(await tesseract_page(path, page_no))
-    text = bounded("\n\n".join(values), limits()["max_text_bytes"])
+    text = bounded("\n\n".join(values), lim["max_text_bytes"])
     return {
         "text": text,
         "format": "plain",
@@ -127,15 +126,15 @@ async def _extract_part_local(path: Path, probe: dict, part: dict, progress) -> 
     }
 
 
-async def _extract_part_remote(path: Path, part: dict, progress) -> dict:
+async def _extract_part_remote(path: Path, part: dict, progress, lim: dict) -> dict:
     page_from = int(part["page_from"])
     page_to = int(part["page_to"])
     total = page_to - page_from + 1
     await progress("ocr_remote", f"{page_from}-{page_to}")
     with tempfile.TemporaryDirectory(prefix="prx396_part_") as tmp:
         part_pdf = Path(tmp) / "part.pdf"
-        count = _slice_pdf(path, part_pdf, page_from, page_to)
-        result = await extract_remote(part_pdf, count, max_text_bytes=limits()["max_text_bytes"])
+        count = await slice_pdf(path, part_pdf, page_from, page_to, limits=lim)
+        result = await extract_remote(part_pdf, count, max_text_bytes=lim["max_text_bytes"])
     result["pages_processed"] = result.get("pages_processed") if isinstance(result.get("pages_processed"), int) else total
     if result["pages_processed"] != total:
         raise PermanentJobError("ocr_incomplete")
@@ -175,7 +174,7 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
     if not isinstance(batch_id, int) or batch_id < 1:
         raise PermanentJobError("worker_config")
 
-    base, source = site.module_api_config("PRX396_PDF_CHUNKS", "/prx396/worker")
+    base, source = site.module_api_config("PRX396_PDF_CHUNKS", "/prx396_pdf_chunks/worker")
     if not site.valid_http_base(base) or not ctx.config.api_token:
         log.error("pdf.chunks job_id=%s php=%s (%s): проверьте адрес и WORKER_API_TOKEN",
                   job_id, site.safe_origin(base), source)
@@ -184,7 +183,15 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
     headers = {"X-Worker-Token": ctx.config.api_token, "X-PRX-Worker-Attempt": str(attempt),
                "Accept-Encoding": "identity"}
     url = f"{base}/{batch_id}"
+    # Снимок лимитов из полезной нагрузки (PHP положил его при постановке)
+    # перекрывает живое окружение: поведение задания не меняется, если .env
+    # поправили, пока задача ждала в очереди. Без снимка (старые задачи) — env.
     lim = limits()
+    snapshot = payload.get("limits")
+    if isinstance(snapshot, dict):
+        for key, value in snapshot.items():
+            if key in lim and isinstance(value, int) and not isinstance(value, bool) and value > 0:
+                lim[key] = value
     phase = "plan"
 
     try:
@@ -211,7 +218,9 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
                     provider = provider_name()
                 except RuntimeError:
                     raise PermanentJobError("ocr_config") from None
-                probe = await probe_pdf(path, local=provider == "tesseract", limits=lim)
+                # Проба без текстовых слоев: только структура и число страниц.
+                # Слои добираются ниже для каждой части (см. _extract_part_local).
+                probe = await probe_pdf(path, local=provider == "tesseract", limits=lim, text=False)
 
                 if plan is None or not plan.get("parts"):
                     phase = "plan"
@@ -231,9 +240,9 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
                     await ctx.progress("extract_part", f"{part_no}/{len(parts)} pages={page_from}-{page_to}")
 
                     if provider == "tesseract":
-                        result = await _extract_part_local(path, probe, part, progress=ctx.progress)
+                        result = await _extract_part_local(path, part, progress=ctx.progress, lim=lim)
                     else:
-                        result = await _extract_part_remote(path, part, progress=ctx.progress)
+                        result = await _extract_part_remote(path, part, progress=ctx.progress, lim=lim)
 
                     phase = "store_part"
                     await ctx.progress("store_part", f"{part_no}/{len(parts)}")

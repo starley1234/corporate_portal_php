@@ -88,9 +88,12 @@ tests/Unit/PrxNNN*Test.php   # политика: гость и чужая орг
 |---|---|---|---|---|
 | Внешний machine API | `/api/v1/<domain>/<resource>` | Bearer-ключ `prx150` + scope | нет | плоский JSON успеха; ошибка `{"error":{"code","details"}}` |
 | Внутренний AJAX | `/<module>/api/<action>` | session | да | JSON envelope, 401 JSON для гостя |
-| Worker API | `/prxNNN/worker/<action>` | `X-Worker-Token` | нет | JSON, отдельный токен |
+| Worker API | `/<slug>/worker/<action>` | `X-Worker-Token` | нет | JSON, отдельный токен |
 | Webhook | `/prxNNN/hook/<provider>` | подпись провайдера | нет | 200 после проверки |
 | Страница | `/prxNNN_slug` | session + ACL | да на POST | HTML |
+
+Маршруты воркера идут по имени папки модуля (`/<slug>/worker/<action>` —
+prx396/prx397/prx398); `prx395` сохранил исторический `/prx395/worker`.
 
 Внешний machine API — не сессия и не ACL сотрудника: потребитель предъявляет
 ключ `prx150`, право даёт scope, объём — лимит ключа. Код ошибки один и тот

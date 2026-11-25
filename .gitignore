@@ -40,3 +40,4 @@ workers/openscad-renderer/.env
 workers/openscad-renderer/bin/openscad
 workers/openscad-renderer/libraries/
 workers/libraries/
+.venv/
