@@ -760,7 +760,9 @@ class Service_Prx110_Catalog {
     {
         $tools = [
             ['llm', 'LLM', '/llm_admin', 'fas fa-robot', 'Провайдеры и модели', 36],
-            ['prx111_migrations', 'Миграции', '/migrate_pg', 'fas fa-database',
+            ['prx103_platform', 'Проверка сервера', '/prx100/selfcheck', 'fas fa-clipboard-check',
+                'dev:doctor + компиляция всех php-файлов; ничего не исполняет и не меняет', 29],
+            ['prx111_migrations', 'Миграции', '/prx111_migrations', 'fas fa-database',
                 'Схема PostgreSQL: применить или откатить миграции модулей', 30],
             ['prx103_platform', 'Логи платформы', '/prx100/logs', 'fas fa-terminal',
                 'Журнал сайта и php-лог Kohana: по дням, уровням и подстроке; где что пишется', 31],
@@ -772,7 +774,7 @@ class Service_Prx110_Catalog {
                 'Ключи внешних потребителей, права на сервисы и журнал использования', 34],
             ['prx450_document_ocr', 'Распознавание документов', '/prx450_document_ocr', 'fas fa-file-lines',
                 'PDF и сканы → Markdown через внешний OCR-шлюз; API для интеграций', 36],
-            ['prx218_module_manager', 'Модули', '/prx218', 'fas fa-puzzle-piece',
+            ['prx218_module_manager', 'Модули', '/prx218_module_manager', 'fas fa-puzzle-piece',
                 'Включение/выключение модулей платформы', 35],
             ['prx120_jobs', 'Воркеры · док', '/prx120/workers', 'fas fa-book',
                 'Автодокументация воркеров: docstring и mermaid-схемы пайплайнов', 44],
