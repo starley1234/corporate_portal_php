@@ -1,23 +1,13 @@
 <?php defined('SYSPATH') or die('No direct script access.'); ?>
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
-        <div>
-            <h1 class="prx-h1 flex items-center">
-                <i class="fas fa-globe-americas mr-3 text-blue-500"></i>
-                Общие файлы
-            </h1>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Список файлов с публичным доступом для всех пользователей системы
-            </p>
-        </div>
-
-        <div class="flex items-center gap-3">
-            <span class="text-sm text-gray-500 dark:text-gray-400">
-                Всего файлов: <span class="font-semibold text-gray-900 dark:text-white"><?php echo $total; ?></span>
-            </span>
-        </div>
-    </div>
+    <?php echo View::factory('partials/page_header', [
+        'crumbs'  => [['Хранилище', URL::site('prx212_file_storage')], ['Общие файлы']],
+        'title'   => 'Общие файлы',
+        'pill'    => ['prx212 · публичный доступ', 'fa-globe-americas'],
+        'actions' => [['html' => '<span class="text-sm text-gray-500 dark:text-gray-400">Всего файлов: <span class="font-semibold text-gray-900 dark:text-white">'.(int) $total.'</span></span>']],
+        'lead'    => 'Список файлов с публичным доступом для всех пользователей системы.',
+    ]); ?>
 
     <?php if (count($files) > 0): ?>
         <div class="prx-card p-0 overflow-hidden">

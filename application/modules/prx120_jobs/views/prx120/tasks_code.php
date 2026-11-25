@@ -42,30 +42,24 @@ $latest_status = $latest ? (string) $latest['status'] : '';
 ?>
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
 
-    <nav class="flex items-center overflow-x-auto whitespace-nowrap text-xs text-gray-500 dark:text-gray-400" aria-label="Хлебные крошки">
-        <a href="/tasks" class="transition hover:text-blue-600 dark:hover:text-blue-400">Мои задачи</a>
-        <span class="mx-1.5 text-gray-300 dark:text-gray-600">/</span>
-        <span class="font-semibold text-gray-700 dark:text-gray-300"><?php echo HTML::chars($code); ?></span>
-    </nav>
-
-    <div class="mt-2 flex flex-wrap items-center gap-2">
-        <h1 class="prx-h1">
-            <i class="fas fa-list-check mr-2 text-blue-500"></i>Задача <?php echo HTML::chars($code); ?>
-        </h1>
-        <?php if ($latest): ?>
-        <span class="prx-badge <?php echo $badge[$latest_status] ?? 'prx-badge-wait'; ?>"><span class="prx-dot"></span><?php echo HTML::chars($status_ru[$latest_status] ?? $latest_status); ?></span>
-        <span class="prx-count"><?php echo HTML::chars((string) $latest['label']); ?></span>
-        <?php endif; ?>
-        <?php if ($result_url !== ''): ?>
-        <a href="<?php echo HTML::chars($result_url); ?>" class="prx-btn-secondary prx-btn-sm">
-            <i class="fas fa-arrow-up-right-from-square text-[11px]"></i>Открыть результат
-        </a>
-        <?php endif; ?>
-        <a href="/prx120_jobs" class="prx-btn-secondary prx-btn-sm">
-            Монитор воркеров
-        </a>
-    </div>
-
+    <?php
+    $codepage_actions = [];
+    if ($latest)
+    {
+        $codepage_actions[] = ['html' => '<span class="prx-badge '.(isset($badge[$latest_status]) ? $badge[$latest_status] : 'prx-badge-wait').'"><span class="prx-dot"></span>'.HTML::chars($status_ru[$latest_status] ?? $latest_status).'</span>'];
+    }
+    $codepage_actions[] = ['label' => 'Монитор воркеров', 'href' => '/prx120_jobs', 'role' => 'secondary'];
+    if ($result_url !== '')
+    {
+        $codepage_actions[] = ['label' => 'Открыть результат', 'href' => $result_url, 'icon' => 'fa-arrow-up-right-from-square', 'role' => 'secondary'];
+    }
+    echo View::factory('partials/page_header', [
+        'crumbs'  => [['Мои задачи', '/tasks'], ['Задача '.HTML::chars($code)]],
+        'title'   => 'Задача '.HTML::chars($code),
+        'pill'    => $latest ? [(string) $latest['label'], 'fa-list-check'] : [],
+        'actions' => $codepage_actions,
+    ]);
+    ?>
     <?php if ( ! $tasks): ?>
     <div class="prx-card mt-4 text-sm text-gray-600 dark:text-gray-300">
         По этому коду задач не нашлось. Возможно, ссылка устарела или задача была удалена —

@@ -9,17 +9,12 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
 ?>
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
 
-    <div class="mb-8 max-w-3xl">
-        <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-            <a href="/services" class="hover:text-blue-600 dark:hover:text-blue-400"><i class="fas fa-arrow-left mr-1"></i>Все сервисы</a>
-            <span class="mx-1.5">/</span><span class="text-gray-600 dark:text-gray-300"><?php echo HTML::chars($title); ?></span>
-        </p>
-        <h1 class="prx-h1"><?php echo HTML::chars($title); ?></h1>
-        <p class="mt-3 text-base text-gray-600 dark:text-gray-300">
-            <?php echo $group_cnt; ?> <?php echo $group_cnt === 1 ? 'сервис' : ($group_cnt < 5 ? 'сервиса' : 'сервисов'); ?> раздела.
-            Показаны сервисы, доступные вашей роли.
-        </p>
-    </div>
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Все сервисы', '/prx110_catalog'], [HTML::chars($title)]],
+        'title'  => $title,
+        'pill'   => ['prx110 · каталог сервисов', 'fa-bars-progress'],
+        'lead'   => $group_cnt.' '.($group_cnt === 1 ? 'сервис' : ($group_cnt < 5 ? 'сервиса' : 'сервисов')).' раздела. Показаны сервисы, доступные вашей роли.',
+    ]); ?>
 
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <?php foreach ($items as $m): ?>

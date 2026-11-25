@@ -23,20 +23,18 @@ $pct_cls = function ($st) {
 ?>
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
 
-	<nav class="flex items-center overflow-x-auto whitespace-nowrap text-xs text-gray-500 dark:text-gray-400" aria-label="Хлебные крошки">
-		<a href="/prx120/usage" class="transition hover:text-emerald-600 dark:hover:text-emerald-400">Ресурсы и потребление</a>
-		<span class="mx-1.5 text-gray-300 dark:text-gray-600">/</span>
-		<span class="font-semibold text-gray-700 dark:text-gray-300">Бюджеты токенов</span>
-	</nav>
-
-	<div class="mt-2 flex flex-wrap items-center justify-between gap-2">
-		<h1 class="prx-h1"><i class="fas fa-coins mr-2 text-emerald-600 dark:text-emerald-400"></i>Бюджеты токенов</h1>
-		<span class="text-xs text-gray-500 dark:text-gray-400">
-			запрет постановки задач: <b><?php echo ! empty($config['enforce']) ? 'включён' : 'выключен (PRX120_BUDGET_ENFORCE=0)'; ?></b>
-			· предупреждение при <?php echo (int) Arr::get($config, 'warn_pct', 90); ?> %
-		</span>
-	</div>
-	<p class="mt-1.5 max-w-3xl text-xs text-gray-600 sm:text-sm dark:text-gray-300">Токены = промпт + ответ по всем каналам воркеров за календарный день и месяц (`prx_120_usage`). Роль даёт умолчание, индивидуальный бюджет сильнее. При <?php echo (int) Arr::get($config, 'warn_pct', 90); ?> % владелец получает уведомление, при 100 % очередь отвечает «бюджет исчерпан».</p>
+	<?php
+	$budgets_warn = (int) Arr::get($config, 'warn_pct', 90);
+	echo View::factory('partials/page_header', [
+		'crumbs'  => [['Ресурсы и потребление', '/prx120/usage'], ['Бюджеты токенов']],
+		'title'   => 'Бюджеты токенов',
+		'pill'    => ['prx120 · бюджеты', 'fa-coins'],
+		'actions' => [
+			['html' => '<span class="text-xs text-gray-500 dark:text-gray-400">запрет постановки задач: <b>'.( ! empty($config['enforce']) ? 'включён' : 'выключен (PRX120_BUDGET_ENFORCE=0)').'</b> · предупреждение при '.$budgets_warn.' %</span>'],
+		],
+		'lead'    => 'Токены = промпт + ответ по всем каналам воркеров за календарный день и месяц (prx_120_usage). Роль даёт умолчание, индивидуальный бюджет сильнее. При '.$budgets_warn.' % владелец получает уведомление, при 100 % очередь отвечает «бюджет исчерпан».',
+	]);
+	?>
 
 	<?php if ($flash !== ''): ?>
 	<div class="prx-flash prx-flash-info mt-4 block text-xs font-semibold"><?php echo HTML::chars($flash); ?></div>

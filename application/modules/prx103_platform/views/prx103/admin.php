@@ -8,20 +8,12 @@
 ?>
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
 
-    <nav class="flex items-center overflow-x-auto whitespace-nowrap text-xs text-gray-500 dark:text-gray-400" aria-label="Хлебные крошки">
-        <a href="/dashboard" class="transition hover:text-emerald-600 dark:hover:text-emerald-400">Кабинет</a>
-        <span class="mx-1.5 text-gray-300 dark:text-gray-600">/</span>
-        <span class="font-semibold text-gray-700 dark:text-gray-300">Администрирование</span>
-    </nav>
-
-    <h1 class="prx-h1 mt-2">
-        <i class="fas fa-gear mr-2 text-emerald-600 dark:text-emerald-400"></i>Администрирование
-    </h1>
-    <p class="prx-hint max-w-3xl">
-        Инструменты платформы и разделы управления сервисами. До 06.10.2026 эти ссылки
-        заполняли группу «Платформа» в левой панели — теперь панель только навигация,
-        управление живёт здесь.
-    </p>
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Кабинет', '/dashboard'], ['Администрирование']],
+        'title'  => 'Администрирование',
+        'pill'   => ['prx103 · платформа', 'fa-gear'],
+        'lead'   => 'Инструменты платформы и разделы управления сервисами. До 06.10.2026 эти ссылки заполняли группу «Платформа» в левой панели — теперь панель только навигация, управление живёт здесь.',
+    ]); ?>
 
     <?php if ( ! empty($flash)): ?>
     <div class="prx-flash prx-flash-info mt-4 block text-xs font-semibold"><?php echo HTML::chars($flash); ?></div>

@@ -7,19 +7,12 @@
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
 
-    <nav class="flex items-center overflow-x-auto whitespace-nowrap text-xs text-gray-500 dark:text-gray-400" aria-label="Хлебные крошки">
-        <a href="/dashboard" class="transition hover:text-emerald-600 dark:hover:text-emerald-400">Кабинет</a>
-        <span class="mx-1.5 text-gray-300 dark:text-gray-600">/</span>
-        <span class="font-semibold text-gray-700 dark:text-gray-300">Чистка данных</span>
-    </nav>
-
-    <h1 class="prx-h1 mt-2">
-        <i class="fas fa-broom mr-2 text-emerald-600 dark:text-emerald-400"></i>Чистка данных
-    </h1>
-    <p class="prx-hint max-w-3xl">
-        Обслуживание под присмотром человека: за клик удаляется порция до 5 000 строк — счётчик покажет, что осталось.
-        Суммаризации (компактные профили и т.п.) не трогаются — только сырьё и устаревшие данные.
-    </p>
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Кабинет', '/dashboard'], ['Администрирование', '/admin'], ['Чистка данных']],
+        'title'  => 'Чистка данных',
+        'pill'   => ['prx103 · обслуживание', 'fa-broom'],
+        'lead'   => 'Обслуживание под присмотром человека: за клик удаляется порция до 5 000 строк — счётчик покажет, что осталось. Суммаризации (компактные профили и т.п.) не трогаются — только сырьё и устаревшие данные.',
+    ]); ?>
 
     <?php if ( ! empty($flash)): ?>
     <div class="prx-flash prx-flash-info mt-4 text-xs font-semibold block"><?php echo HTML::chars($flash); ?></div>

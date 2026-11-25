@@ -26,48 +26,26 @@ $v = $verdict[$health['verdict']] ?? $verdict['idle'];
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
 
-    <nav class="flex items-center overflow-x-auto whitespace-nowrap text-xs text-gray-500 dark:text-gray-400" aria-label="Хлебные крошки">
-        <a href="/tasks" class="transition hover:text-emerald-600 dark:hover:text-emerald-400">Задачи</a>
-        <span class="mx-1.5 text-gray-300 dark:text-gray-600">/</span>
-        <span class="font-semibold text-gray-700 dark:text-gray-300">Монитор воркеров</span>
-    </nav>
-
-    <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
-        <h1 class="prx-h1">
-            <i class="fas fa-heart-pulse mr-2 text-emerald-600 dark:text-emerald-400"></i>Монитор воркеров
-        </h1>
-        <div class="flex flex-wrap items-center gap-3">
-            <a href="/prx120/workers" class="prx-btn-secondary prx-btn-sm">
-                <i class="fas fa-book text-xs"></i>Документация воркеров
-            </a>
-            <form method="post" action="/prx120/monitor" class="inline">
-                <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
-                <button type="submit" name="act" value="probe" class="prx-btn-secondary prx-btn-sm">
-                    <i class="fas fa-heart-pulse text-xs"></i>Проверить воркер
-                </button>
-            </form>
-            <?php if ((int) $stale > 0): ?>
-            <!-- Зависшие задачи: чистятся одним кликом -->
-            <form data-njmon-ajax method="post" action="/prx120/monitor<?php echo $p !== '' ? '?p='.$p : ''; ?>" class="inline">
-                <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><input type="hidden" name="act" value="kill_stale">
-                <button data-prx-confirm="Будут прерваны задачи «выполняется» без пульса дольше 30 минут." data-prx-title="Прервать все зависшие?" data-prx-ok="Прервать" type="submit" title="Задачи «выполняется» без пульса дольше 30 минут" class="prx-btn-danger prx-btn-sm">
-                    <i class="fas fa-skull-crossbones text-xs"></i>Прервать зависшие (<?php echo (int) $stale; ?>)
-                </button>
-            </form>
-            <?php endif; ?>
-            <!-- Очистить все записи (журнал задач целиком) -->
-            <form data-njmon-ajax method="post" action="/prx120/monitor<?php echo $p !== '' ? '?p='.$p : ''; ?>" class="inline">
-                <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><input type="hidden" name="act" value="clear">
-                <button data-prx-confirm="Удалятся ВСЕ записи задач: выполненные, ожидающие, исполняющиеся." data-prx-title="Очистить все записи?" data-prx-ok="Очистить" type="submit" title="Удалить ВСЕ записи задач: выполненные, ожидающие, исполняющиеся" class="prx-btn-secondary prx-btn-sm">
-                    <i class="fas fa-eraser text-xs"></i>Очистить все записи
-                </button>
-            </form>
-            <label class="flex cursor-pointer items-center gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
-                <input type="checkbox" id="njmon-auto" checked class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">
-                автообновление 15 с
-            </label>
-        </div>
-    </div>
+    <?php
+    // Шапка по эталону (partials/page_header); формы и переключатель —
+    // через 'html'-действия, разметка сохранена один в один.
+    $monitor_actions = [
+        ['html' => '<a href="/prx120/workers" class="prx-btn-secondary prx-btn-sm"><i class="fas fa-book text-xs"></i>Документация воркеров</a>'],
+        ['html' => '<form method="post" action="/prx120/monitor" class="inline"><input type="hidden" name="csrf" value="'.HTML::chars($csrf).'"><button type="submit" name="act" value="probe" class="prx-btn-secondary prx-btn-sm"><i class="fas fa-heart-pulse text-xs"></i>Проверить воркер</button></form>'],
+    ];
+    if ((int) $stale > 0)
+    {
+        $monitor_actions[] = ['html' => '<form data-njmon-ajax method="post" action="/prx120/monitor'.($p !== '' ? '?p='.$p : '').'" class="inline"><input type="hidden" name="csrf" value="'.HTML::chars($csrf).'"><input type="hidden" name="act" value="kill_stale"><button data-prx-confirm="Будут прерваны задачи «выполняется» без пульса дольше 30 минут." data-prx-title="Прервать все зависшие?" data-prx-ok="Прервать" type="submit" title="Задачи «выполняется» без пульса дольше 30 минут" class="prx-btn-danger prx-btn-sm"><i class="fas fa-skull-crossbones text-xs"></i>Прервать зависшие ('.(int) $stale.')</button></form>'];
+    }
+    $monitor_actions[] = ['html' => '<form data-njmon-ajax method="post" action="/prx120/monitor'.($p !== '' ? '?p='.$p : '').'" class="inline"><input type="hidden" name="csrf" value="'.HTML::chars($csrf).'"><input type="hidden" name="act" value="clear"><button data-prx-confirm="Удалятся ВСЕ записи задач: выполненные, ожидающие, исполняющиеся." data-prx-title="Очистить все записи?" data-prx-ok="Очистить" type="submit" title="Удалить ВСЕ записи задач: выполненные, ожидающие, исполняющиеся" class="prx-btn-secondary prx-btn-sm"><i class="fas fa-eraser text-xs"></i>Очистить все записи</button></form>'];
+    $monitor_actions[] = ['html' => '<label class="flex cursor-pointer items-center gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400"><input type="checkbox" id="njmon-auto" checked class="h-4 w-4 shrink-0 rounded border-gray-300 accent-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700">автообновление 15 с</label>'];
+    echo View::factory('partials/page_header', [
+        'crumbs'  => [['Задачи', '/tasks'], ['Монитор воркеров']],
+        'title'   => 'Монитор воркеров',
+        'pill'    => ['Очередь задач prx120', 'fa-heart-pulse'],
+        'actions' => $monitor_actions,
+    ]);
+    ?>
 
     <?php if ( ! empty($flash)): ?>
     <div class="prx-flash prx-flash-info mt-4 text-xs font-semibold block"><?php echo HTML::chars($flash); ?></div>

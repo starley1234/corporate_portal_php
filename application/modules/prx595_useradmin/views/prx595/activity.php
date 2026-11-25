@@ -47,13 +47,12 @@ $status_badge = function ($st) {
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
 
-    <nav class="flex items-center overflow-x-auto whitespace-nowrap text-xs text-gray-500 dark:text-gray-400" aria-label="Хлебные крошки">
-        <a href="/prx595_useradmin" class="transition hover:text-blue-600 dark:hover:text-blue-400">Пользователи</a>
-        <span class="mx-1.5 text-gray-300 dark:text-gray-600">/</span>
-        <span class="font-medium text-gray-700 dark:text-gray-200">Активность</span>
-    </nav>
-    <h1 class="prx-h1 mt-2"><i class="fas fa-chart-line mr-2 text-blue-500"></i>Активность системы</h1>
-    <p class="mt-1.5 max-w-3xl text-xs text-gray-600 sm:text-sm dark:text-gray-300">Все задачи платформы проходят через общую очередь: каждая помечена посетителем — <span class="font-mono">u:&lt;id&gt;</span> у зарегистрированных, <span class="font-mono">g:&lt;ubid&gt;</span> у гостей.</p>
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Пользователи', '/prx595_useradmin'], ['Активность']],
+        'title'  => 'Активность системы',
+        'pill'   => ['prx595 · журнал', 'fa-chart-line'],
+        'lead'   => 'Все задачи платформы проходят через общую очередь: каждая помечена посетителем — u:<id> у зарегистрированных, g:<ubid> у гостей.',
+    ]); ?>
 
     <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div class="prx-card">

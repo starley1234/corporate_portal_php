@@ -9,21 +9,12 @@
 ?>
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
 
-    <nav class="flex items-center overflow-x-auto whitespace-nowrap text-xs text-gray-500 dark:text-gray-400" aria-label="Хлебные крошки">
-        <a href="/dashboard" class="transition hover:text-blue-600 dark:hover:text-blue-400">Кабинет</a>
-        <span class="mx-1.5 text-gray-300 dark:text-gray-600">/</span>
-        <a href="/prx150_api_hub" class="transition hover:text-blue-600 dark:hover:text-blue-400">API-ключи</a>
-        <span class="mx-1.5 text-gray-300 dark:text-gray-600">/</span>
-        <span class="font-semibold text-gray-700 dark:text-gray-300">Правка</span>
-    </nav>
-
-    <h1 class="prx-h1 mt-2">
-        <i class="fas fa-key mr-2 text-blue-500"></i>Ключ «<?php echo HTML::chars($key['name']); ?>» — правка
-    </h1>
-    <p class="prx-hint max-w-3xl">
-        Значение ключа и его префикс не меняются — потребителю ничего обновлять не нужно.
-        Пустое поле файлового лимита = безлимит по ключу (глобальные лимиты модуля остаются в силе).
-    </p>
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Кабинет', '/dashboard'], ['API-ключи', '/prx150_api_hub'], ['Правка']],
+        'title'  => 'Ключ «'.HTML::chars($key['name']).'» — правка',
+        'pill'   => ['prx150 · API-доступ', 'fa-key'],
+        'lead'   => 'Значение ключа и его префикс не меняются — потребителю ничего обновлять не нужно. Пустое поле файлового лимита = безлимит по ключу (глобальные лимиты модуля остаются в силе).',
+    ]); ?>
 
     <?php if ((string) $flash !== ''): ?>
     <div class="prx-flash prx-flash-info mt-3" role="status"><i class="fas fa-circle-info shrink-0"></i><span><?php echo HTML::chars($flash); ?></span></div>

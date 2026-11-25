@@ -4,26 +4,16 @@
     <!-- Хлебные крошки и поиск -->
     <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
         <?php if (isset($storage_path) && !empty($storage_path)): ?>
-            <nav class="flex" aria-label="Breadcrumb">
-                <ol class="inline-flex items-center space-x-1 md:space-x-3">
-                    <li class="inline-flex items-center">
-                        <a href="<?php echo URL::site('prx212_file_storage'); ?>" class="text-blue-600 hover:text-blue-700 dark:text-blue-400 transition-colors">
-                            <i class="fas fa-hdd mr-2"></i>Хранилище
-                        </a>
-                    </li>
-                    <?php foreach (array_slice($storage_path, 1) as $key => $crumb): ?>
-                        <li class="inline-flex items-center">
-                            <i class="fas fa-chevron-right text-gray-400 mx-2 text-xs"></i>
-                            <?php if ($key == count($storage_path) - 2): ?>
-                                <span class="ml-1 text-gray-500 dark:text-gray-400 font-medium"><?php echo HTML::chars($crumb['name']); ?></span>
-                            <?php else: ?>
-                                <a href="<?php echo HTML::chars($crumb['url']); ?>" class="ml-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 transition-colors">
-                                    <?php echo HTML::chars($crumb['name']); ?>
-                                </a>
-                            <?php endif; ?>
-                        </li>
-                    <?php endforeach; ?>
-                </ol>
+            <nav class="prx-crumbs flex-wrap" aria-label="Хлебные крошки">
+                <a href="<?php echo URL::site('prx212_file_storage'); ?>">Хранилище</a>
+<?php foreach (array_slice($storage_path, 1) as $prx212_key => $prx212_crumb): ?>
+                <span class="prx-crumbs-sep">/</span>
+<?php if ($prx212_key == count($storage_path) - 2): ?>
+                <span class="prx-crumbs-current" aria-current="page"><?php echo HTML::chars($prx212_crumb['name']); ?></span>
+<?php else: ?>
+                <a href="<?php echo HTML::chars($prx212_crumb['url']); ?>"><?php echo HTML::chars($prx212_crumb['name']); ?></a>
+<?php endif; ?>
+<?php endforeach; ?>
             </nav>
         <?php endif; ?>
 

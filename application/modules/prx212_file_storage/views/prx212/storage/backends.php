@@ -1,24 +1,13 @@
 <?php defined('SYSPATH') or die('No direct script access.'); ?>
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
-        <div>
-            <h1 class="prx-h1 flex items-center">
-                <i class="fas fa-server mr-3 text-blue-500"></i>
-                Управление хранилищами (Backends)
-            </h1>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Конфигурация драйверов и физических мест хранения файлов
-            </p>
-        </div>
-        
-        <div class="flex items-center gap-3">
-            <button class="prx-btn-cta">
-                <i class="fas fa-plus mr-2"></i>
-                Добавить бэкенд
-            </button>
-        </div>
-    </div>
+    <?php echo View::factory('partials/page_header', [
+        'crumbs'  => [['Хранилище', URL::site('prx212_file_storage')], ['Хранилища (Backends)']],
+        'title'   => 'Управление хранилищами (Backends)',
+        'pill'    => ['prx212 · драйверы', 'fa-server'],
+        'actions' => [['html' => '<button class="prx-btn-cta"><i class="fas fa-plus mr-2"></i>Добавить бэкенд</button>']],
+        'lead'    => 'Конфигурация драйверов и физических мест хранения файлов.',
+    ]); ?>
 
     <div class="grid grid-cols-1 gap-6">
         <div class="prx-card p-0 overflow-hidden">

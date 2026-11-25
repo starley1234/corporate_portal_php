@@ -58,31 +58,24 @@ $found_html = function (array $s_row) {
 ?>
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
 
-    <nav class="flex items-center overflow-x-auto whitespace-nowrap text-xs text-gray-500 dark:text-gray-400" aria-label="Хлебные крошки">
-        <a href="/dashboard" class="transition hover:text-emerald-600 dark:hover:text-emerald-400">Кабинет</a>
-        <span class="mx-1.5 text-gray-300 dark:text-gray-600">/</span>
-        <span class="font-semibold text-gray-700 dark:text-gray-300">Семантика · поиск и векторы</span>
-    </nav>
-
-    <div class="mt-2 flex flex-wrap items-center gap-2">
-        <h1 class="prx-h1">
-            <i class="fas fa-magnifying-glass-chart mr-2 text-emerald-600 dark:text-emerald-400"></i>Семантический поиск
-        </h1>
-        <span class="prx-count">Векторы платформы</span>
-        <?php if ($engine !== ''): ?>
-        <span class="prx-count font-mono" title="Как ищет PostgreSQL: pgvector (&lt;=&gt;) или косинусная функция prx_115_vec_dist">
-            <?php echo HTML::chars($engine === 'pgvector' ? 'pgvector · HNSW' : 'real[] · косинус'); ?>
-        </span>
-        <?php endif; ?>
-        <?php if ($busy > 0): ?>
-        <span class="prx-badge prx-badge-info" id="prx115-busy"><span class="prx-dot"></span>в очереди: <?php echo (int) $busy; ?></span>
-        <?php endif; ?>
-    </div>
-
-    <p class="prx-hint mt-1.5 max-w-3xl">
-        Единое хранилище векторов: модули ставят тексты в индексацию (очередь <code class="rounded bg-gray-100 px-1 py-0.5 font-mono text-sm dark:bg-gray-900">semantic.index</code>),
-        воркер считает эмбеддинги и пишет их в PostgreSQL, поиск — один вызов сервера плюс KNN.
-    </p>
+    <?php
+    $prx115_counts = '<span class="prx-count">Векторы платформы</span>';
+    if ($engine !== '')
+    {
+        $prx115_counts .= ' <span class="prx-count font-mono" title="Как ищет PostgreSQL: pgvector (&lt;=&gt;) или косинусная функция prx_115_vec_dist">'.HTML::chars($engine === 'pgvector' ? 'pgvector · HNSW' : 'real[] · косинус').'</span>';
+    }
+    if ($busy > 0)
+    {
+        $prx115_counts .= ' <span class="prx-badge prx-badge-info" id="prx115-busy"><span class="prx-dot"></span>в очереди: '.(int) $busy.'</span>';
+    }
+    echo View::factory('partials/page_header', [
+        'crumbs'  => [['Кабинет', '/dashboard'], ['Семантика · поиск и векторы']],
+        'title'   => 'Семантический поиск',
+        'pill'    => ['prx115 · векторы', 'fa-magnifying-glass-chart'],
+        'actions' => [['html' => $prx115_counts]],
+        'lead'    => 'Единое хранилище векторов: модули ставят тексты в индексацию (очередь semantic.index), воркер считает эмбеддинги и пишет их в PostgreSQL, поиск — один вызов сервера плюс KNN.',
+    ]);
+    ?>
 
     <?php if ($panel_error !== ''): ?>
     <div class="prx-flash prx-flash-err mt-4 font-semibold block">

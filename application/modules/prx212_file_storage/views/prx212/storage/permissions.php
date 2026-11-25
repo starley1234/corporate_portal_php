@@ -1,34 +1,11 @@
 <?php defined('SYSPATH') or die('No direct script access.'); ?>
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
-    <div class="mb-6">
-        <nav class="flex mb-2" aria-label="Breadcrumb">
-            <ol class="inline-flex items-center space-x-1 md:space-x-3">
-                <li class="inline-flex items-center">
-                    <a href="<?php echo Route::url('default', ['controller' => 'prx212_file_storage', 'action' => 'index']); ?>" class="text-sm text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white">
-                        <i class="fas fa-folder-open mr-2"></i>Хранилище
-                    </a>
-                </li>
-                <li>
-                    <div class="flex items-center">
-                        <i class="fas fa-chevron-right text-gray-400 text-xs mx-2"></i>
-                        <a href="<?php echo Route::url('default', ['controller' => 'prx212_file_storage', 'action' => 'file', 'id' => $file->id]); ?>" class="text-sm text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white">
-                            <?php echo HTML::chars($file->filename); ?>
-                        </a>
-                    </div>
-                </li>
-                <li>
-                    <div class="flex items-center">
-                        <i class="fas fa-chevron-right text-gray-400 text-xs mx-2"></i>
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Права доступа</span>
-                    </div>
-                </li>
-            </ol>
-        </nav>
-        <h1 class="prx-h1">
-            Управление доступом: <?php echo HTML::chars($file->filename); ?>
-        </h1>
-    </div>
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Хранилище', URL::site('prx212_file_storage')], [$file->filename, URL::site('prx212_file_storage/file/'.$file->id)], ['Права доступа']],
+        'title'  => 'Управление доступом: '.HTML::chars($file->filename),
+        'pill'   => ['prx212 · доступ', 'fa-lock'],
+    ]); ?>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Форма добавления прав -->

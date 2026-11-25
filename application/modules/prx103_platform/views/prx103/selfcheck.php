@@ -27,22 +27,12 @@ $badge = [
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
 
-    <nav class="flex items-center overflow-x-auto whitespace-nowrap text-xs text-gray-500 dark:text-gray-400" aria-label="Хлебные крошки">
-        <a href="/dashboard" class="transition hover:text-emerald-600 dark:hover:text-emerald-400">Кабинет</a>
-        <span class="mx-1.5 text-gray-300 dark:text-gray-600">/</span>
-        <a href="/admin" class="transition hover:text-emerald-600 dark:hover:text-emerald-400">Администрирование</a>
-        <span class="mx-1.5 text-gray-300 dark:text-gray-600">/</span>
-        <span class="font-semibold text-gray-700 dark:text-gray-300">Проверка сервера</span>
-    </nav>
-
-    <h1 class="prx-h1 mt-2">
-        <i class="fas fa-clipboard-check mr-2 text-emerald-600 dark:text-emerald-400"></i>Проверка сервера
-    </h1>
-    <p class="prx-hint max-w-3xl">
-        Проверки <code>bin/console dev:doctor</code> плюс компиляция всех php-файлов (<code>php&nbsp;-l</code>) по частям.
-        Ничего не исполняется и не меняется — только читается состояние. Быстрая часть — секунды,
-        компиляция идёт после неё порциями с прогрессом.
-    </p>
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Кабинет', '/dashboard'], ['Администрирование', '/admin'], ['Проверка сервера']],
+        'title'  => 'Проверка сервера',
+        'pill'   => ['prx103 · selfcheck', 'fa-clipboard-check'],
+        'lead'   => 'Проверки bin/console dev:doctor плюс компиляция всех php-файлов (php -l) по частям. Ничего не исполняется и не меняется — только читается состояние. Быстрая часть — секунды, компиляция идёт после неё порциями с прогрессом.',
+    ]); ?>
 
     <?php if ( ! empty($flash)): ?>
     <div class="prx-flash prx-flash-info mt-4 text-xs font-semibold block"><?php echo HTML::chars($flash); ?></div>

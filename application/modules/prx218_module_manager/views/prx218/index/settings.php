@@ -1,6 +1,11 @@
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Реестр модулей', '/prx218_module_manager'], ['Настройки реестра']],
+        'title'  => 'Настройки реестра модулей',
+        'pill'   => ['prx218 · конфигурация', 'fa-sliders'],
+    ]); ?>
+
     <div class="prx-card">
-        <h1 class="prx-h1 mb-6"><?php echo __('Настройки реестра модулей'); ?></h1>
 
         <form id="settings-form" method="POST" action="<?php echo URL::site('prx218_module_manager/index/save_settings'); ?>
         <input type="hidden" name="csrf" value="<?php echo HTML::chars(Security::token()); ?>">">

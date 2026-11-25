@@ -27,18 +27,18 @@ $fmt = function (string $ts): string {
 ?>
 
 <div class="prx-ds w-full space-y-6 px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
-    <div class="flex flex-wrap items-center justify-between gap-3">
-        <div>
-            <h1 class="prx-h1">Хвост ошибок</h1>
-            <p class="prx-hint">Единая лента неисправностей: модули в БД и системный лог (WARNING+). На момент: <?php echo $now; ?></p>
-        </div>
-        <div class="flex flex-wrap gap-2">
-            <a href="/prx100/errors" class="prx-btn-secondary prx-btn-sm"><i class="fas fa-rotate mr-1.5"></i>Обновить</a>
-            <a href="/prx100/logs" class="prx-btn-secondary prx-btn-sm"><i class="fas fa-terminal mr-1.5"></i>Логи</a>
-            <a href="/prx208_events" class="prx-btn-secondary prx-btn-sm"><i class="fas fa-bolt mr-1.5"></i>События</a>
-            <a href="/dashboard" class="prx-btn-secondary prx-btn-sm"><i class="fas fa-gauge mr-1.5"></i>Дашборд</a>
-        </div>
-    </div>
+    <?php echo View::factory('partials/page_header', [
+        'crumbs'  => [['Администрирование', '/admin'], ['Хвост ошибок']],
+        'title'   => 'Хвост ошибок',
+        'pill'    => ['prx100 · диагностика', 'fa-triangle-exclamation'],
+        'actions' => [
+            ['label' => 'Обновить', 'href' => '/prx100/errors', 'icon' => 'fa-rotate', 'role' => 'secondary'],
+            ['label' => 'Логи', 'href' => '/prx100/logs', 'icon' => 'fa-terminal', 'role' => 'secondary'],
+            ['label' => 'События', 'href' => '/prx208_events', 'icon' => 'fa-bolt', 'role' => 'secondary'],
+            ['label' => 'Дашборд', 'href' => '/dashboard', 'icon' => 'fa-gauge', 'role' => 'secondary'],
+        ],
+        'lead'    => 'Единая лента неисправностей: модули в БД и системный лог (WARNING+). На момент: '.$now,
+    ]); ?>
 
     <!-- Сводка -->
     <div class="grid grid-cols-2 gap-4">

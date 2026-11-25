@@ -8,25 +8,23 @@ $n = function ($v) { return number_format((float) $v, 0, ',', ' '); };
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
 
-    <nav class="flex items-center overflow-x-auto whitespace-nowrap text-xs text-gray-500 dark:text-gray-400" aria-label="Хлебные крошки">
-        <a href="/tasks" class="transition hover:text-emerald-600 dark:hover:text-emerald-400">Задачи</a>
-        <span class="mx-1.5 text-gray-300 dark:text-gray-600">/</span>
-        <span class="font-semibold text-gray-700 dark:text-gray-300">Ресурсы и потребление</span>
-    </nav>
-
-    <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
-        <h1 class="prx-h1">
-            <i class="fas fa-gauge-high mr-2 text-emerald-600 dark:text-emerald-400"></i>Ресурсы и потребление
-        </h1>
-        <div class="flex flex-wrap items-center gap-2">
-        <a href="/prx120/budgets" class="prx-btn-secondary prx-btn-sm"><i class="fas fa-coins mr-1.5 text-xs text-gray-400"></i>Бюджеты</a>
-        <div class="prx-seg gap-1">
-            <?php foreach ($periods as $k => $label): ?>
-            <a href="/prx120/usage?p=<?php echo $k; ?>" class="prx-seg-item<?php echo $k === $p ? ' is-active' : ''; ?>"><?php echo HTML::chars($label); ?></a>
-            <?php endforeach; ?>
-        </div>
-        </div>
-    </div>
+    <?php
+    $usage_seg = '<div class="prx-seg gap-1">';
+    foreach ($periods as $k => $label)
+    {
+        $usage_seg .= '<a href="/prx120/usage?p='.$k.'" class="prx-seg-item'.($k === $p ? ' is-active' : '').'">'.HTML::chars($label).'</a>';
+    }
+    $usage_seg .= '</div>';
+    echo View::factory('partials/page_header', [
+        'crumbs'  => [['Задачи', '/tasks'], ['Ресурсы и потребление']],
+        'title'   => 'Ресурсы и потребление',
+        'pill'    => ['Отчёты воркеров', 'fa-gauge-high'],
+        'actions' => [
+            ['label' => 'Бюджеты', 'href' => '/prx120/budgets', 'icon' => 'fa-coins', 'role' => 'secondary'],
+            ['html' => $usage_seg],
+        ],
+    ]);
+    ?>
 
     <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <div class="prx-card">

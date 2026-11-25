@@ -1,21 +1,13 @@
 <?php defined('SYSPATH') or die('No direct script access.'); ?>
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
-    <div class="mb-8 flex items-center justify-between">
-        <div>
-            <h1 class="prx-h1 flex items-center">
-                <i class="fas fa-edit mr-3 text-blue-500"></i>
-                Редактирование файла
-            </h1>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Изменение метаданных и параметров доступа для файла #<?php echo $file->id; ?>
-            </p>
-        </div>
-        <a href="<?php echo Route::url('default', ['controller' => 'prx212_file_storage', 'action' => 'file', 'id' => $file->id]); ?>"
-           class="prx-btn-secondary">
-            <i class="fas fa-arrow-left mr-2"></i> К информации
-        </a>
-    </div>
+    <?php echo View::factory('partials/page_header', [
+        'crumbs'  => [['Хранилище', URL::site('prx212_file_storage')], ['Редактирование файла']],
+        'title'   => 'Редактирование файла',
+        'pill'    => ['prx212 · метаданные', 'fa-edit'],
+        'actions' => [['label' => 'К информации', 'href' => Route::url('default', ['controller' => 'prx212_file_storage', 'action' => 'file', 'id' => $file->id]), 'icon' => 'fa-arrow-left', 'role' => 'secondary']],
+        'lead'    => 'Изменение метаданных и параметров доступа для файла #'.(int) $file->id,
+    ]); ?>
 
     <div class="prx-card p-0 overflow-hidden">
         <form action="" method="POST" class="p-6 space-y-6">

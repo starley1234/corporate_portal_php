@@ -11,16 +11,13 @@ $card = 'rounded-xl border border-gray-200 bg-white p-4 shadow-xs dark:border-gr
 ?>
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
 
-    <div class="mb-4">
-        <h1 class="prx-h1">
-            <i class="fas fa-book mr-2 text-blue-500"></i>Документация воркеров
-        </h1>
-        <p class="mt-1 text-sm leading-relaxed text-gray-500 dark:text-gray-400">
-            Что делает каждый обработчик фоновых задач — на человеческом языке, со схемами.
-            Страница собирается прямо из кода воркера (workers/prx_workers/handlers), поэтому
-            описания и схемы всегда соответствуют тому, что реально запускается.
-            Живое состояние очереди — <a href="/prx120_jobs" class="font-semibold text-blue-600 hover:underline dark:text-blue-400">монитор воркеров</a>.
-        </p>
+    <?php echo View::factory('partials/page_header', [
+        'crumbs'  => [['Монитор воркеров', '/prx120_jobs'], ['Документация воркеров']],
+        'title'   => 'Документация воркеров',
+        'pill'    => ['Автосправка из кода', 'fa-book'],
+        'actions' => [['label' => 'Монитор воркеров', 'href' => '/prx120_jobs', 'icon' => 'fa-heart-pulse', 'role' => 'secondary']],
+        'lead'    => 'Что делает каждый обработчик фоновых задач — на человеческом языке, со схемами. Страница собирается прямо из кода воркера, поэтому описания и схемы всегда соответствуют тому, что реально запускается.',
+    ]); ?>
         <?php if ($dir === ''): ?>
         <p class="prx-flash prx-flash-warn mt-3 block">
             <i class="fas fa-triangle-exclamation mr-1"></i>Каталог workers/prx_workers/handlers не найден рядом с сайтом — на этой машине код воркера не развёрнут.

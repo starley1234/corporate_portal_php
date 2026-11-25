@@ -43,18 +43,15 @@ $badge = function ($status) {
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
 
-	<div class="mt-2 flex flex-wrap items-center justify-between gap-3">
-		<h1 class="prx-h1"><i class="fas fa-bell-concierge mr-2 text-blue-500"></i>Управление</h1>
-		<div class="flex flex-wrap gap-2">
-			<form autocomplete="off" method="post" action="/prx597/admin">
-				<input type="hidden" name="csrf" value="<?php echo $csrf_h; ?>">
-				<input type="hidden" name="act" value="run">
-				<input type="hidden" name="tab" value="<?php echo HTML::chars($tab); ?>">
-				<button type="submit" class="prx-btn-process prx-btn-sm"><i class="fas fa-play mr-1.5"></i>Доставить сейчас</button>
-			</form>
-			<a href="/prx597_notifications" class="prx-btn-secondary prx-btn-sm"><i class="fas fa-bell mr-1.5"></i>Мои уведомления</a>
-		</div>
-	</div>
+	<?php echo View::factory('partials/page_header', [
+		'crumbs'  => [['Администрирование', '/admin'], ['Уведомления', '/prx597_notifications'], ['Управление']],
+		'title'   => 'Управление',
+		'pill'    => ['prx597 · рассылка', 'fa-bell-concierge'],
+		'actions' => [
+			['html' => '<form autocomplete="off" method="post" action="/prx597/admin"><input type="hidden" name="csrf" value="'.$csrf_h.'"><input type="hidden" name="act" value="run"><input type="hidden" name="tab" value="'.HTML::chars($tab).'"><button type="submit" class="prx-btn-process prx-btn-sm"><i class="fas fa-play mr-1.5"></i>Доставить сейчас</button></form>'],
+			['label' => 'Мои уведомления', 'href' => '/prx597_notifications', 'icon' => 'fa-bell', 'role' => 'secondary'],
+		],
+	]); ?>
 
 	<?php if ((string) $flash !== ''): ?>
 	<div class="prx-flash prx-flash-info mt-3" role="status">

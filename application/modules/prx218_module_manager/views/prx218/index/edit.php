@@ -1,14 +1,12 @@
 <?php defined('SYSPATH') or die('No direct script access.'); ?>
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
-        <h1 class="prx-h1">
-            Редактирование модуля: <span class="block sm:inline-block mt-1 sm:mt-0"><?php echo HTML::chars($module->display_name); ?></span>
-        </h1>
-        <a href="<?php echo Route::url('prx218_module_manager_admin', ['controller' => 'index', 'action' => 'view', 'id' => $module->id]); ?>" class="prx-btn-secondary w-full sm:w-auto">
-            <i class="fas fa-arrow-left mr-2"></i> Назад к просмотру
-        </a>
-    </div>
+    <?php echo View::factory('partials/page_header', [
+        'crumbs'  => [['Реестр модулей', '/prx218_module_manager'], [$module->display_name, Route::url('prx218_module_manager_admin', ['controller' => 'index', 'action' => 'view', 'id' => $module->id])], ['Редактирование']],
+        'title'   => 'Редактирование модуля: '.HTML::chars($module->display_name),
+        'pill'    => ['prx218 · реестр', 'fa-pen-to-square'],
+        'actions' => [['label' => 'Назад к просмотру', 'href' => Route::url('prx218_module_manager_admin', ['controller' => 'index', 'action' => 'view', 'id' => $module->id]), 'icon' => 'fa-arrow-left', 'role' => 'secondary']],
+    ]); ?>
 
     <div class="prx-card sm:p-8">
         <form id="moduleEditForm" method="POST" action="<?php echo Route::url('prx218_module_manager_admin', ['controller' => 'index', 'action' => 'edit', 'id' => $module->id]); ?>">

@@ -18,10 +18,12 @@ foreach ((array) $tasks as $t) { if (in_array($t['status'], ['pending', 'process
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
 
-    <div class="mb-4">
-        <h1 class="prx-h1"><i class="fas fa-list-check mr-2 text-blue-500"></i>Мои задачи</h1>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Фоновые операции ИИ-воркеров из всех сервисов PRX.ru<?php echo $has_active ? ' — страница сама обновит статус' : ''; ?>.</p>
-    </div>
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Кабинет', '/dashboard'], ['Мои задачи']],
+        'title'  => 'Мои задачи',
+        'pill'   => ['prx120 · задачи', 'fa-list-check'],
+        'lead'   => 'Фоновые операции ИИ-воркеров из всех сервисов PRX.ru'.($has_active ? ' — страница сама обновит статус' : '').'.',
+    ]); ?>
 
     <div class="gap-4 space-y-4 md:grid md:grid-cols-3 md:items-start md:space-y-0">
 

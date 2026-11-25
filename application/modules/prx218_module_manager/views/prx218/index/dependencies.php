@@ -1,5 +1,9 @@
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
-    <h1 class="prx-h1 mb-6"><?php echo __('Управление зависимостями модулей'); ?></h1>
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Реестр модулей', '/prx218_module_manager'], ['Зависимости']],
+        'title'  => 'Управление зависимостями модулей',
+        'pill'   => ['prx218 · связи модулей', 'fa-link'],
+    ]); ?>
 
     <div class="prx-card mb-8">
         <h3 class="prx-h3 mb-4"><?php echo __('Добавить новую зависимость'); ?></h3>

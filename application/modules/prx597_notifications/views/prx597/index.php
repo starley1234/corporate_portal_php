@@ -32,18 +32,14 @@ $chip = function ($key) use ($binding) {
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
 
-	<nav class="flex items-center overflow-x-auto whitespace-nowrap text-xs text-gray-500 dark:text-gray-400" aria-label="Хлебные крошки">
-		<a href="/" class="transition hover:text-blue-600 dark:hover:text-blue-400">Главная</a>
-		<span class="mx-1.5 text-gray-300 dark:text-gray-600">/</span>
-		<span class="font-medium text-gray-700 dark:text-gray-200">Уведомления</span>
-	</nav>
-
-	<div class="mt-2 flex flex-wrap items-center justify-between gap-3">
-		<h1 class="prx-h1"><i class="fas fa-bell mr-2 text-blue-500"></i>Уведомления</h1>
-		<span class="prx-badge <?php echo $unread ? 'prx-badge-info' : 'prx-badge-ok'; ?>">
-			<span class="prx-dot"></span><?php echo $unread ? 'непрочитанных: '.(int) $unread : 'всё прочитано'; ?>
-		</span>
-	</div>
+		<?php echo View::factory('partials/page_header', [
+		'crumbs'  => [['Кабинет', '/dashboard'], ['Уведомления']],
+		'title'   => 'Уведомления',
+		'pill'    => ['prx597 · каналы', 'fa-bell'],
+		'actions' => [
+			['html' => '<span class="prx-badge '.($unread ? 'prx-badge-info' : 'prx-badge-ok').'"><span class="prx-dot"></span>'.($unread ? 'непрочитанных: '.(int) $unread : 'всё прочитано').'</span>'],
+		],
+	]); ?>
 
 	<?php if ((string) $flash !== ''): ?>
 	<div class="prx-flash prx-flash-info mt-3" role="status">

@@ -25,11 +25,12 @@ $dark_init = 'try{if(localStorage.getItem("theme")==="dark"||(!localStorage.getI
 </head>
 <body class="min-h-screen bg-gray-50 text-gray-800 dark:bg-gray-900 dark:text-gray-100">
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
-    <div>
-        <p class="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">PRX111 · схема базы данных</p>
-        <h1 class="prx-h1 mt-1">Миграции</h1>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Проверка и обновление структуры базы без командной строки.</p>
-    </div>
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Администрирование', '/admin'], ['Миграции']],
+        'title'  => 'Миграции',
+        'pill'   => ['PRX111 · схема базы данных', 'fa-database'],
+        'lead'   => 'Проверка и обновление структуры базы без командной строки.',
+    ]); ?>
 
     <?php if ( ! empty($configuration_warning)): ?>
         <div role="alert" class="prx-flash prx-flash-err block"><strong>Ошибка настройки баз:</strong> <?php echo HTML::chars($configuration_warning); ?></div>

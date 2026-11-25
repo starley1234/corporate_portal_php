@@ -6,59 +6,19 @@ $inventory_state = ['stable' => 'approved', 'alpha' => 'wip', 'beta' => 'wip', '
 ?>
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
-    <!-- Header Section -->
-    <div class="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
-        <div class="flex items-center space-x-4">
-            <div class="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-600 dark:text-blue-400 text-2xl shadow-sm">
-                <?php if (!empty($module->icon)): ?>
-                    <i class="fas <?php echo HTML::chars($module->icon); ?> text-lg"></i>
-                <?php else: ?>
-                    <i class="fas fa-box-open text-lg"></i>
-                <?php endif; ?>
-            </div>
-            <div>
-                <div class="flex items-center gap-3">
-                    <h1 class="prx-h1">
-                        <?php echo HTML::chars($module->display_name); ?>
-                    </h1>
-                    <span class="prx-count">
-                        v<?php echo HTML::chars($module->version); ?>
-                    </span>
-                </div>
-                <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">
-                    <i class="far fa-folder mr-1"></i> application/modules/<?php echo HTML::chars($module->system_name); ?>
-                </p>
-            </div>
-        </div>
-
-        <div class="flex items-center gap-3">
-            <?php
-                $status_classes = [
-                    'alpha'    => 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-                    'beta'     => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-                    'stable'   => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-                    'archived' => 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400',
-                ];
-                $current_status = $module->status ?? 'alpha';
-            ?>
-            <button class="edit-status-btn px-4 py-2 rounded-lg text-sm font-semibold <?php echo $status_classes[$current_status] ?? $status_classes['alpha']; ?>"
-                    data-module-id="<?php echo $module->id; ?>"
-                    data-current-status="<?php echo HTML::chars($current_status); ?>">
-                <i class="fas fa-circle text-[8px] mr-2 opacity-70"></i>
-                <span class="status-text"><?php echo ucfirst(HTML::chars($current_status)); ?></span>
-            </button>
-
-            <button class="prx-btn-secondary edit-attributes-btn"
-                    data-module-id="<?php echo $module->id; ?>"
-                    data-display-name="<?php echo HTML::chars($module->display_name); ?>"
-                    data-description="<?php echo HTML::chars($module->description); ?>"
-                    data-version="<?php echo HTML::chars($module->version); ?>"
-                    data-icon="<?php echo HTML::chars($module->icon); ?>"
-                    data-main-page-uri="<?php echo HTML::chars($module->main_page_uri); ?>">
-                <i class="fas fa-edit"></i>
-            </button>
-        </div>
-    </div>
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Реестр модулей', '/prx218_module_manager'], [$module->display_name]],
+    ]); ?>
+    <?php echo View::factory('partials/page_header', [
+        'crumbs'  => [['Реестр модулей', '/prx218_module_manager'], [$module->display_name]],
+        'title'   => $module->display_name,
+        'pill'    => ['v'.HTML::chars($module->version), $module->icon !== '' ? HTML::chars($module->icon) : 'fa-box-open'],
+        'lead'    => 'application/modules/'.HTML::chars($module->system_name),
+        'actions' => [
+            ['html' => '<button class="edit-status-btn px-4 py-2 rounded-lg text-sm font-semibold '.(isset($status_classes[$current_status]) ? $status_classes[$current_status] : $status_classes['alpha']).'" data-module-id="'.(int) $module->id.'" data-current-status="'.HTML::chars($current_status).'"><i class="fas fa-circle text-[8px] mr-2 opacity-70"></i><span class="status-text">'.ucfirst(HTML::chars($current_status)).'</span></button>'],
+            ['html' => '<button class="prx-btn-secondary edit-attributes-btn" data-module-id="'.(int) $module->id.'" data-display-name="'.HTML::chars($module->display_name).'" data-description="'.HTML::chars($module->description).'" data-version="'.HTML::chars($module->version).'" data-icon="'.HTML::chars($module->icon).'" data-main-page-uri="'.HTML::chars($module->main_page_uri).'"><i class="fas fa-edit"></i></button>'],
+        ],
+    ]); ?>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Left Column: Info & Dependencies -->

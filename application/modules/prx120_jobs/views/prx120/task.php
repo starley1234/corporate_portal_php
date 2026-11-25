@@ -44,19 +44,16 @@ $fmt = static function ($ts): string {
 ?>
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
 
-    <nav class="flex items-center overflow-x-auto whitespace-nowrap text-xs text-gray-500 dark:text-gray-400" aria-label="Хлебные крошки">
-        <a href="/prx120_jobs" class="transition hover:text-emerald-600 dark:hover:text-emerald-400">Монитор воркеров</a>
-        <span class="mx-1.5 text-gray-300 dark:text-gray-600">/</span>
-        <span class="font-semibold text-gray-700 dark:text-gray-300">Задача #<?php echo (int) $job_id; ?></span>
-    </nav>
-
-    <div class="mt-2 flex flex-wrap items-center gap-2">
-        <h1 class="prx-h1">
-            <i class="fas fa-list-check mr-2 text-emerald-600 dark:text-emerald-400"></i>Задача #<?php echo (int) $job_id; ?>
-        </h1>
-        <span class="prx-badge <?php echo $badge[$job['status']] ?? 'prx-badge-wait'; ?>"><span class="prx-dot"></span><?php echo HTML::chars($status_ru[$job['status']] ?? $job['status']); ?></span>
-        <span class="prx-count font-mono"><?php echo HTML::chars($label); ?></span>
-    </div>
+    <?php
+    echo View::factory('partials/page_header', [
+        'crumbs'  => [['Монитор воркеров', '/prx120_jobs'], ['Задача #'.(int) $job_id]],
+        'title'   => 'Задача #'.(int) $job_id,
+        'pill'    => [$label, 'fa-list-check'],
+        'actions' => [
+            ['html' => '<span class="prx-badge '.(isset($badge[$job['status']]) ? $badge[$job['status']] : 'prx-badge-wait').'"><span class="prx-dot"></span>'.HTML::chars($status_ru[$job['status']] ?? $job['status']).'</span>'],
+        ],
+    ]);
+    ?>
 
     <?php /* «Почему висит и что дальше»: одно предложение + цифры пульса и
      * прогресса. Раньше карточка показывала статус и попытки, но не отвечала

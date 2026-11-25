@@ -25,19 +25,17 @@ $device = function ($ua) {
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
 
-    <nav class="flex items-center overflow-x-auto whitespace-nowrap text-xs text-gray-500 dark:text-gray-400" aria-label="Хлебные крошки">
-        <a href="/dashboard" class="transition hover:text-emerald-600 dark:hover:text-emerald-400">Кабинет</a>
-        <span class="mx-1.5 text-gray-300 dark:text-gray-600">/</span>
-        <span class="font-medium text-gray-700 dark:text-gray-200">Аккаунт и безопасность</span>
-    </nav>
+    <?php echo View::factory('partials/page_header', [
+        'crumbs' => [['Кабинет', '/dashboard'], ['Аккаунт и безопасность']],
+        'title'  => 'Аккаунт и безопасность',
+        'pill'   => ['prx599 · 2FA и сессии', 'fa-shield-halved'],
+        'lead'   => 'Двухфакторный вход (2FA / TOTP — одноразовый код из приложения-аутентификатора), активные сессии на устройствах и журнал входов.',
+    ]); ?>
 
     <nav class="prx-seg mt-3" aria-label="Разделы аккаунта">
         <a href="/auth/profile" class="prx-seg-item flex-1 text-center">Профиль и данные</a>
         <span class="prx-seg-item is-active flex-1 text-center" aria-current="page">Безопасность</span>
     </nav>
-
-    <h1 class="prx-h1 mt-2"><i class="fas fa-shield-halved mr-2 text-emerald-500"></i>Аккаунт и безопасность</h1>
-    <p class="mt-1.5 max-w-3xl text-xs text-gray-600 sm:text-sm dark:text-gray-300">Двухфакторный вход (2FA / TOTP — одноразовый код из приложения-аутентификатора), активные сессии на устройствах и журнал входов.</p>
 
     <?php if ((string) $flash !== ''): ?>
     <div class="prx-flash prx-flash-info mt-3" role="status">

@@ -2,42 +2,16 @@
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
     <div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-            <nav class="flex mb-2" aria-label="Breadcrumb">
-                <ol class="inline-flex items-center space-x-1 md:space-x-3">
-                    <li class="inline-flex items-center">
-                        <a href="<?php echo Route::url('default', ['controller' => 'prx212_file_storage', 'action' => 'index']); ?>" class="text-sm text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-white">
-                            <i class="fas fa-folder-open mr-2"></i>Хранилище
-                        </a>
-                    </li>
-                    <li>
-                        <div class="flex items-center">
-                            <i class="fas fa-chevron-right text-gray-400 text-xs mx-2"></i>
-                            <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Детали файла</span>
-                        </div>
-                    </li>
-                </ol>
-            </nav>
-            <h1 class="prx-h1 truncate max-w-2xl">
-                <?php echo HTML::chars($file->filename); ?>
-            </h1>
-        </div>
-
-        <div class="flex flex-wrap gap-2">
-            <a href="<?php echo Route::url('default', ['controller' => 'prx212_download', 'action' => 'file', 'id' => $file->id]); ?>"
-               class="prx-btn-process">
-                <i class="fas fa-download mr-2"></i> Скачать
-            </a>
-            <?php if ($file->can_write(Auth::instance()->get_user()->id)): ?>
-                <a href="/prx212_file_storage/edit/<?php echo HTML::chars($file->id); ?>" class="prx-btn-secondary">
-                    <i class="fas fa-edit mr-2"></i> Редактировать
-                </a>
-                <button type="button" onclick="deleteFile(<?php echo $file->id; ?>)" data-prx-confirm="Файл удалится из хранилища." data-prx-title="Удалить файл?" class="prx-btn-danger-soft">
-                    <i class="fas fa-trash-alt mr-2"></i> Удалить
-                </button>
-            <?php endif; ?>
-        </div>
-    </div>
+        <?php echo View::factory('partials/page_header', [
+            'crumbs'  => [['Хранилище', URL::site('prx212_file_storage')], ['Детали файла']],
+            'title'   => $file->filename,
+            'pill'    => ['prx212 · файл', 'fa-file-lines'],
+            'actions' => [
+                ['html' => '<a href="'.Route::url('default', ['controller' => 'prx212_download', 'action' => 'file', 'id' => $file->id]).'" class="prx-btn-process"><i class="fas fa-download mr-2"></i> Скачать</a>'],
+                ['html' => '<a href="/prx212_file_storage/edit/'.HTML::chars($file->id).'" class="prx-btn-secondary"><i class="fas fa-edit mr-2"></i> Редактировать</a>'],
+                ['html' => '<button type="button" onclick="deleteFile('.(int) $file->id.')" data-prx-confirm="Файл удалится из хранилища." data-prx-title="Удалить файл?" class="prx-btn-danger-soft"><i class="fas fa-trash-alt mr-2"></i> Удалить</button>'],
+            ],
+        ]); ?>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Основная информация -->
