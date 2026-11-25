@@ -4,10 +4,10 @@
 <!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index docs/MODULE_GUIDE.md --write. Руками не править. -->
 | Раздел | Строка | Размер |
 |---|---|---|
-|   1. Выберите ID и границы | 12 | 2,6 КБ |
-|   2. Реализуйте вертикальный MVP | 55 | 1,9 КБ |
-|   3. Подключите | 75 | 2,0 КБ |
-|   4. Дизайн и проверка | 112 | 0,7 КБ |
+|   1. Выберите ID и границы | 12 | 2,8 КБ |
+|   2. Реализуйте вертикальный MVP | 56 | 2,3 КБ |
+|   3. Подключите | 80 | 2,0 КБ |
+|   4. Дизайн и проверка | 117 | 0,7 КБ |
 <!-- context-index:end -->
 ## 1. Выберите ID и границы
 
@@ -33,7 +33,8 @@ prx301_onboarding/
   classes/Controller/Prx301/Page.php           # actor + policy
   classes/Controller/Prx301/Api.php            # внутренний JSON API
   classes/Policy/Prx301/Step.php               # объектные правила
-  classes/Service/Prx301/Store.php             # SQL через Prx_Db
+  classes/Model/Prx301/Step.php                # запросы: 1 метод = 1 запрос, :param (Д8)
+  classes/Service/Prx301/Store.php             # логика; SQL — в Model, транзакции здесь
   views/prx301/index.php            # page-kit
 tests/Unit/Prx301PolicyTest.php                # гость и чужая организация
 ```
@@ -57,9 +58,13 @@ tests/Unit/Prx301PolicyTest.php                # гость и чужая орг
 1. Опишите владельца данных и интеграционный источник истины.
 2. Создайте `prx_301_*` идемпотентной миграцией. Определите индексы, ссылки,
    retention, down/восстановление и ограничения персональных данных.
-3. Реализуйте сервисные методы с object policy/оргконтекстом и валидацией.
+3. Разложите по слоям (Д8, `docs/SKELETON-ADR.md`): SQL — в `Model/Prx301/`
+   (один публичный метод = один запрос, только `:param`, возврат array/int,
+   без логики/HTTP/Storage/событий), логика и транзакции — в Service.
+   Реализуйте сервисные методы с object policy/оргконтекстом и валидацией.
    Никакого массового `values($_POST)` и доступа к чужим таблицам. SQL — только
-   через `Prx_Db` (именованные параметры, `Prx_Db::transaction`).
+   через `Prx_Db` (именованные параметры, `Prx_Db::transaction`). Гейт
+   `make check` проверяет контракт Model.
 4. Контроллер тонкий: `$this->actor()->require(...)`, вызов Service, View/JSON.
    CSRF уже проверен `Prx_PostGuard`; идентификатор пользователя — из сессии.
 5. Для долгой задачи используйте `Service_Prx120_JobQueue::instance()`;

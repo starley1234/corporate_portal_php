@@ -12,7 +12,8 @@
  *   Controller/PrxXXX/Page  — actor + policy, никаких массивов прав;
  *   Controller/PrxXXX/Api   — JSON-ответы, CSRF через Prx_PostGuard;
  *   Policy/PrxXXX/<Entity>  — объектные правила доступа (наследует Prx_Policy);
- *   Service/PrxXXX/Store    — владелец таблиц prx_XXX_*, SQL через Prx_Db;
+ *   Model/PrxXXX/<Entity>   — запросы: 1 метод = 1 запрос, только :param (Д8);
+ *   Service/PrxXXX/Store    — логика модуля; SQL живёт в Model, транзакция здесь;
  *   views/prx<ID>/…         — page-kit (page_header, filters, empty_state, flash);
  *   migrations_pg/…         — идемпотентная миграция;
  *   tests/Unit/…            — тест политики (гость и чужая организация);
@@ -179,14 +180,44 @@ class Policy___CLASS______ENTITY__ extends Prx_Policy {
 
 }
 PHP,
+            'classes/Model/__CLASS__/__ENTITY__.php' => <<<'PHP'
+<?php defined('SYSPATH') or die('No direct script access.');
+
+/**
+ * Запросы к __TABLE__ (Д8): один публичный метод = один запрос, только :param.
+ * Без логики, HTTP, Storage, событий — это Model. Транзакцию владеет Service.
+ * Динамические IN/VALUES-списки — только из уже приведённых к int значений.
+ */
+class Model___CLASS______ENTITY__ {
+
+    /** Свежие записи модуля. */
+    public static function list_rows(int $limit = 100): array
+    {
+        return Prx_Db::select(
+            'SELECT * FROM __TABLE__ ORDER BY id DESC LIMIT :limit',
+            [':limit' => $limit]);
+    }
+
+    /** Создание записи; возвращает id (0 — не создана). */
+    public static function insert_one(int $created_by): int
+    {
+        $row = Prx_Db::one(
+            'INSERT INTO __TABLE__ (created_by) VALUES (:created_by) RETURNING id',
+            [':created_by' => $created_by]);
+
+        return $row ? (int) $row['id'] : 0;
+    }
+
+}
+PHP,
             'classes/Service/__CLASS__/Store.php' => <<<'PHP'
 <?php defined('SYSPATH') or die('No direct script access.');
 
 /**
- * Владелец таблиц prx___ID___*. Единственное место с SQL модуля.
- *
- * Правила: именованные параметры (:name), идентификаторы — Prx_Db::identifier(),
- * запись — в Prx_Db::transaction(), доступ — через Policy.
+ * Сценарий модуля (Д8): валидация, права, транзакции. SQL живёт в
+ * Model___CLASS______ENTITY__ — один публичный метод = один запрос, только
+ * :param. Если два запроса нужны атомарно — оберните в Prx_Db::transaction()
+ * здесь, «умных» составных методов в Model не делать.
  */
 class Service___CLASS___Store {
 
@@ -195,9 +226,7 @@ class Service___CLASS___Store {
     {
         $policy = new Policy___CLASS______ENTITY__;
 
-        $rows = Prx_Db::select(
-            'SELECT * FROM __TABLE__ ORDER BY id DESC LIMIT 100'
-        );
+        $rows = Model___CLASS______ENTITY__::list_rows();
 
         return array_values(array_filter(
             $rows,
@@ -208,15 +237,8 @@ class Service___CLASS___Store {
     /** Создание записи: возвращает id. */
     public function create(Prx_Actor $actor, array $data): int
     {
-        $data['created_by'] = $actor->id();
-
-        return Prx_Db::transaction(function () use ($data) {
-            [$id] = Prx_Db::insert(
-                'INSERT INTO __TABLE__ (created_by) VALUES (:created_by) RETURNING id',
-                [':created_by' => $data['created_by']]
-            );
-
-            return (int) $id;
+        return Prx_Db::transaction(function () use ($actor) {
+            return Model___CLASS______ENTITY__::insert_one($actor->id());
         });
     }
 
@@ -283,10 +305,11 @@ __TITLE__.
 сервис, миграция и тест политики. Модуль не подключён.
 
 ## Контракты
-- Таблицы: `prx___ID___*` — только через `Service___CLASS___Store`.
+- Таблицы: `prx___ID___*` — только через `Model___CLASS______ENTITY__` (запросы)
+  и `Service___CLASS___Store` (логика, транзакции) — Д8.
 - Права: `prx__ID__.view`, `prx__ID__.manage` — объявлены в `application/config/acl.php`.
 - Объектный доступ: `Policy___CLASS______ENTITY__` (наследует `Prx_Policy`).
-- SQL: `Prx_Db::select/one/execute/insert/transaction`, параметры `:name`.
+- SQL: `Prx_Db::select/one/execute/insert/transaction`, параметры `:name`, в Model.
 - События: `Event::publish('prx__ID__.<entity>.<action>', [...], $initiator_id)` — payload только ID и скаляры; слушатели — `Event::listen()` в `init.php`.
 
 ## URL
@@ -301,6 +324,7 @@ __TITLE__.
 | страница | `classes/Controller/__CLASS__/Page.php`, `views/prx__ID__/index.php` |
 | API | `classes/Controller/__CLASS__/Api.php` |
 | доступ | `classes/Policy/__CLASS__/__ENTITY__.php` |
+| запросы | `classes/Model/__CLASS__/__ENTITY__.php` |
 | данные | `classes/Service/__CLASS__/Store.php` |
 
 ## Проверки

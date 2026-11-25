@@ -266,6 +266,47 @@ for php in sorted((ROOT / 'application/classes').rglob('*.php')):
             f'({php.relative_to(ROOT)}:{line}) — только через Prx_Hooks/фасад '
             f'(docs/SKELETON-ADR.md Д2/Д7)')
 
+# Слои Model (docs/SKELETON-ADR.md Д8, ратифицировано 25.11.2026): в
+# classes/Model/ модуля живут только запросы. Имя класса обязано совпадать
+# с путём (Kohana-автозагрузка). Наследники Kohana ORM — вне контракта Д8:
+# их поведение задаёт фреймворк, а не каркас модулей. Для Д8-моделей
+# (на Prx_Db) запрещены ссылки на слои выше: Service_/Controller_/Policy_/
+# Task_, Storage::, Event::publish, HTTP_Exception, Visitor::, Session:: —
+# логика, файлы и события живут в Service; транзакцию владеет Service.
+MODEL_BANNED = ('Service_', 'Controller_', 'Policy_', 'Task_', 'Storage::',
+                'Event::publish', 'HTTP_Exception', 'Visitor::', 'Session::')
+
+model_files = 0
+for php in sorted((ROOT / 'application/modules').glob('*/classes/Model/**/*.php')):
+    try:
+        text = php.read_text(encoding='utf-8', errors='replace')
+    except OSError:
+        continue
+    model_files += 1
+    code = php_code_only(text)
+
+    # Имя класса = путь относительно classes/ (Model/Prx396/Parts.php → Model_Prx396_Parts)
+    rel = php.relative_to(ROOT / 'application/modules')
+    expected = 'Model_' + '_'.join(rel.parts[3:])[:-4]
+    declared = re.findall(r'\bclass\s+(\w+)', code)
+    if expected not in declared:
+        errors.append(
+            f'Д8: {php.relative_to(ROOT)}: ожидается класс {expected} '
+            f'(Kohana-автозагрузка = путь), найдено: {", ".join(declared) or "ничего"}')
+
+    # ORM-наследники вне контракта Д8 (Kohana ORM: rules/фильтры/события в модели — норма)
+    if re.search(r'extends\s+(\\?(?:Kohana_)?(?:ORM|Model_Database))\b', code):
+        continue
+
+    for token in MODEL_BANNED:
+        idx = code.find(token)
+        if idx >= 0:
+            line = code.count('\n', 0, idx) + 1
+            errors.append(
+                f'Д8: {php.relative_to(ROOT)}:{line}: Model вызывает {token} — '
+                f'Model только запросы (:param), логика/файлы/события в Service '
+                f'(docs/SKELETON-ADR.md Д8)')
+
 if errors:
     print('\n'.join('FAIL: ' + item for item in errors))
     sys.exit(1)
@@ -274,4 +315,4 @@ planned_count = sum(status == 'planned' for _, status in plan_entries)
 print(f'PRX contracts OK: {len(registered)} available modules, {len(classes)} PHP classes, '
       f'{len(active_services)} active + {sum(status == "pilot" for _, status in plan_entries)} pilot + {optional_count} optional + {len(archived_services)} archived + '
       f'{planned_count} planned services, {len(channel_names)} available worker channels, '
-      f'events via Event::publish only, files via Storage:: only')
+      f'events via Event::publish only, files via Storage:: only, models: {model_files}')
