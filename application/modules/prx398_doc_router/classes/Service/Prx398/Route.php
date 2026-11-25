@@ -18,12 +18,12 @@ class Service_Prx398_Route
 
     private ?array $checkpoint_tables = NULL;
 
-    private Database $db;
     private Service_Prx120_JobQueue $queue;
 
     public function __construct()
     {
-        $this->db = Database::instance(Kohana::$config->load('prx120_jobs.db_group'));
+        // JobQueue::push, INSERT регистрации и ключ идемпотентности идут через
+        // одно соединение: все берут default-группу (db_group конфига = NULL).
         $this->queue = Service_Prx120_JobQueue::instance();
     }
 
@@ -43,7 +43,7 @@ class Service_Prx398_Route
         if ($sha === FALSE) throw new Prx398_Error('upload_unavailable', 503);
 
         $file_id = Storage::save($upload, self::MODULE, max_bytes: (int) Service_Prx398_Limits::get('max_pdf_bytes'));
-        try { $idem = Prx_Idempotency::begin(self::SCOPE, (string) $owner, $key, $sha, $this->db); }
+        try { $idem = Prx_Idempotency::begin(self::SCOPE, (string) $owner, $key, $sha); }
         catch (Throwable $e) { $this->discard($file_id); throw $e; }
 
         if ($idem['state'] !== Prx_Idempotency::STATE_NEW)
@@ -67,13 +67,14 @@ class Service_Prx398_Route
             ]);
             if ($job_id < 1) throw new RuntimeException('Отсутствует ID задачи');
             $ttl = (int) Service_Prx398_Limits::get('result_ttl_hours');
-            $this->db->query(Database::INSERT, 'INSERT INTO prx_398_routes '
+            Prx_Db::execute('INSERT INTO prx_398_routes '
                 .'(job_id, owner_id, file_id, request_key, file_sha256, status, expires_at) VALUES ('
-                .$job_id.','.(int) $owner.','.$file_id.','.$this->db->quote($key_hash).','
-                .$this->db->quote($sha).",'queued',now() + (".$ttl." * interval '1 hour'))", FALSE);
-            Prx_Idempotency::finish((int) $idem['id'], ['job_id' => $job_id], $this->db);
+                .$job_id.','.(int) $owner.','.$file_id.',:key_hash,'
+                .':sha,\'queued\',now() + (:ttl * interval \'1 hour\'))',
+                [':key_hash' => $key_hash, ':sha' => $sha, ':ttl' => $ttl]);
+            Prx_Idempotency::finish((int) $idem['id'], ['job_id' => $job_id]);
         } catch (Throwable $e) {
-            Prx_Idempotency::abort($this->db);
+            Prx_Idempotency::abort();
             $this->discard($file_id);
             throw $e;
         }
@@ -169,14 +170,19 @@ class Service_Prx398_Route
             $confidence = NULL;
 
         if (is_string($error_code) && $error_code !== '') {
-            $this->db->query(Database::UPDATE,
-                'UPDATE prx_398_routes SET status=\'failed\', error_code='.$this->db->quote($error_code)
+            $params = [':error_code' => $error_code];
+            if ($doc_type) $params[':doc_type'] = $doc_type;
+            if ($route) $params[':route'] = $route;
+            if ($state_data) $params[':state'] = json_encode($state_data, JSON_UNESCAPED_UNICODE);
+            Prx_Db::execute(
+                'UPDATE prx_398_routes SET status=\'failed\', error_code=:error_code'
                 .', attempts='.(int)$attempts
-                .', doc_type='.($doc_type ? $this->db->quote($doc_type) : 'NULL')
-                .', route='.($route ? $this->db->quote($route) : 'NULL')
+                .', doc_type='.($doc_type ? ':doc_type' : 'NULL')
+                .', route='.($route ? ':route' : 'NULL')
                 .', confidence='.($confidence === NULL ? 'NULL' : number_format((float)$confidence,3,'.',''))
-                .', state='.($state_data ? $this->db->quote(json_encode($state_data, JSON_UNESCAPED_UNICODE)).'::jsonb' : 'NULL')
-                .', updated_at=now() WHERE job_id='.(int)$id, FALSE);
+                .', state='.($state_data ? ':state::jsonb' : 'NULL')
+                .', updated_at=now() WHERE job_id='.(int)$id,
+                $params);
             // Терминальный отказ: продолжение не нужно, чекпойнт с текстом убираем.
             $this->forget_checkpoint((int) $id);
             return ['status' => 'failed', 'error_code' => $error_code];
@@ -184,13 +190,18 @@ class Service_Prx398_Route
 
         $status = (string) ($body['status'] ?? 'done');
         if ( ! in_array($status, ['done','review','failed'], TRUE)) $status = 'review';
-        $this->db->query(Database::UPDATE,
-            'UPDATE prx_398_routes SET status='.$this->db->quote($status)
-            .', doc_type='.($doc_type ? $this->db->quote($doc_type) : 'NULL')
-            .', route='.($route ? $this->db->quote($route) : 'NULL')
+        $params = [':status' => $status];
+        if ($doc_type) $params[':doc_type'] = $doc_type;
+        if ($route) $params[':route'] = $route;
+        if ($state_data) $params[':state'] = json_encode($state_data, JSON_UNESCAPED_UNICODE);
+        Prx_Db::execute(
+            'UPDATE prx_398_routes SET status=:status'
+            .', doc_type='.($doc_type ? ':doc_type' : 'NULL')
+            .', route='.($route ? ':route' : 'NULL')
             .', confidence='.($confidence === NULL ? 'NULL' : number_format((float)$confidence,3,'.',''))
-            .', state='.($state_data ? $this->db->quote(json_encode($state_data, JSON_UNESCAPED_UNICODE)).'::jsonb' : 'NULL')
-            .', error_code=NULL, attempts='.(int)$attempts.', updated_at=now() WHERE job_id='.(int)$id, FALSE);
+            .', state='.($state_data ? ':state::jsonb' : 'NULL')
+            .', error_code=NULL, attempts='.(int)$attempts.', updated_at=now() WHERE job_id='.(int)$id,
+            $params);
         return ['status' => $status];
     }
 
@@ -213,14 +224,14 @@ class Service_Prx398_Route
 
     public function purge(): array
     {
-        $expired = $this->db->query(Database::SELECT,
-            'SELECT job_id, file_id FROM prx_398_routes WHERE expires_at <= now() ORDER BY expires_at, job_id LIMIT 100', FALSE)->as_array();
+        $expired = Prx_Db::select(
+            'SELECT job_id, file_id FROM prx_398_routes WHERE expires_at <= now() ORDER BY expires_at, job_id LIMIT 100');
         $report = ['purged' => 0, 'orphans' => 0, 'errors' => 0];
         foreach ($expired as $row) {
             $id = (int) $row['job_id']; $file_id = (int) $row['file_id'];
             try {
                 if ($file_id > 0) Storage::delete_owned($file_id, self::MODULE);
-                $this->db->query(Database::DELETE, 'DELETE FROM prx_398_routes WHERE job_id = '.$id.' AND expires_at <= now()', FALSE);
+                Prx_Db::execute('DELETE FROM prx_398_routes WHERE job_id = '.$id.' AND expires_at <= now()');
                 $this->forget_checkpoint($id);
                 $report['purged']++;
             } catch (Throwable $e) { $report['errors']++; Log_Plain::event(Log::ERROR, 'prx398 job_id=:id stage=purge error_type=:type', [':id'=>$id,':type'=>get_class($e)]); }
@@ -245,7 +256,7 @@ class Service_Prx398_Route
         foreach (self::CHECKPOINT_TABLES as $table)
         {
             if ($this->one('SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() '
-                .'AND table_name = '.$this->db->quote($table))) $found[] = $table;
+                .'AND table_name = :table', [':table' => $table])) $found[] = $table;
         }
         return $this->checkpoint_tables = $found;
     }
@@ -261,8 +272,8 @@ class Service_Prx398_Route
         foreach ($this->existing_checkpoint_tables() as $table)
         {
             try {
-                $this->db->query(Database::DELETE,
-                    'DELETE FROM '.$table.' WHERE thread_id = '.$this->db->quote((string) $job_id), FALSE);
+                Prx_Db::execute(
+                    'DELETE FROM '.$table.' WHERE thread_id = '.(int) $job_id);
             } catch (Throwable $e) {
                 Log_Plain::event(Log::ERROR, 'prx398 job_id=:id stage=checkpoint_purge error_type=:type',
                     [':id' => $job_id, ':type' => get_class($e)]);
@@ -270,9 +281,8 @@ class Service_Prx398_Route
         }
     }
 
-    private function one(string $sql): ?array
+    private function one(string $sql, array $params = []): ?array
     {
-        $row = $this->db->query(Database::SELECT, $sql, FALSE)->current();
-        return $row ? (array) $row : NULL;
+        return Prx_Db::one($sql, $params);
     }
 }
