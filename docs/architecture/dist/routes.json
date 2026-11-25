@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "count": 113,
+  "count": 114,
   "routes": [
     {
       "name": "cookie_consent_close",
@@ -118,6 +118,15 @@
       "action": "index",
       "module": "prx103_platform",
       "file": "application/modules/prx103_platform/classes/Controller/Prx103/Logs.php"
+    },
+    {
+      "name": "prx100_selfcheck",
+      "uri": "prx100/selfcheck",
+      "regex": "",
+      "controller": "Prx103_Selfcheck",
+      "action": "index",
+      "module": "prx103_platform",
+      "file": "application/modules/prx103_platform/classes/Controller/Prx103/Selfcheck.php"
     },
     {
       "name": "prx110_catalog_group",
