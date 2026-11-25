@@ -56,8 +56,11 @@ final class Prx_Db
     }
 
     /** Выполнить запрос на выбранном соединении (по умолчанию — дефолтном). */
-    private static function _run(string $type, string $sql, array $params, ?Database $db)
+    private static function _run(int $type, string $sql, array $params, ?Database $db)
     {
+        // $type — это int-константа Database::SELECT/INSERT/UPDATE/DELETE;
+        // её нельзя объявлять строкой: приведение к "1" ломает строгое
+        // сравнение `$type === Database::SELECT` в драйвере, и SELECT вернёт int.
         // DB::query() создаёт Database_Query; соединение выбирает execute($db).
         // $db->query() здесь НЕЛЬЗЯ: это низкоуровневый метод драйвера — он
         // выполняет SQL сразу и возвращает результат PDO, без parameters().
