@@ -23,7 +23,6 @@ class Controller_Prx103_Cleanup extends Controller_Prx102_Base {
     {
         // Чистки объявляют владельцы таблиц в своих манифестах (пятый контракт)
         $items  = Manifest::cleanups();
-        $db     = Database::instance();
         $flash  = '';
         $state  = [];
 
@@ -44,12 +43,10 @@ class Controller_Prx103_Cleanup extends Controller_Prx102_Base {
             {
                 try
                 {
-                    $sql = str_replace(
-                        [':old', ':limit'],
-                        [$db->quote("interval '".$this->_days($items[$item])." days'"), 5000],
-                        (string) $items[$item]['delete_sql']);
-
-                    $n = $db->query(Database::DELETE, $sql, FALSE);
+                    $n = Prx_Db::execute((string) $items[$item]['delete_sql'], [
+                        ':old' => "interval '".$this->_days($items[$item])." days'",
+                        ':limit' => 5000,
+                    ]);
                     $flash = $items[$item]['label'].' — удалено строк: '.(int) $n
                         .'. Если строк было больше — нажмите ещё раз (порция 5000).';
                 }
@@ -67,11 +64,9 @@ class Controller_Prx103_Cleanup extends Controller_Prx102_Base {
         {
             try
             {
-                $sql = str_replace(':old', $db->quote("interval '".$this->_days($conf)." days'"),
-                    (string) $conf['count_sql']);
-
-                $r = $db->query(Database::SELECT, $sql, FALSE)->current();
-                $state[$key] = $r ? (int) array_values((array) $r)[0] : 0;
+                $r = Prx_Db::one((string) $conf['count_sql'],
+                    [':old' => "interval '".$this->_days($conf)." days'"]);
+                $state[$key] = $r ? (int) array_values($r)[0] : 0;
             }
             catch (Throwable $e)
             {

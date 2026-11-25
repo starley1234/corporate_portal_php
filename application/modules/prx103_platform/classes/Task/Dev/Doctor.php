@@ -139,8 +139,7 @@ class Task_Dev_Doctor extends Minion_Task {
     {
         try
         {
-            $db = Database::instance();
-            $version = $db->query(Database::SELECT, 'SHOW server_version', FALSE)->current();
+            $version = Prx_Db::one('SHOW server_version');
             $this->_ok('PostgreSQL '.((array) $version)['server_version']);
             return TRUE;
         }
@@ -153,11 +152,9 @@ class Task_Dev_Doctor extends Minion_Task {
 
     protected function _check_migrations()
     {
-        $db = Database::instance();
         try
         {
-            $applied = (int) $db->query(Database::SELECT,
-                'SELECT COUNT(*) AS c FROM migrations_pg', FALSE)->current()['c'];
+            $applied = (int) Prx_Db::one('SELECT COUNT(*) AS c FROM migrations_pg')['c'];
             $this->_ok("миграции применены: $applied");
         }
         catch (Exception $e)
@@ -168,7 +165,6 @@ class Task_Dev_Doctor extends Minion_Task {
 
     protected function _check_queue()
     {
-        $db = Database::instance();
         try
         {
             $row = Service_Prx120_JobQueue::instance()->stats();

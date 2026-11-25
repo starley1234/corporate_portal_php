@@ -144,7 +144,7 @@ errors.extend(classes_lint_errors(ROOT))
 # (не в списке) тоже фейлят с первого коммита — чистый образец обязателен.
 INFRA_SQL_MODULES = {'prx120_jobs', 'PostgreSQL', 'PostgreSQL_PDO'}
 LEGACY_SQL_MODULES = {
-    'prx103_platform', 'prx115_semantic',
+    'prx115_semantic',
     'prx300_employee',
     'prx597_notifications',
 }

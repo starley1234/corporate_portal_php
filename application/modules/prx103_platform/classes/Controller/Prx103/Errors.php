@@ -50,7 +50,6 @@ class Controller_Prx103_Errors extends Controller_Prx102_Base {
      */
     protected function _db_errors()
     {
-        $db  = Database::instance();
         $out = [];
 
         // Источники объявляют сами модули — секция 'health' их манифестов
@@ -75,11 +74,12 @@ class Controller_Prx103_Errors extends Controller_Prx102_Base {
                 // Health-источники не обязаны иметь все три временные колонки:
                 // COALESCE(finished_at, ...) в PostgreSQL падает ещё на этапе
                 // разбора, если первой колонки нет. Выбираем существующую.
-                $column_rows = $db->query(Database::SELECT,
+                $column_rows = Prx_Db::select(
                     'SELECT column_name FROM information_schema.columns
                      WHERE table_schema = current_schema()
-                       AND table_name = '.$db->quote($table)."
-                       AND column_name IN ('finished_at', 'updated_at', 'created_at')", FALSE)->as_array();
+                       AND table_name = :table
+                       AND column_name IN ('finished_at', 'updated_at', 'created_at')',
+                    [':table' => $table]);
                 $available = [];
 
                 foreach ($column_rows as $column_row)
@@ -100,12 +100,12 @@ class Controller_Prx103_Errors extends Controller_Prx102_Base {
                 }
 
                 $quoted_table = '"'.str_replace('"', '""', $table).'"';
-                $rows = $db->query(Database::SELECT,
+                $rows = Prx_Db::select(
                     "SELECT {$code_expr} AS code, status, error,
                             {$ts_expr} AS ts
                      FROM {$quoted_table}
                      WHERE error IS NOT NULL AND error <> ''
-                     ORDER BY ts DESC NULLS LAST LIMIT ".self::LIMIT_DB, FALSE)->as_array();
+                     ORDER BY ts DESC NULLS LAST LIMIT ".self::LIMIT_DB);
 
                 foreach ($rows as $r)
                 {

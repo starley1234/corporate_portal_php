@@ -15,7 +15,7 @@
  * платформы, а настройка сервиса.
  *
  * Безопасность: имена таблиц/колонок проходят строгую валидацию (^[a-z0-9_]+$),
- * значения видов — ^[a-z0-9_-]{1,32}$, всё остальное идёт через Database::quote.
+ * значения видов — ^[a-z0-9_-]{1,32}$, всё остальное идёт через параметры Prx_Db.
  * Никакого пользовательского ввода в SQL — параметры задаёт ТОЛЬКО код модуля.
  *
  * Пример использования:
@@ -73,12 +73,13 @@ class Service_Prx103_Ratelimit
             }
         }
 
-        $db    = Database::instance();
-        $where = $ip_column.' = '.$db->quote((string) $ip);
+        $params = [':ip' => (string) $ip];
+        $where = $ip_column.' = :ip';
 
         if ($kinds)
         {
             $parts = [];
+            $n = 0;
 
             foreach ($kinds as $k)
             {
@@ -87,21 +88,22 @@ class Service_Prx103_Ratelimit
                     throw new InvalidArgumentException('Недопустимый вид операции для rate limit.');
                 }
 
-                $parts[] = $db->quote((string) $k);
+                $n++;
+                $params[':kind'.$n] = (string) $k;
+                $parts[] = ':kind'.$n;
             }
 
             $where .= ' AND '.$kind_column.' IN ('.implode(', ', $parts).')';
         }
 
-        $row = $db->query(Database::SELECT,
+        $row = Prx_Db::one(
             'SELECT
                 COUNT(*) FILTER (WHERE '.$time_column.' > now() - interval \'1 minute\') AS minute,
                 COUNT(*) FILTER (WHERE '.$time_column.' > now() - interval \'1 hour\')   AS hour
-             FROM '.$table.' WHERE '.$where, FALSE)->current();
+             FROM '.$table.' WHERE '.$where, $params);
 
-        // Пустой current() драйвера PostgreSQL — это FALSE (не NULL);
-        // агрегат без GROUP BY всегда даёт одну строку, но нормализуем на всякий.
-        $row = $row ? (array) $row : ['minute' => 0, 'hour' => 0];
+        // Агрегат без GROUP BY всегда даёт одну строку, но нормализуем на всякий.
+        $row = $row ?: ['minute' => 0, 'hour' => 0];
 
         return ['minute' => (int) $row['minute'], 'hour' => (int) $row['hour']];
     }

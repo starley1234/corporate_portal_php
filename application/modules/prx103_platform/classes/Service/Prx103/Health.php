@@ -10,19 +10,12 @@
  */
 class Service_Prx103_Health {
 
-	protected static function _db()
-	{
-		return Database::instance();
-	}
-
 	/** Одна строка SQL → массив или [] (ошибка — не повод ронять страницу). */
-	protected static function _one($sql)
+	protected static function _one($sql, array $params = [])
 	{
 		try
 		{
-			$row = self::_db()->query(Database::SELECT, $sql, FALSE)->current();
-
-			return $row ? (array) $row : [];
+			return Prx_Db::one($sql, $params) ?: [];
 		}
 		catch (Throwable $e)
 		{
