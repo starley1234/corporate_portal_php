@@ -295,11 +295,22 @@ class Service_Prx400_Specs {
         if (strpos($raw, 'prx212:') === 0)
         {
             $file_id = (int) substr($raw, 7);
+            $bytes = $file_id > 0 ? Storage::read_owned($file_id, 'prx400', $this->_max_upload) : NULL;
+            Log_Plain::event(Log::INFO, 'prx400_diag stage=pdf_resolve spec=:id via=prx212 file_id=:file result=:r', [
+                ':id' => (int) $spec['id'], ':file' => $file_id,
+                ':r' => $bytes !== NULL ? 'ok bytes='.strlen((string) $bytes) : 'missing',
+            ]);
 
-            return $file_id > 0 ? Storage::read_owned($file_id, 'prx400', $this->_max_upload) : NULL;
+            return $bytes;
         }
 
         [$path, $healed] = self::resolve_pdf($raw);
+        Log_Plain::event(Log::INFO, 'prx400_diag stage=pdf_resolve spec=:id via=legacy result=:r healed=:h path=:p', [
+            ':id' => (int) $spec['id'],
+            ':r' => $path !== NULL ? 'ok' : 'missing',
+            ':h' => $healed ?? '-',
+            ':p' => $path ?? $raw,
+        ]);
         if ($healed !== NULL)
         {
             // Легаси-запись нашлась по перепривязке — чиним запись навсегда.
@@ -375,9 +386,20 @@ class Service_Prx400_Specs {
 
         if (strpos($raw, 'prx212:') === 0)
         {
-            return Storage::metadata((int) substr($raw, 7)) !== NULL;
+            $ok = Storage::metadata((int) substr($raw, 7)) !== NULL;
+            Log_Plain::event(Log::INFO, 'prx400_diag stage=file_ok spec=:id via=prx212 file_id=:file result=:r', [
+                ':id' => (int) $spec['id'], ':file' => (int) substr($raw, 7), ':r' => $ok ? 'ok' : 'missing',
+            ]);
+
+            return $ok;
         }
         [$path, $healed] = self::resolve_pdf($raw);
+        Log_Plain::event(Log::INFO, 'prx400_diag stage=file_ok spec=:id via=legacy result=:r healed=:h path=:p', [
+            ':id' => (int) $spec['id'],
+            ':r' => $path !== NULL ? 'ok' : 'missing',
+            ':h' => $healed ?? '-',
+            ':p' => $path ?? $raw,
+        ]);
         if ($healed !== NULL)
         {
             // Самолечение при простом показе карточки: перепривязанный путь
