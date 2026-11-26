@@ -983,6 +983,32 @@ class Service_Prx120_JobQueue {
     }
 
     /**
+     * Последние задачи модуля по ключу payload — для статус-рядов модульных
+     * страниц (эталон — монитор): статус, попытки, последний рапорт воркера
+     * (stage). SQL у владельца очереди; вызывающий фильтрует по своему префиксу.
+     */
+    public function payload_jobs($module, $key, $value, $limit = 20)
+    {
+        return $this->_db->query(Database::SELECT,
+            'SELECT j.id, j.channel, j.status, j.attempts, j.max_attempts, j.error, j.payload,
+                    j.created_at, j.started_at, j.finished_at, j.claimed_by,
+                    ev.message AS stage, ev.created_at AS stage_at
+             FROM prx_120_jobs j
+             LEFT JOIN LATERAL (
+                 SELECT e.message, e.created_at FROM prx_120_job_events e
+                  WHERE e.job_id = j.id AND e.event = \'progress\'
+                    AND e.message IS NOT NULL AND e.message <> \'\'
+                  ORDER BY e.id DESC LIMIT 1
+             ) ev ON TRUE
+             WHERE j.module = :m AND j.payload->>:key = :value
+             ORDER BY j.id DESC LIMIT '.(int) $limit, FALSE)->parameters([
+                ':m' => (string) $module,
+                ':key' => (string) $key,
+                ':value' => (string) $value,
+            ])->as_array();
+    }
+
+    /**
      * Последние задачи одного канала — «здоровье воркера» в модульных
      * админках (prx605/606/607/609): работает ли воркер, когдаLastError.
      */
