@@ -48,10 +48,13 @@ class Controller_Prx212_Download extends Controller_Prx212_Main {
                 throw new HTTP_Exception_404('Файл не найден или доступ запрещен');
             }
 
+            // disposition=inline запрашивает только карточка файла (iframe/img):
+            // тот же ACL; тип ограничен inlineAllowed() — остальное скачиванием.
             $this->streamFile(
                 $file_data['stream'],
                 $file_data['filename'],
-                $file_data['mime_type']
+                $file_data['mime_type'],
+                $this->request->query('disposition') === 'inline'
             );
 
             // Вызов события после успешного скачивания
@@ -123,7 +126,18 @@ class Controller_Prx212_Download extends Controller_Prx212_Main {
      * 
      * @throws HTTP_Exception_500
      */
-    private function streamFile($stream, $filename, $mime)
+    /**
+     * Типы, которые браузеру можно показывать напрямую (iframe/PDF, <img>):
+     * PDF и растровые картинки. SVG и HTML inline не отдаём — сценарии в них
+     * исполняются в origin платформы; остальное — только скачиванием.
+     */
+    private function inlineAllowed($mime)
+    {
+        return $mime === 'application/pdf'
+            || in_array($mime, ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/bmp'], TRUE);
+    }
+
+    private function streamFile($stream, $filename, $mime, $inline = FALSE)
     {
         $this->auto_render = FALSE;
 
@@ -135,10 +149,17 @@ class Controller_Prx212_Download extends Controller_Prx212_Main {
         // Подготовка имени файла для заголовка (защита от спецсимволов)
         $quoted_filename = rawurlencode($filename);
 
-        // Устанавливаем заголовки для принудительного скачивания
-        $this->response->headers('Content-Type', 'application/octet-stream');
-        $this->response->headers('Content-Disposition', 'attachment; filename="' . $filename . '"; filename*=UTF-8\'\'' . $quoted_filename);
-        $this->response->headers('Content-Transfer-Encoding', 'binary');
+        if ($inline AND $this->inlineAllowed((string) $mime)) {
+            // Показ в браузере: честный MIME + inline
+            $this->response->headers('Content-Type', (string) $mime);
+            $this->response->headers('Content-Disposition', 'inline; filename="' . $filename . '"; filename*=UTF-8\'\'' . $quoted_filename);
+        } else {
+            // Принудительное скачивание
+            $this->response->headers('Content-Type', 'application/octet-stream');
+            $this->response->headers('Content-Disposition', 'attachment; filename="' . $filename . '"; filename*=UTF-8\'\'' . $quoted_filename);
+            $this->response->headers('Content-Transfer-Encoding', 'binary');
+        }
+        $this->response->headers('X-Content-Type-Options', 'nosniff');
         $this->response->headers('Cache-Control', 'private, max-age=0, must-revalidate');
         $this->response->headers('Pragma', 'public');
 

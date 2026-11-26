@@ -75,7 +75,7 @@
         (.tools/tailwind_classes_lint.py). Возврат на CDN ловит
         .tools/assets_cdn_lint.py.
     -->
-    <link rel="stylesheet" href="/assets/css/app.css?v=document-upload" />
+    <link rel="stylesheet" href="/assets/css/app.css?v=file-preview" />
     <link rel="stylesheet" href="/assets/vendor/fontawesome/css/all.min.css" />
     <script src="/assets/vendor/jquery/jquery-3.7.1.min.js"></script>
 
