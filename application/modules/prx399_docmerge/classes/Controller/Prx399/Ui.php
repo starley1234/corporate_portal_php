@@ -206,21 +206,25 @@ class Controller_Prx399_Ui extends Controller_Base {
         }
 
         $nodes = json_decode((string) $contract['doc_tree'], TRUE)['nodes'] ?? [];
+
+        // Титул — из текста договора (не из названия пакета: там имя файла)
+        [$doc_title, $nodes] = Service_Prx399_Export::title_of($nodes);
+        $base_name = Service_Prx399_Export::file_base($doc_title, $id);
+
         $format = (string) $this->request->query('format');
         if ( ! in_array($format, ['txt', 'md', 'docx'], TRUE))
         {
             $format = 'txt';
         }
-        $base_name = 'contract-'.$id.'-consolidated';
 
         if ($format === 'docx')
         {
-            $file = Service_Prx399_Export::docx($contract['title'], $nodes, $base_name);
+            $file = Service_Prx399_Export::docx($doc_title, $nodes, $base_name);
             [$mime, $name, $body] = [$file['mime'], $file['name'], $file['body']];
         }
         elseif ($format === 'md')
         {
-            [$mime, $name, $body] = ['text/markdown; charset=utf-8', $base_name.'.md', Service_Prx399_Export::markdown($contract['title'], $nodes)];
+            [$mime, $name, $body] = ['text/markdown; charset=utf-8', $base_name.'.md', Service_Prx399_Export::markdown($doc_title, $nodes)];
         }
         else
         {
