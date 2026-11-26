@@ -871,7 +871,7 @@ class Service_Prx400_Specs {
     }
 
     /** Завершение проверки оператором (HITL): review → done. */
-    public function finish($actor, $spec_id)
+    public function finish($actor, $spec_id, array $post = [])
     {
         ($actor ?? Prx_Actor::guest())->require('prx400.run');
         $spec = Model_Prx400_Spec::get($spec_id);
@@ -882,6 +882,21 @@ class Service_Prx400_Specs {
         if ( ! in_array($spec['status'], ['review'], TRUE))
         {
             throw new Prx400_Error('wrong_state', 409);
+        }
+
+        // Гейт качества: с неподтверждёнными расхождениями завершение только
+        // осознанное — чекбокс «принимаю с расхождениями» в форме карточки.
+        $issues = 0;
+        foreach (Model_Prx400_Row::for_spec((int) $spec_id) as $r)
+        {
+            if ((string) $r['status'] !== 'ok' AND (string) $r['verified'] !== 't')
+            {
+                $issues++;
+            }
+        }
+        if ($issues > 0 AND trim((string) ($post['accept_issues'] ?? '')) !== '1')
+        {
+            throw new Prx400_Error('issues_pending', 409, ['issues' => $issues]);
         }
 
         Model_Prx400_Spec::set_status((int) $spec_id, 'done', NULL);

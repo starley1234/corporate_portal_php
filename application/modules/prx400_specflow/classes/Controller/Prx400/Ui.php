@@ -301,7 +301,7 @@ class Controller_Prx400_Ui extends Controller_Base {
 
         try
         {
-            (new Service_Prx400_Specs)->finish($this->actor(), $id);
+            (new Service_Prx400_Specs)->finish($this->actor(), $id, (array) $this->request->post());
         }
         catch (Prx400_Error $e)
         {
