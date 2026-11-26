@@ -22,4 +22,7 @@ def limits() -> dict[str, int]:
         "max_text_bytes": _integer(os.getenv("PRX399_MAX_TEXT_BYTES"), 512 * 1024, 4096, 16 * MIB),
         "max_chunk_chars": _integer(os.getenv("PRX399_MAX_CHUNK_CHARS"), 12000, 2000, 100000),
         "task_timeout_sec": _integer(os.getenv("PRX399_TASK_TIMEOUT_SEC"), 3600, 60, 14400),
+        # probe_pdf требует pdf_memory_mb (RLIMIT_AS подпроцесса pypdf);
+        # пропуск ключа = PermanentJobError("worker_config") на каждой задаче.
+        "pdf_memory_mb": _integer(os.getenv("PRX399_PDF_MEMORY_MB"), 512, 64, 4096),
     }
