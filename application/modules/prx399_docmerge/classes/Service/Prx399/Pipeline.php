@@ -28,7 +28,7 @@ class Service_Prx399_Pipeline {
         $file = Model_Prx399_File::get($file_id);
         if ( ! $file)
         {
-            throw new self::ERROR('not_found', 404);
+            throw new Prx399_Error('not_found', 404);
         }
         if (in_array($file['status'], ['parsed', 'failed'], TRUE))
         {
@@ -67,7 +67,7 @@ class Service_Prx399_Pipeline {
         $file = Model_Prx399_File::get($file_id);
         if ( ! $file)
         {
-            throw new self::ERROR('not_found', 404);
+            throw new Prx399_Error('not_found', 404);
         }
         if ($file['status'] === 'parsed')
         {
@@ -82,7 +82,7 @@ class Service_Prx399_Pipeline {
         {
             if (empty($body['ast']['nodes']) OR ! is_array($body['ast']['nodes']))
             {
-                throw new self::ERROR('invalid_ast', 400);
+                throw new Prx399_Error('invalid_ast', 400);
             }
             $card = isset($body['deal_card']) && is_array($body['deal_card']) ? $body['deal_card'] : [];
             Prx_Db::transaction(function () use ($file, $pages, $sha, $body, $card)
@@ -99,7 +99,7 @@ class Service_Prx399_Pipeline {
             $ops = $body['ops'] ?? NULL;
             if ( ! is_array($ops))
             {
-                throw new self::ERROR('invalid_ops', 400);
+                throw new Prx399_Error('invalid_ops', 400);
             }
             $rows = [];
             foreach (array_values($ops) as $seq => $op)
@@ -132,7 +132,7 @@ class Service_Prx399_Pipeline {
         $contract = Model_Prx399_Contract::get($contract_id);
         if ( ! $contract)
         {
-            throw new self::ERROR('not_found', 404);
+            throw new Prx399_Error('not_found', 404);
         }
         if (in_array($contract['status'], ['audited', 'failed'], TRUE))
         {
@@ -140,7 +140,7 @@ class Service_Prx399_Pipeline {
         }
         if (empty($contract['doc_tree']))
         {
-            throw new self::ERROR('not_built', 409);
+            throw new Prx399_Error('not_built', 409);
         }
 
         $tree = json_decode((string) $contract['doc_tree'], TRUE);
@@ -166,7 +166,7 @@ class Service_Prx399_Pipeline {
         $contract = Model_Prx399_Contract::get($contract_id);
         if ( ! $contract)
         {
-            throw new self::ERROR('not_found', 404);
+            throw new Prx399_Error('not_found', 404);
         }
         if ($contract['status'] === 'audited')
         {
@@ -176,7 +176,7 @@ class Service_Prx399_Pipeline {
         $summary = trim((string) ($body['summary'] ?? ''));
         if ($summary === '')
         {
-            throw new self::ERROR('invalid_risks', 400);
+            throw new Prx399_Error('invalid_risks', 400);
         }
         $risks = [];
         foreach (($body['risks'] ?? []) as $risk)
@@ -185,12 +185,12 @@ class Service_Prx399_Pipeline {
             $severity = strtolower((string) ($risk['severity'] ?? ''));
             if ( ! in_array($severity, ['high', 'medium', 'low'], TRUE))
             {
-                throw new self::ERROR('invalid_risks', 400);
+                throw new Prx399_Error('invalid_risks', 400);
             }
             $title = trim((string) ($risk['title'] ?? ''));
             if ($title === '')
             {
-                throw new self::ERROR('invalid_risks', 400);
+                throw new Prx399_Error('invalid_risks', 400);
             }
             $risks[] = [
                 'contract_id' => $contract_id,

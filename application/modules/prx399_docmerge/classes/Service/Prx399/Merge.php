@@ -78,13 +78,13 @@ class Service_Prx399_Merge {
         }
         if ($base === NULL OR empty($base['ast']))
         {
-            throw new self::ERROR('no_base_ast', 409);
+            throw new Prx399_Error('no_base_ast', 409);
         }
 
         $tree = json_decode($base['ast'], TRUE);
         if ( ! isset($tree['nodes']) OR ! is_array($tree['nodes']))
         {
-            throw new self::ERROR('no_base_ast', 409);
+            throw new Prx399_Error('no_base_ast', 409);
         }
         $nodes = $tree['nodes'];
 
@@ -135,7 +135,7 @@ class Service_Prx399_Merge {
             $child = self::_next_child_path($nodes, $anchor);
             if ($child === NULL)
             {
-                throw new self::ERROR('bad_anchor:'.$anchor, 409);
+                throw new Prx399_Error('bad_anchor:'.$anchor, 409);
             }
             $nodes[] = [
                 'path' => $child,
@@ -151,7 +151,7 @@ class Service_Prx399_Merge {
 
         if ($index === NULL)
         {
-            throw new self::ERROR('bad_anchor:'.$anchor, 409);
+            throw new Prx399_Error('bad_anchor:'.$anchor, 409);
         }
 
         if ($op === 'replace')
