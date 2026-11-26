@@ -96,7 +96,22 @@ $dark_init = 'try{if(localStorage.getItem("theme")==="dark"||(!localStorage.getI
 
     <?php if ($orphans): ?>
         <div role="alert" class="prx-flash prx-flash-warn block">
-            <strong>Записи без файлов миграций:</strong> <?php echo HTML::chars(implode(', ', array_keys($orphans))); ?>. Они не откатываются автоматически.
+            <strong>Записи без файлов миграций:</strong> применены на этой базе, но файла класса в коде больше нет (миграция переименована или модуль снят). Откатиться они не могут, а на свежем развёртывании и не выполнятся — «Забыть» удаляет только строку журнала, схему базы не трогает.
+            <ul class="mt-2 space-y-1.5">
+            <?php foreach ($orphans as $orphan_key => $orphan_at): ?>
+                <li class="flex flex-wrap items-center gap-2">
+                    <code class="font-mono text-xs"><?php echo HTML::chars((string) $orphan_key); ?></code>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">применена <?php echo HTML::chars(date('d.m.Y', strtotime((string) $orphan_at))); ?></span>
+                    <form method="post" action="<?php echo HTML::chars($action_url); ?>" class="inline">
+                        <input type="hidden" name="csrf_token" value="<?php echo HTML::chars($csrf_token); ?>">
+                        <input type="hidden" name="operation" value="forget">
+                        <input type="hidden" name="orphan" value="<?php echo HTML::chars((string) $orphan_key); ?>">
+                        <button type="submit" class="text-xs font-semibold text-rose-600 hover:underline dark:text-rose-400"
+                                data-prx-confirm="Удалить из журнала запись о применённой миграции? Схема базы не меняется; запись исчезнет из этого списка.">Забыть</button>
+                    </form>
+                </li>
+            <?php endforeach; ?>
+            </ul>
         </div>
     <?php endif; ?>
 
