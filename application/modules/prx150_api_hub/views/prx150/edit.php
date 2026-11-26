@@ -33,12 +33,15 @@
         <div class="prx-card p-4">
             <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Права (scopes)</p>
             <div class="mt-2 grid gap-2 sm:grid-cols-2">
-                <?php foreach ($scopes_all as $scope => $desc): ?>
+                <?php foreach ($scopes_all as $scope => $meta): ?>
                 <label class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
                     <input type="checkbox" name="scopes[]" value="<?php echo HTML::chars((string) $scope); ?>"
                            class="mt-0.5" <?php echo in_array((string) $scope, $scopes_have, TRUE) ? 'checked' : ''; ?>>
-                    <span><span class="font-mono text-xs"><?php echo HTML::chars((string) $scope); ?></span>
-                    <?php if ((string) $desc !== ''): ?><span class="block text-xs text-gray-400"><?php echo HTML::chars((string) $desc); ?></span><?php endif; ?></span>
+                    <span>
+                        <span class="font-semibold text-gray-900 dark:text-white"><?php echo HTML::chars((string) ($meta['title'] ?? $scope)); ?></span>
+                        <span class="block font-mono text-xs text-gray-500 dark:text-gray-400"><?php echo HTML::chars((string) $scope); ?></span>
+                        <span class="block text-xs text-gray-400 dark:text-gray-500"><?php echo HTML::chars((string) ($meta['module'] ?? '')); ?><?php echo (string) ($meta['description'] ?? '') !== '' ? ' · '.HTML::chars((string) $meta['description']) : ''; ?></span>
+                    </span>
                 </label>
                 <?php endforeach; ?>
             </div>
