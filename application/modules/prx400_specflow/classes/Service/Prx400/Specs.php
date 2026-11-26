@@ -719,6 +719,40 @@ class Service_Prx400_Specs {
         Model_Prx400_Catalog::delete((int) $id);
     }
 
+    /**
+     * Исходный PDF по id ЗАДАЧИ prx120: URL воркера несёт job_id, а не
+     * spec_id (канон prx397: WHERE job_id =). Раньше job_id трактовался как
+     * spec_id — совпадали они только в первых тестах (spec 1 ↔ job 1),
+     * дальше все скачивания падали 404 file_unavailable при живом файле.
+     */
+    public function read_pdf_for_job($job_id)
+    {
+        $spec = Model_Prx400_Spec::get_by_job($job_id);
+        if ( ! $spec)
+        {
+            Log_Plain::event(Log::WARNING, 'prx400_diag stage=worker_file job=:j result=no_spec', [':j' => (int) $job_id]);
+            throw new Prx400_Error('file_unavailable', 404);
+        }
+        $pdf = $this->read_pdf((int) $spec['id']);
+        Log_Plain::event(Log::INFO, 'prx400_diag stage=worker_file job=:j spec=:s result=ok bytes=:b', [
+            ':j' => (int) $job_id, ':s' => (int) $spec['id'], ':b' => strlen((string) $pdf),
+        ]);
+
+        return $pdf;
+    }
+
+    /** Результат разбора по id задачи prx120 (см. read_pdf_for_job). */
+    public function result_for_job($job_id, array $body)
+    {
+        $spec = Model_Prx400_Spec::get_by_job($job_id);
+        if ( ! $spec)
+        {
+            throw new Prx400_Error('not_found', 404);
+        }
+
+        return $this->result((int) $spec['id'], $body);
+    }
+
     /** Завершение проверки оператором (HITL): review → done. */
     public function finish($actor, $spec_id)
     {

@@ -43,6 +43,16 @@ class Model_Prx400_Spec {
             [':l' => (int) $limit]);
     }
 
+    /** Спецификация по id задачи prx120 (URL воркера несёт job_id — канон prx397). */
+    public static function get_by_job($job_id)
+    {
+        $rows = Prx_Db::select(
+            'SELECT * FROM prx_400_specs WHERE job_id = :j ORDER BY id DESC LIMIT 1',
+            [':j' => (int) $job_id]);
+
+        return $rows ? (array) $rows[0] : NULL;
+    }
+
     public static function delete($id)
     {
         // prx_400_rows удаляются каскадом (FK ON DELETE CASCADE, миграция 001).

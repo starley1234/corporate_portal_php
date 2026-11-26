@@ -51,7 +51,7 @@ class Controller_Prx400_Worker extends Controller {
     {
         $this->respond(function () {
             [$id, $attempt] = $this->lease(Request::GET);
-            $pdf = (new Service_Prx400_Specs)->read_pdf($id);
+            $pdf = (new Service_Prx400_Specs)->read_pdf_for_job($id);
             $this->response->headers('Content-Type', 'application/pdf');
             $this->response->headers('Content-Length', (string) strlen($pdf));
             $this->response->body($pdf);
@@ -68,7 +68,7 @@ class Controller_Prx400_Worker extends Controller {
             $body = json_decode($raw, TRUE);
             if ( ! is_array($body)) throw new Prx400_Error('invalid_result', 400);
 
-            (new Service_Prx400_Specs)->result($id, $body);
+            (new Service_Prx400_Specs)->result_for_job($id, $body);
             $this->_json_response(['status' => 'done']);
         });
     }

@@ -48,6 +48,7 @@ def check_status(response: httpx.Response) -> None:
     if code == 409:
         raise PermanentJobError("lease_lost")
     if code in (404, 410):
+        log.error("job_api: сайт вернул %d — файл/задача не найдены на стороне сайта (см. prx400_diag stage=worker_file в журнале сайта)", code)
         raise PermanentJobError("file_unavailable")
     if code in (408, 429) or code >= 500:
         raise DocumentJobError("worker_endpoint_unavailable")
@@ -66,6 +67,7 @@ def check(response: httpx.Response) -> dict | None:
     if code == 409:
         raise PermanentJobError("lease_lost")
     if code in (404, 410):
+        log.error("job_api: сайт вернул %d — файл/задача не найдены на стороне сайта (см. prx400_diag stage=worker_file в журнале сайта)", code)
         raise PermanentJobError("file_unavailable")
     if code in (408, 429) or code >= 500:
         raise DocumentJobError("worker_endpoint_unavailable")
