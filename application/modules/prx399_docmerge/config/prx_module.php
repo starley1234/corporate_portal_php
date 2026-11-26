@@ -1,7 +1,7 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
 /**
- * Манифест prx399_docmerge — слияние договоров и допсоглашений (DocMergeAI).
+ * Манифест prx399_docmerge — слияние договоров и допсоглашений.
  *
  * Пайплайн «Zero-Config»: сканы договора + цепочки ДС → AST → дельты ДС
  * (LLM, изолированно по каждому ДС) → детерминированная сборка (PHP, без LLM)
@@ -15,7 +15,7 @@
 return [
     'id' => 399,
     'slug' => 'prx399_docmerge',
-    'title' => 'Слияние договоров (DocMergeAI)',
+    'title' => 'Слияние договоров',
     'short' => 'Сканы договора и ДС → актуальная редакция + карта рисков; сборку делает код, а не модель',
     'icon' => 'fas fa-file-contract',
     'href' => '/prx399_docmerge',

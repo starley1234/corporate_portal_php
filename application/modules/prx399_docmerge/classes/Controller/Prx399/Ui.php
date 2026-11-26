@@ -15,7 +15,7 @@ class Controller_Prx399_Ui extends Controller_Base {
             throw HTTP_Exception::factory(403, 'Слияние договоров доступно администратору');
         }
         $this->response->headers('Cache-Control', 'no-store');
-        $this->set_title('Слияние договоров (DocMergeAI)');
+        $this->set_title('Слияние договоров');
     }
 
     /** Список пакетов + форма создания («Zero-Config»: только файлы и роль). */
