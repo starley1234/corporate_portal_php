@@ -42,6 +42,10 @@ if ( ! empty($contract['doc_tree']))
 {
     $contract_actions[] = ['label' => 'Скачать редакцию (.txt)', 'href' => '/prx399_docmerge/export/'.$contract['id'], 'icon' => 'fa-download', 'role' => 'secondary'];
 }
+if ($can_run AND ! empty($contract['doc_tree']) AND in_array($contract['status'], ['audited', 'failed'], TRUE))
+{
+    $contract_actions[] = ['html' => '<form method="post" action="/prx399_docmerge/rebuild/'.$contract['id'].'" class="inline"><input type="hidden" name="csrf" value="'.HTML::chars($csrf).'"><button type="submit" class="prx-btn-secondary prx-btn-sm"><i class="fas fa-rotate mr-1.5"></i>Пересобрать редакцию</button></form>'];
+}
 $contract_actions[] = ['html' => '<form method="post" action="/prx399_docmerge/delete/'.$contract['id'].'" class="inline"><input type="hidden" name="csrf" value="'.HTML::chars($csrf).'"><button type="submit" class="prx-btn-danger prx-btn-sm" data-prx-confirm="Пакет, файлы и результаты будут удалены безвозвратно." data-prx-title="Удалить пакет?" data-prx-ok="Удалить"><i class="fas fa-trash mr-1.5"></i>Удалить</button></form>'];
 echo View::factory('partials/page_header', [
     'crumbs'  => [['Слияние договоров', '/prx399_docmerge'], [$contract['title']]],
@@ -101,10 +105,61 @@ echo View::factory('partials/page_header', [
 <?php if ( ! empty($file['error'])): ?>
             <tr><td colspan="7" class="text-xs text-red-600 dark:text-red-400"><?php echo HTML::chars($file['error']); ?></td></tr>
 <?php endif; ?>
+<?php $ast = $file['kind'] === 'base' && isset($file['ast']) && is_string($file['ast']) ? json_decode($file['ast'], TRUE) : NULL; ?>
+<?php if (isset($ast['stats']['nodes']) AND (int) $ast['stats']['nodes'] > 0): ?>
+            <tr><td colspan="7" class="text-xs text-gray-400">Распознавание: <?php echo (int) $ast['stats']['nodes']; ?> узлов<?php if ( ! empty($ast['stats']['unrecognized'])): ?> · <span class="text-rose-600 dark:text-rose-400" title="Строки, похожие на нумерованные пункты, но не попавшие в дерево — проверьте качество скана">не распознаны: <?php echo HTML::chars(implode(', ', array_map('strval', array_slice((array) $ast['stats']['unrecognized'], 0, 4)))); ?></span><?php endif; ?><?php if ( ! empty($ast['stats']['duplicates'])): ?> · <span class="text-amber-600 dark:text-amber-400">дубли якорей: <?php echo HTML::chars(implode(', ', array_map('strval', array_slice((array) $ast['stats']['duplicates'], 0, 4)))); ?></span><?php endif; ?></td></tr>
+<?php endif; ?>
 <?php endforeach; ?>
             </tbody>
         </table>
     </div>
+
+    <!-- ==== 1b. Дельты ДС: состав сборки решает человек (ADR-003) ==== -->
+<?php if ( ! empty($deltas)): ?>
+<?php $op_ru = ['replace' => 'замена', 'add' => 'дополнение', 'annul' => 'исключение'];
+$op_badges = ['replace' => 'prx-badge-run', 'add' => 'prx-badge-ok', 'annul' => 'prx-badge-err'];
+$in_build = count(array_filter($deltas, static fn ($d) => (string) ($d['included'] ?? 'yes') === 'yes')); ?>
+    <div class="prx-card mt-6">
+        <div class="prx-card-head">
+            <h2 class="prx-h3">Дельты ДС (состав сборки)</h2>
+            <span class="prx-count"><?php echo count($deltas); ?> всего · <?php echo $in_build; ?> в сборке</span>
+        </div>
+        <p class="prx-hint px-4 pt-2">Исключённая дельта не попадёт в редакцию при пересборке. Гард «дословно» — автопроверка воркера: текст дельты должен цитировать ДС, иначе модель что-то пересказала.</p>
+        <table class="prx-table w-full">
+            <thead>
+            <tr><th scope="col">ДС</th><th scope="col">Операция</th><th scope="col">Пункт</th><th scope="col">Суть</th><th scope="col">Уверенность</th><th scope="col">Гард текста</th><th scope="col"><span class="sr-only">Состав</span></th></tr>
+            </thead>
+            <tbody>
+<?php foreach ($deltas as $delta): ?>
+            <tr<?php echo (string) ($delta['included'] ?? 'yes') === 'no' ? ' class="opacity-60"' : ''; ?>>
+                <td class="font-mono">№<?php echo (int) $delta['file_id']; ?></td>
+                <td><span class="prx-badge <?php echo $op_badges[$delta['op']] ?? 'prx-badge-wait'; ?>"><span class="prx-dot"></span><?php echo $op_ru[$delta['op']] ?? $delta['op']; ?></span></td>
+                <td class="font-mono"><?php echo HTML::chars((string) $delta['anchor']); ?></td>
+                <td class="max-w-md"><?php echo $delta['note'] !== NULL ? HTML::chars((string) $delta['note']) : '<span class="text-gray-400">—</span>'; ?></td>
+                <td><?php echo $delta['confidence'] !== NULL ? (int) round($delta['confidence'] * 100).'%' : '—'; ?></td>
+                <td><?php echo (string) $delta['body_in_ds'] === 'no'
+                    ? '<span class="prx-badge prx-badge-err"><span class="prx-dot"></span>модель пересказала</span>'
+                    : ((string) $delta['body_in_ds'] === 'yes'
+                        ? '<span class="prx-badge prx-badge-ok"><span class="prx-dot"></span>дословно</span>'
+                        : '<span class="text-gray-400">—</span>'); ?></td>
+                <td class="text-right whitespace-nowrap">
+<?php if ($can_run AND in_array($contract['status'], ['audited', 'failed'], TRUE)): ?>
+<?php $included_now = (string) ($delta['included'] ?? 'yes') === 'yes'; ?>
+                    <form method="post" action="/prx399_docmerge/delta/<?php echo (int) $delta['id']; ?>" class="inline">
+                        <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
+                        <input type="hidden" name="included" value="<?php echo $included_now ? 'no' : 'yes'; ?>">
+                        <button type="submit" class="prx-btn-secondary prx-btn-sm"><?php echo $included_now ? 'исключить' : 'вернуть'; ?></button>
+                    </form>
+<?php elseif ((string) ($delta['included'] ?? 'yes') === 'no'): ?>
+                    <span class="text-xs text-gray-400">исключена</span>
+<?php endif; ?>
+                </td>
+            </tr>
+<?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+<?php endif; ?>
 
     <!-- ==== 2. Паспорт сделки + карточка контекста ==== -->
     <div class="mt-6 gap-6 space-y-6 md:grid md:grid-cols-3 md:items-start md:space-y-0">

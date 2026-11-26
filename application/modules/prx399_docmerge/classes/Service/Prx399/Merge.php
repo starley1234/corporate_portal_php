@@ -51,12 +51,18 @@ class Service_Prx399_Merge {
             $confidence = NULL;
         }
 
+        // Гард воркера: body дословно найден в тексте ДС (yes|no). Не доверяем
+        // «истине» — только факту проверки; бейдж для человека в карточке.
+        $body_in_ds = isset($op['body_in_ds']) && in_array($op['body_in_ds'], ['yes', 'no'], TRUE)
+            ? (string) $op['body_in_ds'] : NULL;
+
         return [
             'op' => $op['op'],
             'anchor' => $anchor,
             'body' => $body === '' ? NULL : $body,
             'note' => isset($op['note']) ? mb_substr((string) $op['note'], 0, 1000) : NULL,
             'confidence' => $confidence,
+            'body_in_ds' => $body_in_ds,
         ];
     }
 
@@ -238,7 +244,7 @@ class Service_Prx399_Merge {
             }
         }
 
-        $ref_re = '/(?:пункт|п\.|пп\.)\s*(\d{1,3}(?:\.\d{1,3}){0,4})|(?:раздел)\s*(\d{1,3})|(?:стать(?:я|и|ей|ью))\s*(\d{1,3})/ui';
+        $ref_re = '/(?:пункт\w*|п\.|пп\.)\s*(\d{1,3}(?:\.\d{1,3}){0,4})|(?:раздел\w*)\s*(\d{1,3})|(?:стать(?:я|и|ей|ью))\s*(\d{1,3})/ui';
         $broken = [];
         foreach ($nodes as $node)
         {

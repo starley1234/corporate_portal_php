@@ -233,62 +233,106 @@ class Service_Prx399_Pipeline {
             $contract = Model_Prx399_Contract::get($contract_id);
             if ( ! $contract OR ! in_array($contract['status'], ['parsing'], TRUE))
             {
-                return ['built' => FALSE];
+                return;
             }
 
-            $files = Model_Prx399_File::for_contract($contract_id);
-            $pending = array_filter($files, static fn ($f) => in_array($f['status'], ['queued', 'working'], TRUE));
-            $failed = array_filter($files, static fn ($f) => $f['status'] === 'failed');
-            if ($pending)
-            {
-                return ['built' => FALSE];
-            }
-            if ($failed)
-            {
-                $names = implode(', ', array_map(static fn ($f) => $f['original_name'], $failed));
-                Model_Prx399_Contract::set_status($contract_id, 'failed', 'Не разобраны файлы: '.$names);
-
-                return ['built' => FALSE, 'failed' => TRUE];
-            }
-
-            [$nodes, $broken] = (new Service_Prx399_Merge)->build(
-                $contract, $files, Model_Prx399_Delta::for_contract($contract_id));
-            Model_Prx399_Contract::set_built($contract_id, ['nodes' => $nodes], $broken);
-
-            // Статические риски (битые ссылки) пишутся сразу — их видит человек
-            // до LLM-аудита; llm-риски допишутся после doc.merge.audit.
-            Model_Prx399_Risk::delete_for_contract($contract_id);
-            foreach ($broken as $link)
-            {
-                Model_Prx399_Risk::insert([
-                    'contract_id' => $contract_id,
-                    'severity' => 'high',
-                    'area' => 'Коллизии',
-                    'chunk_path' => $link['where'],
-                    'title' => 'Недействительная ссылка: «'.$link['excerpt'].'»',
-                    'detail' => 'Ссылка указывает на '.$link['ref'].' — пункт не существует или исключён допсоглашением.',
-                    'recommendation' => 'Проверить редакцию пункта и исправить ссылку на актуальный номер.',
-                    'source' => 'static',
-                ]);
-            }
-
-            $job_id = Service_Prx120_JobQueue::push('doc.merge.audit', [
-                'contract_id' => $contract_id,
-            ], [
-                'module' => 'prx399',
-                'priority' => 45,
-                'max_attempts' => 2,
-                'timeout_sec' => 3600,
-                'created_by' => 0,
-            ]);
-            Model_Prx399_Contract::set_audit_job($contract_id, $job_id);
-            Model_Prx399_Contract::set_status($contract_id, 'auditing', NULL);
-
-            return ['built' => TRUE];
+            $this->_assemble($contract_id, $contract);
         });
 
         $contract = Model_Prx399_Contract::get($contract_id);
 
-        return ['built' => $contract['status'] !== 'parsing', 'status' => (string) $contract['status']];
+        return ['built' => $contract !== NULL AND $contract['status'] !== 'parsing', 'status' => $contract !== NULL ? (string) $contract['status'] : ''];
+    }
+
+    /**
+     * Пересборка по явному требованию человека: после правки состава дельт
+     * (исключение/возврат) или повторно после сбоя. Разрешена, когда
+     * предыдущий цикл завершён (audited/failed): пересобираем, перезаписываем
+     * статические риски и ставим риск-аудит заново.
+     */
+    public function rebuild($contract_id)
+    {
+        $contract_id = (int) $contract_id;
+
+        Prx_Db::transaction(function () use ($contract_id)
+        {
+            Prx_Db::execute('SELECT pg_advisory_xact_lock(399, :id)', [':id' => $contract_id]);
+
+            $contract = Model_Prx399_Contract::get($contract_id);
+            if ( ! $contract)
+            {
+                throw new Prx399_Error('not_found', 404);
+            }
+            if ( ! in_array($contract['status'], ['audited', 'failed'], TRUE))
+            {
+                throw new Prx399_Error('wrong_state', 409);
+            }
+
+            $this->_assemble($contract_id, $contract);
+        });
+
+        return ['ok' => TRUE];
+    }
+
+    /**
+     * Сборка + статические риски + постановка аудита. Вызывается ТОЛЬКО
+     * внутри транзакции с advisory-локом (399, contract_id). FALSE — собрать
+     * нельзя (есть pending/failed файлы); TRUE — сборка выполнена.
+     */
+    private function _assemble($contract_id, $contract)
+    {
+        $files = Model_Prx399_File::for_contract($contract_id);
+        $pending = array_filter($files, static fn ($f) => in_array($f['status'], ['queued', 'working'], TRUE));
+        if ($pending)
+        {
+            return FALSE;
+        }
+        $failed = array_filter($files, static fn ($f) => $f['status'] === 'failed');
+        if ($failed)
+        {
+            $names = implode(', ', array_map(static fn ($f) => $f['original_name'], $failed));
+            Model_Prx399_Contract::set_status($contract_id, 'failed', 'Не разобраны файлы: '.$names);
+
+            return FALSE;
+        }
+
+        // Состав сборки решает человек (ADR-003): excluded=no не попадает.
+        $deltas = array_filter(
+            Model_Prx399_Delta::for_contract($contract_id),
+            static fn ($d) => (string) ($d['included'] ?? 'yes') === 'yes');
+
+        [$nodes, $broken] = (new Service_Prx399_Merge)->build($contract, $files, $deltas);
+        Model_Prx399_Contract::set_built($contract_id, ['nodes' => $nodes], $broken);
+
+        // Статические риски (битые ссылки) пишутся сразу — их видит человек
+        // до LLM-аудита; llm-риски допишутся после doc.merge.audit.
+        Model_Prx399_Risk::delete_for_contract($contract_id);
+        foreach ($broken as $link)
+        {
+            Model_Prx399_Risk::insert([
+                'contract_id' => $contract_id,
+                'severity' => 'high',
+                'area' => 'Коллизии',
+                'chunk_path' => $link['where'],
+                'title' => 'Недействительная ссылка: «'.$link['excerpt'].'»',
+                'detail' => 'Ссылка указывает на '.$link['ref'].' — пункт не существует или исключён допсоглашением.',
+                'recommendation' => 'Проверить редакцию пункта и исправить ссылку на актуальный номер.',
+                'source' => 'static',
+            ]);
+        }
+
+        $job_id = Service_Prx120_JobQueue::push('doc.merge.audit', [
+            'contract_id' => $contract_id,
+        ], [
+            'module' => 'prx399',
+            'priority' => 45,
+            'max_attempts' => 2,
+            'timeout_sec' => 3600,
+            'created_by' => 0,
+        ]);
+        Model_Prx399_Contract::set_audit_job($contract_id, $job_id);
+        Model_Prx399_Contract::set_status($contract_id, 'auditing', NULL);
+
+        return TRUE;
     }
 }

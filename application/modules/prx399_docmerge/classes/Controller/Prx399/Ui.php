@@ -117,6 +117,57 @@ class Controller_Prx399_Ui extends Controller_Base {
         });
     }
 
+    /** Состав сборки: исключить дельту или вернуть её (решение человека). */
+    public function action_delta()
+    {
+        $this->_guard_csrf();
+
+        if ( ! $this->can('prx399.run'))
+        {
+            throw HTTP_Exception::factory(403, 'Изменение состава сборки — только с правом prx399.run');
+        }
+
+        $id = (int) $this->request->param('id');
+        $contract_id = NULL;
+
+        try
+        {
+            $delta = Model_Prx399_Delta::get($id);
+            if ( ! $delta)
+            {
+                throw new Prx399_Error('not_found', 404);
+            }
+            $contract_id = (int) $delta['contract_id'];
+            $included = $this->request->post('included') === 'no' ? 'no' : 'yes';
+            Model_Prx399_Delta::set_included($id, $included);
+            Session::instance()->set('prx399_flash', ['type' => 'ok', 'text' => $included === 'no'
+                ? 'Дельта исключена из сборки. Нажмите «Пересобрать редакцию», чтобы применить.'
+                : 'Дельта снова в сборке. Нажмите «Пересобрать редакцию», чтобы применить.']);
+        }
+        catch (Prx399_Error $e)
+        {
+            Session::instance()->set('prx399_flash', ['type' => 'err', 'text' => $this->_say($e->getMessage())]);
+        }
+
+        HTTP::redirect('/prx399_docmerge/contract/'.($contract_id !== NULL ? $contract_id : $id), 303);
+    }
+
+    /** Пересборка редакции после правки состава дельт (audited/failed). */
+    public function action_rebuild()
+    {
+        $this->_action_post(function ($service, $id)
+        {
+            if ( ! $this->can('prx399.run'))
+            {
+                throw HTTP_Exception::factory(403, 'Пересборка — только с правом prx399.run');
+            }
+
+            (new Service_Prx399_Pipeline)->rebuild($id);
+
+            return ['type' => 'ok', 'text' => 'Редакция пересобрана с учётом состава дельт; риск-аудит поставлен заново.'];
+        });
+    }
+
     /** Повтор файла после сбоя воркера. */
     public function action_retry()
     {
