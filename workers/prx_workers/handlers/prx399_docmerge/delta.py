@@ -63,6 +63,14 @@ _DELTA_PROMPT = """Ты — юрист-редактор. Ниже — текст
 - body переносится в документ ДОСЛОВНО — не пересказывай и не исправляй формулировки;
 - один шаг ДС — одна инструкция; ничего не выдумывай сверх текста ДС.
 
+Примеры типовых формулировок ДС и соответствующих инструкций:
+- «пункт 2.1 изложить в следующей редакции: „Цена договора — 512 000 руб., НДС включён"» →
+  {"op": "replace", "anchor": "2.1", "body": "Цена договора — 512 000 руб., НДС включён", "confidence": 0.95}
+- «дополнить пунктом 2.3: „Отсрочка платежа — 21 календарный день"» →
+  {"op": "add", "anchor": "2", "body": "Отсрочка платежа — 21 календарный день.", "confidence": 0.9}
+- «пункт 2.2 исключить» или «пункт 2.2 утратил силу» →
+  {"op": "annul", "anchor": "2.2"}
+
 Текст ДС («__NAME__»):
 <<<ДС
 __TEXT__
@@ -182,6 +190,57 @@ async def _llm_json(ctx: HandlerContext, prompt: str, model: str, temperature: f
     return parse_json_reply(text)
 
 
+_SELFCHECK_PROMPT = """Ты — контролёр качества. Ниже инструкции (ops), извлечённые из ДС, и полный текст ДС.
+
+Проверь каждую инструкцию по тексту ДС:
+- body обязан быть ДОСЛОВНЫМ фрагментом ДС; если он пересказан — замени body на точный фрагмент ДС (verdict "fix"), сохранив смысл шага;
+- anchor должен быть реальным номером из нумерации ДС;
+- инструкция, которую ДС не подтверждает (выдумана), — верни с verdict "drop".
+Ничего нового не добавляй. Только JSON:
+{"ops": [ ...те же объекты (op, anchor, body, note, confidence) с полем "verdict": "keep"|"fix"|"drop" ...]}
+
+Текст ДС:
+<<<ДС
+__TEXT__
+ДС>>>
+
+Инструкции на проверку:
+__OPS__"""
+
+
+def _needs_selfcheck(ops: list) -> bool:
+    """Self-check нужен, когда гард дословности нашёл пересказ или уверенность
+    низкая/отсутствует (модель не дала confidence — тоже подозрительно)."""
+    for op in ops:
+        if not isinstance(op, dict):
+            return True
+        if op.get("body_in_ds") == "no":
+            return True
+        conf = op.get("confidence")
+        if not isinstance(conf, (int, float)) or not 0.6 <= conf <= 1.0:
+            return True
+    return False
+
+
+def apply_selfcheck(ops: list, reply: dict) -> list:
+    """Слить вердикты контролёра с исходными ops. Чистая функция (тестируется
+    без LLM): вердикты принимаются по позициям; ответ контролёра без списка
+    или с другим числом инструкций — исходные ops без изменений."""
+    checked = reply.get("ops") if isinstance(reply, dict) else None
+    if not isinstance(checked, list) or len(checked) != len(ops):
+        return ops
+    out = []
+    for src, res in zip(ops, checked):
+        if not isinstance(res, dict) or str(res.get("verdict") or "keep").lower() == "drop":
+            continue
+        merged = dict(src)
+        for key in ("op", "anchor", "body", "note", "confidence"):
+            if key in res and res[key] is not None:
+                merged[key] = res[key]
+        out.append(merged)
+    return out
+
+
 def _norm(text: str) -> str:
     """Нормализация для сравнения «дословно»: пробелы/регистр схлопнуть."""
     return re.sub(r"\s+", " ", (text or "")).strip().lower()
@@ -263,12 +322,39 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
         if not isinstance(ops, list):
             raise ValueError("модель вернула ответ без списка ops")
         mark_bodies(ops, text)
+
+        # Self-check: второй дешёвый вызов ТОЛЬКО для сомнительных дельт
+        # (пересказ текста или низкая уверенность). Контролёр не добавляет
+        # новых шагов: только исправляет body на дословный или вычёркивает
+        # выдуманное. Сбой проверки не роняет задание — остаются исходные ops.
+        if ops and _needs_selfcheck(ops):
+            await ctx.progress("selfcheck", f"дельт: {len(ops)}")
+            try:
+                verdict = await _llm_json(
+                    ctx,
+                    _SELFCHECK_PROMPT
+                    .replace("__TEXT__", text)
+                    .replace("__OPS__", json.dumps(ops, ensure_ascii=False)),
+                    str(data.get("model") or ""),
+                    0.0,
+                    4000,
+                )
+                ops = apply_selfcheck(ops, verdict)
+                mark_bodies(ops, text)
+            except (ValueError, LlmConfigError):
+                pass
+
         result = {"ops": ops}
         note = f"дельт: {len(ops)}"
 
+    payload = {"pages": pages, "text_sha256": sha, **result}
+    if kind != "base":
+        # Текст ДС хранится на сайте (prx_399_files.text): без него невозможно
+        # side-by-side ревью «ДС ↔ дельты» для сканов без текстового слоя.
+        payload["text"] = text
     ok, reason, _resp = await site.post_json(
         _PREFIX, f"/delta_result/{file_id}",
-        {"pages": pages, "text_sha256": sha, **result},
+        payload,
         base=_api_base(), timeout=120.0, json_body=True,
     )
     if not ok:

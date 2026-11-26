@@ -90,3 +90,48 @@ def test_mark_bodies_verbatim_vs_paraphrase():
     assert ops[0]["body_in_ds"] == "yes"   # нормализация пробелов/регистра
     assert ops[1]["body_in_ds"] == "no"    # пересказ — бейдж на карточке
     assert "body_in_ds" not in ops[2]      # annul не помечается
+
+
+# ---------------------------------------------------------------- self-check
+
+def test_delta_prompt_has_fewshot_examples():
+    prompt = delta._DELTA_PROMPT
+    assert "Примеры типовых формулировок" in prompt
+    for fragment in ('"op": "replace"', '"op": "add"', '"op": "annul"'):
+        assert fragment in prompt, fragment
+
+
+def test_needs_selfcheck_flags_paraphrase_and_low_confidence():
+    assert delta._needs_selfcheck([{"op": "annul", "anchor": "2.2", "body_in_ds": "no"}]) is True
+    assert delta._needs_selfcheck([{"op": "add", "anchor": "2", "body": "x", "body_in_ds": "yes", "confidence": 0.55}]) is True
+    assert delta._needs_selfcheck([{"op": "add", "anchor": "2", "body": "x", "body_in_ds": "yes"}]) is True  # confidence нет
+    assert delta._needs_selfcheck([{"op": "add", "anchor": "2", "body": "x", "body_in_ds": "yes", "confidence": 0.9}]) is False
+
+
+def test_apply_selfcheck_fix_and_drop_by_position():
+    ops = [
+        {"op": "replace", "anchor": "4.2", "body": "пересказ", "body_in_ds": "no", "confidence": 0.4},
+        {"op": "add", "anchor": "4", "body": "норм"},
+        {"op": "annul", "anchor": "6.1"},
+    ]
+    reply = {"ops": [
+        {"op": "replace", "anchor": "4.2", "body": "точный фрагмент", "confidence": 0.8, "verdict": "fix"},
+        {"verdict": "drop"},                      # позиция 2: вычеркнута
+        {"verdict": "keep"},                      # позиция 3: без изменений
+    ]}
+    out = delta.apply_selfcheck(ops, reply)
+    assert out[0]["body"] == "точный фрагмент" and out[0]["confidence"] == 0.8
+    assert out[0]["body_in_ds"] == "no"            # исходные поля сохранены, потом перемаркируются
+    assert len(out) == 2 and out[1]["anchor"] == "6.1"
+
+
+def test_apply_selfcheck_bad_reply_returns_original():
+    ops = [{"op": "annul", "anchor": "2.2"}]
+    for reply in (None, {}, {"ops": "нет"}, {"ops": [{"verdict": "keep"}, {"verdict": "keep"}]}):
+        assert delta.apply_selfcheck(ops, reply) == ops
+
+
+def test_apply_selfcheck_accepts_all_drop():
+    ops = [{"op": "add", "anchor": "9", "body": "выдумано"}]
+    reply = {"ops": [{"verdict": "drop"}]}
+    assert delta.apply_selfcheck(ops, reply) == []
