@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "count": 133,
+  "count": 136,
   "routes": [
     {
       "name": "cookie_consent_close",
@@ -255,6 +255,33 @@
       "file": "application/modules/prx112_portal_plan/classes/Controller/Prx112/Plan.php"
     },
     {
+      "name": "prx113_favorites_home",
+      "uri": "favorites",
+      "regex": "",
+      "controller": "Prx113_Favorites",
+      "action": "index",
+      "module": "prx113_favorites",
+      "file": "application/modules/prx113_favorites/classes/Controller/Prx113/Favorites.php"
+    },
+    {
+      "name": "prx113_favorites_save",
+      "uri": "favorites/save",
+      "regex": "",
+      "controller": "Prx113_Favorites",
+      "action": "save",
+      "module": "prx113_favorites",
+      "file": "application/modules/prx113_favorites/classes/Controller/Prx113/Favorites.php"
+    },
+    {
+      "name": "prx113_favorites",
+      "uri": "prx113_favorites(/<action>)",
+      "regex": "",
+      "controller": "Prx113_Favorites",
+      "action": "index",
+      "module": "prx113_favorites",
+      "file": "application/modules/prx113_favorites/classes/Controller/Prx113/Favorites.php"
+    },
+    {
       "name": "prx115_api",
       "uri": "prx115/api(/<action>(/<id>))",
       "regex": "",
@@ -356,7 +383,7 @@
     {
       "name": "prx150_api_hub",
       "uri": "prx150_api_hub(/<action>(/<id>))",
-      "regex": "[\n    'action' => 'index|create|revoke|usage|docs|edit|save',\n    'id' => '[1-9][0-9]{0,17}',\n]",
+      "regex": "[\n    'action' => 'index|create|revoke|usage|docs|edit|save|revoked_list',\n    'id' => '[1-9][0-9]{0,17}',\n]",
       "controller": "Prx150_Admin",
       "action": "index",
       "module": "prx150_api_hub",

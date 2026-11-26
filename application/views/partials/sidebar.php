@@ -103,7 +103,18 @@ foreach ($items as $item)
         <div class="sidebar-group" data-nav-group="pinned">
             <div class="sidebar-group-title px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">Избранное</div>
             <ul class="space-y-0.5" data-nav-pinned-list>
+                <?php // Категории (prx113): пункты с категорией — под подзаголовками,
+                      // в порядке ручной сортировки; без категории — общий список. ?>
+                <?php $nav_sections = []; ?>
                 <?php foreach ($nav_items as $favorite): ?>
+                <?php $nav_category = trim((string) ($favorite['category'] ?? '')); ?>
+                <?php $nav_sections[$nav_category === '' ? '' : $nav_category][] = $favorite; ?>
+                <?php endforeach; ?>
+                <?php foreach ($nav_sections as $nav_category => $nav_section_items): ?>
+                <?php if ($nav_category !== ''): ?>
+                <li class="sidebar-label px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500"><?php echo HTML::chars($nav_category); ?></li>
+                <?php endif; ?>
+                <?php foreach ($nav_section_items as $favorite): ?>
                 <li class="group relative">
                     <a href="<?php echo HTML::chars((string) $favorite['href']); ?>"
                        class="sidebar-item relative flex min-h-10 items-center gap-3 rounded-lg px-3 py-2 pr-10 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100<?php echo ! empty($favorite['active']) ? ' is-active' : ''; ?>"
@@ -117,6 +128,7 @@ foreach ($items as $item)
                             class="sidebar-label nav-pin is-pinned absolute right-1 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-md hover:bg-gray-200 dark:hover:bg-gray-700"
                             title="Убрать из Избранного" aria-label="Убрать из Избранного: <?php echo HTML::chars((string) $favorite['title']); ?>" aria-pressed="true"><i class="fas fa-star text-xs"></i></button>
                 </li>
+                <?php endforeach; ?>
                 <?php endforeach; ?>
                 <?php if ( ! $nav_items): ?>
                 <li class="sidebar-label px-3 py-2 text-xs text-gray-400" data-nav-pinned-empty><?php echo $nav_status === 'guest'

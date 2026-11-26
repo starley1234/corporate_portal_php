@@ -102,6 +102,7 @@
                 typeof item.title === 'string' && typeof item.icon === 'string';
         }).map(function (item) {
             return { href: item.href, title: item.title, icon: item.icon,
+                category: typeof item.category === 'string' ? item.category : '',
                 nav_paths: Array.isArray(item.nav_paths) ? item.nav_paths : [] };
         });
     }
@@ -158,7 +159,27 @@
         var selected = activeHref(state.items);
         var path = window.location.pathname.replace(/\/+$/, '') || '/';
 
+        // Категории (prx113): пункты с категорией — под подзаголовками,
+        // без категории — общий список. Структура = SSR sidebar.php.
+        var sections = [];
+        var byCategory = {};
         state.items.forEach(function (item) {
+            var category = (item.category || '').trim();
+            if (!byCategory[category]) {
+                byCategory[category] = { category: category, items: [] };
+                sections.push(byCategory[category]);
+            }
+            byCategory[category].items.push(item);
+        });
+
+        sections.forEach(function (section) {
+            if (section.category) {
+                var header = document.createElement('li');
+                header.className = 'sidebar-label px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500';
+                header.textContent = section.category;
+                list.appendChild(header);
+            }
+            section.items.forEach(function (item) {
             var li = document.createElement('li');
             li.className = 'group relative';
             var a = document.createElement('a');
@@ -190,6 +211,7 @@
             li.appendChild(a);
             li.appendChild(pin);
             list.appendChild(li);
+            });
         });
 
         if (!state.items.length) {

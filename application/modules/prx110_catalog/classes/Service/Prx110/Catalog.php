@@ -767,6 +767,13 @@ class Service_Prx110_Catalog {
             'active' => ($uri === '/services' OR strpos($uri, '/services/') === 0),
         ]];
 
+        // Управление Избранным (prx113): порядок, категории, переименование.
+        $items[] = [
+            'title' => 'Избранное · управление', 'href' => '/favorites',
+            'icon' => 'fas fa-star-half-stroke', 'group' => 'Сервисы', 'sort' => 5,
+            'active' => ($uri === '/favorites' OR strpos($uri, '/favorites/') === 0),
+        ];
+
         // Пункты, добавленные администратором на /services (миграция 011):
         // в категории «Сервисы» их видят все, у кого есть доступ к панели.
         foreach (self::custom_menu_items() as $row)

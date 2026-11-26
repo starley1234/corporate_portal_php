@@ -11,17 +11,22 @@ class Service_Prx110_Favorites
 
         try
         {
-            $rows = DB::select('href', 'title', 'icon')->from('prx_110_favorites')
-                ->where('user_id', '=', $user_id)->order_by('id', 'ASC')->execute()->as_array();
+            $rows = DB::select('href', 'title', 'icon', 'sort', 'category', 'note')
+                ->from('prx_110_favorites')
+                ->where('user_id', '=', $user_id)
+                ->order_by('sort', 'ASC')->order_by('id', 'ASC')->execute()->as_array();
         }
         catch (Exception $e)
         {
-            // Колонки title/icon появились миграцией 010; до её применения
-            // список работает по-старому, без метаданных подстраниц.
-            Kohana::$log->add(Log::WARNING, 'prx110: favorites без метаданных (миграция 010?)');
+            // Колонки появились миграциями 010 (метаданные) и 012 (порядок);
+            // до их применения список работает по-старому, без настроек.
+            Kohana::$log->add(Log::WARNING, 'prx110: favorites без колонок 010/012 (миграции не применены?)');
             $rows = DB::select('href')->from('prx_110_favorites')
                 ->where('user_id', '=', $user_id)->order_by('id', 'ASC')->execute()->as_array();
-            foreach ($rows as $i => $row) { $rows[$i]['title'] = NULL; $rows[$i]['icon'] = NULL; }
+            foreach ($rows as $i => $row)
+            {
+                $rows[$i] += ['title' => NULL, 'icon' => NULL, 'sort' => NULL, 'category' => NULL, 'note' => NULL];
+            }
         }
         if ( ! $rows) return [];
 
@@ -30,9 +35,17 @@ class Service_Prx110_Favorites
         foreach ($rows as $row)
         {
             $href = (string) $row['href'];
+            // Переименование/иконка из prx113 сильнее каталога; остальное
+            // (nav_paths, видимость) — только из каталога.
+            $own_title = ($row['title'] !== NULL AND $row['title'] !== '') ? (string) $row['title'] : NULL;
+            $own_icon = ($row['icon'] !== NULL AND $row['icon'] !== '') ? (string) $row['icon'] : NULL;
+
             if (isset($catalog[$href]))
             {
-                $items[] = $catalog[$href];
+                $item = $catalog[$href];
+                $item['title'] = $own_title ?? $item['title'];
+                $item['icon'] = $own_icon ?? $item['icon'];
+                $items[] = $item + ['sort' => $row['sort'], 'category' => $row['category'], 'note' => $row['note']];
                 continue;
             }
             // Подстраница (звезда в page_header): метаданные — сохранённые
@@ -40,12 +53,65 @@ class Service_Prx110_Favorites
             if ( ! self::valid_href($href)) continue;
             $items[] = [
                 'href' => $href,
-                'title' => (string) ($row['title'] !== NULL && $row['title'] !== '' ? $row['title'] : $href),
-                'icon' => (string) ($row['icon'] !== NULL && $row['icon'] !== '' ? $row['icon'] : 'fas fa-star'),
+                'title' => $own_title ?? $href,
+                'icon' => $own_icon ?? 'fas fa-star',
                 'nav_paths' => [],
+                'sort' => $row['sort'],
+                'category' => $row['category'],
+                'note' => $row['note'],
             ];
         }
         return $items;
+    }
+
+    /**
+     * Сохранить состояние Избранного из страницы управления (prx113):
+     * порядок, переименование, иконка, категория, заметка.
+     *
+     * @param  int   $user_id
+     * @param  array $list    упорядоченный список
+     *                        [[href, title, icon, category, note], …]
+     * @return string|NULL     NULL — ок, иначе человекочитаемая причина
+     */
+    public static function reorder(int $user_id, array $list): ?string
+    {
+        if ($user_id <= 0) return 'Требуется вход';
+
+        try
+        {
+            foreach (array_values($list) as $i => $entry)
+            {
+                $entry = (array) $entry;
+                $href = is_string($entry['href'] ?? NULL) ? (string) $entry['href'] : '';
+                if ( ! self::valid_href($href)) return 'Некорректная ссылка: '.mb_substr($href, 0, 80);
+
+                $title = mb_substr(trim((string) ($entry['title'] ?? '')), 0, 200);
+                $icon = mb_substr(trim((string) ($entry['icon'] ?? '')), 0, 64);
+                $icon = preg_match('/^[a-z0-9][a-z0-9 -]{0,63}$/i', $icon) ? $icon : NULL;
+                $category = mb_substr(trim((string) ($entry['category'] ?? '')), 0, 80);
+                $note = mb_substr(trim((string) ($entry['note'] ?? '')), 0, 300);
+
+                DB::query(Database::UPDATE, 'UPDATE prx_110_favorites
+                    SET title = :title, icon = :icon, category = :category, note = :note, sort = :sort
+                    WHERE user_id = :uid AND href = :href')
+                    ->parameters([
+                        ':title' => $title !== '' ? $title : NULL,
+                        ':icon' => $icon,
+                        ':category' => $category !== '' ? $category : NULL,
+                        ':note' => $note !== '' ? $note : NULL,
+                        ':sort' => ($i + 1) * 10,
+                        ':uid' => $user_id,
+                        ':href' => $href,
+                    ])->execute();
+            }
+        }
+        catch (Exception $e)
+        {
+            Kohana::$log->add(Log::WARNING, 'prx110: favorites reorder не удался: :e', [':e' => $e->getMessage()]);
+            return 'Таблица Избранного ещё без колонок порядка — примените миграцию prx110/012';
+        }
+
+        return NULL;
     }
 
     /** Идемпотентно установить явное состояние, а не переключать его. */
@@ -75,15 +141,19 @@ class Service_Prx110_Favorites
 
             try
             {
-                DB::query(Database::UPDATE, 'INSERT INTO prx_110_favorites (user_id, href, title, icon)
-                    VALUES (:uid, :href, :title, :icon)
+                // Новый пин — в конец списка (шаг 10, как в меню).
+                $sort = (int) (Prx_Db::one(
+                    'SELECT COALESCE(max(sort), 0) + 10 AS s FROM prx_110_favorites WHERE user_id = :uid',
+                    [':uid' => $user_id])['s'] ?? 10);
+                DB::query(Database::UPDATE, 'INSERT INTO prx_110_favorites (user_id, href, title, icon, sort)
+                    VALUES (:uid, :href, :title, :icon, :sort)
                     ON CONFLICT (user_id, href) DO UPDATE SET title = :title, icon = :icon')
-                    ->parameters([':uid' => $user_id, ':href' => $href, ':title' => $title, ':icon' => $icon])->execute();
+                    ->parameters([':uid' => $user_id, ':href' => $href, ':title' => $title, ':icon' => $icon, ':sort' => $sort])->execute();
             }
             catch (Exception $e)
             {
-                // Миграция 010 ещё не применена — пин без метаданных.
-                Kohana::$log->add(Log::WARNING, 'prx110: favorites set без метаданных (миграция 010?)');
+                // Миграции 010/012 ещё не применены — пин без метаданных.
+                Kohana::$log->add(Log::WARNING, 'prx110: favorites set без колонок (миграции 010/012?)');
                 DB::query(Database::UPDATE, 'INSERT INTO prx_110_favorites (user_id, href)
                     VALUES (:uid, :href) ON CONFLICT (user_id, href) DO NOTHING')
                     ->parameters([':uid' => $user_id, ':href' => $href])->execute();
