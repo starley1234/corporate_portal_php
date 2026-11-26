@@ -64,6 +64,41 @@ class Model_Prx400_Row {
         return $out;
     }
 
+    /**
+     * Пересчитать статус строки из её же данных (после снятия «Проверено»):
+     * ошибка математики → error; код НСИ → ok; есть альтернативы → review;
+     * иначе → new. Детерминированно, зеркально раскраске result().
+     */
+    public static function recompute_status($id)
+    {
+        $row = self::get($id);
+        if ( ! $row)
+        {
+            return;
+        }
+        $match = is_array($row['match'] ?? NULL) ? $row['match'] : json_decode((string) ($row['match'] ?? 'null'), TRUE);
+        $flags = is_array($row['flags'] ?? NULL) ? $row['flags'] : json_decode((string) ($row['flags'] ?? '[]'), TRUE);
+        $types = array_column((array) $flags, 'type');
+
+        $status = 'new';
+        if (in_array('math_row', $types, TRUE))
+        {
+            $status = 'error';
+        }
+        elseif ( ! empty($match['code']))
+        {
+            $status = 'ok';
+        }
+        elseif ( ! empty($match['alternatives']))
+        {
+            $status = 'review';
+        }
+
+        return Prx_Db::execute(
+            'UPDATE prx_400_rows SET status = :s WHERE id = :id',
+            [':id' => (int) $id, ':s' => $status]);
+    }
+
     public static function get($id)
     {
         $row = Prx_Db::one('SELECT * FROM prx_400_rows WHERE id = :id', [':id' => (int) $id]);

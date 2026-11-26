@@ -46,8 +46,11 @@ class Service_Prx400_Export {
                 'okei_unit_code' => (string) ($match['okei_code'] ?? ''),
                 'unit_price' => $r['unit_price'] !== NULL ? (float) $r['unit_price'] : NULL,
                 'total_price' => $r['total_price'] !== NULL ? (float) $r['total_price'] : NULL,
-                'verification_status' => (string) $r['verified'] === 't' ? 'verified' : (string) $r['status'],
-                'warnings' => array_map(static fn (array $f): string => (string) ($f['type'] ?? ''), (array) $flags),
+                'verification_status' => in_array($r['verified'] ?? NULL, ['t', TRUE, '1'], TRUE) ? 'verified' : (string) $r['status'],
+                'warnings' => array_values(array_filter(array_map(
+                    static function ($f): string {
+                        return is_array($f) ? (string) ($f['type'] ?? '') : '';
+                    }, (array) $flags), static fn (string $w): bool => $w !== '')),
             ];
         }
 

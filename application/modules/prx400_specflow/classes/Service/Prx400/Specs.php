@@ -659,6 +659,17 @@ class Service_Prx400_Specs {
             return;
         }
 
+        // «Проверено» — переключатель: повторное нажатие снимает отметку,
+        // статус строки пересчитывается из её же данных (ошибка/ок/ревью/новая).
+        // Оператор не может застрять: нажал с ошибкой — можно откатить.
+        if ((string) $row['verified'] === 't')
+        {
+            Model_Prx400_Row::set_verified((int) $row_id, $actor->id(), FALSE);
+            Model_Prx400_Row::recompute_status((int) $row_id);
+
+            return;
+        }
+
         Model_Prx400_Row::set_verified((int) $row_id, $actor->id(), TRUE);
     }
 

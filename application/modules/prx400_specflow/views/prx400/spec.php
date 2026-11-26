@@ -163,10 +163,11 @@ foreach ($prx400_hint as $code => $text): if (strpos((string) $spec['error'], $c
 <?php endif; endif; ?>
                 </td>
                 <td class="text-right">
-<?php if ((string) $r['verified'] !== 't'): ?>
-                    <form method="post" action="/prx400_specflow/verify/<?php echo (int) $r['id']; ?>" class="inline"><input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><button type="submit" class="prx-btn-secondary prx-btn-sm" title="Подтвердить строку"><i class="fas fa-check"></i><span class="sr-only">Подтвердить</span></button></form>
+<?php if ((string) $r['verified'] === 't'): ?>
+                    <form method="post" action="/prx400_specflow/verify/<?php echo (int) $r['id']; ?>" class="inline"><input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><button type="submit" class="prx-btn-secondary prx-btn-sm" title="Снять отметку «Проверено» — строка вернётся в прежнее состояние"><i class="fas fa-rotate-left"></i><span class="sr-only">Снять отметку</span></button></form>
 <?php else: ?>
-                    <span class="prx-badge prx-badge-ok"><span class="prx-dot"></span>проверено</span>
+<?php $row_error = FALSE; foreach ((array) ($r['flags'] ?? []) as $f) { if (in_array((string) ($f['type'] ?? ''), ['math_row', 'unit_fractional'], TRUE)) { $row_error = TRUE; break; } } ?>
+                    <form method="post" action="/prx400_specflow/verify/<?php echo (int) $r['id']; ?>" class="inline"><input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><button type="submit" class="prx-btn-secondary prx-btn-sm" title="Подтвердить строку"<?php echo $row_error ? ' data-prx-confirm="Строка с ошибкой (математика/единицы). Подтвердить как есть? Отметку можно снять повторным нажатием." data-prx-title="Подтвердить строку с ошибкой?" data-prx-ok="Подтвердить"' : ''; ?>><i class="fas fa-check"></i><span class="sr-only">Подтвердить</span></button></form>
 <?php endif; ?>
                 </td>
             </tr>
