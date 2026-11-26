@@ -136,13 +136,13 @@ class Service_Prx400_Specs {
             'file_sha256' => $sha,
         ]);
 
-        $this->_push_job((int) $spec['id'], $actor->id());
+        $this->_push_job((int) $spec['id'], $actor->id(), $this->_parse_mode($post));
 
         return $spec;
     }
 
     /** Повторный запуск разбора (упавшая/отменённая задача). */
-    public function launch($actor, $spec_id)
+    public function launch($actor, $spec_id, array $post = [])
     {
         ($actor ?? Prx_Actor::guest())->require('prx400.run');
         $spec = Model_Prx400_Spec::get($spec_id);
@@ -155,7 +155,10 @@ class Service_Prx400_Specs {
             throw new Prx400_Error('wrong_state', 409);
         }
 
-        $this->_push_job((int) $spec_id, $actor->id(), $this->_parse_mode($post));
+        // Повтор: явный режим из POST (селектор), иначе сохранённый на
+        // спецификации — старая открытая страница без селектора не откатывает
+        // разбор скана в OCR молча (кейс job 91: mode=ocr при выборе Vision).
+        $this->_push_job((int) $spec_id, $actor->id(), $this->_mode_for_retry($spec, $post));
         Model_Prx400_Spec::set_status((int) $spec_id, 'queued', NULL);
     }
 
@@ -168,6 +171,19 @@ class Service_Prx400_Specs {
         return in_array($mode, $modes, TRUE) ? $mode : 'ocr';
     }
 
+    /** Режим повтора: явный из POST, иначе сохранённый на спецификации. */
+    protected function _mode_for_retry(array $spec, array $post): string
+    {
+        if (array_key_exists('parse_mode', $post))
+        {
+            return $this->_parse_mode($post);
+        }
+        $modes = (array) (Kohana::$config->load('prx400_specflow')->get('parse_modes') ?: ['ocr', 'ocr_vision', 'vision']);
+        $stored = trim((string) ($spec['parse_mode'] ?? ''));
+
+        return in_array($stored, $modes, TRUE) ? $stored : 'ocr';
+    }
+
     protected function _push_job($spec_id, $actor_id, $mode = 'ocr')
     {
         $templates = Service_Prx400_Templates::for_payload();
@@ -178,6 +194,8 @@ class Service_Prx400_Specs {
             throw new Prx400_Error('template_library_empty', 503);
         }
 
+        // Режим живёт на спецификации: повторы и карточка видят его всегда.
+        Model_Prx400_Spec::set_parse_mode((int) $spec_id, $mode);
         $job_id = Service_Prx120_JobQueue::push('specflow.parse', [
             'spec_id' => (int) $spec_id,
             'templates' => $templates,
@@ -204,6 +222,7 @@ class Service_Prx400_Specs {
 
         $this->_reconcile((int) $id, $spec);
         $spec = Model_Prx400_Spec::get($id);
+        $spec['parse_mode'] = (string) ($spec['parse_mode'] ?? 'ocr');
 
         // Последняя задача этого spec_id + её ЖИВОЙ этап (payload_jobs —
         // SQL у владельца очереди prx120; первое = последнее по времени).
@@ -502,7 +521,7 @@ class Service_Prx400_Specs {
         }
 
         Model_Prx400_Spec::set_file((int) $spec_id, 'prx212:'.$file_id, hash('sha256', $content));
-        $this->_push_job((int) $spec_id, $actor->id(), $this->_parse_mode($post));
+        $this->_push_job((int) $spec_id, $actor->id(), $this->_mode_for_retry($spec, $post));
         Model_Prx400_Spec::set_status((int) $spec_id, 'queued', NULL);
     }
 

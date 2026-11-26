@@ -74,6 +74,14 @@ class Model_Prx400_Spec {
             [':id' => (int) $id, ':p' => $storage_path, ':s' => $sha]);
     }
 
+    /** Запомнить режим разбора (используется повторами без явного режима). */
+    public static function set_parse_mode($id, $mode)
+    {
+        return Prx_Db::execute(
+            'UPDATE prx_400_specs SET parse_mode = :m, updated_at = now() WHERE id = :id',
+            [':id' => (int) $id, ':m' => (string) $mode]);
+    }
+
     public static function set_status($id, $status, $error = NULL)
     {
         return Prx_Db::execute(

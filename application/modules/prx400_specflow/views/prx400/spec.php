@@ -64,6 +64,7 @@ $job_stage_text = trim((string) ($job_stage['stage'] ?? ''));
 
     <div class="mt-5 flex flex-wrap items-center gap-3">
         <span class="<?php echo HTML::chars($badge); ?>"><span class="prx-dot"></span><?php echo HTML::chars($status_label); ?></span>
+        <span class="prx-count">Режим: <?php echo HTML::chars((string) $spec['parse_mode']); ?></span>
 <?php if ($spec['status'] === 'failed'): ?>
         <span class="text-sm text-rose-600 dark:text-rose-400"><?php echo HTML::chars((string) $spec['error']); ?></span>
 <?php $prx400_hint = [
@@ -98,7 +99,7 @@ foreach ($prx400_hint as $code => $text): if (strpos((string) $spec['error'], $c
 <?php endif; ?>
         <span class="ml-auto flex gap-2">
 <?php if ($spec['status'] === 'failed'): ?>
-            <?php if ( ! empty($file_ok)): ?><form method="post" action="/prx400_specflow/launch/<?php echo (int) $spec['id']; ?>" class="inline"><input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><select name="parse_mode" class="prx-input max-w-[200px]"><option value="ocr">Точный OCR (без LLM)</option><option value="ocr_vision">OCR + Vision (фолбэк)</option><option value="vision">Vision (по страницам)</option></select><button class="prx-btn-secondary prx-btn-sm" type="submit"><i class="fas fa-rotate-right"></i>Повторить разбор</button></form><?php endif; ?>
+            <?php if ( ! empty($file_ok)): ?><form method="post" action="/prx400_specflow/launch/<?php echo (int) $spec['id']; ?>" class="inline"><input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><select name="parse_mode" class="prx-input max-w-[200px]"><option value="ocr"<?php echo $spec['parse_mode'] === 'ocr' ? ' selected' : ''; ?>>Точный OCR (без LLM)</option><option value="ocr_vision"<?php echo $spec['parse_mode'] === 'ocr_vision' ? ' selected' : ''; ?>>OCR + Vision (фолбэк)</option><option value="vision"<?php echo $spec['parse_mode'] === 'vision' ? ' selected' : ''; ?>>Vision (по страницам)</option></select><button class="prx-btn-secondary prx-btn-sm" type="submit"><i class="fas fa-rotate-right"></i>Повторить разбор</button></form><?php endif; ?>
 <?php elseif ($spec['status'] === 'review'): ?>
             <form method="post" action="/prx400_specflow/finish/<?php echo (int) $spec['id']; ?>" class="inline"><input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><button class="prx-btn-cta prx-btn-sm" type="submit"><i class="fas fa-check-double"></i>Завершить проверку</button></form>
 <?php endif; ?>
