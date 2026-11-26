@@ -38,12 +38,97 @@ class Service_Prx399_Contracts {
             throw new Prx399_Error('contract_not_found', 404);
         }
 
+        $files = Model_Prx399_File::for_contract($id);
+        $this->_reconcile_files($id, $contract, $files);
+        $contract = Model_Prx399_Contract::get($id);
+
+        $jobs = [];
+        if (class_exists('Service_Prx120_JobQueue'))
+        {
+            try
+            {
+                foreach (Service_Prx120_JobQueue::instance()->payload_jobs('prx399', 'contract_id', (int) $id, 20) as $job)
+                {
+                    $payload = is_array($job['payload'] ?? NULL) ? $job['payload']
+                        : json_decode((string) ($job['payload'] ?? ''), TRUE);
+                    $file_id = (int) ($payload['file_id'] ?? 0);
+                    if ($file_id > 0 AND ! isset($jobs[$file_id]))
+                    {
+                        $jobs[$file_id] = $job; // первый = последний по времени
+                    }
+                }
+            }
+            catch (Throwable $e) { /* индикация не должна ломать карточку */ }
+        }
+
         return [
             'contract' => $contract,
-            'files' => Model_Prx399_File::for_contract($id),
+            'files' => $files,
             'deltas' => Model_Prx399_Delta::for_contract($id),
             'risks' => Model_Prx399_Risk::for_contract($id),
+            'jobs' => $jobs,
         ];
+    }
+
+    /**
+     * Самолечение зомби-файлов: launch() не ставит callback, поэтому файл,
+     * чья задача очереди пала НАВСЕГДА (attempts исчерпаны), оставался
+     * «В очереди» без кнопки «повторить». Файл в queued/working сверяем
+     * с его задачей (job_id, публичный API владельца очереди): задача
+     * failed/cancelled → файл failed (появляются честный статус и «повторить»).
+     * Если из-за этого в пакете не осталось рабочих файлов — пакет failed
+     * («Запустить пайплайн» снова доступен).
+     */
+    private function _reconcile_files($id, $contract, array &$files)
+    {
+        if ( ! class_exists('Service_Prx120_JobQueue'))
+        {
+            return;
+        }
+
+        $queue = NULL;
+        $changed = FALSE;
+        $pending = FALSE;
+
+        foreach ($files as $i => $file)
+        {
+            if ( ! in_array($file['status'], ['queued', 'working'], TRUE))
+            {
+                continue;
+            }
+            if ((int) ($file['job_id'] ?? 0) <= 0)
+            {
+                $pending = TRUE; // задача ещё не записана — считать рабочей
+                continue;
+            }
+            try
+            {
+                $queue = $queue ?: Service_Prx120_JobQueue::instance();
+                $job = $queue->get((int) $file['job_id']);
+            }
+            catch (Throwable $e)
+            {
+                $pending = TRUE;
+                continue;
+            }
+            if ($job === NULL OR ! in_array($job['status'], ['failed', 'cancelled'], TRUE))
+            {
+                $pending = TRUE; // задача жива (pending/processing) — ждать
+                continue;
+            }
+
+            $error = trim((string) ($job['error'] ?? ''));
+            Model_Prx399_File::set_status((int) $file['id'], 'failed',
+                'Задача очереди завершилась ошибкой'.($error !== '' ? ': '.mb_substr($error, 0, 200) : ''));
+            $files[$i]['status'] = 'failed';
+            $changed = TRUE;
+        }
+
+        if ($changed AND ! $pending AND (string) $contract['status'] === 'parsing')
+        {
+            $names = implode(', ', array_map(static fn ($f) => (string) $f['original_name'], $files));
+            Model_Prx399_Contract::set_status((int) $id, 'failed', 'Не разобраны файлы: '.$names);
+        }
     }
 
     // -------------------------------------------------------------- create

@@ -81,6 +81,7 @@ class Controller_Prx399_Ui extends Controller_Base {
         $this->template->content = View::factory('prx399/contract', [
             'contract' => $contract,
             'files' => $data['files'],
+            'jobs' => $data['jobs'] ?? [],
             'deltas' => $data['deltas'],
             'risks' => $data['risks'],
             'nodes' => is_array($tree) ? ($tree['nodes'] ?? []) : [],

@@ -28,6 +28,10 @@ foreach ($nodes as $node)
 {
     if (in_array($node['status'], ['added', 'changed', 'annulled'], TRUE)) $changes++;
 }
+// Пайплайн в работе: статусы обновляются автоматически (эталон — монитор,
+// «спиннер, этап и время», без полос прогресса).
+$pipeline_pending = in_array($contract['status'], ['parsing', 'auditing'], TRUE)
+    || count(array_filter($files, static fn ($f) => in_array($f['status'], ['queued', 'working'], TRUE))) > 0;
 ?>
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
@@ -62,8 +66,14 @@ echo View::factory('partials/page_header', [
     <div class="prx-flash prx-flash-err mt-4" role="alert"><i class="fas fa-circle-exclamation"></i><span><?php echo HTML::chars($contract['error']); ?></span></div>
 <?php endif; ?>
 
+    <!-- ==== 0. Индикация работы пайплайна (эталон: спиннер, этап, время) ==== -->
+    <div id="prx399-pipeline" class="prx-flash prx-flash-info mt-4<?php echo $pipeline_pending ? '' : ' hidden'; ?>" role="status">
+        <i class="fas fa-circle-notch fa-spin"></i>
+        <span>Пайплайн идёт: распознавание и дельты ДС в очереди воркера — статусы обновляются автоматически. Время: <span data-prx-clock class="font-mono tabular-nums">0:00</span></span>
+    </div>
+
     <!-- ==== 1. Файлы цепочки ==== -->
-    <div class="prx-card mt-6">
+    <div id="prx399-files" class="prx-card mt-6">
         <div class="prx-card-head"><h2 class="prx-h3">Файлы и порядок применения ДС</h2></div>
         <table class="prx-table w-full">
             <thead>
@@ -107,6 +117,14 @@ echo View::factory('partials/page_header', [
             </tr>
 <?php if ( ! empty($file['error'])): ?>
             <tr><td colspan="7" class="text-xs text-red-600 dark:text-red-400"><?php echo HTML::chars($file['error']); ?></td></tr>
+<?php endif; ?>
+<?php $prx_job = $jobs[$file_id] ?? NULL; ?>
+<?php if (in_array($file['status'], ['queued', 'working'], TRUE)): ?>
+<?php if ((string) ($prx_job['status'] ?? '') === 'processing'): ?>
+            <tr><td colspan="7" class="text-xs text-blue-600 dark:text-blue-400"><i class="fas fa-circle-notch fa-spin mr-1"></i>Воркер работает: <?php echo (string) ($prx_job['stage'] ?? '') !== '' ? HTML::chars((string) $prx_job['stage']) : 'задача взята'; ?> · попытка <?php echo (int) ($prx_job['attempts'] ?? 0); ?>/<?php echo (int) ($prx_job['max_attempts'] ?? 1); ?></td></tr>
+<?php else: ?>
+            <tr><td colspan="7" class="text-xs text-gray-400"><i class="fas fa-hourglass-half mr-1"></i>Задача в очереди воркера — заберут по мере освобождения<?php echo (int) ($prx_job['attempts'] ?? 0) > 0 ? ' · попытка '.(int) $prx_job['attempts'].'/'.(int) ($prx_job['max_attempts'] ?? 1) : ''; ?></td></tr>
+<?php endif; ?>
 <?php endif; ?>
 <?php $ast = $file['kind'] === 'base' && isset($file['ast']) && is_string($file['ast']) ? json_decode($file['ast'], TRUE) : NULL; ?>
 <?php if (isset($ast['stats']['nodes']) AND (int) $ast['stats']['nodes'] > 0): ?>
@@ -291,3 +309,54 @@ foreach (($node['history'] ?? []) as $step)
     </div>
 <?php endif; ?>
 </div>
+
+<script>
+// Индикация пайплайна: опрос карточки по эталону монитора (fetch + DOMParser
+// + подмена блоков по id). Пока есть работа — освежаем статусы файлов каждые
+// 5 секунд; когда работа кончилась — один полный reload, чтобы показать
+// риски и diff. Спиннер/этап/время — без полос прогресса.
+(function () {
+    'use strict';
+    var strip = document.getElementById('prx399-pipeline');
+    if (!strip || strip.classList.contains('hidden')) return;
+
+    var clock = strip.querySelector('[data-prx-clock]');
+    if (clock && window.PRX) PRX.stopwatch(clock, 0);
+
+    var busy = false;
+    function refresh() {
+        if (busy || document.hidden) return;
+        busy = true;
+        fetch(location.pathname + location.search, { headers: { 'X-Prx399-Status': '1' }, cache: 'no-store' })
+            .then(function (r) { return r.ok ? r.text() : null; })
+            .then(function (html) {
+                if (!html) return;
+                var doc = new DOMParser().parseFromString(html, 'text/html');
+                var fresh = doc.getElementById('prx399-pipeline');
+                if (fresh && fresh.classList.contains('hidden')) {
+                    window.location.reload(); // один раз: риски и diff на странице
+                    return;
+                }
+                ['prx399-pipeline', 'prx399-files'].forEach(function (id) {
+                    var f = doc.getElementById(id), live = document.getElementById(id);
+                    if (f && live) {
+                        live.replaceChildren.apply(live, Array.prototype.slice.call(f.childNodes));
+                        live.className = f.className;
+                    }
+                });
+            })
+            .catch(function () { /* сеть моргнула — в следующий тик */ })
+            .finally(function () { busy = false; });
+    }
+    setInterval(refresh, 5000);
+})();
+
+// POST-формы карточки (запуск/пересборка/повтор/порядок/удаление): кнопка
+// занята на время запроса — двойной запуск пайплайна невозможен.
+document.querySelectorAll('form[method="post"]').forEach(function (form) {
+    form.addEventListener('submit', function () {
+        var btn = form.querySelector('button[type="submit"]');
+        if (btn && window.PRX) PRX.busy(btn, true);
+    });
+});
+</script>
