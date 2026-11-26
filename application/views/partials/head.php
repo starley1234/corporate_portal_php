@@ -81,10 +81,11 @@
 
     <?php /* стили макета (панель, тема, уведомления, ползунки, печать) — в .tools/tailwind/input.css, раздел 4 */ ?>
 
-	<script src="/assets/js/template.js"></script>
-	<script src="/assets/js/app.js"></script>
-	<script src="/assets/js/search-layout.js"></script>
-	<script src="/assets/js/navpalette.js"></script>
+	<?php // Версия в URL — единственный способ сбросить кэш браузера: правили файл — поднимай число. ?>
+	<script src="/assets/js/template.js?v=1"></script>
+	<script src="/assets/js/app.js?v=2"></script>
+	<script src="/assets/js/search-layout.js?v=1"></script>
+	<script src="/assets/js/navpalette.js?v=2"></script>
 
     <?php if (isset($styles) && is_array($styles)): ?>
         <?php foreach ($styles as $style): ?>
