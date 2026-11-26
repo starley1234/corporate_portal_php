@@ -78,6 +78,41 @@ def parse(text: str) -> list[dict]:
     return nodes
 
 
+_RE_DATEISH = re.compile(r"^\d{1,2}\.\d{1,2}\.\d{2,4}")
+_RE_CANDIDATE = re.compile(
+    r"^(\d{1,3}(?:\.\d{1,3})+)[.)]?\s*\S"      # многоуровневые: 2.1, 4.2.1
+    r"|^(\d{1,3})[.)]\s+\S"                    # одноуровневые с маркером: 5. / 7)
+)
+
+
+def stats(text: str, nodes: list[dict]) -> dict:
+    """Метрики качества распознавания — для карточки пакета (PHP читает
+    file.ast.stats и предупреждает человека, если скан «съел» нумерацию).
+
+    unrecognized — строки, ПОХОЖИЕ на нумерованные пункты, но не ставшие
+    узлами (склеенная нумерация «2.1Поставщик», распознавание «5.» без текста);
+    duplicates — якоря, распознанные дважды на разных позициях.
+    """
+    paths = [str(node["path"]) for node in nodes]
+    duplicates = sorted({p for p in paths if paths.count(p) > 1})
+    unrecognized: list[str] = []
+    for line in (text or "").splitlines():
+        stripped = line.strip()
+        if not stripped or len(stripped) > 300 or _RE_DATEISH.match(stripped):
+            continue
+        m = _RE_CANDIDATE.match(stripped)
+        if not m:
+            continue
+        number = m.group(1) or m.group(2)
+        if number not in paths and number not in unrecognized:
+            unrecognized.append(number)
+    return {
+        "nodes": len(nodes),
+        "unrecognized": unrecognized[:8],
+        "duplicates": duplicates[:8],
+    }
+
+
 def _node(path: str, title: str, body: str) -> dict:
     return {
         "path": path,
@@ -110,7 +145,7 @@ def references(text: str) -> list[str]:
     (программная валидация коллизий; PHP делает то же независимо — двойной контур)."""
     found: list[str] = []
     pattern = re.compile(
-        r"(?:пункт|п\.|пп\.)\s*(\d{1,3}(?:\.\d{1,3}){0,4})"
+        r"(?:пункт\w*|п\.|пп\.)\s*(\d{1,3}(?:\.\d{1,3}){0,4})"
         r"|(?:раздел\w*)\s*(\d{1,3})"
         r"|(?:стать\w*)\s*(\d{1,3})",
         re.I,

@@ -54,3 +54,26 @@ def test_references_extracts_all_families():
 def test_text_without_headings_is_single_preamble_node():
     nodes = ast_text.parse("Просто текст без нумерации.")
     assert len(nodes) == 1 and nodes[0]["path"] == "0"
+
+
+def test_stats_flags_unrecognized_numbering():
+    # «2.9» похож на пункт, но узла нет (скан склеил строку) — в метрику;
+    # даты вида 30.06.2026 кандидатами не считаются.
+    text = SAMPLE + "\n2.9. Этот пункт скан склеил с абзацем.\n30.06.2026 подписано сторонами.\n"
+    nodes = ast_text.parse(SAMPLE)
+    report = ast_text.stats(text, nodes)
+    assert report["nodes"] == len(nodes)
+    assert "2.9" in report["unrecognized"]
+    assert all(not u.startswith("30.") for u in report["unrecognized"])
+
+
+def test_stats_flags_duplicate_anchors():
+    text = SAMPLE + "\n\nРаздел 2. Повтор раздела из-за сбоя скана\n"
+    nodes = ast_text.parse(text)
+    report = ast_text.stats(text, nodes)
+    assert "раздел-2" in report["duplicates"]
+
+
+def test_stats_clean_document_is_silent():
+    report = ast_text.stats(SAMPLE, ast_text.parse(SAMPLE))
+    assert report["unrecognized"] == [] and report["duplicates"] == []

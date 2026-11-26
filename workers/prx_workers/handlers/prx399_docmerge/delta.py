@@ -30,7 +30,7 @@ from ...ocr.page import tesseract_page
 from ...ocr.probe import probe_pdf
 from ...ocr.remote import extract_remote
 from ...ocr_client import tesseract_available
-from .ast_text import parse
+from .ast_text import parse, stats
 from .limits import limits
 
 CHANNEL = "doc.merge.delta"
@@ -182,6 +182,25 @@ async def _llm_json(ctx: HandlerContext, prompt: str, model: str, temperature: f
     return parse_json_reply(text)
 
 
+def _norm(text: str) -> str:
+    """Нормализация для сравнения «дословно»: пробелы/регистр схлопнуть."""
+    return re.sub(r"\s+", " ", (text or "")).strip().lower()
+
+
+def mark_bodies(ops: list, ds_text: str) -> None:
+    """Гард «body перенесён дословно» (в пайре с промптом «переносится
+    ДОСЛОВНО»). replace/add обязаны цитировать текст ДС: нормализованное
+    вхождение ищем в тексте; не нашли — body_in_ds='no', PHP покажет бейдж
+    «модель пересказала» и человек проверит дельту руками. annul без body
+    не помечается."""
+    hay = _norm(ds_text)
+    for op in ops:
+        if not isinstance(op, dict) or str(op.get("op")) not in ("replace", "add"):
+            continue
+        body = str(op.get("body") or "").strip()
+        op["body_in_ds"] = "yes" if body and _norm(body) in hay else "no"
+
+
 def _card_fragment(card: dict | None) -> str:
     if not card:
         return "."
@@ -225,7 +244,7 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
             float(data.get("temperature") or 0.0),
             int(data.get("max_tokens") or 2000),
         )
-        result = {"ast": {"nodes": nodes}, "deal_card": card}
+        result = {"ast": {"nodes": nodes, "stats": stats(text, nodes)}, "deal_card": card}
         note = f"узлов: {len(nodes)}"
     else:
         await ctx.progress("llm", "извлечение дельт ДС")
@@ -243,6 +262,7 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
         ops = reply.get("ops")
         if not isinstance(ops, list):
             raise ValueError("модель вернула ответ без списка ops")
+        mark_bodies(ops, text)
         result = {"ops": ops}
         note = f"дельт: {len(ops)}"
 

@@ -77,3 +77,16 @@ def test_parse_json_reply_rejects_garbage():
         delta.parse_json_reply("   ")
     with pytest.raises(ValueError):
         delta.parse_json_reply("модель передумала и ответила словами")
+
+
+def test_mark_bodies_verbatim_vs_paraphrase():
+    ops = [
+        {"op": "replace", "anchor": "4.2", "body": "Цена составляет 100 рублей."},
+        {"op": "add", "anchor": "4", "body": "Совсем другой текст, которого нет в ДС."},
+        {"op": "annul", "anchor": "6.1"},
+    ]
+    ds = "Пункт 4.2 изложить в редакции:  цена  составляет 100 РУБЛЕЙ."
+    delta.mark_bodies(ops, ds)
+    assert ops[0]["body_in_ds"] == "yes"   # нормализация пробелов/регистра
+    assert ops[1]["body_in_ds"] == "no"    # пересказ — бейдж на карточке
+    assert "body_in_ds" not in ops[2]      # annul не помечается
