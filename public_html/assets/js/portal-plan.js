@@ -23,6 +23,17 @@
             group.hidden = !hasRows;
             found = found || hasRows;
         });
+        // Табличный вид: те же данные-атрибуты на строках <tr>.
+        var table = content.querySelector('[data-plan-table]');
+        if (table) {
+            var tableHas = false;
+            table.querySelectorAll('tr[data-portal-plan-item]').forEach(function (item) {
+                item.hidden = !matcher.matches(item.dataset.portalPlanItem, query);
+                tableHas = tableHas || !item.hidden;
+            });
+            table.hidden = Boolean(query) && !tableHas;
+            found = found || tableHas;
+        }
         // The server already provides an empty state when the status has no rows.
         empty.hidden = !query || found || !groups.length;
     }
@@ -40,6 +51,78 @@
         });
         filter();
     }
+
+    /* ===== Вид списка: карточки | таблица (выбор запоминается) ===== */
+    var VIEW_KEY = 'prx112.plan.view';
+
+    function applyView(root) {
+        var scope = root || document;
+        var view = 'cards';
+        try { view = window.localStorage.getItem(VIEW_KEY) === 'table' ? 'table' : 'cards'; } catch (e) { /* private mode */ }
+        scope.querySelectorAll('[data-plan-view-panel]').forEach(function (panel) {
+            panel.hidden = panel.getAttribute('data-plan-view-panel') !== view;
+        });
+        scope.querySelectorAll('[data-plan-view]').forEach(function (btn) {
+            var on = btn.getAttribute('data-plan-view') === view;
+            btn.classList.toggle('is-active', on);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+    }
+
+    document.querySelectorAll('[data-plan-view]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            try { window.localStorage.setItem(VIEW_KEY, btn.getAttribute('data-plan-view')); } catch (e) { /* private mode */ }
+            applyView(document);
+        });
+    });
+    applyView(document);
+
+    /* ===== Сортировка таблицы кликом по заголовку ===== */
+    function applySortIcons(table) {
+        table.querySelectorAll('th[data-plan-sort-th]').forEach(function (th) {
+            var dir = th.getAttribute('aria-sort');
+            var icon = 'fa-sort';
+            if (dir === 'ascending') icon = 'fa-sort-up';
+            else if (dir === 'descending') icon = 'fa-sort-down';
+            th.querySelectorAll('[data-plan-sort-icon]').forEach(function (i) {
+                i.classList.remove('fa-sort', 'fa-sort-up', 'fa-sort-down');
+                i.classList.add(icon);
+            });
+        });
+    }
+
+    document.querySelectorAll('[data-plan-table]').forEach(function (table) {
+        var tbody = table.querySelector('tbody');
+        table.querySelectorAll('[data-plan-sort]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var th = btn.closest('th');
+                if (!tbody || !th) return;
+                var dir = th.getAttribute('aria-sort') === 'ascending' ? 'descending' : 'ascending';
+                table.querySelectorAll('th[data-plan-sort-th]').forEach(function (other) { other.removeAttribute('aria-sort'); });
+                th.setAttribute('aria-sort', dir);
+                var key = btn.getAttribute('data-plan-sort');
+                var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr[data-plan-row]'));
+                rows.sort(function (a, b) {
+                    if (key === 'ts') {
+                        return (Number(a.getAttribute('data-plan-ts')) || 0) - (Number(b.getAttribute('data-plan-ts')) || 0);
+                    }
+                    if (key === 'state') {
+                        var ra = Number(a.getAttribute('data-plan-state-rank')) || 0;
+                        var rb = Number(b.getAttribute('data-plan-state-rank')) || 0;
+                        if (ra !== rb) return ra - rb;
+                        return String(a.getAttribute('data-plan-title') || '').localeCompare(String(b.getAttribute('data-plan-title') || ''), 'ru');
+                    }
+                    var va = a.getAttribute('data-plan-' + key) || '';
+                    var vb = b.getAttribute('data-plan-' + key) || '';
+                    return va.localeCompare(vb, 'ru');
+                });
+                if (dir === 'descending') rows.reverse();
+                rows.forEach(function (row) { tbody.appendChild(row); });
+                applySortIcons(table);
+            });
+        });
+        applySortIcons(table);
+    });
 
     if (!window.fetch || !window.DOMParser || !window.PRX) return;
 
@@ -81,6 +164,7 @@
             var before = row && row.getBoundingClientRect();
             var scrollTop = window.scrollY;
             applySearch(updated);
+            applyView(updated);
             var replacementRow = Array.from(updated.querySelectorAll(rowSelector)).find(function (item) {
                 return row && !item.hidden && item.dataset.portalPlanModule === row.dataset.portalPlanModule;
             });
