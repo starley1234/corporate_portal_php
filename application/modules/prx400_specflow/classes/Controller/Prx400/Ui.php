@@ -98,6 +98,24 @@ class Controller_Prx400_Ui extends Controller_Base {
         HTTP::redirect('/prx400_specflow/catalog', 303);
     }
 
+    /** Правка полей строки (qty/ед./наименование/марка) — журнал в prx_400_edits. */
+    public function action_edit()
+    {
+        $row_id = (int) $this->request->param('id');
+        $this->_guard_csrf();
+        $spec_id = 0;
+        try
+        {
+            $spec_id = (new Service_Prx400_Specs)->row_edit($this->actor(), $row_id, $this->request->post());
+            Session::instance()->set('prx400_flash', ['type' => 'ok', 'text' => 'Строка исправлена — правка в журнале, статус пересчитан.']);
+        }
+        catch (Prx400_Error $e)
+        {
+            Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Не удалось исправить: '.$e->getMessage()]);
+        }
+        HTTP::redirect('/prx400_specflow/spec/'.$spec_id, 303);
+    }
+
     /** Страница «Шаблоны»: реестр + загрузка пользовательского JSON (POST). */
     public function action_templates()
     {

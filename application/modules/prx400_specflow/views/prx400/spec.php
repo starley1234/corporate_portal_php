@@ -163,6 +163,17 @@ foreach ($prx400_hint as $code => $text): if (strpos((string) $spec['error'], $c
 <?php endif; endif; ?>
                 </td>
                 <td class="text-right">
+                    <details class="mb-1 inline-block text-left">
+                        <summary class="prx-btn-secondary prx-btn-sm cursor-pointer list-none" title="Исправить распознанные поля"><i class="fas fa-pencil"></i><span class="sr-only">Исправить</span></summary>
+                        <form method="post" action="/prx400_specflow/edit/<?php echo (int) $r['id']; ?>" class="mt-2 w-64 space-y-2 rounded-lg border border-gray-200 bg-white p-3 text-left dark:border-gray-700 dark:bg-gray-900">
+                            <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
+                            <label class="block"><span class="prx-label">Кол-во</span><input class="prx-input mt-1 w-full" name="qty" value="<?php echo $r['qty'] !== NULL ? HTML::chars((string) $r['qty']) : ''; ?>" placeholder="—"></label>
+                            <label class="block"><span class="prx-label">Ед.</span><input class="prx-input mt-1 w-full" name="unit" value="<?php echo HTML::chars((string) $r['unit']); ?>"></label>
+                            <label class="block"><span class="prx-label">Наименование</span><textarea class="prx-input mt-1 w-full" name="raw_name" rows="2"><?php echo HTML::chars((string) $r['raw_name']); ?></textarea></label>
+                            <label class="block"><span class="prx-label">Тип, марка</span><input class="prx-input mt-1 w-full" name="code_doc" value="<?php echo HTML::chars((string) $r['code_doc']); ?>"></label>
+                            <button class="prx-btn-cta w-full justify-center" type="submit"><i class="fas fa-floppy-disk"></i>Сохранить</button>
+                        </form>
+                    </details>
 <?php if ((string) $r['verified'] === 't'): ?>
                     <form method="post" action="/prx400_specflow/verify/<?php echo (int) $r['id']; ?>" class="inline"><input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><button type="submit" class="prx-btn-secondary prx-btn-sm" title="Снять отметку «Проверено» — строка вернётся в прежнее состояние"><i class="fas fa-rotate-left"></i><span class="sr-only">Снять отметку</span></button></form>
 <?php else: ?>

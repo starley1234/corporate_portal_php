@@ -742,6 +742,57 @@ class Service_Prx400_Specs {
         }
     }
 
+    /**
+     * Правка полей строки оператором (qty/unit/наименование/марка):
+     * журнал правок — prx_400_edits, статус пересчитывается. Возвращает
+     * spec_id для редиректа на карточку.
+     */
+    public function row_edit($actor, $row_id, array $post)
+    {
+        ($actor ?? Prx_Actor::guest())->require('prx400.run');
+        $row = Model_Prx400_Row::get($row_id);
+        if ( ! $row)
+        {
+            throw new Prx400_Error('not_found', 404);
+        }
+
+        $fields = [];
+        if (array_key_exists('raw_name', $post))
+        {
+            $fields['raw_name'] = mb_substr(trim((string) $post['raw_name']), 0, 4000);
+        }
+        if (array_key_exists('code_doc', $post))
+        {
+            $fields['code_doc'] = mb_substr(trim((string) $post['code_doc']), 0, 255);
+        }
+        if (array_key_exists('unit', $post))
+        {
+            $fields['unit'] = mb_substr(trim((string) $post['unit']), 0, 16);
+        }
+        if (array_key_exists('qty', $post))
+        {
+            $qty = trim((string) $post['qty']);
+            if ($qty === '')
+            {
+                $fields['qty'] = NULL;
+            }
+            elseif (is_numeric(str_replace([' ', ','], ['', '.'], $qty)))
+            {
+                $fields['qty'] = (float) str_replace([' ', ','], ['', '.'], $qty);
+            }
+            else
+            {
+                throw new Prx400_Error('qty_invalid', 400);
+            }
+        }
+        if ($fields !== [])
+        {
+            Model_Prx400_Row::apply_edit((int) $row_id, $actor->id(), $fields);
+        }
+
+        return (int) $row['spec_id'];
+    }
+
     /** Добавить позицию в справочник НСИ (MVP-наполнение через UI). */
     public function catalog_add($actor, array $post)
     {

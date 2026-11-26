@@ -99,6 +99,64 @@ class Model_Prx400_Row {
             [':id' => (int) $id, ':s' => $status]);
     }
 
+    /**
+     * Правка полей строки оператором (HITL-коррекция vision-распознавания):
+     * каждое изменённое поле — запись в журнал prx_400_edits; после правки
+     * пересчитываются флаг математики строки и статус (детерминированно).
+     */
+    /** Разрешённые к правке поля (белый список — имена колонок не из ввода). */
+    public static function editable_fields(): array
+    {
+        return ['raw_name', 'code_doc', 'qty', 'unit'];
+    }
+
+    public static function apply_edit($row_id, $actor_id, array $fields)
+    {
+        $row = self::get($row_id);
+        if ( ! $row)
+        {
+            return NULL;
+        }
+
+        $allowed = array_fill_keys(self::editable_fields(), TRUE);
+        foreach ($fields as $field => $new)
+        {
+            if ( ! isset($allowed[$field]) OR ! array_key_exists($field, $row))
+            {
+                continue;
+            }
+            $old = (string) $row[$field];
+            if ((string) $new === $old)
+            {
+                continue;
+            }
+            Model_Prx400_Edit::add($row_id, (int) $row['spec_id'], $field, $old, (string) $new, $actor_id);
+            Prx_Db::execute(
+                'UPDATE prx_400_rows SET '.$field.' = :v WHERE id = :id', // $field — из белого списка выше
+                [':id' => (int) $row_id, ':v' => $new]);
+        }
+
+        // Флаг математики строки: qty * unit_price == total_price (tolerance 0.01).
+        $fresh = self::get($row_id);
+        $flags = is_array($fresh['flags'] ?? NULL) ? $fresh['flags'] : json_decode((string) ($fresh['flags'] ?? '[]'), TRUE);
+        $flags = array_values(array_filter((array) $flags, static fn ($f) => ($f['type'] ?? '') !== 'math_row'));
+        if ($fresh['qty'] !== NULL AND $fresh['unit_price'] !== NULL AND $fresh['total_price'] !== NULL)
+        {
+            $expected = round((float) $fresh['qty'] * (float) $fresh['unit_price'], 2);
+            if (abs($expected - (float) $fresh['total_price']) > 0.01)
+            {
+                $flags[] = ['type' => 'math_row', 'expected' => $expected];
+            }
+        }
+        Prx_Db::execute(
+            'UPDATE prx_400_rows SET flags = :f::jsonb WHERE id = :id',
+            [':id' => (int) $row_id, ':f' => json_encode($flags, JSON_UNESCAPED_UNICODE)]);
+
+        self::recompute_status((int) $row_id);
+
+        return self::get($row_id);
+    }
+
     public static function get($id)
     {
         $row = Prx_Db::one('SELECT * FROM prx_400_rows WHERE id = :id', [':id' => (int) $id]);
