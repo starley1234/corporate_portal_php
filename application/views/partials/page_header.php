@@ -63,7 +63,7 @@ $ph_roles = [
             <button type="button" data-nav-pin-card="<?php echo HTML::chars($ph_pin_href); ?>"
                     data-nav-pin-title="<?php echo HTML::chars($ph_title); ?>"
                     data-nav-pin-icon="<?php echo HTML::chars('fas '.( ! empty($ph_pill[1]) ? (string) $ph_pill[1] : 'fa-star')); ?>"
-                    class="nav-pin-card inline-flex h-8 w-8 items-center justify-center rounded-lg text-sm text-gray-300 transition hover:text-amber-500 dark:text-gray-600"
+                    class="nav-pin-card inline-flex h-8 w-8 items-center justify-center rounded-lg text-sm text-gray-400 transition hover:text-amber-500 dark:text-gray-500"
                     title="В Избранное" aria-label="В Избранное: <?php echo HTML::chars($ph_title); ?>" aria-pressed="false"><i class="fas fa-star"></i></button>
 <?php endif; ?>
         </div>

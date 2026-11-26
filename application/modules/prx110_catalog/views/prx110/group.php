@@ -26,7 +26,7 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
                 data-nav-pin-card="<?php echo HTML::chars($m['href']); ?>"
                 data-nav-pin-title="<?php echo HTML::chars($m['title']); ?>"
                 data-nav-pin-icon="<?php echo HTML::chars($m['icon']); ?>"
-                class="nav-pin-card absolute right-3 top-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-white/90 text-sm <?php echo $nav_is_pinned ? 'text-amber-500' : 'text-gray-400'; ?> shadow-xs transition hover:text-amber-500 dark:bg-gray-900/90"
+                class="nav-pin-card absolute right-3 top-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-white/90 text-sm <?php echo $nav_is_pinned ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300' : 'text-gray-400 dark:text-gray-500'; ?> shadow-xs transition hover:text-amber-500 dark:bg-gray-900/90"
                 title="<?php echo HTML::chars($nav_pin_label); ?>" aria-label="<?php echo HTML::chars($nav_pin_label.': '.$m['title']); ?>"
                 aria-pressed="<?php echo $nav_is_pinned ? 'true' : 'false'; ?>"<?php echo $nav_favorites_ready ? '' : ' disabled'; ?>><i class="fas fa-star"></i></button>
         <a href="<?php echo HTML::chars($m['href']); ?>"

@@ -9,8 +9,20 @@ class Service_Prx110_Favorites
         $user_id = (int) $user_id;
         if ($user_id <= 0) return [];
 
-        $rows = DB::select('href', 'title', 'icon')->from('prx_110_favorites')
-            ->where('user_id', '=', $user_id)->order_by('id', 'ASC')->execute()->as_array();
+        try
+        {
+            $rows = DB::select('href', 'title', 'icon')->from('prx_110_favorites')
+                ->where('user_id', '=', $user_id)->order_by('id', 'ASC')->execute()->as_array();
+        }
+        catch (Exception $e)
+        {
+            // Колонки title/icon появились миграцией 010; до её применения
+            // список работает по-старому, без метаданных подстраниц.
+            Kohana::$log->add(Log::WARNING, 'prx110: favorites без метаданных (миграция 010?)');
+            $rows = DB::select('href')->from('prx_110_favorites')
+                ->where('user_id', '=', $user_id)->order_by('id', 'ASC')->execute()->as_array();
+            foreach ($rows as $i => $row) { $rows[$i]['title'] = NULL; $rows[$i]['icon'] = NULL; }
+        }
         if ( ! $rows) return [];
 
         $catalog = self::catalog_map($ctx);
@@ -61,10 +73,21 @@ class Service_Prx110_Favorites
                 $icon = $catalog[$href]['icon'];
             }
 
-            DB::query(Database::UPDATE, 'INSERT INTO prx_110_favorites (user_id, href, title, icon)
-                VALUES (:uid, :href, :title, :icon)
-                ON CONFLICT (user_id, href) DO UPDATE SET title = :title, icon = :icon')
-                ->parameters([':uid' => $user_id, ':href' => $href, ':title' => $title, ':icon' => $icon])->execute();
+            try
+            {
+                DB::query(Database::UPDATE, 'INSERT INTO prx_110_favorites (user_id, href, title, icon)
+                    VALUES (:uid, :href, :title, :icon)
+                    ON CONFLICT (user_id, href) DO UPDATE SET title = :title, icon = :icon')
+                    ->parameters([':uid' => $user_id, ':href' => $href, ':title' => $title, ':icon' => $icon])->execute();
+            }
+            catch (Exception $e)
+            {
+                // Миграция 010 ещё не применена — пин без метаданных.
+                Kohana::$log->add(Log::WARNING, 'prx110: favorites set без метаданных (миграция 010?)');
+                DB::query(Database::UPDATE, 'INSERT INTO prx_110_favorites (user_id, href)
+                    VALUES (:uid, :href) ON CONFLICT (user_id, href) DO NOTHING')
+                    ->parameters([':uid' => $user_id, ':href' => $href])->execute();
+            }
         }
         else
         {

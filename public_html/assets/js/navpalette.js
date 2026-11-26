@@ -128,8 +128,16 @@
             var on = isPinned(href);
             var title = state.status !== 'ready' ? 'Избранное недоступно' : (on ? 'Убрать из Избранного' : 'В Избранное');
             var service = btn.getAttribute('data-nav-pin-title') || '';
-            btn.classList.toggle('text-amber-500', on);
+            // Канонические состояния звезды (должны совпадать с вьюхами —
+            // prx110/index, prx110/group, prx112, partials/page_header):
+            // закреплено — amber-плашка, видимая и в тёмной теме.
+            btn.classList.toggle('bg-amber-100', on);
+            btn.classList.toggle('text-amber-600', on);
+            btn.classList.toggle('dark:bg-amber-500/20', on);
+            btn.classList.toggle('dark:text-amber-300', on);
             btn.classList.toggle('text-gray-400', !on);
+            btn.classList.toggle('dark:text-gray-500', !on);
+            btn.classList.remove('text-amber-500'); // легаси-класс старых вьюх
             btn.setAttribute('title', title);
             btn.setAttribute('aria-label', title + (service ? ': ' + service : ''));
             btn.setAttribute('aria-pressed', on ? 'true' : 'false');
