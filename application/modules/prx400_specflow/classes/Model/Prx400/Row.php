@@ -41,9 +41,27 @@ class Model_Prx400_Row {
 
     public static function for_spec($spec_id)
     {
-        return Prx_Db::select(
+        // JSONB-колонки PDO отдаёт СТРОКОЙ — приводим к массивам для вьюхи
+        // и экспорта (иначе (array) от строки даёт [0 => 'строка'] и
+        // TypeError «Cannot access offset of type string»).
+        $out = [];
+        foreach (Prx_Db::select(
             'SELECT * FROM prx_400_rows WHERE spec_id = :id ORDER BY seq ASC',
-            [':id' => (int) $spec_id]);
+            [':id' => (int) $spec_id]) as $r)
+        {
+            $r = (array) $r;
+            foreach (['flags', 'match'] as $k)
+            {
+                if (isset($r[$k]) AND ! is_array($r[$k]))
+                {
+                    $r[$k] = json_decode((string) $r[$k], TRUE);
+                }
+            }
+
+            $out[] = $r;
+        }
+
+        return $out;
     }
 
     public static function get($id)
