@@ -12,6 +12,10 @@
  * «services» без слага перехватывает «services/json» (см. prx611 init).
  */
 
+Route::set('prx110_menu_add', 'services/menu/add')
+    ->defaults(['controller' => 'Prx110_Catalog', 'action' => 'menu_add']);
+Route::set('prx110_menu_delete', 'services/menu/delete/<id>', ['id' => '[1-9][0-9]{0,9}'])
+    ->defaults(['controller' => 'Prx110_Catalog', 'action' => 'menu_delete']);
 Route::set('prx110_catalog_group', 'services/<slug>', ['slug' => '[a-z0-9-]+'])
     ->defaults([
         'controller' => 'Prx110_Catalog',

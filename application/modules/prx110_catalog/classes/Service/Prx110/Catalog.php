@@ -609,6 +609,28 @@ class Service_Prx110_Catalog {
             ];
         }
 
+        // Пользовательские пункты меню — тоже часть каталога: находит палитра
+        // «Все сервисы», а звёздочкой их можно закрепить в Избранном.
+        foreach (self::custom_menu_items() as $row)
+        {
+            $items[] = [
+                'title'    => (string) $row['title'],
+                'short'    => 'пункт меню (добавлен администратором)',
+                'href'     => (string) $row['href'],
+                'icon'     => (string) $row['icon'],
+                'group'    => 'Сервисы',
+                'gslug'    => self::group_slug('Сервисы'),
+                'keywords' => '',
+                'nav_paths' => [],
+                'api'      => [],
+                'badge'    => '',
+                'status'   => '',
+                'state'    => 'approved',
+                'audience' => 'auth',
+                'hidden'   => FALSE,
+            ];
+        }
+
         return [
             'groups' => self::groups_summary($ctx),
             'items'  => $items,
@@ -739,11 +761,105 @@ class Service_Prx110_Catalog {
     {
         $uri = self::_current_uri();
 
-        return [[
+        $items = [[
             'title' => 'Все сервисы', 'href' => '/services',
             'icon' => 'fas fa-grip', 'group' => 'Сервисы', 'sort' => 0,
             'active' => ($uri === '/services' OR strpos($uri, '/services/') === 0),
         ]];
+
+        // Пункты, добавленные администратором на /services (миграция 011):
+        // в категории «Сервисы» их видят все, у кого есть доступ к панели.
+        foreach (self::custom_menu_items() as $row)
+        {
+            $href = (string) $row['href'];
+            $items[] = [
+                'title' => (string) $row['title'],
+                'href' => $href,
+                'icon' => (string) $row['icon'],
+                'group' => 'Сервисы',
+                'sort' => 100 + (int) $row['sort'],
+                'active' => ($uri === $href OR strpos($uri, $href.'/') === 0),
+            ];
+        }
+
+        return $items;
+    }
+
+    /** Пользовательские пункты меню (пусто, если миграции 011 ещё нет). */
+    public static function custom_menu_items(): array
+    {
+        try
+        {
+            return Prx_Db::select('SELECT id, title, href, icon, sort FROM prx_110_menu_items ORDER BY sort ASC, id ASC');
+        }
+        catch (Throwable $e)
+        {
+            return []; // таблицы нет (миграция 011 не применена) — без лишнего шума
+        }
+    }
+
+    /**
+     * Добавить пункт в категорию «Сервисы» (право prx110.menu, форма /services).
+     * @return array ['ok' => bool, 'error' => string, 'title' => string]
+     */
+    public static function add_menu_item(int $user_id, string $title, string $href, string $icon): array
+    {
+        $title = trim($title);
+        $href = trim($href);
+        $icon = trim($icon);
+
+        if ($title === '' OR mb_strlen($title) > 120)
+        {
+            return ['ok' => FALSE, 'error' => 'Название обязательно, до 120 символов', 'title' => ''];
+        }
+        if ( ! self::valid_menu_href($href))
+        {
+            return ['ok' => FALSE, 'error' => 'Ссылка — внутренний путь вида /prx120_jobs: с «/», без домена, пробелов и переводов строк', 'title' => ''];
+        }
+        if ($href === '/services')
+        {
+            return ['ok' => FALSE, 'error' => 'Пункт «Все сервисы» уже есть в меню', 'title' => ''];
+        }
+
+        $icon = preg_match('/^[a-z0-9][a-z0-9 -]{0,63}$/i', $icon) ? $icon : 'fas fa-arrow-up-right-from-square';
+
+        // Новый пункт — в конец списка пользовательских.
+        $sort = 0;
+        foreach (self::custom_menu_items() as $row)
+        {
+            $sort = max($sort, (int) $row['sort']);
+        }
+
+        try
+        {
+            DB::query(Database::UPDATE, 'INSERT INTO prx_110_menu_items (title, href, icon, sort, created_by)
+                VALUES (:title, :href, :icon, :sort, :uid)
+                ON CONFLICT (href) DO UPDATE SET title = :title, icon = :icon')
+                ->parameters([':title' => $title, ':href' => $href, ':icon' => $icon, ':sort' => $sort + 10, ':uid' => $user_id > 0 ? $user_id : NULL])
+                ->execute();
+        }
+        catch (Throwable $e)
+        {
+            Kohana::$log->add(Log::WARNING, 'prx110: пункт меню не сохранён: :e', [':e' => $e->getMessage()]);
+            return ['ok' => FALSE, 'error' => 'Не удалось сохранить пункт (таблица готовится миграцией 011?)', 'title' => ''];
+        }
+
+        return ['ok' => TRUE, 'error' => '', 'title' => $title];
+    }
+
+    /** Убрать пользовательский пункт меню. @return bool */
+    public static function delete_menu_item(int $id): bool
+    {
+        if ($id <= 0) return FALSE;
+
+        return (bool) DB::delete('prx_110_menu_items')->where('id', '=', $id)->execute();
+    }
+
+    /** Внутренняя ссылка без опасных символов (как valid_href избранного). */
+    protected static function valid_menu_href(string $href): bool
+    {
+        return $href !== '' AND strlen($href) <= 300 AND $href[0] === '/' AND substr($href, 0, 2) !== '//'
+            AND strpos($href, '\\') === FALSE AND preg_match('/[\x00-\x20\x7f]/', $href) !== 1;
     }
 
     /**

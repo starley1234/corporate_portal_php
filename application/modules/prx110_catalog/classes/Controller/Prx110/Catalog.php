@@ -47,10 +47,64 @@ class Controller_Prx110_Catalog extends Controller_Base {
         // На этой странице — своя навигация (группы в теле); чипы раздела в шапку не кладём.
         $this->set_module_nav([]);
 
+        // Карточка «Меню «Сервисы»» видна только администратору (prx110.menu).
+        $can_manage_menu = FALSE;
+        try { $can_manage_menu = $this->actor()->can('prx110.menu'); } catch (Throwable $e) { /* гость */ }
+
         $this->template->content = View::factory('prx110/index', [
             'groups'  => $groups,
             'total'   => $total,
+            'menu_custom' => $can_manage_menu ? Service_Prx110_Catalog::custom_menu_items() : [],
+            'can_manage_menu' => $can_manage_menu,
+            'menu_flash' => (string) Session::instance()->get_once('prx110_menu_flash', ''),
         ]);
+    }
+
+    /** POST /services/menu/add — пункт категории «Сервисы» для всех сотрудников. */
+    public function action_menu_add()
+    {
+        if ($this->request->method() !== Request::POST)
+        {
+            throw (HTTP_Exception::factory(405))->allowed('POST');
+        }
+        $this->actor()->require('prx110.menu');
+
+        $flash = 'Сессия устарела — попробуйте ещё раз';
+        if (Security::check((string) $this->request->post('csrf')))
+        {
+            $result = Service_Prx110_Catalog::add_menu_item(
+                $this->actor()->id(),
+                (string) $this->request->post('title'),
+                (string) $this->request->post('href'),
+                (string) $this->request->post('icon'));
+            $flash = ! empty($result['ok'])
+                ? 'Пункт «'.$result['title'].'» добавлен в меню «Сервисы»'
+                : $result['error'];
+        }
+
+        Session::instance()->set('prx110_menu_flash', $flash);
+        HTTP::redirect('/services#menu-items', 303);
+    }
+
+    /** POST /services/menu/delete/<id> — убрать пункт из категории «Сервисы». */
+    public function action_menu_delete()
+    {
+        if ($this->request->method() !== Request::POST)
+        {
+            throw (HTTP_Exception::factory(405))->allowed('POST');
+        }
+        $this->actor()->require('prx110.menu');
+
+        $flash = 'Сессия устарела — попробуйте ещё раз';
+        if (Security::check((string) $this->request->post('csrf')))
+        {
+            $flash = Service_Prx110_Catalog::delete_menu_item((int) $this->request->param('id'))
+                ? 'Пункт удалён из меню'
+                : 'Пункт не найден — возможно, уже удалён';
+        }
+
+        Session::instance()->set('prx110_menu_flash', $flash);
+        HTTP::redirect('/services#menu-items', 303);
     }
 
     /** GET /services/<slug> — хаб группы сервисов. */
