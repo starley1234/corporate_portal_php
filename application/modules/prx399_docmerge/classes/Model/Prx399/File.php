@@ -59,13 +59,18 @@ class Model_Prx399_File {
             ]);
     }
 
-    public static function set_ds_result($id, $pages, $sha)
+    public static function set_ds_result($id, $pages, $sha, $text = NULL)
     {
         return Prx_Db::execute(
             "UPDATE prx_399_files
-             SET status = 'parsed', pages = :pages, text_sha256 = :sha, error = NULL
+             SET status = 'parsed', pages = :pages, text_sha256 = :sha, text = :text, error = NULL
              WHERE id = :id",
-            [':id' => (int) $id, ':pages' => (int) $pages, ':sha' => (string) $sha]);
+            [
+                ':id' => (int) $id,
+                ':pages' => (int) $pages,
+                ':sha' => (string) $sha,
+                ':text' => $text,
+            ]);
     }
 
     public static function ready_count($contract_id)

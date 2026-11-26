@@ -111,14 +111,19 @@ class Service_Prx399_Pipeline {
                 $rows[] = $clean;
             }
 
-            Prx_Db::transaction(function () use ($file, $pages, $sha, $rows)
+            // Текст ДС — для side-by-side ревью на карточке (у сканов без
+            // текстового слоя сайту его не достать); 1 МБ — страховка сверх
+            // лимита воркера.
+            $ds_text = isset($body['text']) ? mb_substr((string) $body['text'], 0, 1048576) : NULL;
+
+            Prx_Db::transaction(function () use ($file, $pages, $sha, $rows, $ds_text)
             {
                 Model_Prx399_Delta::delete_for_file($file['id']);
                 foreach ($rows as $row)
                 {
                     Model_Prx399_Delta::insert($row);
                 }
-                Model_Prx399_File::set_ds_result($file['id'], $pages, $sha);
+                Model_Prx399_File::set_ds_result($file['id'], $pages, $sha, $ds_text);
             });
         }
 

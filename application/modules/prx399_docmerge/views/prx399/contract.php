@@ -114,52 +114,80 @@ echo View::factory('partials/page_header', [
         </table>
     </div>
 
-    <!-- ==== 1b. Дельты ДС: состав сборки решает человек (ADR-003) ==== -->
-<?php if ( ! empty($deltas)): ?>
+    <!-- ==== 1b. Дельты ДС: ревью side-by-side «инструкции ↔ текст ДС» (ADR-003) ==== -->
 <?php $op_ru = ['replace' => 'замена', 'add' => 'дополнение', 'annul' => 'исключение'];
 $op_badges = ['replace' => 'prx-badge-run', 'add' => 'prx-badge-ok', 'annul' => 'prx-badge-err'];
-$in_build = count(array_filter($deltas, static fn ($d) => (string) ($d['included'] ?? 'yes') === 'yes')); ?>
+$ds_files = array_filter($files, static fn ($f) => $f['kind'] === 'ds');
+?>
+<?php foreach ($files as $ds_file): ?>
+<?php if ($ds_file['kind'] !== 'ds') { continue; }
+$ds_id = (int) $ds_file['id'];
+$ds_rows = $by_file[$ds_id] ?? [];
+$ds_text = (string) ($ds_file['text'] ?? '');
+$ds_in_build = count(array_filter($ds_rows, static fn ($d) => (string) ($d['included'] ?? 'yes') === 'yes'));
+?>
     <div class="prx-card mt-6">
         <div class="prx-card-head">
-            <h2 class="prx-h3">Дельты ДС (состав сборки)</h2>
-            <span class="prx-count"><?php echo count($deltas); ?> всего · <?php echo $in_build; ?> в сборке</span>
+            <h2 class="prx-h3">ДС №<?php echo (int) $ds_file['ordinal']; ?> — <?php echo HTML::chars((string) $ds_file['original_name']); ?></h2>
+            <span class="prx-count"><?php echo count($ds_rows); ?> дельт · <?php echo $ds_in_build; ?> в сборке<?php echo (string) $ds_file['status'] === 'failed' ? ' · файл не разобран' : ''; ?></span>
         </div>
-        <p class="prx-hint px-4 pt-2">Исключённая дельта не попадёт в редакцию при пересборке. Гард «дословно» — автопроверка воркера: текст дельты должен цитировать ДС, иначе модель что-то пересказала.</p>
-        <table class="prx-table w-full">
-            <thead>
-            <tr><th scope="col">ДС</th><th scope="col">Операция</th><th scope="col">Пункт</th><th scope="col">Суть</th><th scope="col">Уверенность</th><th scope="col">Гард текста</th><th scope="col"><span class="sr-only">Состав</span></th></tr>
-            </thead>
-            <tbody>
-<?php foreach ($deltas as $delta): ?>
-            <tr<?php echo (string) ($delta['included'] ?? 'yes') === 'no' ? ' class="opacity-60"' : ''; ?>>
-                <td class="font-mono">№<?php echo (int) $delta['file_id']; ?></td>
-                <td><span class="prx-badge <?php echo $op_badges[$delta['op']] ?? 'prx-badge-wait'; ?>"><span class="prx-dot"></span><?php echo $op_ru[$delta['op']] ?? $delta['op']; ?></span></td>
-                <td class="font-mono"><?php echo HTML::chars((string) $delta['anchor']); ?></td>
-                <td class="max-w-md"><?php echo $delta['note'] !== NULL ? HTML::chars((string) $delta['note']) : '<span class="text-gray-400">—</span>'; ?></td>
-                <td><?php echo $delta['confidence'] !== NULL ? (int) round($delta['confidence'] * 100).'%' : '—'; ?></td>
-                <td><?php echo (string) $delta['body_in_ds'] === 'no'
-                    ? '<span class="prx-badge prx-badge-err"><span class="prx-dot"></span>модель пересказала</span>'
-                    : ((string) $delta['body_in_ds'] === 'yes'
-                        ? '<span class="prx-badge prx-badge-ok"><span class="prx-dot"></span>дословно</span>'
-                        : '<span class="text-gray-400">—</span>'); ?></td>
-                <td class="text-right whitespace-nowrap">
+<?php if (empty($ds_rows) AND $ds_text === ''): ?>
+        <p class="prx-hint px-4 py-3">Инструкции появятся после разбора файла воркером.</p>
+<?php else: ?>
+        <div class="grid gap-5 p-4 xl:grid-cols-2">
+            <!-- Инструкции -->
+            <div class="min-w-0">
+<?php if (empty($ds_rows)): ?>
+                <p class="prx-hint">Дельт нет — модель не нашла правок в этом ДС.</p>
+<?php else: ?>
+                <table class="prx-table w-full">
+                    <thead>
+                    <tr><th scope="col">Операция</th><th scope="col">Пункт</th><th scope="col">Суть</th><th scope="col">Увер.</th><th scope="col">Гард</th><th scope="col"><span class="sr-only">Состав</span></th></tr>
+                    </thead>
+                    <tbody>
+<?php foreach ($ds_rows as $delta): ?>
+                    <tr<?php echo (string) ($delta['included'] ?? 'yes') === 'no' ? ' class="opacity-60"' : ''; ?>>
+                        <td><span class="prx-badge <?php echo $op_badges[$delta['op']] ?? 'prx-badge-wait'; ?>"><span class="prx-dot"></span><?php echo $op_ru[$delta['op']] ?? $delta['op']; ?></span></td>
+                        <td class="font-mono"><?php echo HTML::chars((string) $delta['anchor']); ?></td>
+                        <td class="max-w-sm"><?php echo $delta['note'] !== NULL ? HTML::chars((string) $delta['note']) : '<span class="text-gray-400">—</span>'; ?></td>
+                        <td class="whitespace-nowrap"><?php echo $delta['confidence'] !== NULL ? (int) round($delta['confidence'] * 100).'%' : '—'; ?></td>
+                        <td><?php echo (string) $delta['body_in_ds'] === 'no'
+                            ? '<span class="prx-badge prx-badge-err" title="Текст дельты не найден в ДС дословно — модель пересказала"><span class="prx-dot"></span>пересказ</span>'
+                            : ((string) $delta['body_in_ds'] === 'yes'
+                                ? '<span class="prx-badge prx-badge-ok" title="Текст дельты дословно найден в ДС"><span class="prx-dot"></span>дословно</span>'
+                                : '<span class="text-gray-400">—</span>'); ?></td>
+                        <td class="text-right whitespace-nowrap">
 <?php if ($can_run AND in_array($contract['status'], ['audited', 'failed'], TRUE)): ?>
 <?php $included_now = (string) ($delta['included'] ?? 'yes') === 'yes'; ?>
-                    <form method="post" action="/prx399_docmerge/delta/<?php echo (int) $delta['id']; ?>" class="inline">
-                        <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
-                        <input type="hidden" name="included" value="<?php echo $included_now ? 'no' : 'yes'; ?>">
-                        <button type="submit" class="prx-btn-secondary prx-btn-sm"><?php echo $included_now ? 'исключить' : 'вернуть'; ?></button>
-                    </form>
+                            <form method="post" action="/prx399_docmerge/delta/<?php echo (int) $delta['id']; ?>" class="inline">
+                                <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
+                                <input type="hidden" name="included" value="<?php echo $included_now ? 'no' : 'yes'; ?>">
+                                <button type="submit" class="prx-btn-secondary prx-btn-sm"><?php echo $included_now ? 'исключить' : 'вернуть'; ?></button>
+                            </form>
 <?php elseif ((string) ($delta['included'] ?? 'yes') === 'no'): ?>
-                    <span class="text-xs text-gray-400">исключена</span>
+                            <span class="text-xs text-gray-400">исключена</span>
 <?php endif; ?>
-                </td>
-            </tr>
+                        </td>
+                    </tr>
 <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
+                    </tbody>
+                </table>
+                <p class="prx-hint mt-2">Состав сборки решает человек: исключённая дельта не попадёт в редакцию при «Пересобрать редакцию».</p>
 <?php endif; ?>
+            </div>
+            <!-- Текст ДС -->
+            <div class="min-w-0">
+                <h3 class="prx-h3 mb-1.5 text-sm text-gray-500 dark:text-gray-400">Текст ДС</h3>
+<?php if ($ds_text !== ''): ?>
+                <div class="max-h-[70vh] overflow-y-auto whitespace-pre-line rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs leading-relaxed text-gray-700 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-200"><?php echo HTML::chars($ds_text); ?></div>
+<?php else: ?>
+                <p class="prx-hint">Текст появится после следующего прогона пайплайна (для сканов текст извлекает воркер).</p>
+<?php endif; ?>
+            </div>
+        </div>
+<?php endif; ?>
+    </div>
+<?php endforeach; ?>
 
     <!-- ==== 2. Паспорт сделки + карточка контекста ==== -->
     <div class="mt-6 gap-6 space-y-6 md:grid md:grid-cols-3 md:items-start md:space-y-0">
