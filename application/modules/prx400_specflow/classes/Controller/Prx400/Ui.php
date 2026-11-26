@@ -36,7 +36,7 @@ class Controller_Prx400_Ui extends Controller_Base {
         if ($this->request->method() === Request::POST)
         {
             $this->_guard_csrf();
-            $spec = $service->create($this->actor(), $_FILES);
+            $spec = $service->create($this->actor(), $_FILES, (array) $this->request->post());
             Session::instance()->set('prx400_flash', ['type' => 'ok', 'text' => 'Спецификация загружена — разбор идёт в очереди воркеров.']);
             HTTP::redirect('/prx400_specflow/spec/'.$spec['id'], 303);
         }
@@ -105,7 +105,7 @@ class Controller_Prx400_Ui extends Controller_Base {
         $this->_guard_csrf();
         try
         {
-            (new Service_Prx400_Specs)->reupload($this->actor(), $id, $_FILES);
+            (new Service_Prx400_Specs)->reupload($this->actor(), $id, $_FILES, (array) $this->request->post());
             Session::instance()->set('prx400_flash', ['type' => 'ok', 'text' => 'Файл перезалит — разбор запущен, статус обновится автоматически.']);
         }
         catch (Prx400_Error $e)
@@ -207,7 +207,7 @@ class Controller_Prx400_Ui extends Controller_Base {
 
         try
         {
-            (new Service_Prx400_Specs)->launch($this->actor(), $id);
+            (new Service_Prx400_Specs)->launch($this->actor(), $id, (array) $this->request->post());
         }
         catch (Prx400_Error $e)
         {

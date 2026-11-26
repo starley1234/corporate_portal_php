@@ -104,3 +104,13 @@ async def arun_structured(schema: Any, system: str, user: str, timeout: int = 12
     """Async-структурированный запрос: не блокирует event loop воркера."""
     parsed, message = _unpack(await _structured(schema, timeout).ainvoke(_messages(system, user)))
     return parsed, _record_usage(message)
+
+
+async def arun_structured_messages(schema: Any, messages: list, timeout: int = 120) -> tuple[Any, dict[str, int]]:
+    """Async-структурированный запрос по готовым сообщениям (vision/multimodal).
+
+    prx400 передаёт HumanMessage с image_url-блоками (pdftoppm → PNG → base64);
+    учёт токенов тот же, что у arun_structured.
+    """
+    parsed, message = _unpack(await _structured(schema, timeout).ainvoke(messages))
+    return parsed, _record_usage(message)

@@ -15,6 +15,8 @@ import httpx
 from ... import job_api, site
 from ...base import HandlerContext, PermanentJobError
 from ...ocr import extract_pdf
+from ...ocr.probe import probe_pdf
+from . import vision
 from . import parse
 from .limits import limits
 
@@ -27,6 +29,7 @@ PERMANENT_CODES = {
     "ocr_incomplete", "ocr_page_failed", "file_unavailable", "worker_auth", "lease_lost",
     "invalid_result", "invalid_attempt", "method_not_allowed", "header_not_found",
     "template_missing", "pdf_required", "worker_config", "bad_payload",
+    "no_rows", "vision_config", "vision_unavailable",
 }
 
 
@@ -78,6 +81,14 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
     lim = limits()
     url = f"{base}/{job_id}"
 
+    # Режим разбора (payload parse_mode; канон детерминированного ocr — по умолчанию):
+    # ocr — только текстовый конвейер; ocr_vision — OCR, при пустом результате
+    # vision-фолбэк; vision — сразу vision-разбор страниц (сканы, где tesseract
+    # даёт «результат 0»).
+    mode = payload.get("parse_mode") or "ocr"
+    if mode not in ("ocr", "ocr_vision", "vision"):
+        mode = "ocr"
+
     try:
         async with httpx.AsyncClient(headers=headers, timeout=60, follow_redirects=False) as client:
             with tempfile.TemporaryDirectory(prefix="prx400_") as tmp:
@@ -85,28 +96,65 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
                 await ctx.progress("download_pdf")
                 await job_api.download_pdf(client, url + "/file", path, lim["max_pdf_bytes"])
 
-                await ctx.progress("ocr")
-                ocr = await extract_pdf(path, limits=ocr_limits(lim), module="PRX400",
-                                        progress=lambda stage, detail="": ctx.progress(stage, detail))
-                text = ocr.get("text", "")
-                pages = int(ocr.get("pages") or 0)
-                if len(text.strip()) < 40:
-                    await job_api.report_failure(headers, url, "no_text")
-                    raise PermanentJobError("no_text")
+                probe = await probe_pdf(path, local=True, limits=lim)
+                pages = int(probe["pages"])
 
-                await ctx.progress("template")
-                tpl, hits = parse.detect_template(text, templates)
+                result: dict | None = None
+                tpl: dict | None = None
+                hits: list[str] = []
+                info: dict = {}
+                text = ""
+
+                if mode != "vision":
+                    await ctx.progress("ocr")
+                    ocr = await extract_pdf(path, limits=ocr_limits(lim), module="PRX400",
+                                            progress=lambda stage, detail="": ctx.progress(stage, detail))
+                    text = ocr.get("text", "")
+                    if len(text.strip()) >= 40:
+                        await ctx.progress("template")
+                        tpl, hits = parse.detect_template(text, templates)
+                        if tpl is not None:
+                            await ctx.progress("parse")
+                            try:
+                                result = parse.parse(text, tpl)
+                            except ValueError:
+                                result = None  # ocr_vision уйдёт в vision-фолбэк
+
+                if mode == "ocr":
+                    # Детерминированный путь без фолбэков: ошибка вместо «результат 0».
+                    if len(text.strip()) < 40:
+                        await job_api.report_failure(headers, url, "no_text")
+                        raise PermanentJobError("no_text")
+                    if tpl is None or result is None:
+                        await job_api.report_failure(headers, url, "header_not_found")
+                        raise PermanentJobError("header_not_found")
+                    if not result["rows"]:
+                        await job_api.report_failure(headers, url, "no_rows")
+                        raise PermanentJobError("no_rows")
+
+                if mode != "ocr" and (result is None or not result["rows"]):
+                    await ctx.progress("vision")
+                    info = await vision.detect(path, pages, templates, lim)
+                    tpl = next((t for t in templates if t.get("template_id") == info["template_id"]), tpl)
+                    vres = await vision.extract(path, pages, tpl, lim, ctx.progress)
+                    if vres["rows"]:
+                        rules = (tpl or {}).get("table_rules") or {}
+                        totals: dict = {}
+                        math = parse.run_math_checks(vres["rows"], totals, rules)
+                        result = {
+                            "rows": vres["rows"], "totals": totals, "math": math,
+                            "stats": {"rows": len(vres["rows"]),
+                                      "sections": len({r["section"] for r in vres["rows"] if r["section"]}),
+                                      "via": "vision"},
+                        }
+                        hits = []
+
                 if tpl is None:
                     await job_api.report_failure(headers, url, "header_not_found")
                     raise PermanentJobError("header_not_found")
-
-                await ctx.progress("parse")
-                try:
-                    result = parse.parse(text, tpl)
-                except ValueError as e:
-                    code = "header_not_found" if "header" in str(e) else "bad_payload"
-                    await job_api.report_failure(headers, url, code)
-                    raise PermanentJobError(code) from None
+                if result is None or not result["rows"]:
+                    await job_api.report_failure(headers, url, "no_rows")
+                    raise PermanentJobError("no_rows")
                 if len(result["rows"]) > lim["max_rows"]:
                     await job_api.report_failure(headers, url, "result_too_large")
                     raise PermanentJobError("result_too_large")
@@ -116,8 +164,8 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
                     "template_id": tpl.get("template_id", ""),
                     "template_title": tpl.get("template_name", ""),
                     "anchors_matched": hits,
-                    "spec_number": _spec_number(text),
-                    "department": _department(text),
+                    "spec_number": _spec_number(text) or (info.get("spec_number") or ""),
+                    "department": _department(text) or (info.get("department") or ""),
                     "pages": pages,
                     "text_sha256": parse.text_sha256(text),
                     "rows": result["rows"],
@@ -125,12 +173,11 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
                     "math": result["math"],
                     "stats": result["stats"],
                     "text_chars": len(text),
+                    "mode": mode,
                 })
                 return {"status": "done", "job_id": job_id}
     except PermanentJobError as e:
         code = str(e)
-        if code == "result_too_large":
-            code = "result_too_large"
         if code in PERMANENT_CODES:
             await job_api.report_failure(headers, url, code)
         raise

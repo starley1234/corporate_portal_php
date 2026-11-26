@@ -155,11 +155,20 @@ class Service_Prx400_Specs {
             throw new Prx400_Error('wrong_state', 409);
         }
 
-        $this->_push_job((int) $spec_id, $actor->id());
+        $this->_push_job((int) $spec_id, $actor->id(), $this->_parse_mode($post));
         Model_Prx400_Spec::set_status((int) $spec_id, 'queued', NULL);
     }
 
-    protected function _push_job($spec_id, $actor_id)
+    /** Режим разбора из POST: валидируется по списку из конфига, чужое → ocr. */
+    protected function _parse_mode(array $post): string
+    {
+        $modes = (array) (Kohana::$config->load('prx400_specflow')->get('parse_modes') ?: ['ocr', 'ocr_vision', 'vision']);
+        $mode = trim((string) ($post['parse_mode'] ?? ''));
+
+        return in_array($mode, $modes, TRUE) ? $mode : 'ocr';
+    }
+
+    protected function _push_job($spec_id, $actor_id, $mode = 'ocr')
     {
         $templates = Service_Prx400_Templates::for_payload();
         if (empty($templates))
@@ -172,6 +181,7 @@ class Service_Prx400_Specs {
         $job_id = Service_Prx120_JobQueue::push('specflow.parse', [
             'spec_id' => (int) $spec_id,
             'templates' => $templates,
+            'parse_mode' => (string) $mode,
         ], [
             'module' => 'prx400',
             'priority' => 40,
@@ -433,7 +443,7 @@ class Service_Prx400_Specs {
      * старый файл убирается, задача разбора ставится заново. ID и история
      * карточки сохраняются — в отличие от создания новой записи.
      */
-    public function reupload($actor, $spec_id, array $files)
+    public function reupload($actor, $spec_id, array $files, array $post = [])
     {
         ($actor ?? Prx_Actor::guest())->require('prx400.run');
         $spec = Model_Prx400_Spec::get($spec_id);
@@ -492,7 +502,7 @@ class Service_Prx400_Specs {
         }
 
         Model_Prx400_Spec::set_file((int) $spec_id, 'prx212:'.$file_id, hash('sha256', $content));
-        $this->_push_job((int) $spec_id, $actor->id());
+        $this->_push_job((int) $spec_id, $actor->id(), $this->_parse_mode($post));
         Model_Prx400_Spec::set_status((int) $spec_id, 'queued', NULL);
     }
 

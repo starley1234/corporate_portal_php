@@ -38,6 +38,14 @@ $status_ru = [
                     <input type="file" name="pdf" accept="application/pdf,.pdf" required
                            class="prx-input mt-1 w-full file:mr-3 file:rounded-lg file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white">
                 </label>
+                <fieldset class="block">
+                    <span class="prx-label">Режим разбора</span>
+                    <div class="mt-1 space-y-1.5 text-sm text-gray-700 dark:text-gray-300">
+                        <label class="flex items-start gap-2"><input type="radio" name="parse_mode" value="ocr" checked class="mt-1 accent-emerald-600"><span><strong>Точный OCR</strong> — детерминированный разбор текстового слоя, без LLM.</span></label>
+                        <label class="flex items-start gap-2"><input type="radio" name="parse_mode" value="ocr_vision" class="mt-1 accent-emerald-600"><span><strong>OCR + Vision</strong> — OCR, а при пустом результате автоматический vision-разбор страниц.</span></label>
+                        <label class="flex items-start gap-2"><input type="radio" name="parse_mode" value="vision" class="mt-1 accent-emerald-600"><span><strong>Vision</strong> — распознавание страниц LLM по изображениям (для сканов, где OCR даёт «результат 0»).</span></label>
+                    </div>
+                </fieldset>
                 <p class="prx-hint">Шаблон разбора подбирается автоматически по семантическим якорям. Математика строк и итогов сверяется до передачи в ERP. Библиотека шаблонов: <?php foreach ($templates as $t): ?><span class="prx-count mr-1"><?php echo HTML::chars($t['title']); ?></span><?php endforeach; ?></p>
                 <button class="prx-btn-cta" type="submit"><i class="fas fa-upload"></i>Загрузить и разобрать</button>
             </form>

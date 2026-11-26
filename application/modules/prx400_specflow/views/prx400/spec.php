@@ -66,6 +66,16 @@ $job_stage_text = trim((string) ($job_stage['stage'] ?? ''));
         <span class="<?php echo HTML::chars($badge); ?>"><span class="prx-dot"></span><?php echo HTML::chars($status_label); ?></span>
 <?php if ($spec['status'] === 'failed'): ?>
         <span class="text-sm text-rose-600 dark:text-rose-400"><?php echo HTML::chars((string) $spec['error']); ?></span>
+<?php $prx400_hint = [
+    'no_text' => 'Текст не извлечён — скан без распознаваемого слоя. Перезалейте с режимом «Vision» или «OCR + Vision».',
+    'header_not_found' => 'Шаблон не распознан по якорям. Попробуйте режим «OCR + Vision» — колонки подберёт vision-разбор, или добавьте шаблон на странице «Шаблоны».',
+    'no_rows' => 'Строки позиций не найдены. Попробуйте режим «OCR + Vision» или «Vision» — они разбирают страницы по изображению, а не по тексту OCR.',
+    'vision_config' => 'Vision недоступен: у воркера не настроен LLM-шлюз (LOCAL_API_URL / LOCAL_API_KEY / DEFAULT_LLM_MODEL).',
+    'vision_unavailable' => 'Vision-модель не ответила или не поддерживает изображения — проверьте LLM-шлюз воркера.',
+];
+foreach ($prx400_hint as $code => $text): if (strpos((string) $spec['error'], $code) !== FALSE): ?>
+        <span class="block w-full text-sm text-gray-600 dark:text-gray-300"><i class="fas fa-circle-info mr-1 text-gray-400"></i><?php echo HTML::chars($text); ?></span>
+<?php endif; endforeach; ?>
 <?php if (strpos((string) $spec['error'], 'file_unavailable') !== FALSE): ?>
 <?php if ( ! empty($file_ok)): ?>
         <span class="block w-full text-sm text-emerald-700 dark:text-emerald-400"><i class="fas fa-circle-check mr-1"></i>Файл снова доступен в хранилище — путь перепривязан после выкатки кода. Ошибка задачи устарела: нажмите «Повторить разбор», перезаливка не нужна.</span>
@@ -75,6 +85,11 @@ $job_stage_text = trim((string) ($job_stage['stage'] ?? ''));
             <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
             <input type="file" name="pdf" accept="application/pdf,.pdf" required
                    class="prx-input max-w-[320px] file:mr-3 file:rounded-lg file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white">
+            <select name="parse_mode" class="prx-input max-w-[220px]">
+                <option value="ocr">Точный OCR (без LLM)</option>
+                <option value="ocr_vision">OCR + Vision (фолбэк)</option>
+                <option value="vision" selected>Vision (по страницам)</option>
+            </select>
             <button class="prx-btn-cta prx-btn-sm" type="submit"><i class="fas fa-upload"></i>Перезалить и разобрать</button>
         </form>
 <?php endif; endif; endif; ?>
