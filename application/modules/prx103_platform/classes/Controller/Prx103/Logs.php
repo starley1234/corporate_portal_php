@@ -28,6 +28,7 @@ class Controller_Prx103_Logs extends Controller_Prx102_Base {
             ['title' => 'Администрирование', 'href' => '/admin', 'icon' => 'fas fa-gear'],
             ['title' => 'Хвост ошибок', 'href' => '/prx100/errors', 'icon' => 'fas fa-heart-crack'],
             ['title' => 'События', 'href' => '/prx208_events', 'icon' => 'fas fa-bolt'],
+            ['title' => 'Использование', 'href' => '/prx100/usage', 'icon' => 'fas fa-chart-simple'],
             ['title' => 'Очередь', 'href' => '/prx120/monitor', 'icon' => 'fas fa-list-check'],
         ]);
     }

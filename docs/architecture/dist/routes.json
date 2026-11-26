@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "count": 136,
+  "count": 137,
   "routes": [
     {
       "name": "cookie_consent_close",
@@ -127,6 +127,15 @@
       "action": "index",
       "module": "prx103_platform",
       "file": "application/modules/prx103_platform/classes/Controller/Prx103/Errors.php"
+    },
+    {
+      "name": "prx100_usage",
+      "uri": "prx100/usage",
+      "regex": "",
+      "controller": "Prx103_Usage",
+      "action": "index",
+      "module": "prx103_platform",
+      "file": "application/modules/prx103_platform/classes/Controller/Prx103/Usage.php"
     },
     {
       "name": "prx100_logs",

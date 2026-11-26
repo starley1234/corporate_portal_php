@@ -28,6 +28,7 @@ class Controller_Prx103_Admin extends Controller_Prx102_Base {
 			['title' => 'Чистка данных', 'href' => '/prx100/cleanup', 'icon' => 'fas fa-broom'],
 			['title' => 'Хвост ошибок', 'href' => '/prx100/errors', 'icon' => 'fas fa-heart-crack'],
 			['title' => 'Логи', 'href' => '/prx100/logs', 'icon' => 'fas fa-terminal'],
+			['title' => 'Использование', 'href' => '/prx100/usage', 'icon' => 'fas fa-chart-simple'],
 			['title' => 'Проверка сервера', 'href' => '/prx100/selfcheck', 'icon' => 'fas fa-clipboard-check'],
 			['title' => 'События', 'href' => '/prx208_events', 'icon' => 'fas fa-bolt'],
 			['title' => 'Все сервисы', 'href' => '/services', 'icon' => 'fas fa-grip'],

@@ -887,6 +887,8 @@ class Service_Prx110_Catalog {
                 'dev:doctor + компиляция всех php-файлов; ничего не исполняет и не меняет', 29],
             ['prx111_migrations', 'Миграции', '/prx111_migrations', 'fas fa-database',
                 'Схема PostgreSQL: применить или откатить миграции модулей', 30],
+            ['prx103_platform', 'Использование модулей', '/prx100/usage', 'fas fa-chart-simple',
+                'Кто что делал и чем закончилось: события, фоновые задачи, внешние API-вызовы', 31],
             ['prx103_platform', 'Логи платформы', '/prx100/logs', 'fas fa-terminal',
                 'Журнал сайта и php-лог Kohana: по дням, уровням и подстроке; где что пишется', 31],
             ['prx208_events', 'События', '/prx208_events', 'fas fa-bolt',
