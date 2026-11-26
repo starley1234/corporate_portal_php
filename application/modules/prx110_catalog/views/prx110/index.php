@@ -15,7 +15,7 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
         'crumbs' => [['Главная', '/'], ['Сервисы']],
         'title'  => 'Каталог сервисов PRX',
         'lead'   => (int) $total.' сервисов, готовых к работе. Состав зависит от прав доступа.',
-        'actions' => [['label' => 'План и архив платформы', 'href' => '/portal-plan', 'icon' => 'fa-box-archive']],
+        'actions' => [['label' => 'План и архив', 'href' => '/portal-plan', 'icon' => 'fa-box-archive']],
     ]); ?>
 
     <?php if ( ! $groups): ?>

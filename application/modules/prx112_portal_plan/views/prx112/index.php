@@ -50,8 +50,8 @@ usort($plan_rows, static function (array $a, array $b): int {
 ?>
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
     <?php echo View::factory('partials/page_header', [
-        'crumbs' => [['Главная', '/'], ['План и архив платформы']],
-        'title' => 'План и архив платформы',
+        'crumbs' => [['Главная', '/'], ['План и архив']],
+        'title' => 'План и архив',
         'lead' => 'Здесь видны сервисы во всех состояниях. В каталог (/services) попадают только одобренные.',
         'actions' => [['label' => 'Каталог сервисов', 'href' => '/services', 'icon' => 'fa-grip']],
     ]); ?>

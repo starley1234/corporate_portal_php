@@ -5,7 +5,7 @@
         'crumbs'  => [['Главная']],
         'title'   => $title,
         'lead'    => 'Откройте нужный сервис или проверьте уведомления.',
-        'actions' => [['label' => 'План и архив платформы', 'href' => '/portal-plan', 'icon' => 'fa-box-archive']],
+        'actions' => [['label' => 'План и архив', 'href' => '/portal-plan', 'icon' => 'fa-box-archive']],
     ]); ?>
 
     <section class="prx-panel mt-6" aria-labelledby="home-work">

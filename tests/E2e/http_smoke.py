@@ -141,7 +141,7 @@ home = pages['/']
 assert 'Рабочий стол' in home and 'href="/portal-plan"' in home
 assert 'Отработка рекламаций' not in home
 archive = request('/portal-plan', 200)
-assert 'План и архив платформы' in archive and 'План производственных пайплайнов' not in archive
+assert 'План и архив' in archive and 'План производственных пайплайнов' not in archive
 assert 'В каталог (/services) попадают только одобренные.' in archive
 assert re.search(r'>Глобальный поиск</span>\s*<span class="prx-badge [^"]+">Не опубликован</span>', archive)
 for module in ['prx100_search', 'prx110_catalog', 'prx112_portal_plan']:
