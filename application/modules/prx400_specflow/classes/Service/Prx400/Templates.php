@@ -10,10 +10,14 @@
  */
 class Service_Prx400_Templates {
 
-    /** Каталог шаблонов модуля (путь от этого файла — работает и в контрактах). */
+    /** Каталог шаблонов модуля (config/templates этого модуля). */
     public static function dir(): string
     {
-        return dirname(__DIR__, 5).'/config/templates';
+        // __DIR__ = modules/prx400_specflow/classes/Service/Prx400 → три уровня
+        // вверх — корень модуля. (Прежний dirname(...,5) указывал на application/
+        // config/templates — каталог пуст, в payload уезжал [] и задача падала
+        // PermanentJobError: template_missing.)
+        return dirname(__DIR__, 3).'/config/templates';
     }
 
     /** Все шаблоны (валидные JSON-массивы). */
