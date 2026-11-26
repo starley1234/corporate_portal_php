@@ -21,7 +21,7 @@ Route::set('prx400_specflow_worker', 'prx400_specflow/worker/<id>/<action>', [
 ])->defaults(['controller' => 'Prx400_Worker']);
 
 Route::set('prx400_specflow_spec', 'prx400_specflow/<action>(/<id>)', [
-    'action' => 'spec|verify|finish|launch|file|export|catalog|catalog_delete|delete|reupload|templates|template_enable|template_delete|edit',
+    'action' => 'spec|verify|finish|launch|file|export|catalog|catalog_delete|delete|reupload|templates|template_enable|template_delete|edit|api_docs',
     'id' => '[1-9][0-9]{0,17}',
 ])->defaults(['controller' => 'Prx400_Ui', 'action' => 'spec']);
 

@@ -32,7 +32,8 @@ queued → running → review (есть спорные) → done; failed — о�
 2. `GET /prx400_specflow/api/spec/<id>` — поллинг: `202` в работе,
    `200` готово: `{status:"review"|"done", result:{meta,positions,audit},
    awaiting_operator}`; при ошибке разбора `{status:"failed", error:{code}}`.
-Схема `result` идентична экспорту ERP страницы карточки.
+Схема `result` идентична экспорту ERP страницы карточки. Страница для
+интеграторов (человекочитаемый контракт + состояние API): `/prx400_specflow/api-docs`.
 
 ## Хранение
 Фасад `Storage` (prx212): файлы переживают выкатки, путь — маркер

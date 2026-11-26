@@ -23,6 +23,8 @@ $status_ru = [
 
     <?php echo View::factory('partials/flash', ['flash' => $flash]); ?>
 
+    <div class="mt-4 text-right"><a href="/prx400_specflow/api-docs" class="prx-link text-sm"><i class="fas fa-plug mr-1"></i>API для интеграторов</a></div>
+
     <div class="prx-seg mt-5" role="tablist" aria-label="Разделы оцифровки спецификаций">
         <a class="prx-seg-item is-active" role="tab" aria-selected="true" href="/prx400_specflow"><i class="fas fa-file-pdf mr-1.5"></i>Спецификации <span class="prx-count"><?php echo count($specs); ?></span></a>
         <a class="prx-seg-item" role="tab" aria-selected="false" href="/prx400_specflow/catalog"><i class="fas fa-book mr-1.5"></i>Справочник НСИ <span class="prx-count"><?php echo (int) $catalog_count; ?></span></a>

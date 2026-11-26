@@ -98,6 +98,14 @@ class Controller_Prx400_Ui extends Controller_Base {
         HTTP::redirect('/prx400_specflow/catalog', 303);
     }
 
+    /** Страница «API для интеграторов»: контракт + честное состояние API. */
+    public function action_api_docs()
+    {
+        $this->template->content = View::factory('prx400/api_docs', [
+            'api_enabled' => trim((string) getenv('PRX400_API_TOKEN')) !== '',
+        ]);
+    }
+
     /** Правка полей строки (qty/ед./наименование/марка) — журнал в prx_400_edits. */
     public function action_edit()
     {
