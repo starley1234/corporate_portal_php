@@ -29,7 +29,7 @@ PERMANENT_CODES = {
     "ocr_incomplete", "ocr_page_failed", "file_unavailable", "worker_auth", "lease_lost",
     "invalid_result", "invalid_attempt", "method_not_allowed", "header_not_found",
     "template_missing", "pdf_required", "worker_config", "bad_payload",
-    "no_rows", "vision_config", "vision_unavailable",
+    "no_rows", "vision_config", "vision_unavailable", "template_not_found",
 }
 
 
@@ -89,6 +89,13 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
     if mode not in ("ocr", "ocr_vision", "vision"):
         mode = "ocr"
     log.info("specflow.parse job_id=%s mode=%s templates=%d", job_id, mode, len(templates))
+    forced = str(payload.get("template_id") or "")
+    forced_tpl = next((t for t in templates if t.get("template_id") == forced), None)
+    if forced and forced_tpl is None:
+        await job_api.report_failure(headers, url, "template_not_found")
+        raise PermanentJobError("template_not_found")
+    if forced:
+        log.info("specflow.parse job_id=%s forced_template=%s", job_id, forced)
 
     try:
         async with httpx.AsyncClient(headers=headers, timeout=60, follow_redirects=False) as client:
@@ -113,7 +120,10 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
                     text = ocr.get("text", "")
                     if len(text.strip()) >= 40:
                         await ctx.progress("template")
-                        tpl, hits = parse.detect_template(text, templates)
+                        if forced_tpl is not None:
+                            tpl, hits = forced_tpl, ["forced"]
+                        else:
+                            tpl, hits = parse.detect_template(text, templates)
                         if tpl is not None:
                             await ctx.progress("parse")
                             try:
@@ -135,8 +145,11 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
 
                 if mode != "ocr" and (result is None or not result["rows"]):
                     await ctx.progress("vision")
-                    info = await vision.detect(path, pages, templates, lim)
-                    tpl = next((t for t in templates if t.get("template_id") == info["template_id"]), tpl)
+                    if forced_tpl is not None:
+                        tpl = forced_tpl
+                    else:
+                        info = await vision.detect(path, pages, templates, lim)
+                        tpl = next((t for t in templates if t.get("template_id") == info["template_id"]), tpl)
                     vres = await vision.extract(path, pages, tpl, lim, ctx.progress)
                     if vres["rows"]:
                         rules = (tpl or {}).get("table_rules") or {}

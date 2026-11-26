@@ -73,6 +73,7 @@ $job_stage_text = trim((string) ($job_stage['stage'] ?? ''));
     'no_rows' => 'Строки позиций не найдены. Попробуйте режим «OCR + Vision» или «Vision» — они разбирают страницы по изображению, а не по тексту OCR.',
     'vision_config' => 'Vision недоступен: у воркера не настроен LLM-шлюз (LOCAL_API_URL / LOCAL_API_KEY / DEFAULT_LLM_MODEL).',
     'vision_unavailable' => 'Vision-модель не ответила или не поддерживает изображения — проверьте LLM-шлюз воркера.',
+    'template_not_found' => 'Выбранного шаблона нет в библиотеке — выберите другой на странице «Шаблоны» или верните авто-детекцию.',
 ];
 foreach ($prx400_hint as $code => $text): if (strpos((string) $spec['error'], $code) !== FALSE): ?>
         <span class="block w-full text-sm text-gray-600 dark:text-gray-300"><i class="fas fa-circle-info mr-1 text-gray-400"></i><?php echo HTML::chars($text); ?></span>
@@ -91,6 +92,12 @@ foreach ($prx400_hint as $code => $text): if (strpos((string) $spec['error'], $c
                 <option value="ocr_vision">OCR + Vision (фолбэк)</option>
                 <option value="vision" selected>Vision (по страницам)</option>
             </select>
+            <select name="template_id" class="prx-input max-w-[240px]">
+                <option value="">Шаблон: авто (по якорям)</option>
+<?php foreach ($templates as $t): ?>
+                <option value="<?php echo HTML::chars($t['id']); ?>"><?php echo HTML::chars($t['title']); ?></option>
+<?php endforeach; ?>
+            </select>
             <button class="prx-btn-cta prx-btn-sm" type="submit"><i class="fas fa-upload"></i>Перезалить и разобрать</button>
         </form>
 <?php endif; endif; endif; ?>
@@ -99,7 +106,7 @@ foreach ($prx400_hint as $code => $text): if (strpos((string) $spec['error'], $c
 <?php endif; ?>
         <span class="ml-auto flex gap-2">
 <?php if ($spec['status'] === 'failed'): ?>
-            <?php if ( ! empty($file_ok)): ?><form method="post" action="/prx400_specflow/launch/<?php echo (int) $spec['id']; ?>" class="inline"><input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><select name="parse_mode" class="prx-input max-w-[200px]"><option value="ocr"<?php echo $spec['parse_mode'] === 'ocr' ? ' selected' : ''; ?>>Точный OCR (без LLM)</option><option value="ocr_vision"<?php echo $spec['parse_mode'] === 'ocr_vision' ? ' selected' : ''; ?>>OCR + Vision (фолбэк)</option><option value="vision"<?php echo $spec['parse_mode'] === 'vision' ? ' selected' : ''; ?>>Vision (по страницам)</option></select><button class="prx-btn-secondary prx-btn-sm" type="submit"><i class="fas fa-rotate-right"></i>Повторить разбор</button></form><?php endif; ?>
+            <?php if ( ! empty($file_ok)): ?><form method="post" action="/prx400_specflow/launch/<?php echo (int) $spec['id']; ?>" class="inline"><input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><select name="parse_mode" class="prx-input max-w-[200px]"><option value="ocr"<?php echo $spec['parse_mode'] === 'ocr' ? ' selected' : ''; ?>>Точный OCR (без LLM)</option><option value="ocr_vision"<?php echo $spec['parse_mode'] === 'ocr_vision' ? ' selected' : ''; ?>>OCR + Vision (фолбэк)</option><option value="vision"<?php echo $spec['parse_mode'] === 'vision' ? ' selected' : ''; ?>>Vision (по страницам)</option></select><select name="template_id" class="prx-input max-w-[240px]"><option value="">Шаблон: авто (по якорям)</option><?php foreach ($templates as $t): ?><option value="<?php echo HTML::chars($t['id']); ?>"><?php echo HTML::chars($t['title']); ?></option><?php endforeach; ?></select><button class="prx-btn-secondary prx-btn-sm" type="submit"><i class="fas fa-rotate-right"></i>Повторить разбор</button></form><?php endif; ?>
 <?php elseif ($spec['status'] === 'review'): ?>
             <form method="post" action="/prx400_specflow/finish/<?php echo (int) $spec['id']; ?>" class="inline"><input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><button class="prx-btn-cta prx-btn-sm" type="submit"><i class="fas fa-check-double"></i>Завершить проверку</button></form>
 <?php endif; ?>

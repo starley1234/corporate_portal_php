@@ -158,7 +158,8 @@ class Service_Prx400_Specs {
         // Повтор: явный режим из POST (селектор), иначе сохранённый на
         // спецификации — старая открытая страница без селектора не откатывает
         // разбор скана в OCR молча (кейс job 91: mode=ocr при выборе Vision).
-        $this->_push_job((int) $spec_id, $actor->id(), $this->_mode_for_retry($spec, $post));
+        // template_id: «» = авто-детекция; явный код → воркер без детекции.
+        $this->_push_job((int) $spec_id, $actor->id(), $this->_mode_for_retry($spec, $post), $this->_template_id($post));
         Model_Prx400_Spec::set_status((int) $spec_id, 'queued', NULL);
     }
 
@@ -184,7 +185,19 @@ class Service_Prx400_Specs {
         return in_array($stored, $modes, TRUE) ? $stored : 'ocr';
     }
 
-    protected function _push_job($spec_id, $actor_id, $mode = 'ocr')
+    /** Шаблон из POST: ''/отсутствует = авто-детекция; код проверен по библиотеке. */
+    protected function _template_id(array $post): string
+    {
+        $tpl = trim((string) ($post['template_id'] ?? ''));
+        if ($tpl === '')
+        {
+            return '';
+        }
+
+        return Service_Prx400_Templates::get($tpl) !== NULL ? $tpl : '';
+    }
+
+    protected function _push_job($spec_id, $actor_id, $mode = 'ocr', $template_id = '')
     {
         $templates = Service_Prx400_Templates::for_payload();
         if (empty($templates))
@@ -200,6 +213,7 @@ class Service_Prx400_Specs {
             'spec_id' => (int) $spec_id,
             'templates' => $templates,
             'parse_mode' => (string) $mode,
+            'template_id' => (string) $template_id, // '' = авто-детекция по якорям
         ], [
             'module' => 'prx400',
             'priority' => 40,
@@ -243,6 +257,7 @@ class Service_Prx400_Specs {
         return [
             'spec' => $spec,
             'rows' => Model_Prx400_Row::for_spec($id),
+            'templates' => Service_Prx400_Templates::options(),
             'catalog_count' => Model_Prx400_Catalog::count(),
             'job_stage' => $job_stage,
             'math' => json_decode((string) ($spec['math'] ?? 'null'), TRUE),
@@ -521,7 +536,7 @@ class Service_Prx400_Specs {
         }
 
         Model_Prx400_Spec::set_file((int) $spec_id, 'prx212:'.$file_id, hash('sha256', $content));
-        $this->_push_job((int) $spec_id, $actor->id(), $this->_mode_for_retry($spec, $post));
+        $this->_push_job((int) $spec_id, $actor->id(), $this->_mode_for_retry($spec, $post), $this->_template_id($post));
         Model_Prx400_Spec::set_status((int) $spec_id, 'queued', NULL);
     }
 
