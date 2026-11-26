@@ -98,6 +98,104 @@ class Controller_Prx400_Ui extends Controller_Base {
         HTTP::redirect('/prx400_specflow/catalog', 303);
     }
 
+    /** Страница «Шаблоны»: реестр + загрузка пользовательского JSON (POST). */
+    public function action_templates()
+    {
+        $flash = Session::instance()->get_once('prx400_flash', ['text' => '']);
+
+        if ($this->request->method() === Request::POST)
+        {
+            $this->_guard_csrf();
+            $file = $_FILES['tpl'] ?? NULL;
+            if (empty($file['tmp_name']) OR $file['error'] !== UPLOAD_ERR_OK)
+            {
+                Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Файл шаблона не передан.']);
+            }
+            else
+            {
+                $data = json_decode((string) file_get_contents($file['tmp_name']), TRUE);
+                if ( ! is_array($data))
+                {
+                    Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Файл не является корректным JSON.']);
+                }
+                else
+                {
+                    try
+                    {
+                        [$code, $title, $json] = Service_Prx400_Templates::validate($data);
+                        Model_Prx400_Template::save_custom($code, $title, $json);
+                        Session::instance()->set('prx400_flash', ['type' => 'ok', 'text' => 'Шаблон «'.$title.'» добавлен — применяется с новой задачи разбора.']);
+                    }
+                    catch (Prx400_Error $e)
+                    {
+                        Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Шаблон не принят: '.$e->getMessage()]);
+                    }
+                }
+            }
+            HTTP::redirect('/prx400_specflow/templates', 303);
+        }
+
+        $this->template->content = View::factory('prx400/templates', [
+            'registry' => Service_Prx400_Templates::registry(),
+            'flash' => $flash,
+            'csrf' => Security::token(),
+        ]);
+    }
+
+    /** Вкл/выкл шаблона (POST; встроенные — строка-оверлей, кастомные — UPDATE). */
+    public function action_template_enable()
+    {
+        $code = trim((string) $this->request->post('code'));
+        $enable = $this->request->post('enable') === '1';
+        $this->_guard_csrf();
+        if ( ! $this->can('prx400.run'))
+        {
+            throw HTTP_Exception::factory(403, 'Действие доступно с правом prx400.run');
+        }
+        // Встроенный = код совпадает с template_id одного из файлов модуля.
+        $is_builtin = FALSE;
+        foreach ((array) glob(Service_Prx400_Templates::dir().'/*.json') as $__f)
+        {
+            $__b = json_decode((string) file_get_contents((string) $__f), TRUE);
+            if (is_array($__b) AND (string) ($__b['template_id'] ?? '') === $code)
+            {
+                $is_builtin = TRUE;
+                break;
+            }
+        }
+        try
+        {
+            Model_Prx400_Template::set_enabled($code, $enable, $is_builtin);
+            Session::instance()->set('prx400_flash', ['type' => 'ok', 'text' => 'Шаблон '.($enable ? 'включён' : 'отключён').' — применяется с новой задачи разбора.']);
+        }
+        catch (Throwable $e)
+        {
+            Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Не удалось изменить шаблон: '.$e->getMessage()]);
+        }
+        HTTP::redirect('/prx400_specflow/templates', 303);
+    }
+
+    /** Удалить пользовательский шаблон (POST). */
+    public function action_template_delete()
+    {
+        $code = trim((string) $this->request->post('code'));
+        $this->_guard_csrf();
+        if ( ! $this->can('prx400.run'))
+        {
+            throw HTTP_Exception::factory(403, 'Действие доступно с правом prx400.run');
+        }
+        try
+        {
+            Model_Prx400_Template::delete_custom($code);
+            Session::instance()->set('prx400_flash', ['type' => 'ok', 'text' => 'Пользовательский шаблон удалён.']);
+        }
+        catch (Throwable $e)
+        {
+            Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Не удалось удалить: '.$e->getMessage()]);
+        }
+        HTTP::redirect('/prx400_specflow/templates', 303);
+    }
+
     /** Перезалить PDF существующей спецификации (карточка) и перезапустить разбор. */
     public function action_reupload()
     {

@@ -22,6 +22,7 @@
     <div class="prx-seg mt-5" role="tablist" aria-label="Разделы оцифровки спецификаций">
         <a class="prx-seg-item" role="tab" aria-selected="false" href="/prx400_specflow"><i class="fas fa-file-pdf mr-1.5"></i>Спецификации</a>
         <a class="prx-seg-item is-active" role="tab" aria-selected="true" href="/prx400_specflow/catalog"><i class="fas fa-book mr-1.5"></i>Справочник НСИ <span class="prx-count"><?php echo count($catalog); ?></span></a>
+        <a class="prx-seg-item" role="tab" aria-selected="false" href="/prx400_specflow/templates"><i class="fas fa-layer-group mr-1.5"></i>Шаблоны</a>
     </div>
 
     <div class="mt-5 gap-5 space-y-5 lg:grid lg:grid-cols-3 lg:items-start lg:space-y-0">
