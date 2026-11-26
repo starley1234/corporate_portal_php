@@ -53,12 +53,12 @@ $when = function ($value): string {
         <div class="space-y-6 lg:col-span-2">
             <section class="prx-card" aria-labelledby="prx150-new-key">
                 <h2 id="prx150-new-key" class="prx-h3"><i class="fas fa-plus mr-1.5 text-gray-400"></i>Новый ключ</h2>
-                <form method="post" action="/prx150_api_hub/create" class="mt-4">
+                <form method="post" action="/prx150_api_hub/create" autocomplete="off" class="mt-4">
                     <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
                     <div class="grid gap-4 md:grid-cols-2">
                         <label class="block">
                             <span class="prx-label">Название потребителя</span>
-                            <input class="prx-input mt-1 w-full" name="name" maxlength="120" required placeholder="ERP, сайт-партнёра, мобильное приложение">
+                            <input class="prx-input mt-1 w-full" name="name" autocomplete="off" maxlength="120" required placeholder="ERP, сайт-партнёра, мобильное приложение">
                         </label>
                         <label class="block">
                             <span class="prx-label">Лимит, запросов в минуту</span>
@@ -76,11 +76,11 @@ $when = function ($value): string {
                         </label>
                         <label class="block">
                             <span class="prx-label">Действует до (необязательно)</span>
-                            <input class="prx-input mt-1 w-full" type="date" name="expires_at"<?php echo $ttl_days > 0 ? ' value="'.date('Y-m-d', time() + $ttl_days * 86400).'"' : ''; ?>>
+                            <input class="prx-input mt-1 w-full" type="date" name="expires_at" autocomplete="off"<?php echo $ttl_days > 0 ? ' value="'.date('Y-m-d', time() + $ttl_days * 86400).'"' : ''; ?>>
                         </label>
                         <label class="block">
                             <span class="prx-label">Заметка</span>
-                            <input class="prx-input mt-1 w-full" name="note" maxlength="500" placeholder="Кому выдан, зачем, срок">
+                            <input class="prx-input mt-1 w-full" name="note" autocomplete="off" maxlength="500" placeholder="Кому выдан, зачем, срок">
                         </label>
                     </div>
                     <fieldset class="mt-4">
@@ -107,7 +107,12 @@ $when = function ($value): string {
 
             <section class="prx-card overflow-x-auto p-0" aria-labelledby="prx150-keys">
                 <div class="border-b border-gray-100 px-4 py-3.5 dark:border-gray-700/60">
-                    <h2 id="prx150-keys" class="prx-h3">Ключи <span class="prx-count ml-1"><?php echo count($keys); ?></span></h2>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <h2 id="prx150-keys" class="prx-h3">Ключи <span class="prx-count ml-1"><?php echo count($keys); ?></span></h2>
+<?php if ( ! empty($revoked_count)): ?>
+                        <a href="/prx150_api_hub/revoked_list" class="prx-link ml-auto inline-flex items-center gap-1.5 text-sm"><i class="fas fa-ban text-xs" aria-hidden="true"></i>Отозванные <span class="prx-count"><?php echo (int) $revoked_count; ?></span></a>
+<?php endif; ?>
+                    </div>
                 </div>
                 <table class="prx-table min-w-[900px]">
                     <thead><tr><th>Потребитель</th><th>Ключ</th><th>Права</th><th>Лимит</th><th>Статус</th><th>Последний запрос</th><th>24 ч</th><th></th></tr></thead>
@@ -147,7 +152,7 @@ $when = function ($value): string {
                         </tr>
                     <?php endforeach; ?>
                     <?php if (empty($keys)): ?>
-                        <tr><td colspan="8" class="py-8 text-center text-sm text-gray-500 dark:text-gray-400">Ключей ещё нет. Создайте первый — внешняя система получит URL, ключ и формат запроса.</td></tr>
+                        <tr><td colspan="8" class="py-8 text-center text-sm text-gray-500 dark:text-gray-400">Активных ключей нет. Создайте первый — внешняя система получит URL, ключ и формат запроса. Отозванные — на отдельной странице.</td></tr>
                     <?php endif; ?>
                     </tbody>
                 </table>

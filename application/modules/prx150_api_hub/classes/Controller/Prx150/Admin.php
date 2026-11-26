@@ -53,8 +53,10 @@ class Controller_Prx150_Admin extends Controller_Prx102_Base
                 'SELECT c.*, '
                 .'(SELECT count(*) FROM prx_150_api_usage u '
                 .' WHERE u.client_id = c.id AND u.created_at > now() - interval \'24 hours\') AS requests_24h '
-                .'FROM prx_150_api_clients c ORDER BY c.id DESC'
+                .'FROM prx_150_api_clients c WHERE c.status = \'active\' ORDER BY c.id DESC'
             );
+            $revoked_count = (int) (Prx_Db::one(
+                'SELECT count(*) AS c FROM prx_150_api_clients WHERE status = \'revoked\'')['c'] ?? 0);
         }
         catch (Throwable $e)
         {
@@ -65,6 +67,7 @@ class Controller_Prx150_Admin extends Controller_Prx102_Base
         $this->template->content = View::factory('prx150/index', [
             'tab'           => 'keys',
             'keys'          => $keys,
+            'revoked_count' => $revoked_count,
             'scopes'        => Service_Prx150_Services::scopes(),
             'organizations' => Service_Prx150_Keys::organizations(),
             'created_key'   => Session::instance()->get_once('prx150_key_once', NULL),
@@ -132,6 +135,14 @@ class Controller_Prx150_Admin extends Controller_Prx102_Base
         $limits = Service_Prx150_Keys::file_limits((array) $row);
 
         $this->set_title('Ключ «'.(string) $row['name'].'» — правка');
+        $this->set_module_nav([
+            ['title' => 'Ключи', 'href' => '/prx150_api_hub', 'icon' => 'fas fa-key'],
+            ['title' => 'Использование', 'href' => '/prx150_api_hub/usage', 'icon' => 'fas fa-chart-line'],
+            ['title' => 'Документация', 'href' => '/prx150_api_hub/docs', 'icon' => 'fas fa-book'],
+            ['title' => 'Отозванные', 'href' => '/prx150_api_hub/revoked_list', 'icon' => 'fas fa-ban'],
+        ]);
+        $flash = $this->_flash();
+        if (isset($flash['text'])) $flash = (string) $flash['text']; else $flash = '';
 
         $this->template->content = View::factory('prx150/edit', [
             'key'         => (array) $row,
@@ -139,7 +150,7 @@ class Controller_Prx150_Admin extends Controller_Prx102_Base
             'scopes_have' => $scopes_have,
             'limits'      => $limits,
             'csrf'        => Security::token(),
-            'flash'       => isset($_GET['flash']) ? (string) $_GET['flash'] : '',
+            'flash'       => $flash,
         ]);
     }
 
@@ -186,6 +197,32 @@ class Controller_Prx150_Admin extends Controller_Prx102_Base
         }
 
         HTTP::redirect('/prx150_api_hub/edit/'.$id, 303);
+    }
+
+    /** GET /prx150_api_hub/revoked_list — отозванные ключи, отдельный список для аудита. */
+    public function action_revoked_list()
+    {
+        try
+        {
+            $keys = Prx_Db::select(
+                'SELECT c.* FROM prx_150_api_clients c WHERE c.status = \'revoked\' ORDER BY c.revoked_at DESC NULLS LAST, c.id DESC');
+        }
+        catch (Throwable $e)
+        {
+            $keys = [];
+        }
+
+        $this->set_title('API-доступ — отозванные ключи');
+        $this->set_module_nav([
+            ['title' => 'Ключи', 'href' => '/prx150_api_hub', 'icon' => 'fas fa-key'],
+            ['title' => 'Использование', 'href' => '/prx150_api_hub/usage', 'icon' => 'fas fa-chart-line'],
+            ['title' => 'Документация', 'href' => '/prx150_api_hub/docs', 'icon' => 'fas fa-book'],
+            ['title' => 'Отозванные', 'href' => '/prx150_api_hub/revoked_list', 'icon' => 'fas fa-ban'],
+        ]);
+        $this->template->content = View::factory('prx150/revoked', [
+            'keys'  => $keys,
+            'flash' => $this->_flash(),
+        ]);
     }
 
     /** Отзыв ключа: POST, необратимо. */

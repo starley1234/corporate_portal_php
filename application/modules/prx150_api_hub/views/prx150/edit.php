@@ -14,24 +14,27 @@
         'title'  => 'Ключ «'.HTML::chars($key['name']).'» — правка',
         'pill'   => ['prx150 · API-доступ', 'fa-key'],
         'lead'   => 'Значение ключа и его префикс не меняются — потребителю ничего обновлять не нужно. Пустое поле файлового лимита = безлимит по ключу (глобальные лимиты модуля остаются в силе).',
+        'actions' => [
+            ['label' => 'К ключам', 'href' => '/prx150_api_hub', 'icon' => 'fa-arrow-left', 'role' => 'secondary'],
+        ],
     ]); ?>
 
     <?php if ((string) $flash !== ''): ?>
     <div class="prx-flash prx-flash-info mt-3" role="status"><i class="fas fa-circle-info shrink-0"></i><span><?php echo HTML::chars($flash); ?></span></div>
     <?php endif; ?>
 
-    <form method="post" action="/prx150_api_hub/save/<?php echo (int) $key['id']; ?>" class="mt-5 max-w-3xl space-y-4">
+    <form method="post" action="/prx150_api_hub/save/<?php echo (int) $key['id']; ?>" autocomplete="off" class="mt-5 max-w-3xl space-y-4">
 
         <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
 
         <div class="prx-card p-4">
-            <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400" for="k-name">Название</label>
-            <input id="k-name" type="text" name="name" required maxlength="120" value="<?php echo HTML::chars((string) $key['name']); ?>"
-                   class="mt-1.5 w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900">
+            <label class="prx-label" for="k-name">Название</label>
+            <input id="k-name" type="text" name="name" required maxlength="120" autocomplete="off" value="<?php echo HTML::chars((string) $key['name']); ?>"
+                   class="prx-input mt-1.5 w-full">
         </div>
 
         <div class="prx-card p-4">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Права (scopes)</p>
+            <p class="prx-label">Права (scopes)</p>
             <div class="mt-2 grid gap-2 sm:grid-cols-2">
                 <?php foreach ($scopes_all as $scope => $meta): ?>
                 <label class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
@@ -50,48 +53,48 @@
 
         <div class="prx-card p-4 grid gap-4 sm:grid-cols-2">
             <div>
-                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400" for="k-rate">Запросов в минуту (1–600)</label>
-                <input id="k-rate" type="number" name="rate_limit" min="1" max="600" value="<?php echo (int) $key['rate_limit_per_min']; ?>"
-                       class="mt-1.5 w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900">
+                <label class="prx-label" for="k-rate">Запросов в минуту (1–600)</label>
+                <input id="k-rate" type="number" name="rate_limit" min="1" max="600" autocomplete="off" value="<?php echo (int) $key['rate_limit_per_min']; ?>"
+                       class="prx-input mt-1.5 w-full">
             </div>
             <div>
-                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400" for="k-exp">Действует до (пусто — бессрочно)</label>
-                <input id="k-exp" type="text" name="expires_at" value="<?php echo HTML::chars((string) ($key['expires_at'] ?? '')); ?>" placeholder="YYYY-MM-DD"
-                       class="mt-1.5 w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900">
+                <label class="prx-label" for="k-exp">Действует до (пусто — бессрочно)</label>
+                <input id="k-exp" type="text" name="expires_at" autocomplete="off" value="<?php echo HTML::chars((string) ($key['expires_at'] ?? '')); ?>" placeholder="YYYY-MM-DD"
+                       class="prx-input mt-1.5 w-full">
             </div>
         </div>
 
         <div class="prx-card p-4">
-            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Файловые лимиты (безлимит = поле пусто)</p>
+            <p class="prx-label">Файловые лимиты (безлимит = поле пусто)</p>
             <div class="mt-2 grid gap-4 sm:grid-cols-3">
                 <div>
-                    <label class="block text-xs text-gray-500 dark:text-gray-400" for="k-fbytes">Макс. размер файла, байт</label>
-                    <input id="k-fbytes" type="number" name="max_file_bytes" min="0" step="1024"
+                    <label class="prx-label text-xs" for="k-fbytes">Макс. размер файла, байт</label>
+                    <input id="k-fbytes" type="number" name="max_file_bytes" min="0" step="1024" autocomplete="off"
                            value="<?php echo $limits['max_file_bytes'] !== NULL ? (int) $limits['max_file_bytes'] : ''; ?>"
                            placeholder="безлимит"
-                           class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900">
+                           class="prx-input mt-1 w-full">
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-500 dark:text-gray-400" for="k-fcount">Файлов в одном запросе</label>
-                    <input id="k-fcount" type="number" name="max_files_per_request" min="0"
+                    <label class="prx-label text-xs" for="k-fcount">Файлов в одном запросе</label>
+                    <input id="k-fcount" type="number" name="max_files_per_request" min="0" autocomplete="off"
                            value="<?php echo $limits['max_files_per_request'] !== NULL ? (int) $limits['max_files_per_request'] : ''; ?>"
                            placeholder="безлимит"
-                           class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900">
+                           class="prx-input mt-1 w-full">
                 </div>
                 <div>
-                    <label class="block text-xs text-gray-500 dark:text-gray-400" for="k-fmt">Разрешённые форматы (через запятую)</label>
-                    <input id="k-fmt" type="text" name="allowed_formats" value="<?php echo HTML::chars(implode(', ', $limits['allowed_formats'])); ?>"
+                    <label class="prx-label text-xs" for="k-fmt">Разрешённые форматы (через запятую)</label>
+                    <input id="k-fmt" type="text" name="allowed_formats" autocomplete="off" value="<?php echo HTML::chars(implode(', ', $limits['allowed_formats'])); ?>"
                            placeholder="pdf, png, jpg"
-                           class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900">
+                           class="prx-input mt-1 w-full">
                 </div>
             </div>
             <p class="prx-hint mt-2">Лимиты проверяет модуль-потребитель при приёме файла (prx450: размер и формат).</p>
         </div>
 
         <div class="prx-card p-4">
-            <label class="block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400" for="k-note">Заметка</label>
-            <textarea id="k-note" name="note" rows="2" maxlength="500"
-                      class="mt-1.5 w-full rounded-lg border-gray-300 text-sm dark:border-gray-700 dark:bg-gray-900"><?php echo HTML::chars((string) ($key['note'] ?? '')); ?></textarea>
+            <label class="prx-label" for="k-note">Заметка</label>
+            <textarea id="k-note" name="note" rows="2" maxlength="500" autocomplete="off"
+                      class="prx-input mt-1.5 w-full"><?php echo HTML::chars((string) ($key['note'] ?? '')); ?></textarea>
         </div>
 
         <div class="flex gap-2">
