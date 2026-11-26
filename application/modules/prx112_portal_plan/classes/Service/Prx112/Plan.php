@@ -70,6 +70,7 @@ class Service_Prx112_Plan
                 {
                     $domains[$title][] = [
                         'title' => $service['title'],
+                        'module' => NULL,
                         'state' => $service['status'] === 'archived' ? 'archived' : 'planned',
                     ];
                 }
@@ -91,7 +92,7 @@ class Service_Prx112_Plan
             foreach ($phase['pipelines'] as $pipeline)
             {
                 $domains[$phase['title']][] = [
-                    'title' => $pipeline['title'], 'state' => 'planned',
+                    'title' => $pipeline['title'], 'state' => 'planned', 'module' => NULL,
                     'description' => $pipeline['flow'], 'result' => $pipeline['result'],
                 ];
             }
@@ -110,6 +111,7 @@ class Service_Prx112_Plan
         }
         return [
             'title' => $module['title'],
+            'module' => $module['module_name'],
             'description' => $module['short'],
             'keywords' => $module['keywords'],
             'state' => $module['state'],

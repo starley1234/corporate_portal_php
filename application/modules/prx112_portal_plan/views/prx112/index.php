@@ -30,6 +30,23 @@ $transitions = [
     'unpublished' => ['approved' => 'approved', 'archived' => 'archived'],
     'archived' => ['wip' => 'restore'],
 ];
+// Табличный вид: один плоский список по всем доменам; сортировка по умолчанию —
+// по дате решения (свежие сверху), чтобы новые модули находились сразу.
+$state_rank = ['approved' => 0, 'wip' => 1, 'unpublished' => 2, 'planned' => 3, 'archived' => 4];
+$plan_rows = [];
+foreach ($domains as $group_title => $group_services)
+{
+    foreach ($group_services as $service)
+    {
+        $plan_rows[] = $service + ['group' => $group_title];
+    }
+}
+usort($plan_rows, static function (array $a, array $b): int {
+    $ta = ! empty($a['decided_at']) ? (int) strtotime((string) $a['decided_at']) : 0;
+    $tb = ! empty($b['decided_at']) ? (int) strtotime((string) $b['decided_at']) : 0;
+    if ($ta !== $tb) return $tb <=> $ta;
+    return strcasecmp((string) $a['title'], (string) $b['title']);
+});
 ?>
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
     <?php echo View::factory('partials/page_header', [
@@ -58,10 +75,20 @@ $transitions = [
         <?php endforeach; ?>
     </nav>
 
+    <?php // Вид списка: карточки (по умолчанию) или таблица — выбор запоминается. ?>
+    <div class="prx-seg mt-2 w-fit max-w-full flex-wrap gap-1" role="group" aria-label="Вид списка" data-plan-view-switch>
+        <button type="button" class="prx-seg-item inline-flex items-center gap-1.5" data-plan-view="cards" aria-pressed="true">
+            <i class="fas fa-grip" aria-hidden="true"></i>Карточки
+        </button>
+        <button type="button" class="prx-seg-item inline-flex items-center gap-1.5" data-plan-view="table" aria-pressed="false">
+            <i class="fas fa-table-list" aria-hidden="true"></i>Таблица
+        </button>
+    </div>
+
     <?php if ( ! $domains): ?>
         <p class="prx-hint mt-6">Нет сервисов в этом состоянии</p>
     <?php else: ?>
-    <div class="mt-6 grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <div class="mt-6 grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3" data-plan-view-panel="cards">
         <?php foreach ($domains as $title => $services): ?>
         <section class="prx-card min-w-0" data-portal-plan-group="<?php echo HTML::chars($title); ?>">
             <div class="flex items-center gap-2.5">
@@ -137,7 +164,7 @@ $transitions = [
                                     <?php if ($can_pin): ?>
                                     <?php $pinned = isset($favorite_hrefs[$service['href']]);
                                           $pin_label = ! $favorites_ready ? 'Избранное недоступно' : ($pinned ? 'Убрать из Избранного' : 'В Избранное'); ?>
-                                    <button type="button" class="prx-btn-icon nav-pin-card <?php echo $pinned ? 'text-amber-500' : 'text-gray-400'; ?>"
+                                    <button type="button" class="prx-btn-icon nav-pin-card <?php echo $pinned ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300' : 'text-gray-400 dark:text-gray-500'; ?>"
                                             data-nav-pin-card="<?php echo HTML::chars($service['href']); ?>"
                                             data-nav-pin-title="<?php echo HTML::chars($service['title']); ?>"
                                             data-nav-pin-icon="<?php echo HTML::chars($service['icon']); ?>"
@@ -155,7 +182,77 @@ $transitions = [
         </section>
         <?php endforeach; ?>
     </div>
+
+    <?php // Табличный вид: все атрибуты в колонках, сортировка кликом по заголовку, поиск — тот же. ?>
+    <div class="prx-card mt-6 overflow-x-auto" data-plan-view-panel="table" hidden>
+        <table class="prx-table min-w-[880px]" data-plan-table>
+            <thead>
+            <tr>
+                <th scope="col" data-plan-sort-th><button type="button" class="prx-btn-icon" data-plan-sort="title">Сервис <i class="fas fa-sort text-gray-400" data-plan-sort-icon aria-hidden="true"></i></button></th>
+                <th scope="col" data-plan-sort-th><button type="button" class="prx-btn-icon" data-plan-sort="module">Модуль <i class="fas fa-sort text-gray-400" data-plan-sort-icon aria-hidden="true"></i></button></th>
+                <th scope="col" data-plan-sort-th><button type="button" class="prx-btn-icon" data-plan-sort="group">Домен <i class="fas fa-sort text-gray-400" data-plan-sort-icon aria-hidden="true"></i></button></th>
+                <th scope="col" data-plan-sort-th><button type="button" class="prx-btn-icon" data-plan-sort="state">Состояние <i class="fas fa-sort text-gray-400" data-plan-sort-icon aria-hidden="true"></i></button></th>
+                <th scope="col" data-plan-sort-th aria-sort="descending"><button type="button" class="prx-btn-icon" data-plan-sort="ts">Решение <i class="fas fa-sort-down text-gray-400" data-plan-sort-icon aria-hidden="true"></i></button></th>
+                <th scope="col"><span class="sr-only">Действия</span></th>
+            </tr>
+            </thead>
+            <tbody>
+<?php foreach ($plan_rows as $service): ?>
+<?php
+    $service_state = $service['state'];
+    $service_actions = empty($service['publication_module']) ? [] : ($transitions[$service_state] ?? []);
+    $primary = array_key_first($service_actions);
+    $ts = ! empty($service['decided_at']) ? (int) strtotime((string) $service['decided_at']) : 0;
+?>
+            <tr data-portal-plan-item="<?php echo HTML::chars($service['title'].' '.($service['description'] ?? '').' '.($service['module'] ?? '').' '.($service['keywords'] ?? '')); ?>"
+                data-plan-row
+                data-plan-title="<?php echo HTML::chars((string) $service['title']); ?>"
+                data-plan-module="<?php echo HTML::chars((string) ($service['module'] ?? '')); ?>"
+                data-plan-group="<?php echo HTML::chars((string) $service['group']); ?>"
+                data-plan-state-rank="<?php echo (int) ($state_rank[$service_state] ?? 9); ?>"
+                data-plan-ts="<?php echo $ts; ?>"<?php if ($primary !== NULL): ?> data-portal-plan-module="<?php echo HTML::chars((string) $service['publication_module']); ?>" tabindex="-1"<?php endif; ?>>
+                <td class="min-w-0">
+                    <div class="flex items-center gap-2">
+                        <i class="<?php echo HTML::chars($service['icon'] ?? 'fas fa-list-check'); ?> w-4 shrink-0 text-center text-gray-400" aria-hidden="true"></i>
+                        <span class="min-w-0">
+<?php if ( ! empty($service['href'])): ?>
+                            <a class="prx-link break-words font-medium" href="<?php echo HTML::chars($service['href']); ?>"><?php echo HTML::chars((string) $service['title']); ?></a>
+<?php else: ?>
+                            <span class="break-words font-medium"><?php echo HTML::chars((string) $service['title']); ?></span>
+<?php endif; ?>
+<?php if ( ! empty($service['description'])): ?>
+                            <span class="block truncate text-xs text-gray-500 dark:text-gray-400"><?php echo HTML::chars((string) $service['description']); ?></span>
+<?php endif; ?>
+                        </span>
+                    </div>
+                </td>
+                <td class="whitespace-nowrap font-mono text-xs text-gray-600 dark:text-gray-300"><?php echo ! empty($service['module']) ? HTML::chars((string) $service['module']) : '—'; ?></td>
+                <td class="text-sm text-gray-600 dark:text-gray-300"><?php echo HTML::chars((string) $service['group']); ?></td>
+                <td><span class="prx-badge <?php echo $badges[$service_state]; ?>"><?php echo HTML::chars(Service_Prx110_Catalog::state_label($service_state)); ?></span></td>
+                <td class="whitespace-nowrap text-xs text-gray-600 dark:text-gray-300">
+<?php if ( ! empty($service['decided_at'])): ?>
+                    <span class="tabular-nums"><?php echo (new DateTimeImmutable((string) $service['decided_at']))->format('d.m.Y'); ?></span><?php echo empty($service['decided_by_name']) ? '' : ' · '.HTML::chars((string) $service['decided_by_name']); ?>
+<?php else: ?>
+                    —
+<?php endif; ?>
+                </td>
+                <td class="text-right">
+<?php if ($primary !== NULL): ?>
+                    <?php echo View::factory('prx112/publication_action', [
+                        'module' => $service['publication_module'], 'title' => $service['title'],
+                        'return_state' => $state, 'next' => $primary,
+                        'action' => $actions[$service_actions[$primary]], 'compact' => TRUE,
+                    ]); ?>
+<?php else: ?>
+                    <span class="text-gray-400" aria-hidden="true">—</span>
+<?php endif; ?>
+                </td>
+            </tr>
+<?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
     <?php endif; ?>
     </div>
 </div>
-<script src="/assets/js/portal-plan.js?v=2" defer></script>
+<script src="/assets/js/portal-plan.js?v=3" defer></script>
