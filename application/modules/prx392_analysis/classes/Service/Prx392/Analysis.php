@@ -147,7 +147,7 @@ class Service_Prx392_Analysis
                     VALUES (
                         ".$document_id.", ".$message_id.", :profile, :model,
                         :prompt_version, :schema_version,
-                        :input_hash, 'queued', "._int_or_null($actor ? $actor->id() : NULL)."
+                        :input_hash, 'queued', ".self::_int_or_null($actor ? $actor->id() : NULL)."
                     )
                     RETURNING id
                 ", [
