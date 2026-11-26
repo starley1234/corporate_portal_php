@@ -17,7 +17,12 @@ class Service_Prx400_Specs {
         $this->_max_rows = (int) ($cfg->get('max_rows') ?? 2000);
     }
 
-    protected function _storage(): string
+    /**
+     * Корень легаси-хранилища (до перехода на prx212): env-каталог или
+     * storage/specflow в корне проекта. Новые загрузки этот путь не пишут;
+     * используется только resolve_pdf при перепривязке старых записей.
+     */
+    protected static function storage_dir(): string
     {
         $dir = (string) (Kohana::$config->load('prx400_specflow')->get('storage_dir') ?: 'storage/specflow');
 
@@ -79,44 +84,34 @@ class Service_Prx400_Specs {
             throw new Prx400_Error('file_too_large', 413);
         }
 
-        $storage = $this->_storage();
         $sha = hash_file('sha256', $upload['tmp_name']);
         $name = mb_substr(trim((string) $upload['name']), 0, 255);
-
-        $spec = Prx_Db::transaction(function () use ($actor, $storage, $sha, $name)
+        $content = (string) file_get_contents($upload['tmp_name']);
+        if ($content === '')
         {
-            $spec = Model_Prx400_Spec::insert([
-                'owner_id' => $actor->id(),
-                'original_name' => $name,
-                'storage_path' => '', // заполним после mkdir
-                'file_sha256' => $sha,
-            ]);
-            $dir = rtrim($storage, '/').'/'.(int) $spec['id'];
-            if ( ! is_dir($dir) AND ! @mkdir($dir, 0770, TRUE) AND ! is_dir($dir))
-            {
-                throw new Prx400_Error('storage_unavailable', 503);
-            }
-            $file = $dir.'/spec-'.bin2hex(random_bytes(6)).'.pdf';
-            if ( ! @move_uploaded_file($_FILES['pdf']['tmp_name'], $file))
-            {
-                throw new Prx400_Error('storage_unavailable', 503);
-            }
-            // Верификация факта записи: ФС может соврать молча (переполнение,
-            // квота) — без этого воркер получил бы честный 404 при живой записи.
-            if ( ! is_file($file) OR filesize($file) === 0)
-            {
-                throw new Prx400_Error('storage_unavailable', 503);
-            }
-            // В БД — путь ОТНОСИТЕЛЬНО корня проекта (как в prx399): переживает
-            // перевыкатку в каталог нового релиза; абсолютный путь собирается
-            // на чтении через Storage_Path::absolute(). Абсолютный путь в БД
-            // ломал скачивание после каждого деплоя (file_unavailable).
-            Prx_Db::execute(
-                'UPDATE prx_400_specs SET storage_path = :p WHERE id = :id',
-                [':id' => (int) $spec['id'], ':p' => self::to_relative($file)]);
+            throw new Prx400_Error('upload_error', 400);
+        }
 
-            return Model_Prx400_Spec::get($spec['id']);
-        });
+        // Хранение — через платформенное хранилище prx212 (фасад Storage):
+        // путь и бекенд ведёт prx212 в своей БД, файл переживает выкатку
+        // релиза и не зависит от каталога кода. Локальный каталог остался
+        // только для ЛЕГАси-записей (resolve_pdf ниже).
+        try
+        {
+            $file_id = Storage::put($content, $name, 'prx400', $actor->id(), FALSE, 'application/pdf');
+        }
+        catch (Throwable $e)
+        {
+            Log_Plain::event(Log::ERROR, 'prx400 storage put failed: :m', [':m' => $e->getMessage()]);
+            throw new Prx400_Error('storage_unavailable', 503);
+        }
+
+        $spec = Model_Prx400_Spec::insert([
+            'owner_id' => $actor->id(),
+            'original_name' => $name,
+            'storage_path' => 'prx212:'.$file_id, // маркер фасада, не путь ФС
+            'file_sha256' => $sha,
+        ]);
 
         $this->_push_job((int) $spec['id'], $actor->id());
 
@@ -265,21 +260,37 @@ class Service_Prx400_Specs {
             throw new Prx400_Error('not_found', 404);
         }
 
-        [$path, $healed] = self::resolve_pdf((string) $spec['storage_path']);
-        if ($healed !== NULL)
-        {
-            // Легаси-строка (абсолютный путь старого релиза) нашлась в текущем
-            // корне — чиним запись навсегда, чтобы больше не искать.
-            Prx_Db::execute(
-                'UPDATE prx_400_specs SET storage_path = :p WHERE id = :id',
-                [':id' => (int) $spec_id, ':p' => $healed]);
-        }
-        if ($path === NULL)
+        $bytes = $this->_pdf_bytes($spec);
+        if ($bytes === NULL)
         {
             throw new Prx400_Error('file_unavailable', 404);
         }
 
-        return (string) file_get_contents($path);
+        return $bytes;
+    }
+
+    /** Содержимое PDF: маркер prx212 → фасад; легаси-пути → resolve_pdf. */
+    private function _pdf_bytes(array $spec): ?string
+    {
+        $raw = (string) $spec['storage_path'];
+
+        if (strpos($raw, 'prx212:') === 0)
+        {
+            $file_id = (int) substr($raw, 7);
+
+            return $file_id > 0 ? Storage::read_owned($file_id, 'prx400', $this->_max_upload) : NULL;
+        }
+
+        [$path, $healed] = self::resolve_pdf($raw);
+        if ($healed !== NULL)
+        {
+            // Легаси-запись нашлась по перепривязке — чиним запись навсегда.
+            Prx_Db::execute(
+                'UPDATE prx_400_specs SET storage_path = :p WHERE id = :id',
+                [':id' => (int) $spec['id'], ':p' => $healed]);
+        }
+
+        return $path !== NULL ? (string) file_get_contents($path) : NULL;
     }
 
     /**
@@ -305,15 +316,16 @@ class Service_Prx400_Specs {
             return [$raw, self::to_relative($raw)];
         }
 
-        // Файл по абсолютному пути не найден: перепривязка к текущему корню
-        $pos = strpos(str_replace('\\', '/', $raw), '/storage/');
-        if ($pos !== FALSE)
+        // Файл по абсолютному пути не найден: перепривязка по СТРУКТУРЕ
+        // нашего хранилища <storage>/<id>/spec-*.pdf к ТЕКУЩЕМУ корню
+        // хранилища (env-каталог может лежать вне корня проекта — тогда
+        // перепривязка к корню проекта не сработала бы).
+        if (preg_match('~/([1-9][0-9]{0,8})/(spec-[^/\\\\]+)$~', str_replace('\\', '/', $raw), $m))
         {
-            $relative = 'storage/'.substr(str_replace('\\', '/', $raw), $pos + 9);
-            $path = Storage_Path::absolute($relative);
-            if (is_file($path))
+            $candidate = rtrim(self::storage_dir(), '/').'/'.$m[1].'/'.$m[2];
+            if (is_file($candidate))
             {
-                return [$path, $relative];
+                return [$candidate, self::to_relative($candidate)];
             }
         }
 
@@ -341,7 +353,13 @@ class Service_Prx400_Specs {
         {
             return FALSE;
         }
-        [$path] = self::resolve_pdf((string) $spec['storage_path']);
+        $raw = (string) $spec['storage_path'];
+
+        if (strpos($raw, 'prx212:') === 0)
+        {
+            return Storage::metadata((int) substr($raw, 7)) !== NULL;
+        }
+        [$path] = self::resolve_pdf($raw);
 
         return $path !== NULL;
     }

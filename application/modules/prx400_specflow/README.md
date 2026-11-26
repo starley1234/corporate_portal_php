@@ -21,6 +21,11 @@ queued → running → review (есть спорные) → done; failed — о�
 - Python: `workers/tests/handlers/prx400_specflow/test_parse.py` (парсер, математика).
 - PHP-контракт: `tests/Contracts/prx400_match_export.php` (шаблоны, матчинг, экспорт) — `make test-contracts`.
 
+## Хранение
+Фасад `Storage` (prx212): файлы переживают выкатки, путь — маркер
+`prx212:<file_id>`. Легаси-локальные записи читаются с самолечением
+(`Service_Prx400_Specs::resolve_pdf`); `PRX400_STORAGE_DIR` нужен только им.
+
 ## Деплой
 `make migrate` (миграция prx_400_001) + рестарт воркеров (новый канал
 specflow.parse в реестре). Наполнение `prx_400_catalog` — см. карточку модуля.
