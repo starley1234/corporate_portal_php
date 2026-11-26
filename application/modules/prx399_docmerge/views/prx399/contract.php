@@ -260,7 +260,10 @@ $ds_in_build = count(array_filter($ds_rows, static fn ($d) => (string) ($d['incl
 <?php foreach ($risks as $risk): ?>
             <tr>
                 <td><span class="prx-badge <?php echo $severity_badges[$risk['severity']] ?? 'prx-badge-wait'; ?>"><span class="prx-dot"></span><?php echo $severity_ru[$risk['severity']] ?? $risk['severity']; ?></span></td>
-                <td class="text-xs"><?php echo HTML::chars((string) ($risk['area'] ?? '—')); ?><?php echo $risk['chunk_path'] ? ' <a class="font-mono text-blue-600 hover:underline dark:text-blue-400" title="К пункту в редакции" href="/prx399_docmerge/contract/'.(int) $contract['id'].'#node-'.str_replace('.', '-', (string) $risk['chunk_path']).'">'.HTML::chars((string) $risk['chunk_path']).'</a>' : ''; ?></td>
+                <td class="text-xs"><?php echo HTML::chars((string) ($risk['area'] ?? '—')); ?><?php if ( ! empty($risk['chunk_path'])): $anchors = preg_split('~\s*;\s*~u', trim((string) $risk['chunk_path']), -1, PREG_SPLIT_NO_EMPTY) ?: []; ?> <span class="font-mono text-xs"><?php echo implode('; ', array_map(static function ($anchor) use ($contract) {
+                        return '<a class="text-blue-600 hover:underline dark:text-blue-400" title="К пункту в редакции" href="/prx399_docmerge/contract/'.(int) $contract['id'].'#node-'.str_replace('.', '-', $anchor).'">'.HTML::chars($anchor).'</a>';
+                    }, $anchors)); ?></span>
+<?php endif; ?></td>
                 <td class="max-w-md"><span class="font-semibold"><?php echo HTML::chars((string) $risk['title']); ?></span><?php if ( ! empty($risk['detail'])): ?><span class="block text-xs text-gray-500 dark:text-gray-400"><?php echo HTML::chars((string) $risk['detail']); ?></span><?php endif; ?></td>
                 <td class="max-w-xs text-xs"><?php echo HTML::chars((string) ($risk['recommendation'] ?? '—')); ?></td>
                 <td class="text-xs"><?php echo $risk['source'] === 'static' ? 'статика' : 'ИИ'; ?></td>
@@ -310,6 +313,12 @@ foreach (($node['history'] ?? []) as $step)
 <?php endif; ?>
 </div>
 
+<button id="prx399-to-top" type="button" title="К началу документа"
+        class="hidden fixed bottom-6 right-6 z-40 flex items-center gap-1 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-md hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">
+    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>
+    Вверх
+</button>
+
 <script>
 // Индикация пайплайна: опрос карточки по эталону монитора (fetch + DOMParser
 // + подмена блоков по id). Пока есть работа — освежаем статусы файлов каждые
@@ -350,6 +359,24 @@ foreach (($node['history'] ?? []) as $step)
     }
     setInterval(refresh, 5000);
 })();
+
+// Составные якоря (#node-3-7;3-10;…): элемента с таким id нет — браузер
+// молчит. Прыгаем к первому пункту из списка (в т.ч. старые скопированные
+// ссылки).
+var compound = location.hash.match(/^#node-([^;]+);/);
+if (compound) {
+    var first = document.getElementById('node-' + compound[1]);
+    if (first) first.scrollIntoView();
+}
+
+// Кнопка «Вверх»: редакция бывает длинной — появляется после прокрутки.
+var toTop = document.getElementById('prx399-to-top');
+if (toTop) {
+    var toggleTop = function () { toTop.classList.toggle('hidden', window.scrollY < 400); };
+    window.addEventListener('scroll', toggleTop, { passive: true });
+    toggleTop();
+    toTop.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+}
 
 // POST-формы карточки (запуск/пересборка/повтор/порядок/удаление): кнопка
 // занята на время запроса — двойной запуск пайплайна невозможен.
