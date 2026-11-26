@@ -84,7 +84,10 @@ $badges = [
                 </div>
             </div>
 <?php if ($can_run): ?>
-            <button type="submit" class="prx-btn-cta w-full justify-center"><i class="fas fa-layer-group mr-2"></i>Создать пакет</button>
+            <button type="submit" id="prx399-create" class="prx-btn-cta w-full justify-center">
+                <span data-prx-idle><i class="fas fa-layer-group mr-2"></i>Создать пакет</span>
+                <span data-prx-busy class="hidden"><i class="fas fa-circle-notch fa-spin mr-2"></i>Загружаю файлы и ставлю задачи…</span>
+            </button>
 <?php endif; ?>
             <p class="prx-hint">Формат — PDF (сканы или с текстовым слоем), до <?php echo (int) $limits['max_files']; ?> файлов. DOCX — планируемое расширение. Проверка размера и содержимого — на сервере.</p>
         </form>
@@ -127,8 +130,20 @@ $badges = [
 <script>
 // Приём файлов по эталону (required_design_sample#file-upload): клик по зоне —
 // выбор, drag&drop — перенос; статус и ошибки — по месту; лимиты проверяет сервер.
+// Создание пакета: POST с файлами занимает секунды — на это время кнопка
+// занята (PRX.busy) и повторный клик невозможен; redirect/ошибка рисуют
+// страницу заново и снимают блокировку.
 (function () {
     'use strict';
+
+    var form = document.querySelector('form[action="/prx399_docmerge"]');
+    var create = document.getElementById('prx399-create');
+    if (form && create && window.PRX) {
+        form.addEventListener('submit', function () {
+            window.PRX.run(create, true);
+        });
+    }
+
     var sizeFormat = new Intl.NumberFormat('ru', { maximumFractionDigits: 1 });
 
     function humanSize(bytes) {

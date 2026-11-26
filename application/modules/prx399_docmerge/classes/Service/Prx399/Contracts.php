@@ -35,7 +35,7 @@ class Service_Prx399_Contracts {
         $contract = Model_Prx399_Contract::get($id);
         if ( ! $contract)
         {
-            throw new $this->ERROR('contract_not_found', 404);
+            throw new self::ERROR('contract_not_found', 404);
         }
 
         return [
@@ -60,7 +60,7 @@ class Service_Prx399_Contracts {
         $focus = (string) ($post['focus'] ?? 'balanced');
         if ( ! isset($this->_limits['focus'][$focus]))
         {
-            throw new $this->ERROR('bad_focus', 400);
+            throw new self::ERROR('bad_focus', 400);
         }
 
         $policy = mb_substr(trim((string) ($post['policy'] ?? '')), 0, (int) $this->_limits['max_policy']);
@@ -70,7 +70,7 @@ class Service_Prx399_Contracts {
         $base = $this->_normalize_uploads(isset($files['base']) ? $files['base'] : []);
         if (count($base) !== 1)
         {
-            throw new $this->ERROR('base_required', 400);
+            throw new self::ERROR('base_required', 400);
         }
 
         // Название не заполнено — определяем сами: имя базового PDF (без
@@ -88,11 +88,11 @@ class Service_Prx399_Contracts {
         }
         if (mb_strlen($title) > (int) $this->_limits['max_title'])
         {
-            throw new $this->ERROR('title_too_long', 400);
+            throw new self::ERROR('title_too_long', 400);
         }
         if (count($base) + count($ds) > (int) $this->_limits['max_files'])
         {
-            throw new $this->ERROR('too_many_files', 400);
+            throw new self::ERROR('too_many_files', 400);
         }
 
         foreach (array_merge($base, $ds) as $upload)
@@ -144,11 +144,11 @@ class Service_Prx399_Contracts {
         $contract = Model_Prx399_Contract::get($id);
         if ( ! $contract)
         {
-            throw new $this->ERROR('contract_not_found', 404);
+            throw new self::ERROR('contract_not_found', 404);
         }
         if ( ! in_array($contract['status'], ['draft', 'failed'], TRUE))
         {
-            throw new $this->ERROR('wrong_state', 409);
+            throw new self::ERROR('wrong_state', 409);
         }
 
         $files = Model_Prx399_File::for_contract($id);
@@ -181,12 +181,12 @@ class Service_Prx399_Contracts {
         $file = Model_Prx399_File::get($file_id);
         if ( ! $file OR $file['kind'] !== 'ds')
         {
-            throw new $this->ERROR('not_found', 404);
+            throw new self::ERROR('not_found', 404);
         }
         $contract = Model_Prx399_Contract::get($file['contract_id']);
         if ( ! in_array($contract['status'], ['draft', 'failed'], TRUE))
         {
-            throw new $this->ERROR('wrong_state', 409);
+            throw new self::ERROR('wrong_state', 409);
         }
 
         $siblings = array_values(array_filter(
@@ -229,12 +229,12 @@ class Service_Prx399_Contracts {
         $file = Model_Prx399_File::get($file_id);
         if ( ! $file)
         {
-            throw new $this->ERROR('not_found', 404);
+            throw new self::ERROR('not_found', 404);
         }
         $contract = Model_Prx399_Contract::get($file['contract_id']);
         if ( ! in_array($contract['status'], ['failed', 'parsing'], TRUE))
         {
-            throw new $this->ERROR('wrong_state', 409);
+            throw new self::ERROR('wrong_state', 409);
         }
 
         $job_id = Service_Prx120_JobQueue::push('doc.merge.delta', [
@@ -258,7 +258,7 @@ class Service_Prx399_Contracts {
         $contract = Model_Prx399_Contract::get($id);
         if ( ! $contract)
         {
-            throw new $this->ERROR('contract_not_found', 404);
+            throw new self::ERROR('contract_not_found', 404);
         }
 
         // Каскад очистит files/deltas/risks; файлы на диске убираем вручную.
@@ -308,21 +308,21 @@ class Service_Prx399_Contracts {
     {
         if ($upload['error'] !== UPLOAD_ERR_OK)
         {
-            throw new $this->ERROR('upload_error', 400);
+            throw new self::ERROR('upload_error', 400);
         }
         if ( ! is_uploaded_file($upload['tmp_name']))
         {
-            throw new $this->ERROR('upload_error', 400);
+            throw new self::ERROR('upload_error', 400);
         }
         if (strtolower(pathinfo($upload['name'], PATHINFO_EXTENSION)) !== 'pdf')
         {
-            throw new $this->ERROR('pdf_required', 400);
+            throw new self::ERROR('pdf_required', 400);
         }
         // Размер сверяется воркером ещё раз при скачивании (limits.py) —
         // здесь достаточно грубой отсечки, чтобы не тянуть гиганты в tmp.
         if ($upload['size'] > 200 * 1024 * 1024)
         {
-            throw new $this->ERROR('file_too_large', 413);
+            throw new self::ERROR('file_too_large', 413);
         }
     }
 
@@ -335,7 +335,7 @@ class Service_Prx399_Contracts {
         $dir = rtrim($storage, '/').'/'.(int) $contract_id;
         if ( ! is_dir($dir) AND ! @mkdir($dir, 0770, TRUE) AND ! is_dir($dir))
         {
-            throw new $this->ERROR('storage_unavailable', 503);
+            throw new self::ERROR('storage_unavailable', 503);
         }
         $ext = strtolower(pathinfo($upload['name'], PATHINFO_EXTENSION));
         $name = $kind.($kind === 'ds' ? '-'.($index + 1) : '').'-'.bin2hex(random_bytes(6)).'.'.$ext;
@@ -343,7 +343,7 @@ class Service_Prx399_Contracts {
 
         if ( ! @move_uploaded_file($upload['tmp_name'], $target))
         {
-            throw new $this->ERROR('storage_unavailable', 503);
+            throw new self::ERROR('storage_unavailable', 503);
         }
 
         // В БД — путь относительно корня проекта (переносимость между машинами).
