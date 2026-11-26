@@ -192,3 +192,16 @@ def test_audit_reduces_without_llm_and_still_reports(monkeypatch):
 
     posted = POSTED[0][1]
     assert "программно" in posted["summary"] and len(posted["risks"]) == 1
+
+
+def test_audit_focus_rubric_per_package_focus():
+    from prx_workers.handlers.prx399_docmerge.audit import FOCUS_RUBRIC, _MAP_PROMPT
+
+    for key in ("customer", "contractor", "balanced"):
+        rubric = FOCUS_RUBRIC.get(key, FOCUS_RUBRIC["balanced"])
+        prompt = _MAP_PROMPT.replace("__RUBRIC__", rubric)
+        assert rubric in prompt
+        assert "__RUBRIC__" not in prompt
+    assert FOCUS_RUBRIC["customer"] != FOCUS_RUBRIC["contractor"]
+    # неизвестный фокус — сбалансированная рубрика
+    assert FOCUS_RUBRIC.get("unicorn", FOCUS_RUBRIC["balanced"]) == FOCUS_RUBRIC["balanced"]
