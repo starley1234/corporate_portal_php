@@ -199,10 +199,20 @@ class Service_Prx399_Contracts {
 
         if ($status === 'auditing')
         {
+            // Summary записан → аудит ФАКТИЧЕСКИ завершён (audit_result сохранил
+            // итог, но статус не доехал — баг set_audited до фикса): дофиксим
+            // статус вместо ложного «не завершился».
+            $has_summary = trim((string) ($contract['summary'] ?? '')) !== '';
             $audit_job = (int) ($contract['audit_job_id'] ?? 0);
             if ($audit_job <= 0)
             {
-                // Результат аудита потерян (задача кончилась, статус не записан)
+                if ($has_summary)
+                {
+                    Model_Prx399_Contract::set_status((int) $id, 'audited', NULL);
+
+                    return;
+                }
+                // Результат аудита потерян (задача кончилась, итог не записан)
                 Model_Prx399_Contract::set_status((int) $id, 'failed',
                     'Риск-аудит не завершился (результат не был записан) — пересоберите редакцию');
 
@@ -216,15 +226,33 @@ class Service_Prx399_Contracts {
             {
                 return; // очередь недоступна — не ломаем показ
             }
-            if ($job === NULL OR in_array($job['status'], ['failed', 'cancelled', 'done'], TRUE))
+            if ($job !== NULL AND in_array($job['status'], ['failed', 'cancelled'], TRUE))
             {
                 $error = trim((string) ($job['error'] ?? ''));
-                $lost = ($job === NULL OR $job['status'] === 'done');
-                $why = $lost
-                    ? 'Риск-аудит не завершился (результат не был записан)'
-                    : 'Задача риск-аудита завершилась ошибкой'.($error !== '' ? ': '.mb_substr($error, 0, 200) : '');
-                Model_Prx399_Contract::set_status((int) $id, 'failed', $why.' — пересоберите редакцию');
+                Model_Prx399_Contract::set_status((int) $id, 'failed',
+                    'Задача риск-аудита завершилась ошибкой'.($error !== '' ? ': '.mb_substr($error, 0, 200) : '').' — пересоберите редакцию');
+
+                return;
             }
+            if ($job === NULL OR $job['status'] === 'done')
+            {
+                if ($has_summary)
+                {
+                    Model_Prx399_Contract::set_status((int) $id, 'audited', NULL);
+
+                    return;
+                }
+                Model_Prx399_Contract::set_status((int) $id, 'failed',
+                    'Риск-аудит не завершился (результат не был записан) — пересоберите редакцию');
+            }
+        }
+        elseif ($status === 'failed' AND trim((string) ($contract['summary'] ?? '')) !== ''
+            AND strpos((string) ($contract['error'] ?? ''), 'Риск-аудит не завершился') === 0)
+        {
+            // Пакеты, помеченные failed ложным сообщением до этого фикса, хотя
+            // итог аудита записан (у них summary и llm-риски на месте): тихо
+            // возвращаем в audited — пересборка не нужна.
+            Model_Prx399_Contract::set_status((int) $id, 'audited', NULL);
         }
     }
 

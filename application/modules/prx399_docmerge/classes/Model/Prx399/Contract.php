@@ -72,9 +72,13 @@ class Model_Prx399_Contract {
 
     public static function set_audited($id, $summary)
     {
+        // Статус ставится ЗДЕСЬ же: раньше метод писал только summary и чистил
+        // audit_job_id, а пакет навсегда оставался auditing (аудит выполнен,
+        // карточка — «идёт»). WHERE по 'auditing' сохраняет идемпотентность
+        // повторного POST результата.
         return Prx_Db::execute(
             'UPDATE prx_399_contracts
-             SET summary = :summary, audit_job_id = NULL, updated_at = now()
+             SET status = \'audited\', error = NULL, summary = :summary, audit_job_id = NULL, updated_at = now()
              WHERE id = :id AND status = :was',
             [
                 ':id' => (int) $id,
