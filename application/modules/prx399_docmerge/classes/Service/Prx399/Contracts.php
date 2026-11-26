@@ -57,16 +57,6 @@ class Service_Prx399_Contracts {
     {
         ($actor ?? Prx_Actor::guest())->require('prx399.run');
 
-        $title = trim((string) ($post['title'] ?? ''));
-        if ($title === '')
-        {
-            throw new $this->ERROR('title_required', 400);
-        }
-        if (mb_strlen($title) > (int) $this->_limits['max_title'])
-        {
-            throw new $this->ERROR('title_too_long', 400);
-        }
-
         $focus = (string) ($post['focus'] ?? 'balanced');
         if ( ! isset($this->_limits['focus'][$focus]))
         {
@@ -81,6 +71,24 @@ class Service_Prx399_Contracts {
         if (count($base) !== 1)
         {
             throw new $this->ERROR('base_required', 400);
+        }
+
+        // Название не заполнено — определяем сами: имя базового PDF (без
+        // расширения), иначе «Пакет от …». Пользовательский ввод всё равно
+        // ограничен max_title.
+        $title = trim((string) ($post['title'] ?? ''));
+        if ($title === '')
+        {
+            $title = (string) pathinfo($base[0]['name'], PATHINFO_FILENAME);
+            $title = trim(preg_replace('/[\x00-\x1f]/u', ' ', $title));
+            if ($title === '' OR $title === '_')
+            {
+                $title = 'Пакет от '.date('d.m.Y H:i');
+            }
+        }
+        if (mb_strlen($title) > (int) $this->_limits['max_title'])
+        {
+            throw new $this->ERROR('title_too_long', 400);
         }
         if (count($base) + count($ds) > (int) $this->_limits['max_files'])
         {
@@ -320,8 +328,12 @@ class Service_Prx399_Contracts {
 
     private function _store($storage, $contract_id, $kind, $index, array $upload)
     {
+        // @ обязателен: Kohana превращает PHP-warning файловых операций в
+        // ErrorException (на проде это выглядело «Сервис недоступен» вместо
+        // честной ошибки). Паттерн — как в prx212/prx390: подавить предупреждение,
+        // решить по факту состояния и бросить чистую Prx399_Error.
         $dir = rtrim($storage, '/').'/'.(int) $contract_id;
-        if ( ! is_dir($dir) AND ! mkdir($dir, 0770, TRUE))
+        if ( ! is_dir($dir) AND ! @mkdir($dir, 0770, TRUE) AND ! is_dir($dir))
         {
             throw new $this->ERROR('storage_unavailable', 503);
         }
@@ -329,7 +341,7 @@ class Service_Prx399_Contracts {
         $name = $kind.($kind === 'ds' ? '-'.($index + 1) : '').'-'.bin2hex(random_bytes(6)).'.'.$ext;
         $target = $dir.'/'.$name;
 
-        if ( ! move_uploaded_file($upload['tmp_name'], $target))
+        if ( ! @move_uploaded_file($upload['tmp_name'], $target))
         {
             throw new $this->ERROR('storage_unavailable', 503);
         }

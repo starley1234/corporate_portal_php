@@ -32,7 +32,8 @@ $badges = [
             <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
             <div>
                 <label class="prx-label" for="prx399-title">Название пакета</label>
-                <input class="prx-input mt-1 w-full" id="prx399-title" name="title" maxlength="<?php echo (int) $limits['max_title']; ?>" required placeholder="Договор поставки №17-2026 и ДС">
+                <input class="prx-input mt-1 w-full" id="prx399-title" name="title" maxlength="<?php echo (int) $limits['max_title']; ?>" autocomplete="off" placeholder="Договор поставки №17-2026 и ДС">
+                <p class="prx-hint mt-1">Необязательно: без названия подставим имя загруженного PDF.</p>
             </div>
             <div>
                 <label class="prx-label" for="prx399-focus">Фокус риска (необязательно)</label>

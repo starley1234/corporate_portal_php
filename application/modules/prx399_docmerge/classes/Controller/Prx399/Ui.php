@@ -39,8 +39,10 @@ class Controller_Prx399_Ui extends Controller_Base {
             }
             catch (Throwable $e)
             {
-                Log_Plain::event(Log::ERROR, 'prx399 create error_type=:type', [':type' => get_class($e)]);
-                $flash = ['type' => 'err', 'text' => 'Сервис недоступен, попробуйте ещё раз.'];
+                Log_Plain::event(Log::ERROR, 'prx399 create error_type=:type detail=:detail',
+                    [':type' => get_class($e), ':detail' => $e->getMessage()]);
+                $flash = ['type' => 'err', 'text' => 'Сервис недоступен: '.mb_substr($e->getMessage(), 0, 160)
+                    .' (подробности — в журнале).'];
             }
         }
 
@@ -190,7 +192,6 @@ class Controller_Prx399_Ui extends Controller_Base {
     private function _say($code)
     {
         $map = [
-            'title_required' => 'Укажите название пакета.',
             'title_too_long' => 'Название слишком длинное.',
             'bad_focus' => 'Неизвестная роль аудита.',
             'base_required' => 'Загрузите один базовый договор (PDF).',
@@ -198,7 +199,7 @@ class Controller_Prx399_Ui extends Controller_Base {
             'pdf_required' => 'Файлы пакета — только PDF.',
             'file_too_large' => 'Файл слишком большой.',
             'upload_error' => 'Загрузка не удалась — повторите.',
-            'storage_unavailable' => 'Хранилище недоступно.',
+            'storage_unavailable' => 'Хранилище недоступно: не удалось создать каталог пакета. Проверьте права на storage/ на сервере или задайте PRX399_STORAGE_DIR в .env.',
             'contract_not_found' => 'Пакет не найден.',
             'not_found' => 'Объект не найден.',
             'wrong_state' => 'Действие недоступно в текущем состоянии пайплайна.',
