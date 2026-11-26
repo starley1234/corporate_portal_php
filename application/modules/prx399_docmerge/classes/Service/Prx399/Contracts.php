@@ -100,7 +100,11 @@ class Service_Prx399_Contracts {
             $this->_assert_pdf($upload);
         }
 
-        $storage = Storage_Path::relocate_legacy(getenv('PRX399_STORAGE_DIR') ?: 'storage/docmerge');
+        // absolute(), а не relocate_legacy(): относительный путь оставался
+        // относительным и mkdir шёл от CWD процесса (на FPM — public_html,
+        // куда писать нельзя) — «Хранилище недоступно» при рабочем storage/.
+        // prx390 решает это тем же absolute() от корня проекта.
+        $storage = rtrim(Storage_Path::absolute(getenv('PRX399_STORAGE_DIR') ?: 'storage/docmerge'), '/');
 
         return Prx_Db::transaction(function () use ($actor, $title, $focus, $policy_json, $base, $ds, $storage)
         {
@@ -266,8 +270,13 @@ class Service_Prx399_Contracts {
         {
             foreach (Model_Prx399_File::for_contract($id) as $file)
             {
-                $path = Storage_Path::relocate_legacy($file['storage_path']);
-                if ($path !== '' AND is_file($path))
+                $raw = (string) $file['storage_path'];
+                if ($raw === '')
+                {
+                    continue;
+                }
+                $path = Storage_Path::absolute($raw);
+                if (is_file($path))
                 {
                     @unlink($path);
                 }

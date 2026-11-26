@@ -93,7 +93,8 @@ class Controller_Prx399_Api extends Controller {
 
             return;
         }
-        $path = Storage_Path::relocate_legacy((string) $file['storage_path']);
+        $raw = (string) $file['storage_path'];
+        $path = $raw === '' ? '' : Storage_Path::absolute($raw);
         if ($path === '' OR ! is_file($path))
         {
             $this->_json(['ok' => FALSE, 'error' => 'file_unavailable'], 404);
