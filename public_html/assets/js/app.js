@@ -131,26 +131,7 @@
             }
         },
 
-        /**
-         * Обезличенный просмотр публичного сервиса (prx516_metrics).
-         * Сервер агрегирует только день/страницу/группу/тип перехода/гость-вошёл;
-         * visitor ID, cookies, IP и полный referer не сохраняются.
-         * Ошибка аналитики не должна влиять на работу сервиса.
-         */
-        trackPageView: function () {
-            if (typeof window.fetch !== 'function' || !window.location || !window.location.pathname) return;
-            try {
-                window.fetch('/prx516/api/hit', {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    keepalive: true,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ path: window.location.pathname })
-                }).catch(function () { /* best effort, навигацию не тормозим */ });
-            } catch (e) { /* старый браузер или отключённая сеть */ }
-        }
     };
-
     /* =====================================================================
      * Дизайн-система v6: общие помощники поведения.
      * Эталон — /pages/required_design_sample, рецепты — docs/DESIGN-SYSTEM.md.
@@ -669,7 +650,4 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initDeclarative);
     else initDeclarative();
 
-    // Счётчик знает только pathname; prx516 решает по публичным манифестам,
-    // является ли адрес страницей сервиса. query-параметры не отправляются.
-    PRX.trackPageView();
 })(window, document);
