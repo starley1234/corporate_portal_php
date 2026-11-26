@@ -20,6 +20,13 @@ Route::set('prx400_specflow_worker', 'prx400_specflow/worker/<id>/<action>', [
     'id' => '[1-9][0-9]{0,17}', 'action' => 'file|result',
 ])->defaults(['controller' => 'Prx400_Worker']);
 
+// Человекочитаемый адрес со дефисом (api-docs) — dedicated-маршрут: общий
+// <action>-регэкс матчит только подчёркивания, «api-docs» не попал и страница
+// отдавала 404. action → action_api_docs (Prx_Gate::worker_action здесь не
+// участвует — это не воркерская точка).
+Route::set('prx400_specflow_api_docs', 'prx400_specflow/api-docs')
+    ->defaults(['controller' => 'Prx400_Ui', 'action' => 'api_docs']);
+
 Route::set('prx400_specflow_spec', 'prx400_specflow/<action>(/<id>)', [
     'action' => 'spec|verify|finish|launch|file|export|catalog|catalog_delete|delete|reupload|templates|template_enable|template_delete|edit|api_docs',
     'id' => '[1-9][0-9]{0,17}',

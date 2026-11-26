@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "count": 142,
+  "count": 143,
   "routes": [
     {
       "name": "cookie_consent_close",
@@ -1090,6 +1090,15 @@
       "action": "index",
       "module": "prx400_specflow",
       "file": "application/modules/prx400_specflow/classes/Controller/Prx400/Worker.php"
+    },
+    {
+      "name": "prx400_specflow_api_docs",
+      "uri": "prx400_specflow/api-docs",
+      "regex": "",
+      "controller": "Prx400_Ui",
+      "action": "api_docs",
+      "module": "prx400_specflow",
+      "file": "application/modules/prx400_specflow/classes/Controller/Prx400/Ui.php"
     },
     {
       "name": "prx400_specflow_spec",
