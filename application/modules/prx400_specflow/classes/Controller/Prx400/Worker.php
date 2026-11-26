@@ -68,8 +68,8 @@ class Controller_Prx400_Worker extends Controller {
             $body = json_decode($raw, TRUE);
             if ( ! is_array($body)) throw new Prx400_Error('invalid_result', 400);
 
-            (new Service_Prx400_Specs)->result_for_job($id, $body);
-            $this->_json_response(['status' => 'done']);
+            $out = (new Service_Prx400_Specs)->result_for_job($id, $body);
+            $this->_json_response(is_array($out) ? $out : ['status' => 'done']);
         });
     }
 

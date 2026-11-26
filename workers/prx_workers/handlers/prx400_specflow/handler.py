@@ -88,6 +88,7 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
     mode = payload.get("parse_mode") or "ocr"
     if mode not in ("ocr", "ocr_vision", "vision"):
         mode = "ocr"
+    log.info("specflow.parse job_id=%s mode=%s templates=%d", job_id, mode, len(templates))
 
     try:
         async with httpx.AsyncClient(headers=headers, timeout=60, follow_redirects=False) as client:

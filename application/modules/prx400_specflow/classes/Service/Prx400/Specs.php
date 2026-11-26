@@ -572,6 +572,17 @@ class Service_Prx400_Specs {
             $rows[] = $clean;
         }
 
+        // Пустой разбор — не успех: старый воркер мог привезти 0 строк
+        // (карточка «готово» без позиций, кейс spec 10). Честный failed с
+        // подсказкой; протокол отвечаем по канону prx397 (failed + error_code).
+        if (empty($rows))
+        {
+            Log_Plain::event(Log::WARNING, 'prx400_diag stage=result spec=:s rows=0 → failed(no_rows)', [':s' => (int) $spec_id]);
+            Model_Prx400_Spec::set_status((int) $spec_id, 'failed', 'no_rows: строки не найдены — перезапустите разбор с режимом «Vision»');
+
+            return ['status' => 'failed', 'error_code' => 'no_rows'];
+        }
+
         Model_Prx400_Row::replace_for_spec((int) $spec_id, $rows);
 
         $math = is_array($body['math'] ?? NULL) ? $body['math'] : [];

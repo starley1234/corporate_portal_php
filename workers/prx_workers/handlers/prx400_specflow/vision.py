@@ -114,6 +114,7 @@ async def detect(path: Path, pages: int, templates: list[dict], lim: dict) -> di
         "Выбери template_id по графам таблицы и заголовку. Верни также обозначение документа "
         "(штамп, например КБ20.01.00.00) и подразделение, если видно."
     )
+    log.info("specflow vision detect: pages=%d templates=%d — запрос в LLM", pages, len(templates or []))
     try:
         parsed, _ = await arun_structured_messages(_Detect, _messages(image, prompt, _SYSTEM), timeout=180)
     except RuntimeError as e:  # LOCAL_API_URL/KEY/MODEL не заданы
@@ -122,6 +123,7 @@ async def detect(path: Path, pages: int, templates: list[dict], lim: dict) -> di
     except Exception as e:  # noqa: BLE001 — сеть/модель/мультимодальность
         log.error("specflow vision detect failed: %s", type(e).__name__)
         raise PermanentJobError("vision_unavailable") from None
+    log.info("specflow vision detect: ok template=%s", parsed.template_id or '-')
     return {
         "template_id": (parsed.template_id or "").strip() or None,
         "spec_number": (parsed.spec_number or "").strip() or None,
@@ -146,6 +148,7 @@ async def extract(path: Path, pages: int, tpl: dict | None, lim: dict, progress)
             "Раздел (section) неси из заголовков страницы; продолжение многострочного наименования — "
             "в raw_name той же строки."
         )
+        log.info("specflow vision: page=%d/%d — запрос в LLM", page, cap)
         try:
             parsed, _ = await arun_structured_messages(_Page, _messages(image, prompt, _SYSTEM), timeout=300)
         except RuntimeError as e:
@@ -155,6 +158,7 @@ async def extract(path: Path, pages: int, tpl: dict | None, lim: dict, progress)
             log.error("specflow vision page=%d failed: %s", page, type(e).__name__)
             warnings.append(f"page_{page}_failed")
             continue
+        log.info("specflow vision: page=%d ok rows=%d", page, len(parsed.rows or []))
         for r in parsed.rows:
             rows.append({
                 "pos": r.pos, "section": (r.section or "").strip()[:255],
