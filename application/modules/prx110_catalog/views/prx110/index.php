@@ -50,7 +50,10 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
                     <ul class="mt-3.5 space-y-1 text-sm leading-snug text-gray-600 dark:text-gray-300">
                         <?php foreach ($g['items'] as $m): ?>
                         <li class="catalog-item group/item flex items-center gap-1 break-inside-avoid" data-search="<?php echo HTML::chars(mb_strtolower($m['title'].' '.($m['short'] ?? '').' '.($m['keywords'] ?? ''))); ?>">
-                            <a href="<?php echo HTML::chars($m['href']); ?>"<?php echo empty($m['short']) ? '' : ' title="'.HTML::chars($m['short']).'"'; ?> class="inline-flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-0.5 -mx-1.5 transition hover:bg-gray-50 hover:text-blue-600 dark:hover:bg-gray-700/50 dark:hover:text-blue-400">
+<?php // Подсветка строки — как в левой панели: фон на всю высоту ряда (кнопка звёздочки h-10),
+      // скругление и те же цвета. Всплывающего title нет: описание и так рядом с группой,
+      // а для скринридеров — aria-label. ?>
+                            <a href="<?php echo HTML::chars($m['href']); ?>"<?php echo empty($m['short']) ? '' : ' aria-label="'.HTML::chars($m['title'].': '.$m['short']).'"'; ?> class="inline-flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 -mx-1.5 transition hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-800 dark:hover:text-gray-100">
                                 <i class="<?php echo HTML::chars($m['icon']); ?> w-4 shrink-0 text-center text-sm text-gray-400"></i>
                                 <span class="truncate"><?php echo HTML::chars($m['title']); ?></span>
                                 <?php if ( ! empty($m['badge'])): ?>
@@ -77,6 +80,54 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
         <?php endforeach; ?>
     </div>
 
+
+<?php /* Меню «Сервисы»: администратор добавляет пункты левой панели для всех.
+       Ссылка — только внутренний путь; новый пункт виден в сайдбаре и палитре. */ ?>
+<?php if ( ! empty($can_manage_menu)): ?>
+    <section id="menu-items" class="prx-card mt-6" aria-labelledby="prx110-menu-title">
+        <h2 id="prx110-menu-title" class="prx-h3">Меню «Сервисы» — пункты для всех сотрудников</h2>
+        <p class="prx-hint mt-1">Пункт появится в левой панели в категории «Сервисы» у всех пользователей и в палитре «Все». Ссылка — внутренний путь, например <code class="font-mono">/prx120_jobs</code>.</p>
+        <?php if ( ! empty($menu_flash)): ?><p class="prx-flash prx-flash-info mt-2" role="status"><?php echo HTML::chars((string) $menu_flash); ?></p><?php endif; ?>
+        <form method="post" action="/services/menu/add" class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_14rem_auto] lg:items-end">
+            <input type="hidden" name="csrf" value="<?php echo HTML::chars(Security::token()); ?>">
+            <div>
+                <label class="prx-label" for="m-title">Название</label>
+                <input id="m-title" name="title" required maxlength="120" placeholder="Монитор задач" class="prx-input mt-1 w-full">
+            </div>
+            <div>
+                <label class="prx-label" for="m-href">Ссылка (внутренний путь)</label>
+                <input id="m-href" name="href" required maxlength="300" placeholder="/prx120_jobs" class="prx-input mt-1 w-full font-mono text-sm">
+            </div>
+            <div>
+                <label class="prx-label" for="m-icon">Иконка (необязательно)</label>
+                <input id="m-icon" name="icon" maxlength="64" placeholder="fas fa-list-check" class="prx-input mt-1 w-full font-mono text-sm">
+            </div>
+            <div class="lg:pb-1">
+                <button type="submit" class="prx-btn-secondary w-full lg:w-auto"><i class="fas fa-plus mr-1.5" aria-hidden="true"></i>Добавить пункт</button>
+            </div>
+        </form>
+        <?php if ( ! empty($menu_custom)): ?>
+        <ul class="mt-4 space-y-1 text-sm">
+            <?php foreach ($menu_custom as $row): ?>
+            <li class="flex min-h-10 items-center gap-2 rounded-lg px-1.5 hover:bg-gray-100 dark:hover:bg-gray-800">
+                <i class="<?php echo HTML::chars((string) $row['icon']); ?> w-5 shrink-0 text-center text-gray-400" aria-hidden="true"></i>
+                <span class="min-w-0 truncate font-medium"><?php echo HTML::chars((string) $row['title']); ?></span>
+                <code class="hidden shrink-0 font-mono text-xs text-gray-500 dark:text-gray-400 sm:inline"><?php echo HTML::chars((string) $row['href']); ?></code>
+                <form method="post" action="/services/menu/delete/<?php echo (int) $row['id']; ?>" class="ml-auto shrink-0">
+                    <input type="hidden" name="csrf" value="<?php echo HTML::chars(Security::token()); ?>">
+                    <button type="submit" data-prx-arm="Убрать пункт «<?php echo HTML::chars((string) $row['title']); ?>» из меню?"
+                            class="prx-btn-icon-danger" aria-label="Убрать пункт <?php echo HTML::chars((string) $row['title']); ?> из меню">
+                        <i class="fas fa-trash-can text-xs" aria-hidden="true"></i>
+                    </button>
+                </form>
+            </li>
+            <?php endforeach; ?>
+        </ul>
+        <?php else: ?>
+        <p class="prx-hint mt-3">Дополнительных пунктов пока нет — форма выше добавляет их в категорию «Сервисы» левой панели.</p>
+        <?php endif; ?>
+    </section>
+<?php endif; ?>
     <script>
         (function () {
             var input = document.getElementById('catalog-search');
