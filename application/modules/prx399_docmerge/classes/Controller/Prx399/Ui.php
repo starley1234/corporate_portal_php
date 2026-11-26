@@ -30,12 +30,14 @@ class Controller_Prx399_Ui extends Controller_Base {
             try
             {
                 $contract = $service->create($this->actor(), $this->request->post(), $_FILES);
-                Session::instance()->set('prx399_flash', ['type' => 'ok', 'text' => 'Пакет создан. Запустите пайплайн, когда порядок ДС верный.']);
-                HTTP::redirect('/prx399_docmerge/contract/'.$contract['id'], 303);
             }
             catch (Prx399_Error $e)
             {
                 $flash = ['type' => 'err', 'text' => $this->_say($e->getMessage())];
+            }
+            catch (HTTP_Exception $e)
+            {
+                throw $e; // редиректы и 403 прав — не ошибка сервиса: их видит фреймворк
             }
             catch (Throwable $e)
             {
@@ -43,6 +45,14 @@ class Controller_Prx399_Ui extends Controller_Base {
                     [':type' => get_class($e), ':detail' => $e->getMessage()]);
                 $flash = ['type' => 'err', 'text' => 'Сервис недоступен: '.mb_substr($e->getMessage(), 0, 160)
                     .' (подробности — в журнале).'];
+            }
+
+            // Успех — редирект ВНЕ try: HTTP::redirect бросает HTTP_Exception_303,
+            // и catch (Throwable) выше рисовал «Сервис недоступен» на созданном пакете.
+            if (isset($contract))
+            {
+                Session::instance()->set('prx399_flash', ['type' => 'ok', 'text' => 'Пакет создан. Запустите пайплайн, когда порядок ДС верный.']);
+                HTTP::redirect('/prx399_docmerge/contract/'.$contract['id'], 303);
             }
         }
 
@@ -171,6 +181,10 @@ class Controller_Prx399_Ui extends Controller_Base {
         catch (Prx399_Error $e)
         {
             Session::instance()->set('prx399_flash', ['type' => 'err', 'text' => $this->_say($e->getMessage())]);
+        }
+        catch (HTTP_Exception $e)
+        {
+            throw $e; // сценарий сделал HTTP::redirect (удаление пакета) или 403 прав
         }
         catch (Throwable $e)
         {
