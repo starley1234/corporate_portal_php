@@ -56,6 +56,14 @@ class Model_Prx400_Spec {
             [':id' => (int) $id, ':job' => (int) $job_id]);
     }
 
+    /** Замена файла спецификации (перезаливка): путь/хеш + сброс статуса. */
+    public static function set_file($id, $storage_path, $sha)
+    {
+        return Prx_Db::execute(
+            'UPDATE prx_400_specs SET storage_path = :p, file_sha256 = :s, updated_at = NOW() WHERE id = :id',
+            [':id' => (int) $id, ':p' => $storage_path, ':s' => $sha]);
+    }
+
     public static function set_status($id, $status, $error = NULL)
     {
         return Prx_Db::execute(

@@ -98,6 +98,23 @@ class Controller_Prx400_Ui extends Controller_Base {
         HTTP::redirect('/prx400_specflow/catalog', 303);
     }
 
+    /** Перезалить PDF существующей спецификации (карточка) и перезапустить разбор. */
+    public function action_reupload()
+    {
+        $id = (int) $this->request->param('id');
+        $this->_guard_csrf();
+        try
+        {
+            (new Service_Prx400_Specs)->reupload($this->actor(), $id, $_FILES);
+            Session::instance()->set('prx400_flash', ['type' => 'ok', 'text' => 'Файл перезалит — разбор запущен, статус обновится автоматически.']);
+        }
+        catch (Prx400_Error $e)
+        {
+            Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Не удалось перезалить: '.$e->getMessage()]);
+        }
+        HTTP::redirect('/prx400_specflow/spec/'.$id, 303);
+    }
+
     /** Удалить спецификацию (позиции каскадом, файл — из хранилища). */
     public function action_delete()
     {

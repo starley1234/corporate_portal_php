@@ -67,8 +67,17 @@ $job_stage_text = trim((string) ($job_stage['stage'] ?? ''));
 <?php if ($spec['status'] === 'failed'): ?>
         <span class="text-sm text-rose-600 dark:text-rose-400"><?php echo HTML::chars((string) $spec['error']); ?></span>
 <?php if (strpos((string) $spec['error'], 'file_unavailable') !== FALSE): ?>
-        <span class="block w-full text-sm text-gray-600 dark:text-gray-300"><i class="fas fa-circle-info mr-1 text-gray-400"></i>Исходный PDF не найден в хранилище<?php echo $file_ok ? '' : ' (путь записи: <code class="font-mono text-xs">'.HTML::chars((string) $spec['storage_path']).'</code>)' ?> — обычно это след перевыкатки кода со старым абсолютным путём. Перезалейте спецификацию на странице списка; повторный разбор станет доступен после перезаливки.</span>
-<?php endif; endif; ?>
+<?php if ( ! empty($file_ok)): ?>
+        <span class="block w-full text-sm text-emerald-700 dark:text-emerald-400"><i class="fas fa-circle-check mr-1"></i>Файл снова доступен в хранилище — путь перепривязан после выкатки кода. Ошибка задачи устарела: нажмите «Повторить разбор», перезаливка не нужна.</span>
+<?php else: ?>
+        <span class="block w-full text-sm text-gray-600 dark:text-gray-300"><i class="fas fa-circle-info mr-1 text-gray-400"></i>Исходного PDF нет в хранилище (путь записи: <code class="font-mono text-xs"><?php echo HTML::chars((string) $spec['storage_path']); ?></code>) — файл не пережил выкатку релиза. Перезалейте его прямо здесь — карточка и её история сохранятся:</span>
+        <form method="post" action="/prx400_specflow/reupload/<?php echo (int) $spec['id']; ?>" enctype="multipart/form-data" class="mt-2 flex w-full flex-wrap items-center gap-2">
+            <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
+            <input type="file" name="pdf" accept="application/pdf,.pdf" required
+                   class="prx-input max-w-[320px] file:mr-3 file:rounded-lg file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white">
+            <button class="prx-btn-cta prx-btn-sm" type="submit"><i class="fas fa-upload"></i>Перезалить и разобрать</button>
+        </form>
+<?php endif; endif; endif; ?>
 <?php if ($spec['status'] === 'review'): ?>
         <span class="text-sm text-gray-500 dark:text-gray-400">Осталось спорных позиций: <?php echo (int) $issues; ?>. Подтвердите их и завершите проверку.</span>
 <?php endif; ?>

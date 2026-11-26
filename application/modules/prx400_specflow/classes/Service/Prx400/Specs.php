@@ -377,9 +377,85 @@ class Service_Prx400_Specs {
         {
             return Storage::metadata((int) substr($raw, 7)) !== NULL;
         }
-        [$path] = self::resolve_pdf($raw);
+        [$path, $healed] = self::resolve_pdf($raw);
+        if ($healed !== NULL)
+        {
+            // Самолечение при простом показе карточки: перепривязанный путь
+            // записываем навсегда, даже если разбор ещё не перезапускали.
+            Prx_Db::execute(
+                'UPDATE prx_400_specs SET storage_path = :p WHERE id = :id',
+                [':id' => (int) $spec['id'], ':p' => $healed]);
+        }
 
         return $path !== NULL;
+    }
+
+    /**
+     * Перезалить файл СУЩЕСТВУЮЩЕЙ спецификации (карточка → «Перезалить»):
+     * валидация как в create(), файл — в prx212 (маркер prx212:<id>),
+     * старый файл убирается, задача разбора ставится заново. ID и история
+     * карточки сохраняются — в отличие от создания новой записи.
+     */
+    public function reupload($actor, $spec_id, array $files)
+    {
+        ($actor ?? Prx_Actor::guest())->require('prx400.run');
+        $spec = Model_Prx400_Spec::get($spec_id);
+        if ( ! $spec)
+        {
+            throw new Prx400_Error('not_found', 404);
+        }
+
+        $upload = $files['pdf'] ?? NULL;
+        if (empty($upload['name']))
+        {
+            throw new Prx400_Error('pdf_required', 400);
+        }
+        if ($upload['error'] !== UPLOAD_ERR_OK OR ! is_uploaded_file($upload['tmp_name']))
+        {
+            throw new Prx400_Error('upload_error', 400);
+        }
+        if (strtolower(pathinfo($upload['name'], PATHINFO_EXTENSION)) !== 'pdf')
+        {
+            throw new Prx400_Error('pdf_required', 400);
+        }
+        if ($upload['size'] > $this->_max_upload)
+        {
+            throw new Prx400_Error('file_too_large', 413);
+        }
+
+        $content = (string) file_get_contents($upload['tmp_name']);
+        if ($content === '')
+        {
+            throw new Prx400_Error('upload_error', 400);
+        }
+        try
+        {
+            $file_id = Storage::put($content, mb_substr(trim((string) $upload['name']), 0, 255), 'prx400', $actor->id(), FALSE, 'application/pdf');
+        }
+        catch (Throwable $e)
+        {
+            Log_Plain::event(Log::ERROR, 'prx400 storage put failed: :m', [':m' => $e->getMessage()]);
+            throw new Prx400_Error('storage_unavailable', 503);
+        }
+
+        // Старый файл убираем ПОСЛЕ успешной записи нового (без «дыры»).
+        $raw = (string) $spec['storage_path'];
+        if (strpos($raw, 'prx212:') === 0)
+        {
+            Storage::delete_owned((int) substr($raw, 7), 'prx400');
+        }
+        else
+        {
+            [$old] = self::resolve_pdf($raw);
+            if ($old !== NULL AND is_file($old))
+            {
+                @unlink($old);
+            }
+        }
+
+        Model_Prx400_Spec::set_file((int) $spec_id, 'prx212:'.$file_id, hash('sha256', $content));
+        $this->_push_job((int) $spec_id, $actor->id());
+        Model_Prx400_Spec::set_status((int) $spec_id, 'queued', NULL);
     }
 
     /**
