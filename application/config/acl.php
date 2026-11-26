@@ -34,6 +34,8 @@ return [
     'prx398.ui' => ['admin'],
     'prx399.view' => ['admin'],
     'prx399.run' => ['admin'],
+    'prx400.view' => ['admin'],
+    'prx400.run' => ['admin'],
     'prx150.admin' => ['admin'],
     'prx450.view' => ['admin'],
     'prx595.users.admin' => ['admin'],
