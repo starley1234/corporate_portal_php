@@ -80,7 +80,7 @@ class Service_Prx400_Specs {
     }
 
     /** Загрузить PDF спецификации и поставить задачу разбора. */
-    public function create($actor, array $files)
+    public function create($actor, array $files, array $post = [])
     {
         ($actor ?? Prx_Actor::guest())->require('prx400.run');
 
