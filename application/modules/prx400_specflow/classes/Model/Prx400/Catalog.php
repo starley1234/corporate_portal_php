@@ -30,6 +30,11 @@ class Model_Prx400_Catalog {
         return is_array($row) ? $row : NULL;
     }
 
+    public static function delete($id)
+    {
+        return Prx_Db::execute('DELETE FROM prx_400_catalog WHERE id = :id', [':id' => (int) $id]);
+    }
+
     public static function count()
     {
         $row = Prx_Db::one('SELECT count(*) AS c FROM prx_400_catalog');

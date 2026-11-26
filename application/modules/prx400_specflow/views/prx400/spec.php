@@ -152,7 +152,7 @@ $job_stage_text = trim((string) ($job_stage['stage'] ?? ''));
     </section>
 
 <?php if ($catalog_count === 0): ?>
-    <p class="prx-hint mt-4">Справочник НСИ (prx_400_catalog) пуст — все позиции помечены «новая». Наполните справочник кодами номенклатуры, и матчинг включится на повторном разборе.</p>
+    <p class="prx-hint mt-4">Справочник НСИ пуст — все позиции помечены «новая». <a href="/prx400_specflow/catalog" class="prx-link">Наполните справочник</a> и запустите разбор повторно — матчинг привяжет коды.</p>
 <?php endif; ?>
 </div>
 

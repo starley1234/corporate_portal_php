@@ -29,14 +29,32 @@ class Service_Prx400_Specs {
         return rtrim(Storage_Path::absolute(getenv('PRX400_STORAGE_DIR') ?: $dir), '/');
     }
 
-    /** Список спецификаций владельца (+ счётчики строк для ленты). */
+    /**
+     * Список спецификаций (+ счётчики строк, имя владельца). Модуль
+     * admin-аудитории — видимы все спецификации (как пакеты prx399);
+     * владелец записан в БД (owner_id, и user_id у файла prx212) —
+     * показываем имя через публичный API владельца профилей.
+     */
     public function list($actor): array
     {
-        $specs = Model_Prx400_Spec::for_owner($actor->id());
+        $specs = Model_Prx400_Spec::all_specs();
+        $names = [];
+        if (class_exists('Model_Prx102_User'))
+        {
+            try
+            {
+                foreach (Model_Prx102_User::get_all_names() as $uid => $p)
+                {
+                    $names[(int) $uid] = trim((string) ($p['full_name'] ?? ''));
+                }
+            }
+            catch (Throwable $e) { /* имена не критичны для списка */ }
+        }
         $out = [];
         foreach ($specs as $s)
         {
             $s = (array) $s;
+            $s['owner_name'] = $names[(int) $s['owner_id']] ?? ('user #'.(int) $s['owner_id']);
             $s['rows_total'] = 0;
             $s['rows_issue'] = 0;
             $out[$s['id']] = $s;
@@ -488,6 +506,65 @@ class Service_Prx400_Specs {
         }
 
         Model_Prx400_Row::set_verified((int) $row_id, $actor->id(), TRUE);
+    }
+
+    /**
+     * Удалить спецификацию: позиции — каскадом (FK), файл — из хранилища
+     * (prx212-файл через delete_owned; легаси-локальный — unlink). Файл
+     * убираем ПОСЛЕ записи в БД: падение файловой операции не оставляет
+     * живую запись без файла (осиротевший файл безвреден).
+     */
+    public function delete($actor, $id)
+    {
+        ($actor ?? Prx_Actor::guest())->require('prx400.run');
+        $spec = Model_Prx400_Spec::get($id);
+        if ( ! $spec)
+        {
+            throw new Prx400_Error('not_found', 404);
+        }
+
+        $raw = (string) $spec['storage_path'];
+        Model_Prx400_Spec::delete((int) $id);
+
+        if (strpos($raw, 'prx212:') === 0)
+        {
+            Storage::delete_owned((int) substr($raw, 7), 'prx400');
+
+            return;
+        }
+        [$path] = self::resolve_pdf($raw);
+        if ($path !== NULL AND is_file($path))
+        {
+            @unlink($path);
+        }
+    }
+
+    /** Добавить позицию в справочник НСИ (MVP-наполнение через UI). */
+    public function catalog_add($actor, array $post)
+    {
+        ($actor ?? Prx_Actor::guest())->require('prx400.run');
+
+        $code = mb_substr(trim((string) ($post['code'] ?? '')), 0, 64);
+        $name = mb_substr(trim((string) ($post['name'] ?? '')), 0, 500);
+        if ($code === '' OR $name === '')
+        {
+            throw new Prx400_Error('catalog_fields_required', 400);
+        }
+
+        Model_Prx400_Catalog::insert([
+            'code' => $code,
+            'name' => $name,
+            'unit' => mb_substr(trim((string) ($post['unit'] ?? 'шт.')) ?: 'шт.', 0, 16),
+            'okei_code' => mb_substr(trim((string) ($post['okei_code'] ?? '')), 0, 8),
+            'keywords' => mb_substr(trim((string) ($post['keywords'] ?? '')), 0, 500),
+        ]);
+    }
+
+    /** Убрать позицию из справочника НСИ. */
+    public function catalog_delete($actor, $id)
+    {
+        ($actor ?? Prx_Actor::guest())->require('prx400.run');
+        Model_Prx400_Catalog::delete((int) $id);
     }
 
     /** Завершение проверки оператором (HITL): review → done. */

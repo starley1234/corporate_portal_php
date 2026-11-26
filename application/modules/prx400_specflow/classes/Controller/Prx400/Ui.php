@@ -44,9 +44,79 @@ class Controller_Prx400_Ui extends Controller_Base {
         $this->template->content = View::factory('prx400/index', [
             'specs' => $service->list($this->actor()),
             'templates' => Service_Prx400_Templates::options(),
+            'catalog_count' => Model_Prx400_Catalog::count(),
             'flash' => $flash,
             'csrf' => Security::token(),
         ]);
+    }
+
+    /** Справочник НСИ: список + добавление (POST). */
+    public function action_catalog()
+    {
+        $service = new Service_Prx400_Specs;
+        $flash = Session::instance()->get_once('prx400_flash', ['text' => '']);
+
+        if ($this->request->method() === Request::POST)
+        {
+            $this->_guard_csrf();
+            try
+            {
+                $service->catalog_add($this->actor(), $this->request->post());
+                Session::instance()->set('prx400_flash', ['type' => 'ok', 'text' => 'Позиция добавлена в справочник НСИ — матчинг применится на следующем разборе.']);
+            }
+            catch (Prx400_Error $e)
+            {
+                Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Не удалось добавить: '.$e->getMessage()]);
+            }
+            HTTP::redirect('/prx400_specflow/catalog', 303);
+        }
+
+        $this->template->content = View::factory('prx400/catalog', [
+            'catalog' => Model_Prx400_Catalog::all(),
+            'flash' => $flash,
+            'csrf' => Security::token(),
+        ]);
+    }
+
+    /** Убрать позицию справочника НСИ (POST). */
+    public function action_catalog_delete()
+    {
+        $id = (int) $this->request->param('id');
+        $this->_guard_csrf();
+        if ( ! $this->can('prx400.run'))
+        {
+            throw HTTP_Exception::factory(403, 'Действие доступно с правом prx400.run');
+        }
+        try
+        {
+            (new Service_Prx400_Specs)->catalog_delete($this->actor(), $id);
+        }
+        catch (Prx400_Error $e)
+        {
+            Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Не удалось убрать: '.$e->getMessage()]);
+        }
+        HTTP::redirect('/prx400_specflow/catalog', 303);
+    }
+
+    /** Удалить спецификацию (позиции каскадом, файл — из хранилища). */
+    public function action_delete()
+    {
+        $id = (int) $this->request->param('id');
+        $this->_guard_csrf();
+        if ( ! $this->can('prx400.run'))
+        {
+            throw HTTP_Exception::factory(403, 'Действие доступно с правом prx400.run');
+        }
+        try
+        {
+            (new Service_Prx400_Specs)->delete($this->actor(), $id);
+            Session::instance()->set('prx400_flash', ['type' => 'ok', 'text' => 'Спецификация удалена: позиции и файл убраны.']);
+        }
+        catch (Prx400_Error $e)
+        {
+            Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Не удалось удалить: '.$e->getMessage()]);
+        }
+        HTTP::redirect('/prx400_specflow', 303);
     }
 
     /** Карточка спецификации: таблица, цвета качества, верификация, экспорт. */

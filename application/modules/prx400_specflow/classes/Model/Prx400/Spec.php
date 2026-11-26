@@ -35,6 +35,20 @@ class Model_Prx400_Spec {
             [':o' => (int) $owner_id, ':l' => (int) $limit]);
     }
 
+    /** Все спецификации (модуль admin-аудитории — как prx399: видны все пакеты). */
+    public static function all_specs($limit = 50)
+    {
+        return Prx_Db::select(
+            'SELECT * FROM prx_400_specs ORDER BY id DESC LIMIT :l',
+            [':l' => (int) $limit]);
+    }
+
+    public static function delete($id)
+    {
+        // prx_400_rows удаляются каскадом (FK ON DELETE CASCADE, миграция 001).
+        return Prx_Db::execute('DELETE FROM prx_400_specs WHERE id = :id', [':id' => (int) $id]);
+    }
+
     public static function set_job($id, $job_id)
     {
         return Prx_Db::execute(
