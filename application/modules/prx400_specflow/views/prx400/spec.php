@@ -66,13 +66,15 @@ $job_stage_text = trim((string) ($job_stage['stage'] ?? ''));
         <span class="<?php echo HTML::chars($badge); ?>"><span class="prx-dot"></span><?php echo HTML::chars($status_label); ?></span>
 <?php if ($spec['status'] === 'failed'): ?>
         <span class="text-sm text-rose-600 dark:text-rose-400"><?php echo HTML::chars((string) $spec['error']); ?></span>
-<?php endif; ?>
+<?php if (strpos((string) $spec['error'], 'file_unavailable') !== FALSE): ?>
+        <span class="block w-full text-sm text-gray-600 dark:text-gray-300"><i class="fas fa-circle-info mr-1 text-gray-400"></i>Исходный PDF не найден в хранилище<?php echo $file_ok ? '' : ' (путь записи: <code class="font-mono text-xs">'.HTML::chars((string) $spec['storage_path']).'</code>)' ?> — обычно это след перевыкатки кода со старым абсолютным путём. Перезалейте спецификацию на странице списка; повторный разбор станет доступен после перезаливки.</span>
+<?php endif; endif; ?>
 <?php if ($spec['status'] === 'review'): ?>
         <span class="text-sm text-gray-500 dark:text-gray-400">Осталось спорных позиций: <?php echo (int) $issues; ?>. Подтвердите их и завершите проверку.</span>
 <?php endif; ?>
         <span class="ml-auto flex gap-2">
 <?php if ($spec['status'] === 'failed'): ?>
-            <form method="post" action="/prx400_specflow/launch/<?php echo (int) $spec['id']; ?>" class="inline"><input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><button class="prx-btn-secondary prx-btn-sm" type="submit"><i class="fas fa-rotate-right"></i>Повторить разбор</button></form>
+            <?php if ( ! empty($file_ok)): ?><form method="post" action="/prx400_specflow/launch/<?php echo (int) $spec['id']; ?>" class="inline"><input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><button class="prx-btn-secondary prx-btn-sm" type="submit"><i class="fas fa-rotate-right"></i>Повторить разбор</button></form><?php endif; ?>
 <?php elseif ($spec['status'] === 'review'): ?>
             <form method="post" action="/prx400_specflow/finish/<?php echo (int) $spec['id']; ?>" class="inline"><input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><button class="prx-btn-cta prx-btn-sm" type="submit"><i class="fas fa-check-double"></i>Завершить проверку</button></form>
 <?php endif; ?>

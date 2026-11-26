@@ -101,9 +101,19 @@ class Service_Prx400_Specs {
             {
                 throw new Prx400_Error('storage_unavailable', 503);
             }
+            // Верификация факта записи: ФС может соврать молча (переполнение,
+            // квота) — без этого воркер получил бы честный 404 при живой записи.
+            if ( ! is_file($file) OR filesize($file) === 0)
+            {
+                throw new Prx400_Error('storage_unavailable', 503);
+            }
+            // В БД — путь ОТНОСИТЕЛЬНО корня проекта (как в prx399): переживает
+            // перевыкатку в каталог нового релиза; абсолютный путь собирается
+            // на чтении через Storage_Path::absolute(). Абсолютный путь в БД
+            // ломал скачивание после каждого деплоя (file_unavailable).
             Prx_Db::execute(
                 'UPDATE prx_400_specs SET storage_path = :p WHERE id = :id',
-                [':id' => (int) $spec['id'], ':p' => $file]);
+                [':id' => (int) $spec['id'], ':p' => self::to_relative($file)]);
 
             return Model_Prx400_Spec::get($spec['id']);
         });
@@ -189,6 +199,7 @@ class Service_Prx400_Specs {
             'catalog_count' => Model_Prx400_Catalog::count(),
             'job_stage' => $job_stage,
             'math' => json_decode((string) ($spec['math'] ?? 'null'), TRUE),
+            'file_ok' => $this->file_ok($id),
         ];
     }
 
@@ -253,13 +264,86 @@ class Service_Prx400_Specs {
         {
             throw new Prx400_Error('not_found', 404);
         }
-        $path = Storage_Path::absolute((string) $spec['storage_path']);
-        if ( ! is_file($path))
+
+        [$path, $healed] = self::resolve_pdf((string) $spec['storage_path']);
+        if ($healed !== NULL)
+        {
+            // Легаси-строка (абсолютный путь старого релиза) нашлась в текущем
+            // корне — чиним запись навсегда, чтобы больше не искать.
+            Prx_Db::execute(
+                'UPDATE prx_400_specs SET storage_path = :p WHERE id = :id',
+                [':id' => (int) $spec_id, ':p' => $healed]);
+        }
+        if ($path === NULL)
         {
             throw new Prx400_Error('file_unavailable', 404);
         }
 
         return (string) file_get_contents($path);
+    }
+
+    /**
+     * Путь PDF из записи: относительный (канон, prx399) → абсолютизируем;
+     * абсолютный (легаси до фикса) → пробуем как есть, затем перепривязываем
+     * к ТЕКУЩЕМУ корню проекта по маркеру /storage/ (переживает перевыкатку).
+     * [путь|NULL, healed_relative|NULL].
+     */
+    public static function resolve_pdf(string $raw): array
+    {
+        if ($raw === '')
+        {
+            return [NULL, NULL]; // путь не был записан при загрузке
+        }
+
+        if ($raw[0] !== '/' AND ! preg_match('~^[A-Za-z]:[\\\\/]~', $raw))
+        {
+            return [is_file(Storage_Path::absolute($raw)) ? Storage_Path::absolute($raw) : NULL, NULL];
+        }
+
+        if (is_file($raw))
+        {
+            return [$raw, self::to_relative($raw)];
+        }
+
+        // Файл по абсолютному пути не найден: перепривязка к текущему корню
+        $pos = strpos(str_replace('\\', '/', $raw), '/storage/');
+        if ($pos !== FALSE)
+        {
+            $relative = 'storage/'.substr(str_replace('\\', '/', $raw), $pos + 9);
+            $path = Storage_Path::absolute($relative);
+            if (is_file($path))
+            {
+                return [$path, $relative];
+            }
+        }
+
+        return [NULL, NULL];
+    }
+
+    /** Абсолютный путь → относительный от корня проекта (если он внутри корня). */
+    public static function to_relative(string $absolute): string
+    {
+        $root = rtrim(str_replace('\\', '/', dirname(APPPATH)), '/');
+        $normalized = rtrim(str_replace('\\', '/', $absolute), '/');
+        if (strpos($normalized, $root.'/') === 0)
+        {
+            return ltrim(substr($normalized, strlen($root)), '/');
+        }
+
+        return $absolute; // нештатный каталог (env) — храним как есть
+    }
+
+    /** Жив ли исходный файл у спецификации (для честных подсказок карточки). */
+    public function file_ok($spec_id): bool
+    {
+        $spec = Model_Prx400_Spec::get($spec_id);
+        if ( ! $spec)
+        {
+            return FALSE;
+        }
+        [$path] = self::resolve_pdf((string) $spec['storage_path']);
+
+        return $path !== NULL;
     }
 
     /**
