@@ -40,7 +40,10 @@ if ($can_run AND in_array($contract['status'], ['draft', 'failed'], TRUE))
 }
 if ( ! empty($contract['doc_tree']))
 {
-    $contract_actions[] = ['label' => 'Скачать редакцию (.txt)', 'href' => '/prx399_docmerge/export/'.$contract['id'], 'icon' => 'fa-download', 'role' => 'secondary'];
+    // Word — конечный документ; Markdown — для дальнейшей обработки; TXT — плоский
+    $contract_actions[] = ['label' => 'Word (.docx)', 'href' => '/prx399_docmerge/export/'.$contract['id'].'?format=docx', 'icon' => 'fa-file-word', 'role' => 'process'];
+    $contract_actions[] = ['label' => 'Markdown', 'href' => '/prx399_docmerge/export/'.$contract['id'].'?format=md', 'icon' => 'fa-file-code', 'role' => 'secondary'];
+    $contract_actions[] = ['label' => 'TXT', 'href' => '/prx399_docmerge/export/'.$contract['id'], 'icon' => 'fa-file-lines', 'role' => 'secondary'];
 }
 if ($can_run AND ! empty($contract['doc_tree']) AND in_array($contract['status'], ['audited', 'failed'], TRUE))
 {
@@ -239,7 +242,7 @@ $ds_in_build = count(array_filter($ds_rows, static fn ($d) => (string) ($d['incl
 <?php foreach ($risks as $risk): ?>
             <tr>
                 <td><span class="prx-badge <?php echo $severity_badges[$risk['severity']] ?? 'prx-badge-wait'; ?>"><span class="prx-dot"></span><?php echo $severity_ru[$risk['severity']] ?? $risk['severity']; ?></span></td>
-                <td class="text-xs"><?php echo HTML::chars((string) ($risk['area'] ?? '—')); ?><?php echo $risk['chunk_path'] ? ' <span class="font-mono text-gray-400">'.HTML::chars((string) $risk['chunk_path']).'</span>' : ''; ?></td>
+                <td class="text-xs"><?php echo HTML::chars((string) ($risk['area'] ?? '—')); ?><?php echo $risk['chunk_path'] ? ' <a class="font-mono text-blue-600 hover:underline dark:text-blue-400" title="К пункту в редакции" href="/prx399_docmerge/contract/'.(int) $contract['id'].'#node-'.str_replace('.', '-', (string) $risk['chunk_path']).'">'.HTML::chars((string) $risk['chunk_path']).'</a>' : ''; ?></td>
                 <td class="max-w-md"><span class="font-semibold"><?php echo HTML::chars((string) $risk['title']); ?></span><?php if ( ! empty($risk['detail'])): ?><span class="block text-xs text-gray-500 dark:text-gray-400"><?php echo HTML::chars((string) $risk['detail']); ?></span><?php endif; ?></td>
                 <td class="max-w-xs text-xs"><?php echo HTML::chars((string) ($risk['recommendation'] ?? '—')); ?></td>
                 <td class="text-xs"><?php echo $risk['source'] === 'static' ? 'статика' : 'ИИ'; ?></td>
@@ -271,7 +274,7 @@ foreach (($node['history'] ?? []) as $step)
     $history .= ($history === '' ? '' : ' → ').$step['rev'].' ('.$step['op'].')';
 }
 ?>
-            <div class="border-b border-gray-100 px-4 py-3 last:border-0 dark:border-gray-800<?php echo $status === 'annulled' ? ' opacity-60' : ''; ?>" style="margin-left: <?php echo min($depth, 4) * 16; ?>px">
+            <div id="node-<?php echo str_replace('.', '-', (string) $node['path']); ?>" class="border-b border-gray-100 px-4 py-3 last:border-0 dark:border-gray-800<?php echo $status === 'annulled' ? ' opacity-60' : ''; ?>" style="margin-left: <?php echo min($depth, 4) * 16; ?>px">
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="font-mono text-xs font-bold text-gray-500"><?php echo HTML::chars((string) $node['path']); ?></span>
                     <span class="font-semibold text-gray-800 dark:text-gray-100<?php echo $status === 'annulled' ? ' line-through' : ''; ?>"><?php echo HTML::chars((string) $node['title']); ?></span>

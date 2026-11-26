@@ -189,7 +189,11 @@ class Controller_Prx399_Ui extends Controller_Base {
         }, FALSE);
     }
 
-    /** Скачивание актуальной редакции .txt (annulled узлы не выводятся). */
+    /**
+     * Скачивание актуальной редакции: Word (.docx — конечный документ),
+     * Markdown (?format=md — для промежуточной обработки), TXT — по умолчанию.
+     * annulled-узлы не выводятся во всех форматах.
+     */
     public function action_export()
     {
         $id = (int) $this->request->param('id');
@@ -200,18 +204,38 @@ class Controller_Prx399_Ui extends Controller_Base {
             throw HTTP_Exception::factory(404, 'Редакция ещё не собрана');
         }
 
-        $tree = json_decode((string) $contract['doc_tree'], TRUE);
-        $text = Service_Prx399_Merge::render_text($tree['nodes'] ?? []);
+        $nodes = json_decode((string) $contract['doc_tree'], TRUE)['nodes'] ?? [];
+        $format = (string) $this->request->query('format');
+        if ( ! in_array($format, ['txt', 'md', 'docx'], TRUE))
+        {
+            $format = 'txt';
+        }
+        $base_name = 'contract-'.$id.'-consolidated';
+
+        if ($format === 'docx')
+        {
+            $file = Service_Prx399_Export::docx($contract['title'], $nodes, $base_name);
+            [$mime, $name, $body] = [$file['mime'], $file['name'], $file['body']];
+        }
+        elseif ($format === 'md')
+        {
+            [$mime, $name, $body] = ['text/markdown; charset=utf-8', $base_name.'.md', Service_Prx399_Export::markdown($contract['title'], $nodes)];
+        }
+        else
+        {
+            [$mime, $name, $body] = ['text/plain; charset=utf-8', $base_name.'.txt', Service_Prx399_Merge::render_text($nodes)];
+        }
+
         if (ob_get_level())
         {
             ob_end_clean();
         }
-        $this->response->headers('Content-Type', 'text/plain; charset=utf-8');
-        $this->response->headers('Content-Disposition', 'attachment; filename="contract-'.$id.'-consolidated.txt"');
+        $this->response->headers('Content-Type', $mime);
+        $this->response->headers('Content-Disposition', 'attachment; filename="'.$name.'"');
         $this->response->headers('Cache-Control', 'no-store');
         $this->response->headers('X-Content-Type-Options', 'nosniff');
         $this->response->send_headers();
-        echo $text;
+        echo $body;
         exit;
     }
 

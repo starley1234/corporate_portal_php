@@ -219,6 +219,12 @@ class Service_Prx399_Pipeline {
             Model_Prx399_Contract::set_audited($contract_id, $summary);
         });
 
+        Event::publish('prx399.contract.audited', [
+            'contract_id' => $contract_id,
+            'risks' => count($risks),
+            'high_risks' => count(array_filter($risks, static fn ($r) => $r['severity'] === 'high')),
+        ], NULL);
+
         return ['ok' => TRUE, 'risks' => count($risks)];
     }
 
@@ -337,6 +343,15 @@ class Service_Prx399_Pipeline {
         ]);
         Model_Prx399_Contract::set_audit_job($contract_id, $job_id);
         Model_Prx399_Contract::set_status($contract_id, 'auditing', NULL);
+
+        // Метрики качества — в шину событий: лента «Использование модулей»
+        // (/prx100/usage) показывает тренды по пакетам без отдельной статистики.
+        Event::publish('prx399.contract.built', [
+            'contract_id' => $contract_id,
+            'nodes' => count($nodes),
+            'deltas' => count($deltas),
+            'broken_links' => count($broken),
+        ], NULL);
 
         return TRUE;
     }
