@@ -215,7 +215,7 @@ class Service_Prx399_Contracts {
 
     private function _set_ordinal($file_id, $ordinal)
     {
-        return Prx_Db::exec(
+        return Prx_Db::execute(
             'UPDATE prx_399_files SET ordinal = :o WHERE id = :id',
             [':id' => (int) $file_id, ':o' => (int) $ordinal]);
     }

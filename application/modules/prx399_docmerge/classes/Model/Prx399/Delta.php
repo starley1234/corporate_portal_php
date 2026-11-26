@@ -12,14 +12,14 @@ class Model_Prx399_Delta {
 
     public static function delete_for_file($file_id)
     {
-        return Prx_Db::exec(
+        return Prx_Db::execute(
             'DELETE FROM prx_399_deltas WHERE file_id = :id',
             [':id' => (int) $file_id]);
     }
 
     public static function insert(array $row)
     {
-        return Prx_Db::exec(
+        return Prx_Db::execute(
             'INSERT INTO prx_399_deltas
                 (contract_id, file_id, seq, op, anchor, body, note, confidence)
              VALUES (:contract_id, :file_id, :seq, :op, :anchor, :body, :note, :confidence)',

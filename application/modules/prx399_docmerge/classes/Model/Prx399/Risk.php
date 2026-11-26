@@ -13,21 +13,21 @@ class Model_Prx399_Risk {
 
     public static function delete_for_contract($contract_id)
     {
-        return Prx_Db::exec(
+        return Prx_Db::execute(
             'DELETE FROM prx_399_risks WHERE contract_id = :id',
             [':id' => (int) $contract_id]);
     }
 
     public static function delete_llm($contract_id)
     {
-        return Prx_Db::exec(
+        return Prx_Db::execute(
             "DELETE FROM prx_399_risks WHERE contract_id = :id AND source = 'llm'",
             [':id' => (int) $contract_id]);
     }
 
     public static function insert(array $row)
     {
-        return Prx_Db::exec(
+        return Prx_Db::execute(
             'INSERT INTO prx_399_risks
                 (contract_id, severity, area, chunk_path, title, detail, recommendation, source)
              VALUES (:contract_id, :severity, :area, :chunk_path, :title, :detail, :recommendation, :source)',

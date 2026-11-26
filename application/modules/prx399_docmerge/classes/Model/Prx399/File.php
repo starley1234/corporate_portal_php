@@ -32,21 +32,21 @@ class Model_Prx399_File {
 
     public static function set_status($id, $status, $error = NULL)
     {
-        return Prx_Db::exec(
+        return Prx_Db::execute(
             'UPDATE prx_399_files SET status = :status, error = :error WHERE id = :id',
             [':id' => (int) $id, ':status' => (string) $status, ':error' => $error]);
     }
 
     public static function set_job($id, $job_id)
     {
-        return Prx_Db::exec(
+        return Prx_Db::execute(
             'UPDATE prx_399_files SET job_id = :job WHERE id = :id',
             [':id' => (int) $id, ':job' => (int) $job_id]);
     }
 
     public static function set_base_result($id, $pages, $sha, array $ast)
     {
-        return Prx_Db::exec(
+        return Prx_Db::execute(
             "UPDATE prx_399_files
              SET status = 'parsed', pages = :pages, text_sha256 = :sha,
                  ast = :ast::jsonb, error = NULL
@@ -61,7 +61,7 @@ class Model_Prx399_File {
 
     public static function set_ds_result($id, $pages, $sha)
     {
-        return Prx_Db::exec(
+        return Prx_Db::execute(
             "UPDATE prx_399_files
              SET status = 'parsed', pages = :pages, text_sha256 = :sha, error = NULL
              WHERE id = :id",

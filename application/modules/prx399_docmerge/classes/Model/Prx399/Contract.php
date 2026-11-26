@@ -36,7 +36,7 @@ class Model_Prx399_Contract {
 
     public static function set_status($id, $status, $error = NULL)
     {
-        return Prx_Db::exec(
+        return Prx_Db::execute(
             'UPDATE prx_399_contracts
              SET status = :status, error = :error, updated_at = now()
              WHERE id = :id',
@@ -49,7 +49,7 @@ class Model_Prx399_Contract {
 
     public static function set_deal_card($id, array $card)
     {
-        return Prx_Db::exec(
+        return Prx_Db::execute(
             'UPDATE prx_399_contracts
              SET deal_card = :card::jsonb, updated_at = now() WHERE id = :id',
             [':id' => (int) $id, ':card' => json_encode($card, JSON_UNESCAPED_UNICODE)]);
@@ -57,7 +57,7 @@ class Model_Prx399_Contract {
 
     public static function set_built($id, array $tree, array $broken_links)
     {
-        return Prx_Db::exec(
+        return Prx_Db::execute(
             'UPDATE prx_399_contracts
              SET doc_tree = :tree::jsonb, broken_links = :links::jsonb,
                  status = :status, updated_at = now()
@@ -72,7 +72,7 @@ class Model_Prx399_Contract {
 
     public static function set_audited($id, $summary)
     {
-        return Prx_Db::exec(
+        return Prx_Db::execute(
             'UPDATE prx_399_contracts
              SET summary = :summary, audit_job_id = NULL, updated_at = now()
              WHERE id = :id AND status = :was',
@@ -85,14 +85,14 @@ class Model_Prx399_Contract {
 
     public static function set_audit_job($id, $job_id)
     {
-        return Prx_Db::exec(
+        return Prx_Db::execute(
             'UPDATE prx_399_contracts SET audit_job_id = :job, updated_at = now() WHERE id = :id',
             [':id' => (int) $id, ':job' => (int) $job_id]);
     }
 
     public static function delete($id)
     {
-        return Prx_Db::exec('DELETE FROM prx_399_contracts WHERE id = :id', [':id' => (int) $id]);
+        return Prx_Db::execute('DELETE FROM prx_399_contracts WHERE id = :id', [':id' => (int) $id]);
     }
 
     public static function counts_by_status()

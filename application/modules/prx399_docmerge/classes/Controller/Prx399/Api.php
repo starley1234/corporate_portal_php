@@ -45,36 +45,40 @@ class Controller_Prx399_Api extends Controller {
     public function action_delta_input()
     {
         $this->_guard();
-        $this->_run(function ($id)
+        $pipeline = new Service_Prx399_Pipeline;
+        $this->_run(function ($id) use ($pipeline)
         {
-            return Service_Prx399_Pipeline::delta_input((int) $id);
+            return $pipeline->delta_input((int) $id);
         });
     }
 
     public function action_delta_result()
     {
         $this->_guard();
-        $this->_run(function ($id, array $body)
+        $pipeline = new Service_Prx399_Pipeline;
+        $this->_run(function ($id, array $body) use ($pipeline)
         {
-            return Service_Prx399_Pipeline::delta_result((int) $id, $body);
+            return $pipeline->delta_result((int) $id, $body);
         }, TRUE);
     }
 
     public function action_audit_input()
     {
         $this->_guard();
-        $this->_run(function ($id)
+        $pipeline = new Service_Prx399_Pipeline;
+        $this->_run(function ($id) use ($pipeline)
         {
-            return Service_Prx399_Pipeline::audit_input((int) $id);
+            return $pipeline->audit_input((int) $id);
         });
     }
 
     public function action_audit_result()
     {
         $this->_guard();
-        $this->_run(function ($id, array $body)
+        $pipeline = new Service_Prx399_Pipeline;
+        $this->_run(function ($id, array $body) use ($pipeline)
         {
-            return Service_Prx399_Pipeline::audit_result((int) $id, $body);
+            return $pipeline->audit_result((int) $id, $body);
         }, TRUE);
     }
 

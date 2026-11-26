@@ -228,7 +228,7 @@ class Service_Prx399_Pipeline {
     {
         Prx_Db::transaction(function () use ($contract_id)
         {
-            Prx_Db::exec('SELECT pg_advisory_xact_lock(399, :id)', [':id' => $contract_id]);
+            Prx_Db::execute('SELECT pg_advisory_xact_lock(399, :id)', [':id' => $contract_id]);
 
             $contract = Model_Prx399_Contract::get($contract_id);
             if ( ! $contract OR ! in_array($contract['status'], ['parsing'], TRUE))
