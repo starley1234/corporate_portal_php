@@ -392,7 +392,7 @@
     {
       "name": "prx150_api_hub",
       "uri": "prx150_api_hub(/<action>(/<id>))",
-      "regex": "[\n    'action' => 'index|create|revoke|usage|docs|edit|save|revoked_list',\n    'id' => '[1-9][0-9]{0,17}',\n]",
+      "regex": "[\n    'action' => 'index|create|revoke|usage|docs|services|edit|save|revoked_list',\n    'id' => '[1-9][0-9]{0,17}',\n]",
       "controller": "Prx150_Admin",
       "action": "index",
       "module": "prx150_api_hub",
