@@ -21,6 +21,19 @@ queued → running → review (есть спорные) → done; failed — о�
 - Python: `workers/tests/handlers/prx400_specflow/test_parse.py` (парсер, математика).
 - PHP-контракт: `tests/Contracts/prx400_match_export.php` (шаблоны, матчинг, экспорт) — `make test-contracts`.
 
+## Внешнее API (PDF → JSON)
+
+Асинхронный интеграционный контур: токен в `.env` — `PRX400_API_TOKEN`
+(пусто = API выключен), заголовок `X-PRX-API-Token`.
+
+1. `POST /prx400_specflow/api/spec` — multipart: `pdf` (обязателен),
+   `parse_mode` (`ocr|ocr_vision|vision`), `template_id` (пусто = авто).
+   Ответ `202`: `{spec_id, status:"queued", poll_url}`.
+2. `GET /prx400_specflow/api/spec/<id>` — поллинг: `202` в работе,
+   `200` готово: `{status:"review"|"done", result:{meta,positions,audit},
+   awaiting_operator}`; при ошибке разбора `{status:"failed", error:{code}}`.
+Схема `result` идентична экспорту ERP страницы карточки.
+
 ## Хранение
 Фасад `Storage` (prx212): файлы переживают выкатки, путь — маркер
 `prx212:<file_id>`. Легаси-локальные записи читаются с самолечением

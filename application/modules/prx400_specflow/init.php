@@ -12,6 +12,10 @@
 Route::set('prx400_specflow_worker_health', 'prx400_specflow/worker/health')
     ->defaults(['controller' => 'Prx400_Worker', 'action' => 'health']);
 
+Route::set('prx400_specflow_api', 'prx400_specflow/api(/<action>(/<id>))', [
+    'id' => '[1-9][0-9]{0,17}',
+])->defaults(['controller' => 'Prx400_Api', 'action' => 'spec']);
+
 Route::set('prx400_specflow_worker', 'prx400_specflow/worker/<id>/<action>', [
     'id' => '[1-9][0-9]{0,17}', 'action' => 'file|result',
 ])->defaults(['controller' => 'Prx400_Worker']);

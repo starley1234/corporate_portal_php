@@ -84,6 +84,24 @@ class Service_Prx400_Specs {
     {
         ($actor ?? Prx_Actor::guest())->require('prx400.run');
 
+        return $this->_ingest((int) $actor->id(), $files, $post);
+    }
+
+    /**
+     * Внешнее API (токен PRX400_API_TOKEN проверен контроллером): та же
+     * приёмка, что и в UI, владелец записи — 0 (машинный интегратор).
+     */
+    public function api_create(array $files, array $post = [])
+    {
+        $spec = $this->_ingest(0, $files, $post);
+        $fresh = Model_Prx400_Spec::get((int) $spec['id']);
+
+        return is_array($fresh) ? $fresh : $spec; // parse_mode уже записан пушем
+    }
+
+    /** Общая приёмка PDF: валидация → prx212 → запись → задача разбора. */
+    protected function _ingest(int $owner_id, array $files, array $post)
+    {
         $upload = $files['pdf'] ?? NULL;
         if (empty($upload['name']))
         {
@@ -130,13 +148,17 @@ class Service_Prx400_Specs {
         }
 
         $spec = Model_Prx400_Spec::insert([
-            'owner_id' => $actor->id(),
+            'owner_id' => $owner_id,
             'original_name' => $name,
             'storage_path' => 'prx212:'.$file_id, // маркер фасада, не путь ФС
             'file_sha256' => $sha,
         ]);
 
-        $this->_push_job((int) $spec['id'], $actor->id(), $this->_parse_mode($post));
+        Log_Plain::event(Log::INFO, 'prx400_diag stage=ingest spec=:s owner=:o mode=:m tpl=:t', [
+            ':s' => (int) $spec['id'], ':o' => $owner_id,
+            ':m' => $this->_parse_mode($post), ':t' => $this->_template_id($post) ?: 'auto',
+        ]);
+        $this->_push_job((int) $spec['id'], $owner_id, $this->_parse_mode($post), $this->_template_id($post));
 
         return $spec;
     }
@@ -868,6 +890,47 @@ class Service_Prx400_Specs {
         }
 
         return $this->result((int) $spec['id'], $body);
+    }
+
+    /**
+     * Статус/результат для внешнего API: queued/running → задача в работе;
+     * failed → код ошибки; review/done → СТРУКТУРИРОВАННЫЙ JSON той же
+     * схемы, что экспорт ERP (meta/positions/audit; review помечен
+     * awaiting_operator — строки есть, но ждут оператора).
+     */
+    public function api_status($id): array
+    {
+        $spec = Model_Prx400_Spec::get($id);
+        if ( ! $spec)
+        {
+            throw new Prx400_Error('not_found', 404);
+        }
+
+        $status = (string) $spec['status'];
+        $out = [
+            'spec_id' => (int) $spec['id'],
+            'status' => $status,
+            'parse_mode' => (string) ($spec['parse_mode'] ?? 'ocr'),
+            'poll_url' => '/prx400_specflow/api/spec/'.(int) $spec['id'],
+        ];
+
+        if (in_array($status, ['queued', 'running'], TRUE))
+        {
+            $out['job_id'] = (int) ($spec['job_id'] ?? 0) ?: NULL;
+
+            return $out;
+        }
+        if ($status === 'failed')
+        {
+            $out['error'] = ['code' => (string) $spec['error']];
+
+            return $out;
+        }
+
+        $out['result'] = Service_Prx400_Export::json((array) $spec, Model_Prx400_Row::for_spec((int) $spec['id']));
+        $out['awaiting_operator'] = $status === 'review';
+
+        return $out;
     }
 
     /** Завершение проверки оператором (HITL): review → done. */
