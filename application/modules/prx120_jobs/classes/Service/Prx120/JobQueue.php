@@ -957,6 +957,32 @@ class Service_Prx120_JobQueue {
     }
 
     /**
+     * Лента задач для «Использование модулей» (/prx100/usage): чужие модули
+     * читают очередь только через этот публичный метод — SQL живёт здесь,
+     * у владельца. Окно и модуль-инициатор задает вызывающий.
+     */
+    public function usage_jobs($interval, $module_prefix, $limit = 400)
+    {
+        if (preg_match('/^\\d+ (hour|hours|minute|minutes|day|days)$/', (string) $interval) === 1)
+        {
+            $interval = '24 hours';
+        }
+
+        $sql = 'SELECT j.id, j.channel, j.module, j.status, j.attempts, j.error, j.created_by, j.created_at, j.finished_at,
+                       u.username AS owner_name
+                FROM prx_120_jobs j
+                LEFT JOIN users u ON u.id = j.created_by
+                WHERE j.created_at >= now() - CAST(:window AS interval)'
+            .($module_prefix !== '' ? ' AND j.module = :m' : '')
+            .' ORDER BY j.created_at DESC LIMIT '.(int) $limit;
+
+        $params = [':window' => (string) $interval];
+        if ($module_prefix !== '') { $params[':m'] = (string) $module_prefix; }
+
+        return $this->_db->query(Database::SELECT, $sql, FALSE)->parameters($params)->as_array();
+    }
+
+    /**
      * Последние задачи одного канала — «здоровье воркера» в модульных
      * админках (prx605/606/607/609): работает ли воркер, когдаLastError.
      */

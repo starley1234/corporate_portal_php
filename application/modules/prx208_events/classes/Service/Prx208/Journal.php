@@ -140,6 +140,29 @@ class Service_Prx208_Journal
         ];
     }
 
+    /**
+     * Лента событий для «Использование модулей» (/prx100/usage): чужие модули
+     * читают журнал только через этот публичный метод — SQL у владельца.
+     */
+    public static function recent($interval, $prefix, $limit = 400)
+    {
+        if (preg_match('/^\\d+ (hour|hours|minute|minutes|day|days)$/', (string) $interval) === 1)
+        {
+            $interval = '24 hours';
+        }
+
+        $sql = "SELECT id, event_name, initiator_id, payload, created_at
+                FROM prx_208_events
+                WHERE created_at >= now() - CAST(:window AS interval)"
+            .($prefix !== '' ? " AND split_part(event_name, '.', 1) = :prefix" : '')
+            .' ORDER BY id DESC LIMIT '.(int) $limit;
+
+        $params = [':window' => (string) $interval];
+        if ($prefix !== '') { $params[':prefix'] = (string) $prefix; }
+
+        return Prx_Db::select($sql, $params);
+    }
+
     /** Одно событие и подписки на его имя. NULL, если нет. */
     public static function detail(int $id): ?array
     {

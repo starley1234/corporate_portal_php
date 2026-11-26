@@ -10,6 +10,30 @@
 class Service_Prx150_Usage
 {
     /** @return int id записи или 0, если журнал недоступен */
+    /**
+     * Лента внешних вызовов для «Использование модулей» (/prx100/usage):
+     * SQL у владельца журнала, вызывающий передаёт окно и префикс scope.
+     */
+    public static function recent($interval, $prefix, $limit = 400)
+    {
+        if (preg_match('/^\\d+ (hour|hours|minute|minutes|day|days)$/', (string) $interval) === 1)
+        {
+            $interval = '24 hours';
+        }
+
+        $sql = 'SELECT u.method, u.path, u.scope, u.status, u.duration_ms, u.created_at, c.name
+                FROM prx_150_api_usage u
+                LEFT JOIN prx_150_api_clients c ON c.id = u.client_id
+                WHERE u.created_at >= now() - CAST(:window AS interval)'
+            .($prefix !== '' ? ' AND u.scope LIKE :like' : '')
+            .' ORDER BY u.created_at DESC LIMIT '.(int) $limit;
+
+        $params = [':window' => (string) $interval];
+        if ($prefix !== '') { $params[':like'] = (string) $prefix.'%'; }
+
+        return Prx_Db::select($sql, $params);
+    }
+
     public static function log(
         array $client,
         string $scope,
