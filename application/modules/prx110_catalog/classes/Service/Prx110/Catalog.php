@@ -953,13 +953,39 @@ class Service_Prx110_Catalog {
 
     public static function header_nav()
     {
+        // Пул чипов: те же аудитория и ACL, что у can_see, но БЕЗ фильтра
+        // состояния публикации — чип навигации ТЕКУЩЕЙ страницы, а не витрина
+        // каталога: одобренность фильтрует /services и меню, но не шапку
+        // страницы, на которой человек уже стоит. Beta/draft-модуль тоже
+        // получает свой чип. Единый $modules используется и для совпадения
+        // URI, и для фолбэка по admin-страницам (вторая переменная пула здесь
+        // терялась — Warning «Undefined variable $modules»).
+        $ctx = self::user_context();
+        $modules = [];
+
+        foreach (self::modules() as $m)
+        {
+            if ( ! self::_audience_allows($m, $ctx)
+                OR ( ! empty($m['acl']) && (empty($ctx['logged']) || ! Prx_Actor::fromArray($ctx)->can($m['acl']))))
+            {
+                continue;
+            }
+
+            $modules[] = $m;
+        }
+
+        if ( ! $modules)
+        {
+            return NULL;
+        }
+
         $uri = self::_current_uri();
         $current = NULL;
         $current_path = NULL;
         $best_len = -1;
 
         // Совпадение URI с href модуля (или его nav_paths); длиннейший путь
-        // побеждает. Пул модулей передаётся вызывающей стороной.
+        // побеждает.
         $match = static function (array $pool) use ($uri, &$current, &$current_path, &$best_len): void {
             foreach ($pool as $m)
             {
@@ -983,30 +1009,7 @@ class Service_Prx110_Catalog {
             }
         };
 
-        $match(self::visible_modules());
-
-        // Чип — навигация ТЕКУЩЕЙ страницы, а не витрина каталога: одобренность
-        // фильтрует /services и меню, но не шапку страницы, на которой человек
-        // уже стоит. Beta/draft-модуль тоже получает свой чип — при той же
-        // аудитории и ACL, что у can_see (без состояния публикации).
-        if ($current === NULL)
-        {
-            $ctx = self::user_context();
-            $pool = [];
-
-            foreach (self::modules() as $m)
-            {
-                if ( ! self::_audience_allows($m, $ctx)
-                    OR ( ! empty($m['acl']) && (empty($ctx['logged']) || ! Prx_Actor::fromArray($ctx)->can($m['acl']))))
-                {
-                    continue;
-                }
-
-                $pool[] = $m;
-            }
-
-            $match($pool);
-        }
+        $match($modules);
 
         // страница может быть раздел управленияом модуля (/prx520/admin и т.п.)
         $admin_page = FALSE;
