@@ -38,6 +38,7 @@ REGISTRY = (
     ("prx398_doc_router", "handler"),
     ("prx399_docmerge", "delta"),
     ("prx399_docmerge", "audit"),
+    ("prx400_specflow", "handler"),
 )
 
 # Условные каналы пробы пера: импортируются только при явном включении в PHP.
