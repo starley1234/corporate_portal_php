@@ -34,9 +34,11 @@ Symfony Mailer. Для настоящей почты обязательно `com
 `application/config/modules.php` задаёт подключение и порядок миграций.
 `APP_URL` задаёт canonical, ссылки писем и доверенный production-хост.
 В development разрешены localhost и preview `*.e2b.app`.
+Сайт может отвечать на несколько доменов: дополнительный CSV публичных имён
+задаёт `APP_PUBLIC_HOSTS` (например `dev.work-ai.servers.local` вместе с
+`work-ai.servers.local`); канонические ссылки остаются от `APP_URL`.
 `APP_INTERNAL_HOSTS` — явный CSV внутренних DNS-имён (не wildcard); Docker
 задаёт `nginx`, чтобы HTTP-очередь и callbacks воркера шли внутри сети Compose.
-Canonical URL остаётся APP_URL; браузер использует публичный адрес.
 Не подставляйте адрес production в шаблон .env и не храните ключи в Git.
 
 Публичный docroot — только `public_html/`. Файлы по умолчанию находятся в
