@@ -116,7 +116,12 @@ class Service_Prx400_Specs {
         // только для ЛЕГАси-записей (resolve_pdf ниже).
         try
         {
-            $file_id = Storage::put($content, $name, 'prx400', $actor->id(), FALSE, 'application/pdf');
+            // Артефакт пайплайна принадлежит МОДУЛЮ (user_id NULL): read_owned/
+            // delete_owned prx212 определены только для «файлов без
+            // пользователя». Загрузка от user_id делала файл «личным» —
+            // read_owned его не отдавал (file_unavailable воркера,
+            // лог prx400_diag 26.11); владелец записи — prx_400_specs.owner_id.
+            $file_id = Storage::put($content, $name, 'prx400', NULL, FALSE, 'application/pdf');
         }
         catch (Throwable $e)
         {
@@ -296,8 +301,18 @@ class Service_Prx400_Specs {
         {
             $file_id = (int) substr($raw, 7);
             $bytes = $file_id > 0 ? Storage::read_owned($file_id, 'prx400', $this->_max_upload) : NULL;
-            Log_Plain::event(Log::INFO, 'prx400_diag stage=pdf_resolve spec=:id via=prx212 file_id=:file result=:r', [
-                ':id' => (int) $spec['id'], ':file' => $file_id,
+            $mode = 'owned';
+            if ($bytes === NULL AND $file_id > 0)
+            {
+                // Ранние загрузки prx400 привязывали артефакт к пользователю
+                // (user_id != NULL): read_owned их не отдаёт (в журнале
+                // «чужой артефакт»/WARNING) — читаем bytes(), право
+                // подтверждено строкой prx_400_specs, которой принадлежит файл.
+                $bytes = Storage::bytes($file_id);
+                $mode = 'bytes';
+            }
+            Log_Plain::event(Log::INFO, 'prx400_diag stage=pdf_resolve spec=:id via=prx212 file_id=:f mode=:m result=:r', [
+                ':id' => (int) $spec['id'], ':f' => $file_id, ':m' => $mode,
                 ':r' => $bytes !== NULL ? 'ok bytes='.strlen((string) $bytes) : 'missing',
             ]);
 
@@ -452,7 +467,8 @@ class Service_Prx400_Specs {
         }
         try
         {
-            $file_id = Storage::put($content, mb_substr(trim((string) $upload['name']), 0, 255), 'prx400', $actor->id(), FALSE, 'application/pdf');
+            // Артефакт модуля (user_id NULL) — см. комментарий в create().
+            $file_id = Storage::put($content, mb_substr(trim((string) $upload['name']), 0, 255), 'prx400', NULL, FALSE, 'application/pdf');
         }
         catch (Throwable $e)
         {
@@ -464,7 +480,7 @@ class Service_Prx400_Specs {
         $raw = (string) $spec['storage_path'];
         if (strpos($raw, 'prx212:') === 0)
         {
-            Storage::delete_owned((int) substr($raw, 7), 'prx400');
+            $this->_prx212_cleanup($actor, (int) substr($raw, 7));
         }
         else
         {
@@ -626,7 +642,7 @@ class Service_Prx400_Specs {
 
         if (strpos($raw, 'prx212:') === 0)
         {
-            Storage::delete_owned((int) substr($raw, 7), 'prx400');
+            $this->_prx212_cleanup($actor, (int) substr($raw, 7));
 
             return;
         }
@@ -634,6 +650,44 @@ class Service_Prx400_Specs {
         if ($path !== NULL AND is_file($path))
         {
             @unlink($path);
+        }
+    }
+
+    /**
+     * Убрать артефакт prx400 из хранилища: штатно delete_owned («файл без
+     * пользователя»). Ранние загрузки привязывали артефакт к пользователю —
+     * delete_owned отказывает («чужой артефакт», лог 26.11 23:01) — тогда
+     * удаляет владелец файла. Уборка НИКОГДА не валит операцию: осиротевший
+     * файл безвреден, и падение после удаления записи честнее 500.
+     */
+    private function _prx212_cleanup($actor, int $file_id)
+    {
+        try
+        {
+            if (Storage::delete_owned($file_id, 'prx400'))
+            {
+                Log_Plain::event(Log::INFO, 'prx400_diag stage=file_delete file_id=:f result=ok mode=owned', [':f' => $file_id]);
+            }
+            else
+            {
+                Log_Plain::event(Log::INFO, 'prx400_diag stage=file_delete file_id=:f result=missing', [':f' => $file_id]);
+            }
+
+            return;
+        }
+        catch (Storage_Exception $e)
+        {
+            try
+            {
+                Storage::delete($file_id, ($actor ?? Prx_Actor::guest())->id());
+                Log_Plain::event(Log::INFO, 'prx400_diag stage=file_delete file_id=:f result=ok mode=owner', [':f' => $file_id]);
+            }
+            catch (Throwable $e2)
+            {
+                Log_Plain::event(Log::WARNING, 'prx400_diag stage=file_delete file_id=:f result=orphan :m', [
+                    ':f' => $file_id, ':m' => $e2->getMessage(),
+                ]);
+            }
         }
     }
 
