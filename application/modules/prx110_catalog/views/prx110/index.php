@@ -13,7 +13,7 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
     <?php echo View::factory('partials/page_header', [
         'crumbs' => [['Главная', '/'], ['Сервисы']],
-        'title'  => 'Каталог сервисов PRX',
+        'title'  => 'Каталог сервисов',
         'lead'   => (int) $total.' сервисов, готовых к работе. Состав зависит от прав доступа.',
         'actions' => [['label' => 'План и архив', 'href' => '/portal-plan', 'icon' => 'fa-box-archive']],
     ]); ?>

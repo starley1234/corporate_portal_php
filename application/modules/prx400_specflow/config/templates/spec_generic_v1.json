@@ -1,0 +1,30 @@
+{
+  "template_id": "spec_generic_v1",
+  "template_name": "Спецификация (универсальная)",
+  "detection_policy": {
+    "mode": "auto",
+    "anchor_keywords": ["спецификация", "ведомость", "наименование", "кол-во", "ед. изм.", "цена", "сумма"],
+    "min_anchors_required": 2
+  },
+  "table_rules": {
+    "header_search_depth_lines": 15,
+    "multiline_join_strategy": "smart_concat",
+    "columns": {
+      "pos":         {"match": ["№", "поз.", "п/п", "№ п/п"], "type": "integer", "required": true},
+      "item_name":   {"match": ["наименование и техническая характеристика", "наименование", "оборудование", "материал"], "type": "text", "multiline": true},
+      "code_doc":    {"match": ["тип, марка", "марка", "обозначение документа", "чертеж/гост", "ГОСТ", "арт.", "артикул"], "type": "text"},
+      "qty":         {"match": ["кол-во", "кол.", "к-во", "количество"], "type": "decimal", "required": true},
+      "unit":        {"match": ["ед. изм.", "ед.", "единица"], "type": "text", "default": "шт."},
+      "unit_price":  {"match": ["цена за ед., руб.", "цена"], "type": "decimal"},
+      "total_price": {"match": ["всего, руб.", "сумма", "стоимость"], "type": "decimal"}
+    },
+    "skip_line_patterns": ["^лист\\s", "^продолжение", "^стр\\.?\\s"],
+    "totals_patterns": ["^итого", "^всего по документу", "^всего:", "^всего по разделу"],
+    "section_patterns": ["^раздел\\s+\\d", "^секция\\s+\\d"],
+    "math_checks": [
+      {"rule": "qty * unit_price == total_price", "tolerance": 0.01},
+      {"rule": "sum(total_price) == totals.total_price", "tolerance": 0.01},
+      {"rule": "is_continuous_sequence(pos)"}
+    ]
+  }
+}

@@ -41,6 +41,8 @@ class Service_Prx399_Contracts {
         $files = Model_Prx399_File::for_contract($id);
         $this->_reconcile_files($id, $contract, $files);
         $contract = Model_Prx399_Contract::get($id);
+        $this->_reconcile_pipeline($id, $contract, $files);
+        $contract = Model_Prx399_Contract::get($id);
 
         $jobs = [];
         if (class_exists('Service_Prx120_JobQueue'))
@@ -111,15 +113,35 @@ class Service_Prx399_Contracts {
                 $pending = TRUE;
                 continue;
             }
-            if ($job === NULL OR ! in_array($job['status'], ['failed', 'cancelled'], TRUE))
+            if ($job === NULL)
+            {
+                // Задача удалена из очереди (чистка/админ) или не была создана:
+                // ждать бессмысленно — файл-зомби.
+                Model_Prx399_File::set_status((int) $file['id'], 'failed',
+                    'Задача очереди не найдена (удалена или не была создана) — запустите файл повторно');
+                $files[$i]['status'] = 'failed';
+                $changed = TRUE;
+                continue;
+            }
+            if ( ! in_array($job['status'], ['failed', 'cancelled', 'done'], TRUE))
             {
                 $pending = TRUE; // задача жива (pending/processing) — ждать
                 continue;
             }
 
             $error = trim((string) ($job['error'] ?? ''));
-            Model_Prx399_File::set_status((int) $file['id'], 'failed',
-                'Задача очереди завершилась ошибкой'.($error !== '' ? ': '.mb_substr($error, 0, 200) : ''));
+            if ($job['status'] === 'done')
+            {
+                // Воркер вернул задачу как выполненную, но результат файла
+                // не был записан (сбой POST результата) — ждать нечего.
+                Model_Prx399_File::set_status((int) $file['id'], 'failed',
+                    'Задача завершилась, но результат файла не был записан — запустите файл повторно');
+            }
+            else
+            {
+                Model_Prx399_File::set_status((int) $file['id'], 'failed',
+                    'Задача очереди завершилась ошибкой'.($error !== '' ? ': '.mb_substr($error, 0, 200) : ''));
+            }
             $files[$i]['status'] = 'failed';
             $changed = TRUE;
         }
@@ -128,6 +150,109 @@ class Service_Prx399_Contracts {
         {
             $names = implode(', ', array_map(static fn ($f) => (string) $f['original_name'], $files));
             Model_Prx399_Contract::set_status((int) $id, 'failed', 'Не разобраны файлы: '.$names);
+        }
+    }
+
+    /**
+     * Самолечение уровня пакета: «Пайплайн идёт» не должен гореть, когда
+     * в очереди нет живой задачи. parsing без pending-файлов → либо честный
+     * failed (есть сбойные), либо дозапуск потерянной сборки; auditing со
+     * скончавшейся задачей аудита → failed («Пересобрать» снова доступен).
+     */
+    private function _reconcile_pipeline($id, $contract, array $files)
+    {
+        if ( ! class_exists('Service_Prx120_JobQueue'))
+        {
+            return;
+        }
+
+        $status = (string) $contract['status'];
+
+        if ($status === 'parsing')
+        {
+            $pending = array_filter($files, static fn ($f) => in_array($f['status'], ['queued', 'working'], TRUE));
+            if ($pending)
+            {
+                return; // файлы ещё живы — разбирайтесь через _reconcile_files
+            }
+            $failed = array_filter($files, static fn ($f) => (string) $f['status'] === 'failed');
+            if ($failed)
+            {
+                $names = implode(', ', array_map(static fn ($f) => (string) $f['original_name'], $files));
+                Model_Prx399_Contract::set_status((int) $id, 'failed', 'Не разобраны файлы: '.$names);
+
+                return;
+            }
+            // Все файлы разобраны, а сборка не случилась (результат последнего
+            // файла потерян при сбое записи) — дозапускаем; идемпотентно.
+            if ($files AND class_exists('Service_Prx399_Pipeline'))
+            {
+                try
+                {
+                    (new Service_Prx399_Pipeline)->ensure_built((int) $id);
+                }
+                catch (Throwable $e) { /* показ карточки не должен падать */ }
+            }
+
+            return;
+        }
+
+        if ($status === 'auditing')
+        {
+            // Summary записан → аудит ФАКТИЧЕСКИ завершён (audit_result сохранил
+            // итог, но статус не доехал — баг set_audited до фикса): дофиксим
+            // статус вместо ложного «не завершился».
+            $has_summary = trim((string) ($contract['summary'] ?? '')) !== '';
+            $audit_job = (int) ($contract['audit_job_id'] ?? 0);
+            if ($audit_job <= 0)
+            {
+                if ($has_summary)
+                {
+                    Model_Prx399_Contract::set_status((int) $id, 'audited', NULL);
+
+                    return;
+                }
+                // Результат аудита потерян (задача кончилась, итог не записан)
+                Model_Prx399_Contract::set_status((int) $id, 'failed',
+                    'Риск-аудит не завершился (результат не был записан) — пересоберите редакцию');
+
+                return;
+            }
+            try
+            {
+                $job = Service_Prx120_JobQueue::instance()->get($audit_job);
+            }
+            catch (Throwable $e)
+            {
+                return; // очередь недоступна — не ломаем показ
+            }
+            if ($job !== NULL AND in_array($job['status'], ['failed', 'cancelled'], TRUE))
+            {
+                $error = trim((string) ($job['error'] ?? ''));
+                Model_Prx399_Contract::set_status((int) $id, 'failed',
+                    'Задача риск-аудита завершилась ошибкой'.($error !== '' ? ': '.mb_substr($error, 0, 200) : '').' — пересоберите редакцию');
+
+                return;
+            }
+            if ($job === NULL OR $job['status'] === 'done')
+            {
+                if ($has_summary)
+                {
+                    Model_Prx399_Contract::set_status((int) $id, 'audited', NULL);
+
+                    return;
+                }
+                Model_Prx399_Contract::set_status((int) $id, 'failed',
+                    'Риск-аудит не завершился (результат не был записан) — пересоберите редакцию');
+            }
+        }
+        elseif ($status === 'failed' AND trim((string) ($contract['summary'] ?? '')) !== ''
+            AND strpos((string) ($contract['error'] ?? ''), 'Риск-аудит не завершился') === 0)
+        {
+            // Пакеты, помеченные failed ложным сообщением до этого фикса, хотя
+            // итог аудита записан (у них summary и llm-риски на месте): тихо
+            // возвращаем в audited — пересборка не нужна.
+            Model_Prx399_Contract::set_status((int) $id, 'audited', NULL);
         }
     }
 

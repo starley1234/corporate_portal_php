@@ -34,6 +34,11 @@ class Controller_Prx111_Migrate extends Controller
             if ( ! Security::check((string)$this->request->post('csrf_token')))
                 throw new HTTP_Exception_403('Страница устарела. Обновите её и повторите действие.');
 
+            if ((string)$this->request->post('operation') === 'forget')
+            {
+                $this->_forget_orphan($migrator, $message, $message_type);
+            }
+            else
             try
             {
                 // Группы независимы: ошибка optional MDM не должна блокировать
@@ -100,7 +105,45 @@ class Controller_Prx111_Migrate extends Controller
     /** Pure guard used by UI and tests: GET can never change the schema. */
     public static function may_execute($method, $operation)
     {
-        return strtoupper((string)$method) === Request::POST AND $operation === 'run';
+        // run — применить ожидающие; forget — удалить из журнала запись
+        // о применённой миграции без файла (схему не трогает).
+        return strtoupper((string)$method) === Request::POST
+            AND in_array((string)$operation, ['run', 'forget'], TRUE);
+    }
+
+    /**
+     * operation=forget: удалить из журнала запись о применённой миграции,
+     * файла которой больше нет. Разрешено ТОЛЬКО для текущих orphans() —
+     * запись живой миграции удалить нельзя. Схема базы не меняется.
+     */
+    protected function _forget_orphan(Service_Prx111_Migrator $migrator, &$message, &$message_type)
+    {
+        $key = trim((string)$this->request->post('orphan'));
+        $sep = strpos($key, '::');
+
+        try
+        {
+            $orphans = $migrator->orphans();
+
+            if ($key === '' OR $sep === FALSE OR ! isset($orphans[$key]))
+            {
+                $message = 'Запись «'.$key.'» не найдена среди устаревших — журнал не менялся.';
+                $message_type = 'warning';
+
+                return;
+            }
+
+            $deleted = $migrator->forget(substr($key, $sep + 2), substr($key, 0, $sep));
+            $message = $deleted
+                ? 'Запись «'.$key.'» забыта: схема базы не менялась, список устаревших записей уменьшился.'
+                : 'Запись «'.$key.'» уже отсутствует в журнале.';
+            $message_type = 'success';
+        }
+        catch (Exception $e)
+        {
+            $message = 'Не удалось забыть запись: '.$e->getMessage();
+            $message_type = 'error';
+        }
     }
 
     protected function _assert_allowed()

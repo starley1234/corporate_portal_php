@@ -70,4 +70,71 @@ class Service_Prx150_Services
 
         return $out;
     }
+
+    /**
+     * Каталог API-сервисов для вкладки «Сервисы»: владельцы scope, сгруппированные
+     * по модулям, с состоянием публикации — тем же, что у витрины /services
+     * (одобрен = approved). По умолчанию страница показывает только одобренные,
+     * «все» — по явному запросу.
+     *
+     * @return array[] module, title, short, icon, href, state, scopes[]
+     */
+    public static function catalog(): array
+    {
+        $by_module = [];
+
+        foreach (self::scopes() as $scope => $meta)
+        {
+            $by_module[(string) $meta['module']][$scope] = $meta;
+        }
+
+        $out = [];
+
+        foreach ($by_module as $module => $list)
+        {
+            $m = Manifest::get($module);
+
+            $out[] = [
+                'module' => (string) $module,
+                'title'  => (string) ($m['title'] ?? $module),
+                'short'  => (string) ($m['short'] ?? ''),
+                'icon'   => (string) ($m['icon'] ?? 'fas fa-code'),
+                'href'   => (string) ($m['href'] ?? ''),
+                'state'  => self::_publication_state($m),
+                'scopes' => $list,
+            ];
+        }
+
+        usort($out, static fn (array $a, array $b): int => strcasecmp($a['title'], $b['title']));
+
+        return $out;
+    }
+
+    /**
+     * Состояние публикации модуля-владельца: решение витрины каталога, если
+     * prx110 подключён; иначе — только манифест (status/catalog).
+     */
+    protected static function _publication_state(array $m): string
+    {
+        if (class_exists('Service_Prx110_Catalog'))
+        {
+            try
+            {
+                return (string) Service_Prx110_Catalog::resolve_state($m);
+            }
+            catch (Throwable $e) { /* решение витрины недоступно — берём манифест */ }
+        }
+
+        if ((string) ($m['status'] ?? '') === 'deprecated')
+        {
+            return 'archived';
+        }
+
+        if (($m['catalog'] ?? TRUE) === FALSE)
+        {
+            return 'unpublished';
+        }
+
+        return (string) ($m['status'] ?? '') === 'stable' ? 'approved' : 'wip';
+    }
 }

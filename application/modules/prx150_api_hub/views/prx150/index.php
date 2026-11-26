@@ -35,6 +35,7 @@ $when = function ($value): string {
         <a class="prx-seg-item is-active" role="tab" aria-selected="true" href="/prx150_api_hub"><i class="fas fa-key mr-1.5"></i>Ключи</a>
         <a class="prx-seg-item" role="tab" aria-selected="false" href="/prx150_api_hub/usage"><i class="fas fa-chart-line mr-1.5"></i>Использование</a>
         <a class="prx-seg-item" role="tab" aria-selected="false" href="/prx150_api_hub/docs"><i class="fas fa-book mr-1.5"></i>Документация</a>
+        <a class="prx-seg-item" role="tab" aria-selected="false" href="/prx150_api_hub/services"><i class="fas fa-layer-group mr-1.5"></i>Сервисы</a>
     </div>
 
     <?php if ( ! empty($created_key)): ?>
@@ -105,58 +106,6 @@ $when = function ($value): string {
                 </form>
             </section>
 
-            <section class="prx-card overflow-x-auto p-0" aria-labelledby="prx150-keys">
-                <div class="border-b border-gray-100 px-4 py-3.5 dark:border-gray-700/60">
-                    <div class="flex flex-wrap items-center gap-3">
-                        <h2 id="prx150-keys" class="prx-h3">Ключи <span class="prx-count ml-1"><?php echo count($keys); ?></span></h2>
-<?php if ( ! empty($revoked_count)): ?>
-                        <a href="/prx150_api_hub/revoked_list" class="prx-link ml-auto inline-flex items-center gap-1.5 text-sm"><i class="fas fa-ban text-xs" aria-hidden="true"></i>Отозванные <span class="prx-count"><?php echo (int) $revoked_count; ?></span></a>
-<?php endif; ?>
-                    </div>
-                </div>
-                <table class="prx-table min-w-[900px]">
-                    <thead><tr><th>Потребитель</th><th>Ключ</th><th>Права</th><th>Лимит</th><th>Статус</th><th>Последний запрос</th><th>24 ч</th><th></th></tr></thead>
-                    <tbody>
-                    <?php foreach ($keys as $key): ?>
-                        <?php $key_scopes = $scopes_json((string) $key['scopes']); ?>
-                        <tr>
-                            <td>
-                                <span class="block font-semibold text-gray-900 dark:text-white"><?php echo HTML::chars($key['name']); ?></span>
-                                <span class="block text-xs text-gray-500 dark:text-gray-400">создан <?php echo $when($key['created_at']); ?></span>
-                                <?php if ( ! empty($key['organization_id'])): ?><span class="block text-xs text-gray-500 dark:text-gray-400"><?php echo HTML::chars($org_names[(int) $key['organization_id']] ?? 'организация #'.(int) $key['organization_id']); ?></span><?php endif; ?>
-                                <?php if ($key['note'] !== ''): ?><span class="block max-w-[260px] truncate text-xs text-gray-400 dark:text-gray-500" title="<?php echo HTML::chars($key['note']); ?>"><?php echo HTML::chars($key['note']); ?></span><?php endif; ?>
-                            </td>
-                            <td><code class="font-mono text-xs text-gray-600 dark:text-gray-300"><?php echo HTML::chars($key['key_prefix']); ?>…</code></td>
-                            <td>
-                                <?php foreach ($key_scopes as $scope): ?>
-                                    <span class="prx-badge prx-badge-info mb-1 mr-1"><?php echo HTML::chars($scopes[$scope]['title'] ?? $scope); ?></span>
-                                <?php endforeach; ?>
-                            </td>
-                            <td class="tabular-nums"><?php echo (int) $key['rate_limit_per_min']; ?>/мин</td>
-                            <td>
-                                <?php if ($key['status'] === 'active'): ?><span class="prx-badge prx-badge-ok"><span class="prx-dot"></span>активен</span>
-                                <?php else: ?><span class="prx-badge prx-badge-err"><span class="prx-dot"></span>отозван</span><?php endif; ?>
-                                <?php if ($key['expires_at']): ?><span class="block text-xs text-gray-400 dark:text-gray-500">до <?php echo date('d.m.Y', strtotime((string) $key['expires_at'])); ?></span><?php endif; ?>
-                            </td>
-                            <td class="text-xs text-gray-500 dark:text-gray-400"><?php echo $when($key['last_used_at']); ?></td>
-                            <td class="tabular-nums"><?php echo (int) $key['requests_24h']; ?></td>
-                            <td class="text-right">
-                                <?php if ($key['status'] === 'active'): ?>
-                                <a href="/prx150_api_hub/edit/<?php echo (int) $key['id']; ?>" class="prx-btn-secondary prx-btn-sm mr-1" title="Править: лимиты, права, файловые ограничения"><i class="fas fa-pen"></i><span class="sr-only">Править</span></a>
-                                <form method="post" action="/prx150_api_hub/revoke/<?php echo (int) $key['id']; ?>" class="inline">
-                                    <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
-                                    <button type="submit" class="prx-btn-danger prx-btn-sm" data-prx-arm="Отозвать ключ?"><i class="fas fa-ban"></i><span data-prx-arm-label>Отозвать</span></button>
-                                </form>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                    <?php if (empty($keys)): ?>
-                        <tr><td colspan="8" class="py-8 text-center text-sm text-gray-500 dark:text-gray-400">Активных ключей нет. Создайте первый — внешняя система получит URL, ключ и формат запроса. Отозванные — на отдельной странице.</td></tr>
-                    <?php endif; ?>
-                    </tbody>
-                </table>
-            </section>
         </div>
 
         <aside class="space-y-4">
@@ -182,7 +131,61 @@ $when = function ($value): string {
                 <h2 class="prx-h3">Сервисы</h2>
                 <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Свой сервис добавляет модуль в манифесте: <code>api_scopes</code>. Центрального списка нет.</p>
                 <p class="prx-hint mt-2">Сейчас прав: <?php echo count($scopes); ?>.</p>
+                <a class="prx-link mt-3 inline-block text-sm" href="/prx150_api_hub/services">Каталог API-сервисов →</a>
             </section>
         </aside>
     </div>
+
+        <section class="prx-card overflow-x-auto p-0" aria-labelledby="prx150-keys">
+            <div class="border-b border-gray-100 px-4 py-3.5 dark:border-gray-700/60">
+                <div class="flex flex-wrap items-center gap-3">
+                    <h2 id="prx150-keys" class="prx-h3">Ключи <span class="prx-count ml-1"><?php echo count($keys); ?></span></h2>
+    <?php if ( ! empty($revoked_count)): ?>
+                    <a href="/prx150_api_hub/revoked_list" class="prx-link ml-auto inline-flex items-center gap-1.5 text-sm"><i class="fas fa-ban text-xs" aria-hidden="true"></i>Отозванные <span class="prx-count"><?php echo (int) $revoked_count; ?></span></a>
+    <?php endif; ?>
+                </div>
+            </div>
+            <table class="prx-table min-w-[900px]">
+                <thead><tr><th>Потребитель</th><th>Ключ</th><th>Права</th><th>Лимит</th><th>Статус</th><th>Последний запрос</th><th>24 ч</th><th></th></tr></thead>
+                <tbody>
+                <?php foreach ($keys as $key): ?>
+                    <?php $key_scopes = $scopes_json((string) $key['scopes']); ?>
+                    <tr>
+                        <td>
+                            <span class="block font-semibold text-gray-900 dark:text-white"><?php echo HTML::chars($key['name']); ?></span>
+                            <span class="block text-xs text-gray-500 dark:text-gray-400">создан <?php echo $when($key['created_at']); ?></span>
+                            <?php if ( ! empty($key['organization_id'])): ?><span class="block text-xs text-gray-500 dark:text-gray-400"><?php echo HTML::chars($org_names[(int) $key['organization_id']] ?? 'организация #'.(int) $key['organization_id']); ?></span><?php endif; ?>
+                            <?php if ($key['note'] !== ''): ?><span class="block max-w-[260px] truncate text-xs text-gray-400 dark:text-gray-500" title="<?php echo HTML::chars($key['note']); ?>"><?php echo HTML::chars($key['note']); ?></span><?php endif; ?>
+                        </td>
+                        <td><code class="font-mono text-xs text-gray-600 dark:text-gray-300"><?php echo HTML::chars($key['key_prefix']); ?>…</code></td>
+                        <td>
+                            <?php foreach ($key_scopes as $scope): ?>
+                                <span class="prx-badge prx-badge-info mb-1 mr-1"><?php echo HTML::chars($scopes[$scope]['title'] ?? $scope); ?></span>
+                            <?php endforeach; ?>
+                        </td>
+                        <td class="tabular-nums"><?php echo (int) $key['rate_limit_per_min']; ?>/мин</td>
+                        <td>
+                            <?php if ($key['status'] === 'active'): ?><span class="prx-badge prx-badge-ok"><span class="prx-dot"></span>активен</span>
+                            <?php else: ?><span class="prx-badge prx-badge-err"><span class="prx-dot"></span>отозван</span><?php endif; ?>
+                            <?php if ($key['expires_at']): ?><span class="block text-xs text-gray-400 dark:text-gray-500">до <?php echo date('d.m.Y', strtotime((string) $key['expires_at'])); ?></span><?php endif; ?>
+                        </td>
+                        <td class="text-xs text-gray-500 dark:text-gray-400"><?php echo $when($key['last_used_at']); ?></td>
+                        <td class="tabular-nums"><?php echo (int) $key['requests_24h']; ?></td>
+                        <td class="text-right">
+                            <?php if ($key['status'] === 'active'): ?>
+                            <a href="/prx150_api_hub/edit/<?php echo (int) $key['id']; ?>" class="prx-btn-secondary prx-btn-sm mr-1" title="Править: лимиты, права, файловые ограничения"><i class="fas fa-pen"></i><span class="sr-only">Править</span></a>
+                            <form method="post" action="/prx150_api_hub/revoke/<?php echo (int) $key['id']; ?>" class="inline">
+                                <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
+                                <button type="submit" class="prx-btn-danger prx-btn-sm" data-prx-arm="Отозвать ключ?"><i class="fas fa-ban"></i><span data-prx-arm-label>Отозвать</span></button>
+                            </form>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (empty($keys)): ?>
+                    <tr><td colspan="8" class="py-8 text-center text-sm text-gray-500 dark:text-gray-400">Активных ключей нет. Создайте первый — внешняя система получит URL, ключ и формат запроса. Отозванные — на отдельной странице.</td></tr>
+                <?php endif; ?>
+                </tbody>
+            </table>
+        </section>
 </div>

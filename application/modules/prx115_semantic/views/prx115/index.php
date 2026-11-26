@@ -124,7 +124,7 @@ $found_html = function (array $s_row) {
                     'note'  => 'Считает воркер: вектор на текст через эмбеддинг-сервер. Этапы видно здесь, без перезагрузки.',
                 ]); ?>
             </div>
-            <?php else: ?>
+            <?php elseif (empty($queue['ok'])): ?>
             <div class="prx-flash prx-flash-warn block">
                 Очередь prx120 не подключена — задачи индексации ставить некуда. Проверьте модуль `prx120_jobs`.
             </div>

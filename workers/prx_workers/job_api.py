@@ -48,6 +48,7 @@ def check_status(response: httpx.Response) -> None:
     if code == 409:
         raise PermanentJobError("lease_lost")
     if code in (404, 410):
+        log.error("job_api: сайт вернул %d — файл/задача не найдены на стороне сайта (см. prx400_diag stage=worker_file в журнале сайта)", code)
         raise PermanentJobError("file_unavailable")
     if code in (408, 429) or code >= 500:
         raise DocumentJobError("worker_endpoint_unavailable")
@@ -66,6 +67,7 @@ def check(response: httpx.Response) -> dict | None:
     if code == 409:
         raise PermanentJobError("lease_lost")
     if code in (404, 410):
+        log.error("job_api: сайт вернул %d — файл/задача не найдены на стороне сайта (см. prx400_diag stage=worker_file в журнале сайта)", code)
         raise PermanentJobError("file_unavailable")
     if code in (408, 429) or code >= 500:
         raise DocumentJobError("worker_endpoint_unavailable")
@@ -95,16 +97,23 @@ async def download_pdf(client: httpx.AsyncClient, url: str, path: Path, max_pdf_
         check_status(response)
         ctype = response.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
         if ctype != "application/pdf":
+            # Диагностика без URL: какой HTTP-статус вернул сайт и каким
+            # Content-Type (не-PDF = PHP-ошибка/HTML-страница вместо файла).
+            log.error("job_api download_pdf: status=%d ctype=%r — сайт отдал не PDF (параллельно см. prx400_diag в журнале сайта)",
+                      response.status_code, ctype)
             raise PermanentJobError("file_unavailable")
         size = 0
         with path.open("xb") as pdf:
             async for block in response.aiter_bytes(chunk_size=65536):
                 size += len(block)
                 if size > max_pdf_bytes:
+                    log.error("job_api download_pdf: превышен лимит %d байт (скачано %d)", max_pdf_bytes, size)
                     raise PermanentJobError("file_unavailable")
                 pdf.write(block)
         if not size:
+            log.error("job_api download_pdf: сайт отдал 0 байт с ctype=%r", ctype)
             raise PermanentJobError("file_unavailable")
+    log.info("job_api download_pdf: ok bytes=%d", size)
 
 
 async def post_result(client: httpx.AsyncClient, url: str, body: dict) -> dict:

@@ -32,6 +32,12 @@ foreach ($nodes as $node)
 // «спиннер, этап и время», без полос прогресса).
 $pipeline_pending = in_array($contract['status'], ['parsing', 'auditing'], TRUE)
     || count(array_filter($files, static fn ($f) => in_array($f['status'], ['queued', 'working'], TRUE))) > 0;
+$pipeline_since = 0;
+if ($pipeline_pending AND ! empty($contract['updated_at']))
+{
+    $pipeline_since = max(0, time() - strtotime((string) $contract['updated_at'])); // пайплайн стартовал при launch()
+}
+$pipeline_clock = sprintf('%d:%02d', intdiv($pipeline_since, 60), $pipeline_since % 60);
 ?>
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
@@ -69,7 +75,7 @@ echo View::factory('partials/page_header', [
     <!-- ==== 0. Индикация работы пайплайна (эталон: спиннер, этап, время) ==== -->
     <div id="prx399-pipeline" class="prx-flash prx-flash-info mt-4<?php echo $pipeline_pending ? '' : ' hidden'; ?>" role="status">
         <i class="fas fa-circle-notch fa-spin"></i>
-        <span>Пайплайн идёт: распознавание и дельты ДС в очереди воркера — статусы обновляются автоматически. Время: <span data-prx-clock class="font-mono tabular-nums">0:00</span></span>
+        <span>Пайплайн идёт: распознавание и дельты ДС в очереди воркера — статусы обновляются автоматически. Время: <span data-prx-clock data-prx-from="<?php echo (int) $pipeline_since; ?>" class="font-mono tabular-nums"><?php echo $pipeline_clock; ?></span></span>
     </div>
 
     <!-- ==== 1. Файлы цепочки ==== -->
@@ -330,7 +336,7 @@ foreach (($node['history'] ?? []) as $step)
     if (!strip || strip.classList.contains('hidden')) return;
 
     var clock = strip.querySelector('[data-prx-clock]');
-    if (clock && window.PRX) PRX.stopwatch(clock, 0);
+    if (clock && window.PRX) PRX.stopwatch(clock, parseInt(clock.getAttribute('data-prx-from') || '0', 10) || 0);
 
     var busy = false;
     function refresh() {
@@ -351,6 +357,10 @@ foreach (($node['history'] ?? []) as $step)
                     if (f && live) {
                         live.replaceChildren.apply(live, Array.prototype.slice.call(f.childNodes));
                         live.className = f.className;
+                        if (id === 'prx399-pipeline') {
+                            var c = live.querySelector('[data-prx-clock]');
+                            if (c && window.PRX) PRX.stopwatch(c, parseInt(c.getAttribute('data-prx-from') || '0', 10) || 0);
+                        }
                     }
                 });
             })

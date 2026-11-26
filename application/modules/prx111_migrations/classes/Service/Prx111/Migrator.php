@@ -166,6 +166,30 @@ class Service_Prx111_Migrator {
     }
 
     /**
+     * «Забыть» запись журнала о применённой миграции, файла которой больше
+     * нет в коде. Схему базы НЕ трогает: класс без файла не может откатиться
+     * и на свежем развёртывании всё равно не выполняется — меняется только
+     * сам журнал (перестаёт попадать в orphans()).
+     *
+     * @param   string  $class     имя класса миграции
+     * @param   string  $db_group  группа подключения (журнал этой базы)
+     * @return  int                сколько записей удалено
+     */
+    public function forget($class, $db_group = NULL)
+    {
+        $db_group = ($db_group === NULL) ? $this->_db_group : $db_group;
+        $this->ensure_table($db_group);
+
+        $deleted = DB::delete(self::TABLE)
+            ->where('migration', '=', (string) $class)
+            ->execute($db_group);
+
+        unset($this->_applied_cache[$db_group]);
+
+        return (int) $deleted;
+    }
+
+    /**
      * Помечает миграцию применённой (в реестре её базы).
      *
      * @param   string  $class

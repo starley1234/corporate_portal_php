@@ -1,0 +1,30 @@
+{
+  "template_id": "spec_pto_standard_v1",
+  "template_name": "Спецификация оборудования (Форма ПТО)",
+  "detection_policy": {
+    "mode": "auto",
+    "anchor_keywords": ["ведомость оборудования", "форма 7-пто", "утверждаю: главный инженер", "заказчик", "подрядчик"],
+    "min_anchors_required": 2
+  },
+  "table_rules": {
+    "header_search_depth_lines": 15,
+    "multiline_join_strategy": "smart_concat",
+    "columns": {
+      "pos":         {"match": ["№", "поз.", "п/п"], "type": "integer", "required": true},
+      "item_name":   {"match": ["наименование и техническая характеристика", "оборудование", "наименование"], "type": "text", "multiline": true},
+      "code_doc":    {"match": ["тип, марка", "код оборудования", "обозначение документа", "чертеж/гост"], "type": "text"},
+      "qty":         {"match": ["кол-во", "кол.", "к-во", "количество"], "type": "decimal", "required": true},
+      "unit":        {"match": ["ед. изм.", "ед."], "type": "text", "default": "шт."},
+      "unit_price":  {"match": ["цена за ед., руб.", "цена"], "type": "decimal"},
+      "total_price": {"match": ["всего, руб.", "сумма"], "type": "decimal"}
+    },
+    "skip_line_patterns": ["^лист\\s", "^продолжение", "^форма\\s", "^утверждаю"],
+    "totals_patterns": ["^итого", "^всего по ведомости", "^всего по разделу"],
+    "section_patterns": ["^раздел\\s+\\d", "^секция\\s+\\d"],
+    "math_checks": [
+      {"rule": "qty * unit_price == total_price", "tolerance": 0.01},
+      {"rule": "sum(total_price) == totals.total_price", "tolerance": 0.01},
+      {"rule": "is_continuous_sequence(pos)"}
+    ]
+  }
+}

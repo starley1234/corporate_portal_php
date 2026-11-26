@@ -11,6 +11,7 @@ def test_only_active_handlers_are_registered():
         "doc.route",
         "doc.merge.delta",
         "doc.merge.audit",
+        "specflow.parse",
         "echo",
         "embeddings.index",
         "llm.summarize",

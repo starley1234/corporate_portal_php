@@ -252,6 +252,20 @@ class Controller_Prx150_Admin extends Controller_Prx102_Base
     }
 
     /** Журнал использования: фильтры GET, ссылки можно делиться. */
+    public function action_services()
+    {
+        $show_all = (string) $this->request->query('all') === '1';
+        $services = Service_Prx150_Services::catalog();
+        $approved = array_values(array_filter($services, static fn (array $s): bool => $s['state'] === 'approved'));
+
+        $this->template->content = View::factory('prx150/services', [
+            'services'       => $show_all ? $services : $approved,
+            'all_count'      => count($services),
+            'approved_count' => count($approved),
+            'show_all'       => $show_all,
+        ]);
+    }
+
     public function action_usage()
     {
         $period = (string) $this->request->query('period');

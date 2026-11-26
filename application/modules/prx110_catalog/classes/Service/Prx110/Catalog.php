@@ -953,7 +953,26 @@ class Service_Prx110_Catalog {
 
     public static function header_nav()
     {
-        $modules = self::visible_modules();
+        // Пул чипов: те же аудитория и ACL, что у can_see, но БЕЗ фильтра
+        // состояния публикации — чип навигации ТЕКУЩЕЙ страницы, а не витрина
+        // каталога: одобренность фильтрует /services и меню, но не шапку
+        // страницы, на которой человек уже стоит. Beta/draft-модуль тоже
+        // получает свой чип. Единый $modules используется и для совпадения
+        // URI, и для фолбэка по admin-страницам (вторая переменная пула здесь
+        // терялась — Warning «Undefined variable $modules»).
+        $ctx = self::user_context();
+        $modules = [];
+
+        foreach (self::modules() as $m)
+        {
+            if ( ! self::_audience_allows($m, $ctx)
+                OR ( ! empty($m['acl']) && (empty($ctx['logged']) || ! Prx_Actor::fromArray($ctx)->can($m['acl']))))
+            {
+                continue;
+            }
+
+            $modules[] = $m;
+        }
 
         if ( ! $modules)
         {
@@ -962,30 +981,35 @@ class Service_Prx110_Catalog {
 
         $uri = self::_current_uri();
         $current = NULL;
+        $current_path = NULL;
         $best_len = -1;
 
-        $current_path = NULL;
-
-        foreach ($modules as $m)
-        {
-            // Некоторые страницы объекта живут на коротком алиасе (например,
-            // /p/<code> для опроса /poll). Манифест объявляет такие пути через
-            // nav_paths, чтобы чип текущего раздела не пропадал на объекте.
-            $paths = array_merge([(string) $m['href']], (array) ($m['nav_paths'] ?? []));
-
-            foreach ($paths as $path)
+        // Совпадение URI с href модуля (или его nav_paths); длиннейший путь
+        // побеждает.
+        $match = static function (array $pool) use ($uri, &$current, &$current_path, &$best_len): void {
+            foreach ($pool as $m)
             {
-                $href = rtrim((string) $path, '/');
+                // Некоторые страницы объекта живут на коротком алиасе (например,
+                // /p/<code> для опроса /poll). Манифест объявляет такие пути через
+                // nav_paths, чтобы чип текущего раздела не пропадал на объекте.
+                $paths = array_merge([(string) $m['href']], (array) ($m['nav_paths'] ?? []));
 
-                if ($href !== '' AND ($uri === $href OR strpos($uri, $href.'/') === 0)
-                    AND strlen($href) > $best_len)
+                foreach ($paths as $path)
                 {
-                    $current = $m;
-                    $current_path = $href;
-                    $best_len = strlen($href);
+                    $href = rtrim((string) $path, '/');
+
+                    if ($href !== '' AND ($uri === $href OR strpos($uri, $href.'/') === 0)
+                        AND strlen($href) > $best_len)
+                    {
+                        $current = $m;
+                        $current_path = $href;
+                        $best_len = strlen($href);
+                    }
                 }
             }
-        }
+        };
+
+        $match($modules);
 
         // страница может быть раздел управленияом модуля (/prx520/admin и т.п.)
         $admin_page = FALSE;
