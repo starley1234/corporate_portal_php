@@ -53,7 +53,7 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
 <?php // Подсветка строки — как в левой панели: фон на всю высоту ряда (кнопка звёздочки h-10),
       // скругление и те же цвета. Всплывающего title нет: описание и так рядом с группой,
       // а для скринридеров — aria-label. ?>
-                            <a href="<?php echo HTML::chars($m['href']); ?>"<?php echo empty($m['short']) ? '' : ' aria-label="'.HTML::chars($m['title'].': '.$m['short']).'"'; ?> class="inline-flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 -mx-1.5 transition hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-800 dark:hover:text-gray-100">
+                            <a href="<?php echo HTML::chars($m['href']); ?>"<?php echo empty($m['short']) ? '' : ' aria-label="'.HTML::chars($m['title'].': '.$m['short']).'"'; ?> class="inline-flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-lg px-1.5 -mx-1.5 hover:bg-gray-100 hover:text-gray-900 dark:hover:bg-gray-700/60 dark:hover:text-gray-100">
                                 <i class="<?php echo HTML::chars($m['icon']); ?> w-4 shrink-0 text-center text-sm text-gray-400"></i>
                                 <span class="truncate"><?php echo HTML::chars($m['title']); ?></span>
                                 <?php if ( ! empty($m['badge'])): ?>
@@ -109,7 +109,7 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
         <?php if ( ! empty($menu_custom)): ?>
         <ul class="mt-4 space-y-1 text-sm">
             <?php foreach ($menu_custom as $row): ?>
-            <li class="flex min-h-10 items-center gap-2 rounded-lg px-1.5 hover:bg-gray-100 dark:hover:bg-gray-800">
+            <li class="flex min-h-10 items-center gap-2 rounded-lg px-1.5 hover:bg-gray-100 dark:hover:bg-gray-700/60">
                 <i class="<?php echo HTML::chars((string) $row['icon']); ?> w-5 shrink-0 text-center text-gray-400" aria-hidden="true"></i>
                 <span class="min-w-0 truncate font-medium"><?php echo HTML::chars((string) $row['title']); ?></span>
                 <code class="hidden shrink-0 font-mono text-xs text-gray-500 dark:text-gray-400 sm:inline"><?php echo HTML::chars((string) $row['href']); ?></code>

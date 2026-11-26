@@ -44,7 +44,7 @@
 
         <ol class="mt-1 space-y-1" data-fav-rows aria-label="Пункты избранного в порядке отображения">
 <?php foreach ($items as $item): ?>
-            <li class="flex flex-wrap items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-gray-50 dark:hover:bg-gray-800/50" data-fav-row draggable="true">
+            <li class="flex flex-wrap items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-gray-50 dark:hover:bg-gray-700/40" data-fav-row draggable="true">
                 <button type="button" class="prx-btn-icon cursor-grab text-gray-400" data-fav-drag
                         title="Перетащить" aria-label="Перетащить пункт <?php echo HTML::chars((string) $item['title']); ?>"><i class="fas fa-grip-vertical" aria-hidden="true"></i></button>
                 <i class="<?php echo HTML::chars((string) $item['icon']); ?> w-5 shrink-0 text-center text-[15px] text-gray-400" data-fav-preview aria-hidden="true"></i>
