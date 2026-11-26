@@ -15,7 +15,7 @@ $labels = $limits['labels'];
 </section>
 <section class="prx-card" aria-labelledby="prx396-api-examples">
     <h2 id="prx396-api-examples" class="prx-h3">Запросы подключения</h2>
-    <p class="prx-hint mt-2">Задайте <code>PRX_URL</code> — HTTPS-адрес портала, <code>PRX_API_KEY</code> — секретный ключ. Не помещайте ключ в URL или логи.</p>
+    <p class="prx-hint mt-2">Задайте <code>PRX_URL</code> — HTTPS-адрес платформы, <code>PRX_API_KEY</code> — секретный ключ. Не помещайте ключ в URL или логи.</p>
     <div class="mt-4 flex items-center justify-between gap-2">
         <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">1. Загрузить PDF</h3>
         <button type="button" class="prx-btn-icon" data-prx-copy="#prx396-api-submit" aria-label="Копировать запрос загрузки"><i class="fas fa-copy" aria-hidden="true"></i></button>

@@ -24,7 +24,7 @@ class Controller_Prx112_Plan extends Controller_Base
         $domains = Service_Prx112_Plan::domains($this->actor());
         $counts = Service_Prx112_Plan::counts($domains);
 
-        $this->set_title('План и архив портала');
+        $this->set_title('План и архив платформы');
         $this->template->content = View::factory('prx112/index', [
             'domains' => Service_Prx112_Plan::filter($domains, $state),
             'counts' => $counts,

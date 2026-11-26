@@ -1,4 +1,4 @@
-# Архитектура портала как код
+# Архитектура платформы как код
 
 `docs/architecture/model/*.yaml` — источник истины. Из него одной командой собираются:
 
@@ -7,7 +7,7 @@
 | `docs/architecture/dist/architecture.html` | люди: схемы, слои, решения, поиск |
 | `docs/architecture/dist/architecture.json` | агенты и скрипты |
 
-Страница портала: **`/architecture`** (после входа, право `prx101.view`).
+Страница платформы: **`/architecture`** (после входа, право `prx101.view`).
 Машиночитаемая версия: **`/architecture/data.json`**.
 
 ## Сборка

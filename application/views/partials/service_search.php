@@ -8,6 +8,6 @@
                aria-controls="<?php echo HTML::chars($controls); ?>" aria-describedby="<?php echo $search_id; ?>-hint <?php echo $search_id; ?>-empty"
                placeholder="Найти сервис по названию или ключевому слову…" class="prx-input pl-10">
     </div>
-    <p id="<?php echo $search_id; ?>-hint" class="prx-hint mt-2">Поиск по списку сервисов. Поиск по содержимому портала — в шапке.</p>
+    <p id="<?php echo $search_id; ?>-hint" class="prx-hint mt-2">Поиск по списку сервисов. Поиск по содержимому платформы — в шапке.</p>
     <p id="<?php echo $search_id; ?>-empty" class="prx-hint mt-2" role="status" hidden><?php echo HTML::chars($empty_message); ?></p>
 </div>

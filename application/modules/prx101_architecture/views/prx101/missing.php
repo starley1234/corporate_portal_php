@@ -8,7 +8,7 @@
 <div class="prx-ds w-full">
     <?php echo View::factory('partials/page_header', [
         'crumbs' => [['Платформа', '/'], ['Архитектура']],
-        'title'  => 'Архитектура портала',
+        'title'  => 'Архитектура платформы',
         'pill'   => ['Модуль PRX101', 'fa-sitemap'],
         'lead'   => 'Документация собирается из docs/architecture/model/*.yaml. Сейчас собранной страницы ещё нет.',
         'actions' => [['label' => 'Памятка программиста', 'href' => '/architecture/guide', 'icon' => 'fa-compass', 'role' => 'secondary']],

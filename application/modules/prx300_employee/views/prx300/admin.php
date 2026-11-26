@@ -8,7 +8,7 @@
             ['label' => 'Сотрудники', 'href' => '/prx300/admin/employees', 'icon' => 'fa-users', 'role' => 'secondary'],
             ['label' => 'Импорт HR-данных', 'href' => '/prx300/admin/import', 'icon' => 'fa-file-import', 'role' => 'secondary'],
         ],
-        'lead' => 'Организации, площадки и иерархия подразделений. HR-пользователь видит и изменяет только организацию своего сопоставленного сотрудника; администратор портала — все.',
+        'lead' => 'Организации, площадки и иерархия подразделений. HR-пользователь видит и изменяет только организацию своего сопоставленного сотрудника; администратор платформы — все.',
     ]); ?>
     <?php echo View::factory('partials/flash', ['flash' => $flash]); ?>
 
@@ -36,7 +36,7 @@
             <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
             <input type="hidden" name="id" value="<?php echo $selected_organization ? (int) $selected_organization['id'] : ''; ?>">
             <h2 class="prx-h3 border-b border-gray-100 pb-3 dark:border-gray-700"><?php echo $selected_organization ? 'Изменить организацию' : 'Новая организация'; ?></h2>
-            <?php if ( ! $is_portal_admin AND ! $selected_organization): ?><p class="prx-hint mt-3">Новую организацию создаёт администратор портала.</p><?php endif; ?>
+            <?php if ( ! $is_portal_admin AND ! $selected_organization): ?><p class="prx-hint mt-3">Новую организацию создаёт администратор платформы.</p><?php endif; ?>
             <div class="mt-4 space-y-3">
                 <div><label class="prx-label" for="org-code">Код</label><input id="org-code" name="code" required value="<?php echo HTML::chars($selected_organization['code'] ?? ''); ?>" class="prx-input mt-1 w-full" placeholder="holding"></div>
                 <div><label class="prx-label" for="org-name">Название</label><input id="org-name" name="name" required value="<?php echo HTML::chars($selected_organization['name'] ?? ''); ?>" class="prx-input mt-1 w-full"></div>

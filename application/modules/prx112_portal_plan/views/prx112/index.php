@@ -50,13 +50,13 @@ usort($plan_rows, static function (array $a, array $b): int {
 ?>
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
     <?php echo View::factory('partials/page_header', [
-        'crumbs' => [['Главная', '/'], ['План и архив портала']],
-        'title' => 'План и архив портала',
+        'crumbs' => [['Главная', '/'], ['План и архив платформы']],
+        'title' => 'План и архив платформы',
         'lead' => 'Здесь видны сервисы во всех состояниях. В каталог (/services) попадают только одобренные.',
         'actions' => [['label' => 'Каталог сервисов', 'href' => '/services', 'icon' => 'fa-grip']],
     ]); ?>
     <?php echo View::factory('partials/service_search', [
-        'id' => 'portal-plan-search', 'label' => 'Поиск по плану портала', 'controls' => 'portal-plan-content',
+        'id' => 'portal-plan-search', 'label' => 'Поиск по плану платформы', 'controls' => 'portal-plan-content',
         'empty_message' => 'Ничего не найдено в выбранном состоянии. Измените запрос или смените фильтр.',
     ]); ?>
 

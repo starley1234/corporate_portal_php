@@ -1,7 +1,7 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
 /**
- * /architecture — собранная из YAML документация архитектуры портала.
+ * /architecture — собранная из YAML документация архитектуры платформы.
  *
  * Страница отдаётся как есть: у неё собственная оболочка, поиск и схема.
  * Доступ — только авторизованным (prx101.view), потому что модель описывает
@@ -20,7 +20,7 @@ class Controller_Prx101_Architecture extends Controller_Base
 
         if ($html === NULL)
         {
-            $this->set_title('Архитектура портала');
+            $this->set_title('Архитектура платформы');
             $this->set_description('Страница ещё не собрана из docs/architecture/model');
             $this->template->content = View::factory('prx101/missing');
 
@@ -36,7 +36,7 @@ class Controller_Prx101_Architecture extends Controller_Base
 
     /**
      * /architecture/guide — памятка программиста: философия, архитектура, имена.
-     * Одна страница v6 внутри портала; подробности — по ссылкам на документы.
+     * Одна страница v6 внутри платформы; подробности — по ссылкам на документы.
      */
     public function action_guide()
     {
@@ -45,7 +45,7 @@ class Controller_Prx101_Architecture extends Controller_Base
             throw HTTP_Exception::factory(403, 'Недостаточно прав: prx101.view');
         }
 
-        $this->set_title('Как устроен портал — памятка программиста');
+        $this->set_title('Как устроена платформа — памятка программиста');
         $this->set_module_nav([
             ['title' => 'Памятка', 'href' => '/architecture/guide', 'icon' => 'fas fa-compass'],
             ['title' => 'Схемы и решения', 'href' => '/architecture', 'icon' => 'fas fa-sitemap'],

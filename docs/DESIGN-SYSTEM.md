@@ -32,7 +32,7 @@ Amber — только выполняющееся состояние и пред
 Не используем: `red-*` (→ rose), `green-*` (→ emerald), indigo/violet/purple/sky/teal/cyan/
 slate… (→ роль по смыслу). Одно главное действие на блок, тени не крупнее `shadow-sm`.
 
-### Брендовый акцент рабочего портала
+### Брендовый акцент платформы
 
 `application/config/site_config.php` → `company_accent`: `orange` (по умолчанию),
 `blue` или `yellow`. `partials/head.php` проверяет allowlist и выставляет

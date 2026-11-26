@@ -39,7 +39,7 @@
 
         <div class="space-y-6">
             <section class="prx-card">
-                <h2 class="prx-h3 border-b border-gray-100 pb-3 dark:border-gray-700"><i class="fas fa-link mr-2 text-blue-600 dark:text-blue-400"></i>Аккаунт портала</h2>
+                <h2 class="prx-h3 border-b border-gray-100 pb-3 dark:border-gray-700"><i class="fas fa-link mr-2 text-blue-600 dark:text-blue-400"></i>Аккаунт платформы</h2>
                 <?php if ( ! $employee['id']): ?>
                     <p class="prx-hint mt-3">Сначала сохраните сотрудника.</p>
                 <?php elseif ($active_link): ?>

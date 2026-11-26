@@ -74,7 +74,7 @@ $old = $old ?? [];
 
             <section class="prx-card" aria-labelledby="prx450-form">
                 <h2 id="prx450-form" class="prx-h3"><i class="fas fa-file-arrow-up mr-2 text-blue-500" aria-hidden="true"></i>Загрузить документ</h2>
-                <p id="prx450-upload-hint" class="prx-hint mt-2">Файл отправляется на внешний OCR-шлюз и не хранится на портале.</p>
+                <p id="prx450-upload-hint" class="prx-hint mt-2">Файл отправляется на внешний OCR-шлюз и не хранится на платформе.</p>
                 <form method="post" action="/prx450_document_ocr" enctype="multipart/form-data" class="mt-4 space-y-4" id="prx450-upload"
                       data-max-bytes="<?php echo (int) $config['max_bytes']; ?>">
                     <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">

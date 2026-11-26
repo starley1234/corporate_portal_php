@@ -26,7 +26,7 @@
 в `application/bootstrap.php` (проба пера, не основа для новых модулей).
 `prx300_employee` остаётся доступным как HR-MVP.
 
-Рабочие страницы портала приведены к эталону
+Рабочие страницы платформы приведены к эталону
 `/pages/required_design_sample` и общей дизайн-системе v6.
 
 ## Что сохранено
@@ -65,7 +65,7 @@ docker compose exec php composer install --no-dev --no-interaction
 docker compose exec php php public_html/index.php db:migrate
 ```
 
-Вход: `/auth/login`. Главная портала закрыта для гостя.
+Вход: `/auth/login`. Главная платформы закрыта для гостя.
 Учётные записи создаёт администратор; саморегистрация выключена. На чистой базе
 миграция создаёт **admin / admin** — смените пароль после первого входа. Для
 production: `PRX_DEFAULT_ADMIN=0` в `.env` и `make seed` с сильным паролем.
@@ -114,7 +114,7 @@ make new-module id=301 slug=onboarding name="Онбординг-трек"
 [ARCHITECTURE](docs/ARCHITECTURE.md), карта 55 сервисов —
 [ROADMAP](docs/ROADMAP.md), правила разработки — [AGENTS.md](AGENTS.md).
 
-Быстрый вход: [карта портала и план развития](docs/PORTAL-ARCHITECTURE.md).
+Быстрый вход: [карта платформы и план развития](docs/PORTAL-ARCHITECTURE.md).
 
 ## Проверки
 

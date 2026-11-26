@@ -1,6 +1,6 @@
 # Один компонент — одна сущность. Узлы схем с тем же id подхватывают карточку.
 entities:
-  - { id: portal, type: service, title: Портал PRX, owner: Платформа PRX, data_class: internal }
+  - { id: portal, type: service, title: Платформа PRX, owner: Платформа PRX, data_class: internal }
   - { id: auth, type: control, title: Аутентификация и сессии, owner: Платформа PRX, data_class: secret }
   - { id: rbac, type: control, title: RBAC и права модулей, owner: Платформа PRX, data_class: internal }
   - { id: catalog, type: service, title: Каталог модулей и меню, owner: Платформа PRX, data_class: internal }

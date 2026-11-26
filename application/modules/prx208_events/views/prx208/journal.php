@@ -1,7 +1,7 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
 /**
- * События портала: сводка → как идёт событие → журнал с фильтрами.
+ * События платформы: сводка → как идёт событие → журнал с фильтрами.
  *
  * Переменные: $summary, $switches, $prefixes, $titles, $result, $filters.
  */

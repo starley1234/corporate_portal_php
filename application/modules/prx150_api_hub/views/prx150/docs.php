@@ -11,7 +11,7 @@
         'crumbs' => [['Администрирование', '/admin'], ['API-доступ', '/prx150_api_hub'], ['Документация']],
         'title'  => 'Документация API',
         'pill'   => ['что выдать потребителю', 'fa-book'],
-        'lead'   => 'Минимальный контракт: адрес, ключ, право на сервис и формат ошибок. Внутренние детали портала потребителю не нужны.',
+        'lead'   => 'Минимальный контракт: адрес, ключ, право на сервис и формат ошибок. Внутренние детали платформы потребителю не нужны.',
         'actions'=> [
             ['label' => 'Ключи', 'href' => '/prx150_api_hub', 'icon' => 'fa-key', 'role' => 'secondary'],
             ['label' => 'Использование', 'href' => '/prx150_api_hub/usage', 'icon' => 'fa-chart-line', 'role' => 'secondary'],
@@ -30,7 +30,7 @@
         <div class="space-y-6 lg:col-span-2">
             <section class="prx-card" aria-labelledby="prx150-docs-auth">
                 <h2 id="prx150-docs-auth" class="prx-h3">1. Адрес и ключ</h2>
-                <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Базовый адрес — домен портала. Машинные маршруты живут под <code>/api/v1/&lt;service&gt;/…</code>; страница модуля — <code>/prxNNN_slug</code>. Ключ передаётся заголовком:</p>
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Базовый адрес — домен платформы. Машинные маршруты живут под <code>/api/v1/&lt;service&gt;/…</code>; страница модуля — <code>/prxNNN_slug</code>. Ключ передаётся заголовком:</p>
                 <pre class="mt-3 overflow-auto rounded-lg bg-gray-900 p-3 text-xs leading-5 text-gray-100"><code>Authorization: Bearer prx_…</code></pre>
                 <ul class="mt-3 space-y-1.5 text-sm text-gray-600 dark:text-gray-300">
                     <li><i class="fas fa-check mr-1.5 w-4 text-emerald-500"></i>Ключ выдаётся администратором на странице «Ключи» и показывается один раз.</li>

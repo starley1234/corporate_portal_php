@@ -16,7 +16,7 @@
         <div class="prx-empty">
             <div class="prx-empty-icon"><i class="fas fa-link-slash" aria-hidden="true"></i></div>
             <p class="prx-empty-text mt-4">Аккаунт пока не сопоставлен с сотрудником.</p>
-            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Обратитесь к HR или администратору портала. До сопоставления справочник коллег и будущие HR-сервисы не смогут определить вашу организацию.</p>
+            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">Обратитесь к HR или администратору платформы. До сопоставления справочник коллег и будущие HR-сервисы не смогут определить вашу организацию.</p>
             <?php if ($can_admin): ?>
             <a href="/prx300/admin/employees" class="prx-btn-secondary mt-5"><i class="fas fa-sitemap"></i>Открыть сопоставления</a>
             <?php endif; ?>
@@ -92,7 +92,7 @@
             </section>
 
             <section class="prx-card">
-                <h3 class="prx-h3"><i class="fas fa-user-lock mr-2 text-blue-600 dark:text-blue-400"></i>Аккаунт портала</h3>
+                <h3 class="prx-h3"><i class="fas fa-user-lock mr-2 text-blue-600 dark:text-blue-400"></i>Аккаунт платформы</h3>
                 <p class="mt-3 break-all text-sm font-semibold text-gray-900 dark:text-white"><?php echo HTML::chars($user->username); ?></p>
                 <p class="break-all text-sm text-gray-500 dark:text-gray-400"><?php echo HTML::chars($user->email); ?></p>
                 <p class="prx-hint mt-3">Сопоставление аккаунта и сотрудника хранится отдельно и может быть отозвано HR без изменения Auth-профиля.</p>

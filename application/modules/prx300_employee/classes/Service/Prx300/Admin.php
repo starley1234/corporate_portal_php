@@ -93,7 +93,7 @@ class Service_Prx300_Admin extends Service_Prx300_Store
         }
         elseif ( ! $actor->isAdmin())
         {
-            throw new DomainException('Новую организацию может создать только администратор портала');
+            throw new DomainException('Новую организацию может создать только администратор платформы');
         }
 
         $code = self::_code($data['code'] ?? '', 'Код организации');

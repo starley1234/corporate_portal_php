@@ -164,7 +164,7 @@ $when = function ($value): string {
                 <h2 id="prx150-how" class="prx-h3">Как это работает</h2>
                 <ol class="mt-3 space-y-3 text-sm text-gray-600 dark:text-gray-300">
                     <li class="flex gap-2"><span class="prx-count">1</span><span>Создайте ключ и отметьте права — только те сервисы, которые нужны потребителю.</span></li>
-                    <li class="flex gap-2"><span class="prx-count">2</span><span>Выдайте ключ, адрес портала и формат запроса. Полный ключ больше не показывается.</span></li>
+                    <li class="flex gap-2"><span class="prx-count">2</span><span>Выдайте ключ, адрес платформы и формат запроса. Полный ключ больше не показывается.</span></li>
                     <li class="flex gap-2"><span class="prx-count">3</span><span>Смотрите использование: ошибки, лимиты, кто и куда звал. Отзовите ключ одним действием.</span></li>
                 </ol>
             </section>

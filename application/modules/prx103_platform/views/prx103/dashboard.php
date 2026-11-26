@@ -12,7 +12,7 @@
         <div class="prx-panel-head">
             <div>
                 <h2 class="prx-h3"><i class="fas fa-id-card mr-2 text-blue-500"></i>Учётная запись</h2>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Данные, с которыми вы входите в портал.</p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Данные, с которыми вы входите на платформу.</p>
             </div>
             <?php if ($is_admin): ?>
                 <span class="prx-badge prx-badge-ok"><span class="prx-dot"></span>Администратор</span>

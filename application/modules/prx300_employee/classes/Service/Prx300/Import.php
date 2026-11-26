@@ -676,7 +676,7 @@ class Service_Prx300_Import extends Service_Prx300_Store
                 }
                 else
                 {
-                    $add($row, 'Руководитель по внешнему ID не найден в файле или портале');
+                    $add($row, 'Руководитель по внешнему ID не найден в файле или платформе');
                 }
             }
             if ($identity AND $row['source_updated_at'] !== '' AND ! empty($identity['employee_source_updated_at']))
@@ -707,7 +707,7 @@ class Service_Prx300_Import extends Service_Prx300_Store
             {
                 $status = 'skipped';
                 $skipped++;
-                $message = 'Пропущено: в портале уже есть более свежая версия сотрудника';
+                $message = 'Пропущено: на платформе уже есть более свежая версия сотрудника';
             }
             else
             {

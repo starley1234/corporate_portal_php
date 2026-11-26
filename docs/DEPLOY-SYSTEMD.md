@@ -123,7 +123,7 @@ EOF
    ```bash
    sudo journalctl -u prx-worker.service -f
    ```
-   *Убедитесь, что нет ошибок подключения к PostgreSQL (`WORKER_PG_DSN`) или HTTP API портала.*
+   *Убедитесь, что нет ошибок подключения к PostgreSQL (`WORKER_PG_DSN`) или HTTP API платформы.*
 
 ---
 
