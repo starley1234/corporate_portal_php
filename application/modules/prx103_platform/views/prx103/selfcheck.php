@@ -20,7 +20,7 @@ if ($results !== NULL)
 $badge = [
     'OK'   => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400',
     'WARN' => 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400',
-    'FAIL' => 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400',
+    'FAIL' => 'bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400',
 ];
 
 ?>
@@ -50,7 +50,7 @@ $badge = [
     <div class="mt-5 max-w-4xl">
         <p class="text-xs font-semibold mb-2
             <?php echo $counts['FAIL'] > 0
-                ? 'text-red-600 dark:text-red-400'
+                ? 'text-rose-600 dark:text-rose-400'
                 : ($counts['WARN'] > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'); ?>">
             Быстрые проверки — итог: <?php echo $counts['OK']; ?> в порядке,
             <?php echo $counts['WARN']; ?> предупреждений,

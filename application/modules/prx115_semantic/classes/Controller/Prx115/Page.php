@@ -68,10 +68,10 @@ class Controller_Prx115_Page extends Controller_Prx102_Base {
                 $elapsed = (int) ($status['elapsed_sec'] ?? 0);
                 $finished = isset($status['finished_at']) && $status['finished_at']
                     ? strtotime((string) $status['finished_at']) : NULL;
-                $live = ($state === 'queued' AND $elapsed < 1800)
+                $live = (($state === 'queued' AND $elapsed < 1800)
                     OR ($state === 'running' AND ($silent === NULL OR $silent < 1800))
                     OR (in_array($state, ['done', 'failed', 'cancelled'], TRUE)
-                        AND $finished !== NULL AND (time() - $finished) < 900);
+                        AND $finished !== NULL AND (time() - $finished) < 900));
             }
         }
         catch (Throwable $e)
