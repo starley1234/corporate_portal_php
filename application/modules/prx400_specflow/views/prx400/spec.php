@@ -44,11 +44,26 @@ $row_style = [
 
     <?php echo View::factory('partials/flash', ['flash' => $flash]); ?>
 
+<?php $pipeline_pending = in_array($spec['status'], ['queued', 'running'], TRUE);
+$pipeline_since = 0;
+if ($pipeline_pending AND ! empty($spec['updated_at']))
+{
+    $pipeline_since = max(0, time() - strtotime((string) $spec['updated_at'])); // разбор стартовал при launch()
+}
+$pipeline_clock = sprintf('%d:%02d', intdiv($pipeline_since, 60), $pipeline_since % 60);
+$job_stage_text = trim((string) ($job_stage['stage'] ?? ''));
+?>
+    <?php /* Полоса «Разбор идёт» — эталон prx399: спиннер, этап воркера и время,
+         без полос прогресса; исчезает по завершении (и страница один раз
+         перезагружается — JS ниже). */ ?>
+    <div id="prx400-pipeline" class="prx-flash prx-flash-info mt-4<?php echo $pipeline_pending ? '' : ' hidden'; ?>" role="status">
+        <i class="fas fa-circle-notch fa-spin"></i>
+        <span>Разбор идёт: <?php echo $job_stage_text !== '' ? HTML::chars($job_stage_text) : 'задача в очереди воркера'; ?> — статусы обновляются автоматически. Время: <span data-prx-clock data-prx-from="<?php echo (int) $pipeline_since; ?>" class="font-mono tabular-nums"><?php echo $pipeline_clock; ?></span></span>
+        <a href="/prx120/monitor" class="prx-link ml-2 text-sm">Монитор воркеров →</a>
+    </div>
+
     <div class="mt-5 flex flex-wrap items-center gap-3">
         <span class="<?php echo HTML::chars($badge); ?>"><span class="prx-dot"></span><?php echo HTML::chars($status_label); ?></span>
-<?php if (in_array($spec['status'], ['queued', 'running'], TRUE)): ?>
-        <span class="prx-flash prx-flash-info mt-0 inline-flex items-center gap-2"><i class="fas fa-circle-notch fa-spin"></i>Воркер разбирает документ — статусы на <?php echo HTML::chars('/prx120/monitor'); ?></span>
-<?php endif; ?>
 <?php if ($spec['status'] === 'failed'): ?>
         <span class="text-sm text-rose-600 dark:text-rose-400"><?php echo HTML::chars((string) $spec['error']); ?></span>
 <?php endif; ?>
@@ -138,3 +153,52 @@ $row_style = [
     <p class="prx-hint mt-4">Справочник НСИ (prx_400_catalog) пуст — все позиции помечены «новая». Наполните справочник кодами номенклатуры, и матчинг включится на повторном разборе.</p>
 <?php endif; ?>
 </div>
+
+<script>
+// Живая индикация разбора: опрос карточки каждые 5с (fetch + DOMParser +
+// подмена полосы по id — эталон монитора/prx399). Пока идёт работа — освежаем
+// этап и секундомер; когда работа кончилась — один полный reload, чтобы
+// показать таблицу позиций. Вкладка в фоне и повторный тик не опрашиваются.
+(function () {
+    'use strict';
+    var strip = document.getElementById('prx400-pipeline');
+    if (!strip || strip.classList.contains('hidden')) return;
+
+    var clock = strip.querySelector('[data-prx-clock]');
+    if (clock && window.PRX) PRX.stopwatch(clock, parseInt(clock.getAttribute('data-prx-from') || '0', 10) || 0);
+
+    var busy = false;
+    function refresh() {
+        if (busy || document.hidden) return;
+        busy = true;
+        fetch(location.pathname + location.search, { cache: 'no-store' })
+            .then(function (r) { return r.ok ? r.text() : null; })
+            .then(function (html) {
+                if (!html) return;
+                var doc = new DOMParser().parseFromString(html, 'text/html');
+                var fresh = doc.getElementById('prx400-pipeline');
+                if (!fresh) return;
+                if (fresh.classList.contains('hidden')) {
+                    window.location.reload(); // разбор кончился — показать результат целиком
+                    return;
+                }
+                strip.replaceChildren.apply(strip, Array.prototype.slice.call(fresh.childNodes));
+                strip.className = fresh.className;
+                var c = strip.querySelector('[data-prx-clock]');
+                if (c && window.PRX) PRX.stopwatch(c, parseInt(c.getAttribute('data-prx-from') || '0', 10) || 0);
+            })
+            .catch(function () { /* сеть моргнула — в следующий тик */ })
+            .finally(function () { busy = false; });
+    }
+    setInterval(refresh, 5000);
+
+    // POST-формы карточки (повтор разбора/верификация/завершение): кнопка
+    // занята на время запроса — двойной запуск исключён.
+    document.querySelectorAll('form[method="post"]').forEach(function (form) {
+        form.addEventListener('submit', function () {
+            var btn = form.querySelector('button[type="submit"]');
+            if (btn && window.PRX) PRX.busy(btn, true);
+        });
+    });
+})();
+</script>

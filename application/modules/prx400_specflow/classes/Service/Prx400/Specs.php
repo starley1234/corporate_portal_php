@@ -133,9 +133,17 @@ class Service_Prx400_Specs {
 
     protected function _push_job($spec_id, $actor_id)
     {
+        $templates = Service_Prx400_Templates::for_payload();
+        if (empty($templates))
+        {
+            // Пустая библиотека = обречённая задача (воркер вернёт
+            // template_missing). Честная ошибка сразу, на стороне сайта.
+            throw new Prx400_Error('template_library_empty', 503);
+        }
+
         $job_id = Service_Prx120_JobQueue::push('specflow.parse', [
             'spec_id' => (int) $spec_id,
-            'templates' => Service_Prx400_Templates::for_payload(),
+            'templates' => $templates,
         ], [
             'module' => 'prx400',
             'priority' => 40,
@@ -146,7 +154,7 @@ class Service_Prx400_Specs {
         Model_Prx400_Spec::set_job($spec_id, $job_id);
     }
 
-    /** Карточка: спецификация + позиции (+ задача для индикации). */
+    /** Карточка: спецификация + позиции (+ задача и этап воркера для индикации). */
     public function spec($actor, $id)
     {
         ($actor ?? Prx_Actor::guest())->require('prx400.view');
@@ -156,10 +164,22 @@ class Service_Prx400_Specs {
             throw new Prx400_Error('not_found', 404);
         }
 
-        $job = NULL;
-        if ((int) ($spec['job_id'] ?? 0) > 0 AND class_exists('Service_Prx120_JobQueue'))
+        $this->_reconcile((int) $id, $spec);
+        $spec = Model_Prx400_Spec::get($id);
+
+        // Последняя задача этого spec_id + её ЖИВОЙ этап (payload_jobs —
+        // SQL у владельца очереди prx120; первое = последнее по времени).
+        $job_stage = NULL;
+        if (class_exists('Service_Prx120_JobQueue'))
         {
-            try { $job = Service_Prx120_JobQueue::instance()->get((int) $spec['job_id']); }
+            try
+            {
+                foreach (Service_Prx120_JobQueue::instance()->payload_jobs('prx400', 'spec_id', (int) $id, 10) as $job)
+                {
+                    $job_stage = $job;
+                    break;
+                }
+            }
             catch (Throwable $e) { /* индикация не должна ломать карточку */ }
         }
 
@@ -167,9 +187,62 @@ class Service_Prx400_Specs {
             'spec' => $spec,
             'rows' => Model_Prx400_Row::for_spec($id),
             'catalog_count' => Model_Prx400_Catalog::count(),
-            'job' => $job,
+            'job_stage' => $job_stage,
             'math' => json_decode((string) ($spec['math'] ?? 'null'), TRUE),
         ];
+    }
+
+    /**
+     * Самолечение зомби-спецификаций: queued/running сверяем с задачей
+     * (публичный JobQueue::get). failed/cancelled/missing → failed с причиной
+     * и «Повторить разбор»; done без позиций → результат не был записан →
+     * failed. Живая задача (pending/processing) — ждать.
+     */
+    private function _reconcile($id, array $spec)
+    {
+        if ( ! class_exists('Service_Prx120_JobQueue')
+            OR ! in_array($spec['status'], ['queued', 'running'], TRUE))
+        {
+            return;
+        }
+
+        $job_id = (int) ($spec['job_id'] ?? 0);
+        if ($job_id <= 0)
+        {
+            return; // задача ещё не записана — считать рабочей
+        }
+
+        try
+        {
+            $job = Service_Prx120_JobQueue::instance()->get($job_id);
+        }
+        catch (Throwable $e)
+        {
+            return; // очередь недоступна — не ломаем показ
+        }
+
+        if ($job === NULL)
+        {
+            Model_Prx400_Spec::set_status($id, 'failed',
+                'Задача очереди не найдена (удалена или не была создана) — запустите разбор повторно');
+
+            return;
+        }
+        if (in_array($job['status'], ['failed', 'cancelled'], TRUE))
+        {
+            $error = trim((string) ($job['error'] ?? ''));
+            Model_Prx400_Spec::set_status($id, 'failed',
+                'Задача очереди завершилась ошибкой'.($error !== '' ? ': '.mb_substr($error, 0, 200) : ''));
+
+            return;
+        }
+        if ($job['status'] === 'done')
+        {
+            // Воркер вернул задачу как выполненную, а результат не записан
+            // (сбой POST результата) — ждать нечего.
+            Model_Prx400_Spec::set_status($id, 'failed',
+                'Задача завершилась, но результат разбора не был записан — запустите разбор повторно');
+        }
     }
 
     /** Исходный PDF для воркера и для карточки. */
