@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "count": 131,
+  "count": 133,
   "routes": [
     {
       "name": "cookie_consent_close",
@@ -145,6 +145,24 @@
       "action": "index",
       "module": "prx103_platform",
       "file": "application/modules/prx103_platform/classes/Controller/Prx103/Selfcheck.php"
+    },
+    {
+      "name": "prx110_menu_add",
+      "uri": "services/menu/add",
+      "regex": "",
+      "controller": "Prx110_Catalog",
+      "action": "menu_add",
+      "module": "prx110_catalog",
+      "file": "application/modules/prx110_catalog/classes/Controller/Prx110/Catalog.php"
+    },
+    {
+      "name": "prx110_menu_delete",
+      "uri": "services/menu/delete/<id>",
+      "regex": "['id' => '[1-9][0-9]{0,9}']",
+      "controller": "Prx110_Catalog",
+      "action": "menu_delete",
+      "module": "prx110_catalog",
+      "file": "application/modules/prx110_catalog/classes/Controller/Prx110/Catalog.php"
     },
     {
       "name": "prx110_catalog_group",
