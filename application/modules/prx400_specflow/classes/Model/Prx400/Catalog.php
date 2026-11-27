@@ -13,6 +13,63 @@ class Model_Prx400_Catalog {
         return Prx_Db::select('SELECT '.self::COLUMNS.' FROM prx_400_catalog ORDER BY id ASC');
     }
 
+    /**
+     * Страница справочника для UI: поиск подстроки по коду/наименованию/ключевым словам.
+     * @return array{rows: array, total: int}
+     */
+    public static function page(string $query, int $limit, int $offset): array
+    {
+        $where = '';
+        $params = [];
+        $query = trim($query);
+        if ($query !== '')
+        {
+            // Обратная косая — экранирующий символ LIKE по умолчанию в PostgreSQL.
+            $where = ' WHERE code ILIKE :q OR name ILIKE :q OR keywords ILIKE :q';
+            $params[':q'] = '%'.addcslashes(mb_substr($query, 0, 200), '%_\\').'%';
+        }
+        $total = Prx_Db::one('SELECT count(*) AS c FROM prx_400_catalog'.$where, $params);
+        $rows = Prx_Db::select('SELECT '.self::COLUMNS.' FROM prx_400_catalog'.$where
+            .' ORDER BY code ASC LIMIT '.max(1, $limit).' OFFSET '.max(0, $offset), $params);
+
+        return ['rows' => $rows, 'total' => (int) ($total['c'] ?? 0)];
+    }
+
+    /** @param string[] $codes */
+    public static function by_codes(array $codes): array
+    {
+        if ($codes === []) return [];
+        $params = [];
+        foreach (array_values($codes) as $i => $code) $params[':c'.$i] = (string) $code;
+
+        return Prx_Db::select('SELECT '.self::COLUMNS.' FROM prx_400_catalog WHERE code IN ('.implode(', ', array_keys($params)).')', $params);
+    }
+
+    /**
+     * Пакетный upsert по коду (импорт). Вызывающий держит транзакцию и не
+     * передаёт повторов кода в одном пакете (ON CONFLICT их не допускает).
+     */
+    public static function upsert_many(array $items): int
+    {
+        if ($items === []) return 0;
+        $values = [];
+        $params = [];
+        foreach (array_values($items) as $i => $item)
+        {
+            $values[] = "(:code$i, :name$i, :unit$i, :okei$i, :kw$i)";
+            $params += [
+                ":code$i" => (string) $item['code'], ":name$i" => (string) $item['name'], ":unit$i" => (string) $item['unit'],
+                ":okei$i" => (string) $item['okei_code'], ":kw$i" => (string) $item['keywords'],
+            ];
+        }
+
+        return Prx_Db::execute(
+            'INSERT INTO prx_400_catalog (code, name, unit, okei_code, keywords) VALUES '.implode(', ', $values).'
+             ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, unit = EXCLUDED.unit,
+                 okei_code = EXCLUDED.okei_code, keywords = EXCLUDED.keywords',
+            $params);
+    }
+
     public static function by_code(string $code): ?array
     {
         return Prx_Db::one('SELECT '.self::COLUMNS.' FROM prx_400_catalog WHERE code = :c', [':c' => $code]);

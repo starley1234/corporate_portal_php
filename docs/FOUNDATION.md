@@ -8,17 +8,18 @@ SQL, идемпотентность), фасады `Event::publish()` и `Storag
 <!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index docs/FOUNDATION.md --write. Руками не править. -->
 | Раздел | Строка | Размер |
 |---|---|---|
-|   1. Доступ: actor → policy → сервис | 36 | 2,8 КБ |
-|   2. SQL: именованные параметры и транзакции | 75 | 2,5 КБ |
-|     Идемпотентность | 91 | 1,6 КБ |
-|   3. События | 115 | 1,8 КБ |
-|   5. Файлы: фасад `Storage::` | 144 | 1,7 КБ |
-|   4. POST и CSRF | 169 | 1,1 КБ |
-|   6. Манифест — контракт модуля | 185 | 0,5 КБ |
-|   7. Страница: page-kit | 198 | 0,7 КБ |
-|   8. Новый модуль | 213 | 0,4 КБ |
-|   9. Гейты | 223 | 1,0 КБ |
-|   Предсказуемая главная страница модуля | 240 | 1,3 КБ |
+|   1. Доступ: actor → policy → сервис | 38 | 4,2 КБ |
+|     Политика и владение (docs/SKELETON-ADR.md Д3) | 77 | 1,4 КБ |
+|   2. SQL: именованные параметры и транзакции | 94 | 3,1 КБ |
+|     Идемпотентность | 116 | 1,6 КБ |
+|   3. События | 140 | 1,8 КБ |
+|   5. Файлы: фасад `Storage::` | 169 | 1,7 КБ |
+|   4. POST и CSRF | 194 | 1,1 КБ |
+|   6. Манифест — контракт модуля | 210 | 1,8 КБ |
+|   7. Страница: page-kit | 237 | 0,7 КБ |
+|   8. Новый модуль | 252 | 0,4 КБ |
+|   9. Гейты | 262 | 1,0 КБ |
+|   Предсказуемая главная страница модуля | 279 | 1,3 КБ |
 <!-- context-index:end -->
 | нужен | берём | где |
 |---|---|---|
@@ -30,6 +31,7 @@ SQL, идемпотентность), фасады `Event::publish()` и `Storag
 | файл | `Storage` | `application/classes/Storage.php` |
 | защита POST | `Prx_PostGuard` | `application/classes/Prx/PostGuard.php` |
 | идемпотентный ключ | `Prx_Idempotency` | `application/classes/Prx/Idempotency.php` |
+| импорт CSV/XLSX | `Prx_Spreadsheet` | `application/classes/Prx/Spreadsheet.php` |
 | каркас страницы | page-kit | `application/views/partials/{page_header,filters,empty_state,flash}.php` |
 | новый модуль | scaffold v2 | `make new-module id=312 slug=claims name="Заявки" entity=Claim` |
 

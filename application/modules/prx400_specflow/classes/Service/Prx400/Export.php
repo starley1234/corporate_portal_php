@@ -95,8 +95,11 @@ final class Service_Prx400_Export {
         return (string) stream_get_contents($out);
     }
 
-    /** Текст из скана не должен стать формулой Excel (=, +, -, @ в начале ячейки). */
-    private static function cell($value): string
+    /**
+     * Текст из скана не должен стать формулой Excel (=, +, -, @ в начале ячейки).
+     * Обратное преобразование — Service_Prx400_CatalogImport::uncell().
+     */
+    public static function cell($value): string
     {
         $value = (string) $value;
 

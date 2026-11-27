@@ -45,10 +45,19 @@ final class Service_Prx400_Limits
         }
     }
 
-    /** Подпись лимита для форм: «20 МиБ». */
-    public static function pdf_label(): string
+    /** То же для формы импорта справочника НСИ. */
+    public static function assert_catalog_request_size(int $bytes): void
     {
-        $bytes = self::get('max_pdf_bytes');
+        if ($bytes > self::get('catalog_import_max_bytes') + self::MULTIPART_OVERHEAD_BYTES)
+        {
+            throw new Prx400_Error('catalog_file_too_large', 413);
+        }
+    }
+
+    /** Подпись лимита для форм: «20 МиБ». */
+    public static function pdf_label(string $name = 'max_pdf_bytes'): string
+    {
+        $bytes = self::get($name);
 
         return $bytes % (1024 ** 2) === 0
             ? number_format($bytes / 1024 ** 2, 0, ',', ' ').' МиБ'

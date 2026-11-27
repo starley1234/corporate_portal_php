@@ -46,6 +46,12 @@ return [
     // Падение воркера на одном и том же файле (worker_crash_loop) не повторяется.
     'crash_retries'    => $integer(getenv('PRX400_CRASH_RETRIES'), 1, 0, 3),
 
+    // Импорт справочника НСИ из CSV/XLSX (Service_Prx400_CatalogImport):
+    // строк данных в файле и размер файла. Файл больше — делится на части
+    // (импорт не удаляет позиции, которых нет в файле).
+    'catalog_import_max_rows'  => $integer(getenv('PRX400_CATALOG_IMPORT_MAX_ROWS'), 20000, 10, 200000),
+    'catalog_import_max_bytes' => $integer(getenv('PRX400_CATALOG_IMPORT_MAX_BYTES'), 10 * $mib, $mib, 64 * $mib),
+
     // Хранение: 0 — спецификации живут бессрочно (это рабочие документы
     // для ERP); N > 0 — prx400:purge удаляет завершённые (done/failed)
     // старше N дней вместе с файлом.

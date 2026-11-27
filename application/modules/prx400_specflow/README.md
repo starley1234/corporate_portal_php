@@ -8,14 +8,15 @@
 <!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index application/modules/prx400_specflow/README.md --write. Руками не править. -->
 | Раздел | Строка | Размер |
 |---|---|---|
-|   Статусы спецификаций | 20 | 0,7 КБ |
-|   Падение воркера | 30 | 0,9 КБ |
-|   Цвета строк (Confidence Scoring) — `Service_Prx400_Match::row_status` | 40 | 0,8 КБ |
-|   Конфигурация | 51 | 0,4 КБ |
-|   Внешнее API (prx150) | 57 | 0,7 КБ |
-|   Хранение | 69 | 0,4 КБ |
-|   Тесты | 75 | 0,2 КБ |
-|   Деплой | 79 | 0,2 КБ |
+|   Статусы спецификаций | 21 | 0,7 КБ |
+|   Падение воркера | 31 | 0,9 КБ |
+|   Цвета строк (Confidence Scoring) — `Service_Prx400_Match::row_status` | 41 | 0,8 КБ |
+|   Справочник НСИ | 52 | 1,1 КБ |
+|   Конфигурация | 64 | 0,4 КБ |
+|   Внешнее API (prx150) | 70 | 0,7 КБ |
+|   Хранение | 82 | 0,4 КБ |
+|   Тесты | 88 | 0,4 КБ |
+|   Деплой | 94 | 0,2 КБ |
 <!-- context-index:end -->
 ## Статусы спецификаций
 `queued → running → review (есть позиции на проверку) → done`; `failed` —
@@ -48,6 +49,18 @@
 (`Service_Prx400_Checks`) — и при приёме результата, и после правки
 оператором; `gap` (пропуск нумерации) приходит от воркера.
 
+## Справочник НСИ
+Страница «Справочник НСИ»: поиск, ручное добавление и загрузка выгрузки
+CSV/XLSX (1С, MDM, Excel; `Service_Prx400_CatalogImport`). Первая строка —
+заголовок: «Код», «Наименование» обязательны, «Ед. изм.», «ОКЕИ», «Ключевые
+слова» — по желанию (латинские `code/name/unit/okei/keywords` тоже), прочие
+столбцы пропускаются. «Проверить» ничего не пишет; ошибка хотя бы в одной
+строке — файл не применяется, в отчёте номера строк. Upsert по коду в одной
+транзакции, отсутствующие в файле позиции не удаляются. Выгрузка CSV
+принимается импортом обратно. CLI: `bin/console prx400:catalog
+--import=ФАЙЛ [--apply=1]` / `--export=ФАЙЛ`. Пределы:
+`PRX400_CATALOG_IMPORT_MAX_ROWS`, `PRX400_CATALOG_IMPORT_MAX_BYTES`.
+
 ## Конфигурация
 `config/prx400_specflow.php` — пороги матчинга и пределы из env с границами
 (читать только через `Service_Prx400_Limits`); `config/templates/*.json` —
@@ -74,6 +87,8 @@
 
 ## Тесты
 - PHP-контракт: `tests/Contracts/prx400_match_export.php` — `bin/test --contracts`.
+- Smoke: `SpecflowPipelineTest`, `SpecflowRecoveryTest`, `SpecflowCatalogImportTest`;
+  читатель таблиц — `tests/Unit/PrxSpreadsheetTest.php`.
 - Python: `workers/tests/handlers/prx400_specflow/` (парсер, протокол воркера, vision).
 
 ## Деплой

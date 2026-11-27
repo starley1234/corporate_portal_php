@@ -23,7 +23,7 @@ Route::set('prx400_specflow_api_docs', 'prx400_specflow/api-docs')
     ->defaults(['controller' => 'Prx400_Ui', 'action' => 'api_docs']);
 
 Route::set('prx400_specflow_ui', 'prx400_specflow/<action>(/<id>)', [
-    'action' => 'spec|verify|edit|finish|launch|reupload|file|export|delete|catalog|catalog_delete|templates|template_enable|template_delete',
+    'action' => 'spec|verify|edit|finish|launch|reupload|file|export|delete|catalog|catalog_delete|catalog_import|catalog_export|templates|template_enable|template_delete',
     'id' => '[1-9][0-9]{0,17}',
 ])->defaults(['controller' => 'Prx400_Ui']);
 

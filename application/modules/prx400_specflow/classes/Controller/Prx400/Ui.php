@@ -9,6 +9,9 @@
 class Controller_Prx400_Ui extends Controller_Base
 {
     private const FLASH = 'prx400_flash';
+    private const IMPORT_REPORT = 'prx400_catalog_import';
+    private const CATALOG_PER = [20, 50, 100, 200];
+    private const BINARY = ['file', 'export', 'catalog_export'];
 
     public function before()
     {
@@ -19,7 +22,7 @@ class Controller_Prx400_Ui extends Controller_Base
         }
         $this->response->headers('Cache-Control', 'no-store');
         $this->set_title('Оцифровка спецификаций');
-        if ( ! in_array($this->request->action(), ['file', 'export'], TRUE))
+        if ( ! in_array($this->request->action(), self::BINARY, TRUE))
         {
             $this->set_module_nav([
                 ['title' => 'Спецификации', 'href' => '/prx400_specflow', 'icon' => 'fas fa-file-pdf'],
@@ -32,7 +35,7 @@ class Controller_Prx400_Ui extends Controller_Base
 
     public function after()
     {
-        if (in_array($this->request->action(), ['file', 'export'], TRUE)) return; // бинарный ответ — без layout
+        if (in_array($this->request->action(), self::BINARY, TRUE)) return; // бинарный ответ — без layout
         parent::after();
     }
 
@@ -167,7 +170,7 @@ class Controller_Prx400_Ui extends Controller_Base
         $this->done('/prx400_specflow', 'Спецификация удалена: позиции и файл убраны.');
     }
 
-    /** Справочник НСИ: список + добавление (POST). */
+    /** Справочник НСИ: список (поиск, страницы) + добавление (POST). */
     public function action_catalog()
     {
         $this->allow(Request::GET, Request::POST);
@@ -178,12 +181,53 @@ class Controller_Prx400_Ui extends Controller_Base
             return;
         }
 
+        $query = mb_substr(trim((string) $this->request->query('q')), 0, 200);
+        $per = (int) $this->request->query('per');
+        if ( ! in_array($per, self::CATALOG_PER, TRUE)) $per = 100;
+        $page_no = max(1, min(100000, (int) $this->request->query('page')));
+        $page = Model_Prx400_Catalog::page($query, $per, ($page_no - 1) * $per);
+
         $this->template->content = View::factory('prx400/catalog', [
-            'catalog' => Model_Prx400_Catalog::all(),
+            'catalog' => $page['rows'],
+            'total' => $page['total'],
+            'query' => $query,
+            'page_no' => $page_no,
+            'per' => $per,
+            'per_options' => self::CATALOG_PER,
+            'pages' => max(1, (int) ceil($page['total'] / $per)),
+            'import_report' => Session::instance()->get_once(self::IMPORT_REPORT),
+            'max_import' => Service_Prx400_Limits::pdf_label('catalog_import_max_bytes'),
+            'max_import_rows' => Service_Prx400_Limits::get('catalog_import_max_rows'),
             'can_edit' => $this->can(Policy_Prx400_Spec::EDIT_ACL),
             'flash' => $this->flash(),
             'csrf' => Security::token(),
         ]);
+    }
+
+    /**
+     * Импорт справочника из CSV/XLSX: «Проверить» (apply≠1) ничего не пишет,
+     * «Импортировать» применяет файл целиком или не применяет при ошибках.
+     * Отчёт (счётчики, строки с ошибками) — на странице справочника после PRG.
+     */
+    public function action_catalog_import()
+    {
+        $this->allow(Request::POST);
+        $apply = (string) $this->request->post('apply') === '1';
+        $report = $this->act('/prx400_specflow/catalog', function () use ($apply): array {
+            Service_Prx400_Limits::assert_catalog_request_size((int) $this->request->headers('Content-Length'));
+            return Service_Prx400_CatalogImport::from_upload($this->actor(), $_FILES['file'] ?? NULL, $apply);
+        });
+        Session::instance()->set(self::IMPORT_REPORT, $report);
+        $this->done('/prx400_specflow/catalog', NULL);
+    }
+
+    /** Выгрузка справочника в CSV (тот же формат принимает импорт). */
+    public function action_catalog_export()
+    {
+        $this->allow(Request::GET);
+        $this->response->headers('Content-Type', 'text/csv; charset=utf-8');
+        $this->response->headers('Content-Disposition', 'attachment; filename="nsi-catalog-'.date('Ymd').'.csv"');
+        $this->response->body(Service_Prx400_CatalogImport::export_csv());
     }
 
     public function action_catalog_delete()
