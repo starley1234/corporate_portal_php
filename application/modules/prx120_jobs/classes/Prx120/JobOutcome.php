@@ -69,6 +69,19 @@ final class Prx120_JobOutcome
     }
 
     /**
+     * Код отказа, который воркер прислал в теле результата: только из белого
+     * списка модуля, иначе job_failed. PHP — граница доверия: произвольная
+     * строка воркера не попадает ни в БД, ни клиенту API.
+     *
+     * @param mixed    $code
+     * @param string[] $module_codes
+     */
+    public static function reported_code($code, array $module_codes): string
+    {
+        return (is_string($code) && in_array($code, $module_codes, TRUE)) ? $code : 'job_failed';
+    }
+
+    /**
      * Машинный код отказа задачи для API модуля. Наружу — только коды:
      * код модуля из его белого списка («DocumentJobError|PermanentJobError:
      * <code>» от воркера), причина остановки (worker_lost, worker_crash_loop),

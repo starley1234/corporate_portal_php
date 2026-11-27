@@ -13,6 +13,8 @@ class Service_Prx398_Route
         'worker_endpoint_unavailable', 'worker_config', 'lease_lost', 'invalid_result',
         'invalid_attempt', 'method_not_allowed', 'pdf_required', 'graph_unavailable',
     ];
+    /** Тип документа → маршрут (тот же словарь у воркера: graph.py ROUTES). */
+    const ROUTES = ['invoice' => 'erp', 'contract' => 'legal', 'letter' => 'inbox', 'other' => 'inbox'];
     /** Таблицы чекпойнтов LangGraph, которые создаёт AsyncPostgresSaver. */
     const CHECKPOINT_TABLES = ['checkpoints', 'checkpoint_blobs', 'checkpoint_writes'];
 
@@ -73,6 +75,12 @@ class Service_Prx398_Route
                 .':sha,\'queued\',now() + (:ttl * interval \'1 hour\'))',
                 [':key_hash' => $key_hash, ':sha' => $sha, ':ttl' => $ttl]);
             Prx_Idempotency::finish((int) $idem['id'], ['job_id' => $job_id]);
+        } catch (Prx120_Budget_Exception $e) {
+            // Бюджет токенов владельца исчерпан (задача с visitor_id): снимаем
+            // файл и ключ — после пополнения тот же Idempotency-Key пройдёт.
+            Prx_Idempotency::abort();
+            $this->discard($file_id);
+            throw new Prx398_Error('budget_exceeded', 429);
         } catch (Throwable $e) {
             Prx_Idempotency::abort();
             $this->discard($file_id);
@@ -157,20 +165,27 @@ class Service_Prx398_Route
     public function store_result(int $id, int $attempt, array $body): array
     {
         $this->check_lease($id, $attempt);
+        // PHP — граница доверия: в БД и клиенту уходят только известные значения.
         $error_code = $body['error_code'] ?? NULL;
-        $attempts = isset($body['attempts']) && is_numeric($body['attempts']) ? (int) $body['attempts'] : 0;
+        $attempts = isset($body['attempts']) && is_numeric($body['attempts']) ? max(0, min(1000, (int) $body['attempts'])) : 0;
         $state_data = is_array($body['state'] ?? NULL) ? $body['state'] : NULL;
-        $doc_type = is_string($body['doc_type'] ?? NULL) ? $body['doc_type'] : NULL;
-        $route = is_string($body['route'] ?? NULL) ? $body['route'] : NULL;
+        $doc_type = is_string($body['doc_type'] ?? NULL) && isset(self::ROUTES[$body['doc_type']]) ? $body['doc_type'] : NULL;
+        $route = is_string($body['route'] ?? NULL) && in_array($body['route'], self::ROUTES, TRUE) ? $body['route'] : NULL;
+        // Маршрут обязан соответствовать типу; расхождение — на ручную проверку.
+        $mismatch = ($doc_type !== NULL && $route !== NULL && self::ROUTES[$doc_type] !== $route)
+            || (is_string($body['doc_type'] ?? NULL) && $doc_type === NULL)
+            || (is_string($body['route'] ?? NULL) && $route === NULL);
+        if ($mismatch) $route = NULL;
         $confidence = $body['confidence'] ?? NULL;
         if ($confidence !== NULL && ( ! is_numeric($confidence) || $confidence < 0 || $confidence > 1))
             $confidence = NULL;
 
-        if (is_string($error_code) && $error_code !== '') {
+        if ($error_code !== NULL && $error_code !== '') {
+            $error_code = Prx120_JobOutcome::reported_code($error_code, self::FAILED_CODES);
             $params = [':error_code' => $error_code];
             if ($doc_type) $params[':doc_type'] = $doc_type;
             if ($route) $params[':route'] = $route;
-            if ($state_data) $params[':state'] = json_encode($state_data, JSON_UNESCAPED_UNICODE);
+            if ($state_data) $params[':state'] = self::json($state_data);
             Prx_Db::execute(
                 'UPDATE prx_398_routes SET status=\'failed\', error_code=:error_code'
                 .', attempts='.(int)$attempts
@@ -187,10 +202,11 @@ class Service_Prx398_Route
 
         $status = (string) ($body['status'] ?? 'done');
         if ( ! in_array($status, ['done','review','failed'], TRUE)) $status = 'review';
+        if ($status === 'done' && ($mismatch || $doc_type === NULL || $route === NULL)) $status = 'review';
         $params = [':status' => $status];
         if ($doc_type) $params[':doc_type'] = $doc_type;
         if ($route) $params[':route'] = $route;
-        if ($state_data) $params[':state'] = json_encode($state_data, JSON_UNESCAPED_UNICODE);
+        if ($state_data) $params[':state'] = self::json($state_data);
         Prx_Db::execute(
             'UPDATE prx_398_routes SET status=:status'
             .', doc_type='.($doc_type ? ':doc_type' : 'NULL')
@@ -200,6 +216,12 @@ class Service_Prx398_Route
             .', error_code=NULL, attempts='.(int)$attempts.', updated_at=now() WHERE job_id='.(int)$id,
             $params);
         return ['status' => $status];
+    }
+
+    /** JSON для jsonb: битый UTF-8 из OCR/LLM заменяется, а не превращает запись в ''::jsonb. */
+    private static function json(array $value): string
+    {
+        return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR);
     }
 
     private function check_lease(int $id, int $attempt): array

@@ -77,6 +77,12 @@ class Service_Prx397_Extraction
                 .':sha,\'queued\',now() + (:ttl * interval \'1 hour\'))',
                 [':job' => $job_id, ':key_hash' => $key_hash, ':sha' => $sha, ':ttl' => (int) $ttl]);
             Prx_Idempotency::finish((int) $idem['id'], ['job_id' => $job_id]);
+        } catch (Prx120_Budget_Exception $e) {
+            // Бюджет токенов владельца исчерпан (задача с visitor_id): снимаем
+            // файл и ключ — после пополнения тот же Idempotency-Key пройдёт.
+            Prx_Idempotency::abort();
+            $this->discard($file_id);
+            throw new Prx397_Error('budget_exceeded', 429);
         } catch (Throwable $e) {
             Prx_Idempotency::abort();
             $this->discard($file_id);
@@ -167,7 +173,8 @@ class Service_Prx397_Extraction
     {
         $this->check_lease($id, $attempt);
         $error_code = $body['error_code'] ?? NULL;
-        if (is_string($error_code) && $error_code !== '') {
+        if ($error_code !== NULL && $error_code !== '') {
+            $error_code = Prx120_JobOutcome::reported_code($error_code, self::FAILED_CODES);
             Prx_Db::execute(
                 'UPDATE prx_397_invoices SET status = \'failed\', error_code = :code'
                 .', updated_at = now() WHERE job_id = '.(int) $id,
@@ -198,10 +205,15 @@ class Service_Prx397_Extraction
             .', checks = :checks::jsonb'
             .', confidence = '.($confidence === NULL ? 'NULL' : number_format((float) $confidence, 3, '.', ''))
             .', error_code = NULL, updated_at = now() WHERE job_id = '.$id,
-            [':status' => $status, ':fields' => json_encode($normalized, JSON_UNESCAPED_UNICODE),
-             ':checks' => json_encode($checks, JSON_UNESCAPED_UNICODE)]);
+            [':status' => $status, ':fields' => self::json($normalized), ':checks' => self::json($checks)]);
 
         return ['status' => $status, 'checks' => $checks];
+    }
+
+    /** JSON для jsonb: битый UTF-8 от OCR/LLM заменяется, а не превращает запись в ''::jsonb. */
+    private static function json(array $value): string
+    {
+        return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR);
     }
 
     public static function normalize_fields(array $f): array
@@ -216,8 +228,11 @@ class Service_Prx397_Extraction
             $s = (string) preg_replace('/(?:₽|руб\.?|RUB|USD|EUR|RUR)/iu', '', $s);
             $s = (string) preg_replace('/\x{2212}/u', '-', $s);
             if ( ! preg_match('/\A-?[0-9.,]+\z/', $s)) return NULL;
+            // Одна запятая без точки — десятичная (русская запись: «1,500» кг = 1.5);
+            // группы разрядов запятыми — только когда их несколько или есть точка.
             if (preg_match('/\A-?\d{1,3}(?:\.\d{3})+(?:,\d+)?\z/', $s)) $s = str_replace(['.', ','], ['', '.'], $s);
-            elseif (preg_match('/\A-?\d{1,3}(?:,\d{3})+(?:\.\d+)?\z/', $s)) $s = str_replace(',', '', $s);
+            elseif (preg_match('/\A-?\d{1,3}(?:,\d{3}){2,}(?:\.\d+)?\z/', $s)
+                || preg_match('/\A-?\d{1,3}(?:,\d{3})+\.\d+\z/', $s)) $s = str_replace(',', '', $s);
             else $s = str_replace(',', '.', $s);
             return preg_match('/\A-?\d+(?:\.\d+)?\z/', $s) ? (float) $s : NULL;
         };

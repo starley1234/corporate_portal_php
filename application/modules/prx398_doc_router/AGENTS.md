@@ -10,7 +10,8 @@
 
 ## Поведение
 - Граф: `ocr → classify → extract → validate → route|retry|manual`. `retry` возвращает в `classify` (уверенность даёт классификация), при исчерпании повторов — `manual`.
-- Статус: `failed` очереди показывается как `failed`; `error` — только коды из `FAILED_CODES` (Service_Prx398_Route).
+- Статус: `failed` очереди показывается как `failed`; `error` — только коды из `FAILED_CODES` (Service_Prx398_Route), в т.ч. `error_code` из тела воркера (`Prx120_JobOutcome::reported_code`). Смерть воркера — `failed` + `worker_lost`/`worker_crash_loop`; исчерпан бюджет — `429 budget_exceeded`.
+- Тип и маршрут из тела воркера — только из `Service_Prx398_Route::ROUTES` (тот же словарь, что `graph.py`); неизвестный тип или маршрут не по типу → `review` без маршрута. `attempts` зажат в 0..1000.
 - Чекпойнт LangGraph (thread_id = job_id) хранит OCR-текст временно: воркер удаляет поток через `adelete_thread` после терминального результата, `prx398:purge` добирает остаток guarded-DELETE по `thread_id`, если таблицы чекпойнта видны в схеме очереди. Свой DSN для режима `WORKER_QUEUE_MODE=http` — `PRX398_CHECKPOINT_DSN`.
 
 ## Проверки
