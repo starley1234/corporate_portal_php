@@ -72,6 +72,14 @@ cd workers && python3 -m prx_workers
 
 - `claim` атомарно выбирает доступный `pending` с оставшимися попытками,
   ставит `processing`, имя воркера, пульс и увеличивает attempts.
+- **Лимиты каналов** (`prx_120_channel_limits`, правятся на `/prx120/channels`):
+  `max_concurrent` — не больше N задач канала в processing, `min_interval_sec` —
+  не чаще одного захвата за S секунд. Канал, упёршийся в лимит, отсекается уже при
+  выборе — очередь идёт дальше по другим каналам. Строгость: перепроверка под
+  `pg_advisory_lock(hashtext('prx120.channel:'||канал))` — Python до UPDATE в своей
+  транзакции, PHP после захвата (лишний захват возвращается с attempts назад).
+  Условие одно на оба транспорта: `JobQueue::limit_blocked_sql` = `queue.limit_blocked_sql`
+  (паритет проверяет `test_queue_channel_limits.py`).
 - Heartbeat/progress и `fail` принимаются только от текущего владельца
   `processing`. Запоздавший `fail` для pending/terminal/чужого захвата даёт false;
   прямой PG больше не переводит pending обратно в processing ради такого отчёта.

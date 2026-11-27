@@ -48,6 +48,13 @@ Route::set('prx120_task', 'prx120/task(/<id>)', ['id' => '\d+'])
         'action'     => 'index',
     ]);
 
+// «Каналы очереди» — управление: сводка по каналам, лимиты, повтор упавших
+Route::set('prx120_channels', 'prx120/channels')
+    ->defaults([
+        'controller' => 'Prx120_Channels',
+        'action'     => 'index',
+    ]);
+
 // «Монитор воркеров» — управление: очередь/пульс/управление задачами
 Route::set('prx120_monitor', 'prx120/monitor')
     ->defaults([

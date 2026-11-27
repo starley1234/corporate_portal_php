@@ -29,6 +29,10 @@ class Controller_Prx120_Monitor extends Controller_Prx102_Base {
             $p = '';
         }
 
+        // Фильтр по каналу (?ch=…): ссылка со страницы «Каналы очереди».
+        $ch = (string) $this->request->query('ch');
+        $ch = preg_match('/^[a-z0-9_.:-]{1,128}$/i', $ch) ? $ch : '';
+
         // Самолечение при каждом заходе: зависшие processing (мёртвый воркер)
         // разбираются сами — исчерпанные в failed, остальные обратно в очередь.
         try
@@ -123,6 +127,26 @@ class Controller_Prx120_Monitor extends Controller_Prx102_Base {
                             }
                             break;
 
+                        case 'retry':
+                            // Повтор упавшей/отменённой задачи — НОВОЙ задачей с тем
+                            // же payload: журнал первой попытки остаётся честным.
+                            $job = $job_id > 0 ? $queue->get($job_id) : NULL;
+
+                            if ( ! $job)
+                            {
+                                $flash = 'Задача не найдена';
+                            }
+                            elseif ( ! in_array($job['status'], ['failed', 'cancelled'], TRUE))
+                            {
+                                $flash = 'Задача #'.$job_id.' — «'.$job['status'].'»: повторяют только упавшие и отменённые';
+                            }
+                            else
+                            {
+                                $new_id = $queue->retry($job_id);
+                                $flash  = 'Задача #'.$job_id.' поставлена заново: #'.$new_id;
+                            }
+                            break;
+
                         case 'delete':
                             $queue->delete_job($job_id);
                             $flash = 'Задача #'.$job_id.' удалена';
@@ -167,7 +191,7 @@ class Controller_Prx120_Monitor extends Controller_Prx102_Base {
 
         $jobs = [];
 
-        foreach ($queue->monitor_jobs($p, 50) as $r)
+        foreach ($queue->monitor_jobs($p, 50, $ch) as $r)
         {
             $r['payload_arr'] = json_decode((string) $r['payload'], TRUE) ?: [];
             $r['title']       = Service_Prx120_JobQueue::job_title_of($r['payload_arr']);
@@ -192,6 +216,8 @@ class Controller_Prx120_Monitor extends Controller_Prx102_Base {
         $this->template->content = View::factory('prx120/monitor', [
             'job_id'   => (int) $this->request->query('job'),
             'p'        => $p,
+            'ch'       => $ch,
+            'ch_label' => $ch !== '' ? Service_Prx120_JobQueue::channel_label($ch) : '',
             'health'   => $queue->monitor_health(),
             'stale'    => $queue->stale_count(1800),
             // Порог «воркер молчит» — из сервиса (единое место), чтобы в

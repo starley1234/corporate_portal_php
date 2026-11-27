@@ -42,6 +42,33 @@ _ACQUIRE_TIMEOUT = 30.0
 PULSE_SQL = "coalesce(heartbeat_at, claimed_at, started_at, created_at)"
 
 
+def limit_blocked_sql(alias: str) -> str:
+    """Условие «канал задачи упёрся в лимит» (prx_120_channel_limits).
+
+    Тот же текст, что Service_Prx120_JobQueue::limit_blocked_sql() в PHP:
+    max_concurrent — сколько задач канала одновременно в processing,
+    min_interval_sec — не чаще одного захвата канала за S секунд. Саму
+    задачу-кандидата ({alias}.id) не считаем. Нет строки / нули — без лимита.
+    """
+    a = "".join(ch for ch in alias if ch.isalnum() or ch == "_")
+    return (
+        "EXISTS (SELECT 1 FROM prx_120_channel_limits l"
+        f" WHERE l.channel = {a}.channel AND ("
+        " (l.max_concurrent > 0 AND (SELECT count(*) FROM prx_120_jobs p"
+        f" WHERE p.channel = l.channel AND p.status = 'processing' AND p.id <> {a}.id)"
+        " >= l.max_concurrent)"
+        " OR (l.min_interval_sec > 0 AND EXISTS (SELECT 1 FROM prx_120_jobs p"
+        f" WHERE p.channel = l.channel AND p.id <> {a}.id"
+        " AND p.claimed_at > clock_timestamp() - make_interval(secs => l.min_interval_sec)))))"
+    )
+
+
+LIMITED_SQL = (
+    "EXISTS (SELECT 1 FROM prx_120_channel_limits l WHERE l.channel = prx_120_jobs.channel"
+    " AND (l.max_concurrent > 0 OR l.min_interval_sec > 0))"
+)
+
+
 def max_age_sec(timeout_sec: int) -> int:
     """Абсолютный предел жизни задачи в processing (секунд, 0 = без предела).
 
@@ -142,17 +169,48 @@ class PgQueue:
             # задачи (мертвый воркер оставлял их в processing навсегда).
             await self._sweep_stale(conn)
             async with conn.transaction():
-                row = await conn.fetchrow(
-                    f"""
-                    SELECT id FROM prx_120_jobs
-                    WHERE status = 'pending' AND available_at <= now()
-                      AND attempts < max_attempts{where_extra}
-                    ORDER BY priority ASC, id ASC
-                    FOR UPDATE SKIP LOCKED
-                    LIMIT 1
-                    """,
-                    *select_args,
-                )
+                row = None
+                skipped: list[str] = []
+                # Лимиты каналов: упёршийся канал отсекает фильтр выбора, а
+                # строгую гарантию даёт повторная проверка под блокировкой
+                # канала (pg_advisory_xact_lock держится до COMMIT — второй
+                # воркер увидит уже записанный захват первого). PHP-захват
+                # (HTTP-режим) берёт ту же блокировку, см. JobQueue::claim.
+                for _ in range(3):
+                    skip_sql = ""
+                    args = list(select_args)
+                    if skipped:
+                        args.append(skipped)
+                        skip_sql = f" AND NOT (channel = ANY(${len(args)}::text[]))"
+                    cand = await conn.fetchrow(
+                        f"""
+                        SELECT id, channel, {LIMITED_SQL} AS limited FROM prx_120_jobs
+                        WHERE status = 'pending' AND available_at <= now()
+                          AND attempts < max_attempts{where_extra}{skip_sql}
+                          AND NOT {limit_blocked_sql("prx_120_jobs")}
+                        ORDER BY priority ASC, id ASC
+                        FOR UPDATE SKIP LOCKED
+                        LIMIT 1
+                        """,
+                        *args,
+                    )
+                    if cand is None:
+                        break
+                    if not cand["limited"]:
+                        row = cand
+                        break
+                    await conn.execute(
+                        "SELECT pg_advisory_xact_lock(hashtext($1))",
+                        "prx120.channel:" + str(cand["channel"]),
+                    )
+                    blocked = await conn.fetchval(
+                        f"SELECT {limit_blocked_sql('j')} FROM prx_120_jobs j WHERE j.id = $1",
+                        cand["id"],
+                    )
+                    if not blocked:
+                        row = cand
+                        break
+                    skipped.append(str(cand["channel"]))
                 if row is None:
                     return None
                 full = await conn.fetchrow(

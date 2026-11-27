@@ -2,7 +2,8 @@
 
 /**
  * prx120: «Ресурсы и потребление» /prx120/usage — отчёты воркеров о ресурсах:
- * токены по моделям/модулям/пользователям, время, ошибки для анализа.
+ * токены по моделям/модулям/пользователям, их стоимость в рублях
+ * (Service_Prx120_Cost, config/prx120_prices.php), время, ошибки.
  * Доступ — право prx120.usage.admin (config/acl.php).
  */
 class Controller_Prx120_Usage extends Controller_Prx102_Base {
@@ -45,10 +46,26 @@ class Controller_Prx120_Usage extends Controller_Prx102_Base {
             catch (Throwable $e) { return 0; }
         };
 
+        // Себестоимость: токены по «ключ × модель» → рубли (config/prx120_prices.php).
+        $model_rows = function ($key_sql, $key_as) use ($q, $since) {
+            return $q("SELECT $key_sql AS $key_as, m->>'provider' AS provider, m->>'model' AS model,
+                    sum((m->>'prompt_tokens')::bigint) AS ptokens,
+                    sum((m->>'completion_tokens')::bigint) AS ctokens
+                FROM prx_120_usage u, jsonb_array_elements(u.models) m
+                WHERE 1=1 $since
+                GROUP BY 1, 2, 3");
+        };
+        $cost_total   = Service_Prx120_Cost::aggregate($model_rows("''", 'k'), '')[''] ?? NULL;
+        $cost_channel = Service_Prx120_Cost::aggregate($model_rows('u.channel', 'channel'), 'channel');
+        $cost_user    = Service_Prx120_Cost::aggregate($model_rows('u.visitor_id', 'visitor_id'), 'visitor_id');
+
         $this->set_title('Ресурсы и потребление · управление');
 
         $this->template->content = View::factory('prx120/usage', [
             'p'          => $p,
+            'cost_total'   => $cost_total,
+            'cost_channel' => $cost_channel,
+            'cost_user'    => $cost_user,
             'periods'    => $periods,
             'jobs'       => $total("SELECT count(*) FROM prx_120_usage u WHERE 1=1 $since"),
             'tokens'     => $total("SELECT coalesce(sum(prompt_tokens+completion_tokens),0) FROM prx_120_usage u WHERE 1=1 $since"),

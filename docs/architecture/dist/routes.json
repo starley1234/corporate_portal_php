@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "count": 147,
+  "count": 149,
   "routes": [
     {
       "name": "cookie_consent_close",
@@ -64,6 +64,15 @@
       "action": "index",
       "module": "prx101_architecture",
       "file": "application/modules/prx101_architecture/classes/Controller/Prx101/Architecture.php"
+    },
+    {
+      "name": "prx103_health",
+      "uri": "health(/<action>)",
+      "regex": "['action' => 'metrics']",
+      "controller": "Prx103_Health",
+      "action": "index",
+      "module": "prx103_platform",
+      "file": "application/modules/prx103_platform/classes/Controller/Prx103/Health.php"
     },
     {
       "name": "prx100_dashboard",
@@ -379,6 +388,15 @@
       "action": "index",
       "module": "prx120_jobs",
       "file": "application/modules/prx120_jobs/classes/Controller/Prx120/Task.php"
+    },
+    {
+      "name": "prx120_channels",
+      "uri": "prx120/channels",
+      "regex": "",
+      "controller": "Prx120_Channels",
+      "action": "index",
+      "module": "prx120_jobs",
+      "file": "application/modules/prx120_jobs/classes/Controller/Prx120/Channels.php"
     },
     {
       "name": "prx120_monitor",

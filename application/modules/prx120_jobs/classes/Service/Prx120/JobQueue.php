@@ -198,6 +198,9 @@ class Service_Prx120_JobQueue {
         $new_id = self::push((string) $job['channel'], (array) $payload, $options);
 
         $this->_log_event($new_id, 'created', 'Повтор задачи #'.(int) $job_id.' (по кнопке «Повторить»)');
+        // Отметка на образце: массовый «Повторить упавшие» (/prx120/channels)
+        // не ставит одну и ту же упавшую задачу второй раз.
+        $this->_log_event((int) $job_id, 'retried', 'Повторена задачей #'.(int) $new_id);
 
         return $new_id;
     }
@@ -222,42 +225,130 @@ class Service_Prx120_JobQueue {
             $where_channels = " AND channel IN (".$list.")";
         }
 
-        // error = NULL: текст прошлой попытки ('Воркер перезапущен — задача
-        // возвращена в очередь…') не должен висеть на ЖИВОЙ задаче. Монитор
-        // показывал «Выполняется» и эту ошибку одновременно, и владелец читал
-        // это как «воркер завис на задаче» (жалоба по семантическому индексу).
-        $sql = "UPDATE prx_120_jobs SET
-                    status = '".self::STATUS_PROCESSING."',
-                    claimed_by = ".$this->_db->quote((string) $worker).",
-                    claimed_at = now(),
-                    heartbeat_at = now(),
-                    started_at = COALESCE(started_at, now()),
-                    error = NULL,
-                    attempts = attempts + 1
-                WHERE id = (
-                    SELECT id FROM prx_120_jobs
-                    WHERE status = '".self::STATUS_PENDING."'
-                      AND available_at <= now()
-                      AND attempts < max_attempts".$where_channels."
-                    ORDER BY priority ASC, id ASC
-                    FOR UPDATE SKIP LOCKED
-                    LIMIT 1
-                )
-                RETURNING *";
+        // Лимиты каналов (prx_120_channel_limits): канал, упёршийся в лимит,
+        // пропускаем ещё при выборе — очередь идёт дальше по другим каналам.
+        // Это быстрый фильтр; строгую гарантию даёт проверка после захвата.
+        $limits_ok = ' AND NOT '.self::limit_blocked_sql('prx_120_jobs');
 
-        // Тип SELECT (а не UPDATE): нужен сам RETURNING-ряд, а не число строк —
-        // драйвер PostgreSQL для UPDATE возвращает int.
-        $result = $this->_db->query(Database::SELECT, $sql, FALSE);
-        $row = $result->current();
+        for ($try = 0; $try < 3; $try++)
+        {
+            // error = NULL: текст прошлой попытки ('Воркер перезапущен — задача
+            // возвращена в очередь…') не должен висеть на ЖИВОЙ задаче. Монитор
+            // показывал «Выполняется» и эту ошибку одновременно, и владелец читал
+            // это как «воркер завис на задаче» (жалоба по семантическому индексу).
+            $sql = "UPDATE prx_120_jobs SET
+                        status = '".self::STATUS_PROCESSING."',
+                        claimed_by = ".$this->_db->quote((string) $worker).",
+                        claimed_at = now(),
+                        heartbeat_at = now(),
+                        started_at = COALESCE(started_at, now()),
+                        error = NULL,
+                        attempts = attempts + 1
+                    WHERE id = (
+                        SELECT id FROM prx_120_jobs
+                        WHERE status = '".self::STATUS_PENDING."'
+                          AND available_at <= now()
+                          AND attempts < max_attempts".$where_channels.$limits_ok."
+                        ORDER BY priority ASC, id ASC
+                        FOR UPDATE SKIP LOCKED
+                        LIMIT 1
+                    )
+                    RETURNING *, EXISTS (SELECT 1 FROM prx_120_channel_limits l
+                        WHERE l.channel = prx_120_jobs.channel
+                          AND (l.max_concurrent > 0 OR l.min_interval_sec > 0)) AS limited";
 
-        if (empty($row))
-            return NULL;
+            // Тип SELECT (а не UPDATE): нужен сам RETURNING-ряд, а не число строк —
+            // драйвер PostgreSQL для UPDATE возвращает int.
+            $result = $this->_db->query(Database::SELECT, $sql, FALSE);
+            $row = $result->current();
 
-        $row = (array) $row;
-        $this->_log_event((int) $row['id'], 'claimed', 'Захвачено воркером '.$worker);
-        $this->_notify($row['channel']);
+            if (empty($row))
+                return NULL;
 
-        return $this->_normalize($row);
+            $row = (array) $row;
+            $limited = in_array($row['limited'] ?? FALSE, [TRUE, 't', 'true', '1', 1], TRUE);
+            unset($row['limited']);
+
+            if ($limited AND ! $this->_keep_limited_claim((int) $row['id'], (string) $row['channel']))
+            {
+                // Два воркера одновременно прошли фильтр: лишний захват
+                // возвращён, пробуем следующую задачу (канал уже отфильтруется).
+                continue;
+            }
+
+            $this->_log_event((int) $row['id'], 'claimed', 'Захвачено воркером '.$worker);
+            $this->_notify($row['channel']);
+
+            return $this->_normalize($row);
+        }
+
+        return NULL;
+    }
+
+    /**
+     * Условие «канал задачи сейчас упёрся в свой лимит» — общее для фильтра
+     * выбора и проверки после захвата. Саму задачу ($alias.id) не считаем.
+     * Тот же текст — в workers/prx_workers/queue.py (LIMIT_BLOCKED_SQL).
+     *
+     * @param  string $alias имя/алиас таблицы задачи-кандидата
+     * @return string SQL-выражение boolean
+     */
+    public static function limit_blocked_sql($alias)
+    {
+        $a = preg_replace('/[^a-z0-9_]/', '', (string) $alias);
+
+        return "EXISTS (SELECT 1 FROM prx_120_channel_limits l
+                 WHERE l.channel = $a.channel AND (
+                   (l.max_concurrent > 0 AND (SELECT count(*) FROM prx_120_jobs p
+                        WHERE p.channel = l.channel AND p.status = 'processing'
+                          AND p.id <> $a.id) >= l.max_concurrent)
+                   OR (l.min_interval_sec > 0 AND EXISTS (SELECT 1 FROM prx_120_jobs p
+                        WHERE p.channel = l.channel AND p.id <> $a.id
+                          AND p.claimed_at > clock_timestamp() - make_interval(secs => l.min_interval_sec)))))";
+    }
+
+    /**
+     * Строгая проверка лимита после захвата: под блокировкой канала
+     * (pg_advisory_lock — та же, что берёт python-воркер) смотрим, не
+     * превышен ли лимит с учётом чужих захватов. Если превышен — возвращаем
+     * задачу в очередь как будто её не брали (attempts назад).
+     *
+     * Почему так: фильтр выбора видит снимок на начало запроса, и два воркера
+     * могут одновременно пройти его. Проверки идут по очереди под одной
+     * блокировкой, и второй видит решение первого — лишним окажется ровно
+     * один захват, а не оба.
+     */
+    protected function _keep_limited_claim($job_id, $channel)
+    {
+        $key = 'prx120.channel:'.$channel;
+        DB::query(Database::SELECT, 'SELECT pg_advisory_lock(hashtext(:k)) AS l')
+            ->param(':k', $key)->execute($this->_db);
+
+        try
+        {
+            $blocked = (int) DB::query(Database::SELECT,
+                'SELECT ('.self::limit_blocked_sql('j').')::int AS b FROM prx_120_jobs j WHERE j.id = :id')
+                ->param(':id', (int) $job_id)->execute($this->_db)->get('b');
+
+            if ($blocked === 0)
+            {
+                return TRUE;
+            }
+
+            DB::query(Database::UPDATE, "UPDATE prx_120_jobs SET
+                    status = 'pending', claimed_by = NULL, claimed_at = NULL, heartbeat_at = NULL,
+                    attempts = GREATEST(attempts - 1, 0),
+                    started_at = CASE WHEN attempts <= 1 THEN NULL ELSE started_at END
+                WHERE id = :id AND status = 'processing'")
+                ->param(':id', (int) $job_id)->execute($this->_db);
+
+            return FALSE;
+        }
+        finally
+        {
+            DB::query(Database::SELECT, 'SELECT pg_advisory_unlock(hashtext(:k)) AS u')
+                ->param(':k', $key)->execute($this->_db);
+        }
     }
 
     /**
@@ -945,11 +1036,21 @@ class Service_Prx120_JobQueue {
         return (string) ($ui[(string) $channel]['label'] ?? (string) $channel);
     }
 
-    public function monitor_jobs($status = NULL, $limit = 50)
+    public function monitor_jobs($status = NULL, $limit = 50, $channel = '')
     {
-        $where = in_array($status, ['pending', 'processing', 'done', 'failed', 'cancelled'], TRUE)
-            ? "WHERE j.status = '".((string) $status)."'"
-            : '';
+        $cond = [];
+
+        if (in_array($status, ['pending', 'processing', 'done', 'failed', 'cancelled'], TRUE))
+        {
+            $cond[] = "j.status = '".((string) $status)."'";
+        }
+
+        if ((string) $channel !== '')
+        {
+            $cond[] = 'j.channel = '.$this->_db->quote((string) $channel);
+        }
+
+        $where = $cond ? 'WHERE '.implode(' AND ', $cond) : '';
 
         // stage — последний рапорт воркера ('progress'): в мониторе видно, ЧТО
         // именно делает задача прямо сейчас (единая точка для всех 26 каналов,

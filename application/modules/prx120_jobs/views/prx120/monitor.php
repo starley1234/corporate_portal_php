@@ -30,6 +30,7 @@ $v = $verdict[$health['verdict']] ?? $verdict['idle'];
     // Шапка по эталону (partials/page_header); формы и переключатель —
     // через 'html'-действия, разметка сохранена один в один.
     $monitor_actions = [
+        ['html' => '<a href="/prx120/channels" class="prx-btn-secondary prx-btn-sm"><i class="fas fa-sliders text-xs"></i>Каналы и лимиты</a>'],
         ['html' => '<a href="/prx120/workers" class="prx-btn-secondary prx-btn-sm"><i class="fas fa-book text-xs"></i>Документация воркеров</a>'],
         ['html' => '<form method="post" action="/prx120/monitor" class="inline"><input type="hidden" name="csrf" value="'.HTML::chars($csrf).'"><button type="submit" name="act" value="probe" class="prx-btn-secondary prx-btn-sm"><i class="fas fa-heart-pulse text-xs"></i>Проверить воркер</button></form>'],
     ];
@@ -142,11 +143,19 @@ $v = $verdict[$health['verdict']] ?? $verdict['idle'];
     </div>
 
     <div id="njmon-filters" class="prx-seg mt-4 flex-wrap gap-1">
-        <a href="/prx120_jobs" class="prx-seg-item<?php echo $p === '' ? ' is-active' : ''; ?>">Все</a>
+        <?php $chq = ! empty($ch) ? 'ch='.urlencode($ch) : ''; ?>
+        <a href="/prx120_jobs<?php echo $chq !== '' ? '?'.$chq : ''; ?>" class="prx-seg-item<?php echo $p === '' ? ' is-active' : ''; ?>">Все</a>
         <?php foreach ($st as $k => [$label, $cls]): ?>
-        <a href="/prx120_jobs?p=<?php echo $k; ?>" class="prx-seg-item<?php echo $p === $k ? ' is-active' : ''; ?>"><?php echo $label; ?> (<?php echo $c($health['counts'][$k] ?? 0); ?>)</a>
+        <a href="/prx120_jobs?p=<?php echo $k; ?><?php echo $chq !== '' ? '&amp;'.$chq : ''; ?>" class="prx-seg-item<?php echo $p === $k ? ' is-active' : ''; ?>"><?php echo $label; ?> (<?php echo $c($health['counts'][$k] ?? 0); ?>)</a>
         <?php endforeach; ?>
     </div>
+    <?php if ( ! empty($ch)): ?>
+    <p class="prx-hint mt-2">
+        Только канал «<?php echo HTML::chars($ch_label); ?>» (<code><?php echo HTML::chars($ch); ?></code>) ·
+        <a href="/prx120_jobs<?php echo $p !== '' ? '?p='.$p : ''; ?>" class="font-semibold text-blue-600 hover:underline dark:text-blue-400">все каналы</a>
+        · счётчики выше — по всей очереди
+    </p>
+    <?php endif; ?>
 
     <div id="njmon-table" class="prx-card p-0 mt-3 overflow-x-auto">
         <table class="prx-table">
@@ -214,6 +223,12 @@ $v = $verdict[$health['verdict']] ?? $verdict['idle'];
                             <button data-prx-arm="Прервать?" type="submit" class="prx-btn-danger-soft prx-btn-sm"><span data-prx-arm-label>Прервать</span></button>
                         </form>
                         <?php else: ?>
+                        <?php if (in_array($r['status'], ['failed', 'cancelled'], TRUE)): ?>
+                        <form data-njmon-ajax method="post" action="/prx120/monitor<?php echo $p !== '' ? '?p='.$p : ''; ?>" class="inline">
+                            <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><input type="hidden" name="act" value="retry"><input type="hidden" name="job_id" value="<?php echo (int) $r['id']; ?>">
+                            <button type="submit" title="Поставить заново новой задачей с теми же параметрами" class="prx-btn-secondary prx-btn-sm"><i class="fas fa-rotate-right text-xs"></i>Повторить</button>
+                        </form>
+                        <?php endif; ?>
                         <form data-njmon-ajax method="post" action="/prx120/monitor<?php echo $p !== '' ? '?p='.$p : ''; ?>" class="inline">
                             <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><input type="hidden" name="act" value="delete"><input type="hidden" name="job_id" value="<?php echo (int) $r['id']; ?>">
                             <button data-prx-arm="Удалить?" type="submit" class="prx-btn-danger prx-btn-sm"><span data-prx-arm-label>Удалить</span></button>

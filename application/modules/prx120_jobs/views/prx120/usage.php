@@ -4,6 +4,10 @@
  * prx120/usage — «Ресурсы и потребление»: отчёты воркеров (токены, время, ошибки).
  */
 $n = function ($v) { return number_format((float) $v, 0, ',', ' '); };
+$rub = ['Service_Prx120_Cost', 'fmt'];
+$cost_total   = isset($cost_total) ? $cost_total : NULL;
+$cost_channel = isset($cost_channel) ? (array) $cost_channel : [];
+$cost_user    = isset($cost_user) ? (array) $cost_user : [];
 ?>
 
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
@@ -26,7 +30,16 @@ $n = function ($v) { return number_format((float) $v, 0, ',', ' '); };
     ]);
     ?>
 
-    <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+    <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        <div class="prx-card">
+            <p class="text-xs font-semibold uppercase text-gray-400">Стоимость LLM</p>
+            <p class="mt-1 text-2xl font-black text-gray-900 dark:text-white"><?php echo HTML::chars($rub($cost_total)); ?></p>
+            <?php if ($cost_total AND $cost_total['unpriced_tokens'] > 0): ?>
+            <p class="prx-hint mt-0.5">+ <?php echo $n($cost_total['unpriced_tokens']); ?> ток. моделей без цены</p>
+            <?php elseif ( ! $cost_total OR empty($cost_total['priced'])): ?>
+            <p class="prx-hint mt-0.5">цены моделей — config/prx120_prices.php</p>
+            <?php endif; ?>
+        </div>
         <div class="prx-card">
             <p class="text-xs font-semibold uppercase text-gray-400">Задач с отчётом</p>
             <p class="mt-1 text-2xl font-black text-gray-900 dark:text-white"><?php echo $n($jobs); ?></p>
@@ -53,17 +66,18 @@ $n = function ($v) { return number_format((float) $v, 0, ',', ' '); };
         <div class="prx-card">
             <p class="text-sm font-bold text-gray-900 dark:text-white">По модулям (каналам)</p>
             <div class="mt-2 overflow-x-auto"><table class="prx-table">
-                <thead><tr class="text-left text-gray-400"><th class="py-1">Модуль</th><th>Задач</th><th>Токены</th><th>Ср. время</th></tr></thead>
+                <thead><tr class="text-left text-gray-400"><th class="py-1">Модуль</th><th>Задач</th><th>Токены</th><th>₽</th><th>Ср. время</th></tr></thead>
                 <tbody class="text-gray-700 dark:text-gray-300">
                 <?php foreach ($by_channel as $r): ?>
                 <tr class="border-t border-gray-50 dark:border-gray-700/50">
                     <td class="py-1.5 font-semibold"><?php echo HTML::chars($r['channel']); ?></td>
                     <td><?php echo $n($r['jobs']); ?></td>
                     <td><?php echo $n($r['tokens']); ?></td>
+                    <td class="whitespace-nowrap"><?php echo HTML::chars($rub($cost_channel[(string) $r['channel']] ?? NULL)); ?></td>
                     <td><?php echo $n(($r['ms'] ?? 0) / 1000); ?> с</td>
                 </tr>
                 <?php endforeach; ?>
-                <?php if ( ! $by_channel): ?><tr><td colspan="4" class="py-2 text-gray-400">Отчётов пока нет — появятся после работы воркеров (нужна миграция prx120/004).</td></tr><?php endif; ?>
+                <?php if ( ! $by_channel): ?><tr><td colspan="5" class="py-2 text-gray-400">Отчётов пока нет — появятся после работы воркеров (нужна миграция prx120/004).</td></tr><?php endif; ?>
                 </tbody>
             </table></div>
         </div>
@@ -71,16 +85,17 @@ $n = function ($v) { return number_format((float) $v, 0, ',', ' '); };
         <div class="prx-card">
             <p class="text-sm font-bold text-gray-900 dark:text-white">По моделям</p>
             <div class="mt-2 overflow-x-auto"><table class="prx-table">
-                <thead><tr class="text-left text-gray-400"><th class="py-1">Модель</th><th>Выз.</th><th>Токены</th></tr></thead>
+                <thead><tr class="text-left text-gray-400"><th class="py-1">Модель</th><th>Выз.</th><th>Токены</th><th>₽</th></tr></thead>
                 <tbody class="text-gray-700 dark:text-gray-300">
                 <?php foreach ($by_model as $r): ?>
                 <tr class="border-t border-gray-50 dark:border-gray-700/50">
                     <td class="py-1.5 font-mono"><?php echo HTML::chars(($r['provider'] ?: '?').'::'.($r['model'] ?: '?')); ?></td>
                     <td><?php echo $n($r['calls']); ?></td>
                     <td><?php echo $n($r['ptokens'] + $r['ctokens']); ?></td>
+                    <td class="whitespace-nowrap"><?php $mr = Service_Prx120_Cost::rub($r['provider'], $r['model'], (int) $r['ptokens'], (int) $r['ctokens']); echo $mr === NULL ? '<span class="text-gray-400" title="Цена модели не задана в config/prx120_prices.php">—</span>' : HTML::chars($rub(['rub' => $mr, 'priced' => TRUE, 'unpriced_tokens' => 0])); ?></td>
                 </tr>
                 <?php endforeach; ?>
-                <?php if ( ! $by_model): ?><tr><td colspan="3" class="py-2 text-gray-400">Пока пусто.</td></tr><?php endif; ?>
+                <?php if ( ! $by_model): ?><tr><td colspan="4" class="py-2 text-gray-400">Пока пусто.</td></tr><?php endif; ?>
                 </tbody>
             </table></div>
         </div>
@@ -88,17 +103,18 @@ $n = function ($v) { return number_format((float) $v, 0, ',', ' '); };
         <div class="prx-card">
             <p class="text-sm font-bold text-gray-900 dark:text-white">По пользователям</p>
             <div class="mt-2 overflow-x-auto"><table class="prx-table">
-                <thead><tr class="text-left text-gray-400"><th class="py-1">Пользователь</th><th>Задач</th><th>Токены</th><th>Ошиб.</th></tr></thead>
+                <thead><tr class="text-left text-gray-400"><th class="py-1">Пользователь</th><th>Задач</th><th>Токены</th><th>₽</th><th>Ошиб.</th></tr></thead>
                 <tbody class="text-gray-700 dark:text-gray-300">
                 <?php foreach ($by_user as $r): ?>
                 <tr class="border-t border-gray-50 dark:border-gray-700/50">
                     <td class="py-1.5 font-semibold"><?php echo HTML::chars($r['name']); ?></td>
                     <td><?php echo $n($r['jobs']); ?></td>
                     <td><?php echo $n($r['tokens']); ?></td>
+                    <td class="whitespace-nowrap"><?php echo HTML::chars($rub($cost_user[(string) $r['visitor_id']] ?? NULL)); ?></td>
                     <td class="<?php echo (int) $r['errs'] > 0 ? 'font-bold text-rose-500' : 'text-gray-400'; ?>"><?php echo (int) $r['errs']; ?></td>
                 </tr>
                 <?php endforeach; ?>
-                <?php if ( ! $by_user): ?><tr><td colspan="4" class="py-2 text-gray-400">Пока пусто.</td></tr><?php endif; ?>
+                <?php if ( ! $by_user): ?><tr><td colspan="5" class="py-2 text-gray-400">Пока пусто.</td></tr><?php endif; ?>
                 </tbody>
             </table></div>
         </div>

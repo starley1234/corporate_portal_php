@@ -8,6 +8,14 @@
  * /prx100/errors, /prx100/update, /prx100/selfcheck.
  */
 
+// Внешний мониторинг: /health (жив ли сайт и БД, публично) и /health/metrics
+// (Prometheus; токен PRX_METRICS_TOKEN или вход администратором).
+Route::set('prx103_health', 'health(/<action>)', ['action' => 'metrics'])
+    ->defaults([
+        'controller' => 'Prx103_Health',
+        'action'     => 'index',
+    ]);
+
 // Системный дашборд (/dashboard): админу — обзор системы, пользователю — его задачи
 Route::set('prx100_dashboard', 'dashboard')
     ->defaults([
