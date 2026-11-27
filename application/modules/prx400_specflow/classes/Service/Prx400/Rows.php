@@ -196,7 +196,7 @@ final class Service_Prx400_Rows
         $actor = Policy_Prx400_Spec::require_review($principal);
         $fields = self::fields($post);
         if (trim((string) ($fields['raw_name'] ?? '')) === '') throw new Prx400_Error('row_name_required', 400);
-        $path = trim((string) ($post['pos_path'] ?? ''));
+        $path = trim(Prx400_Input::text($post['pos_path'] ?? ''));
         if ($path !== '' AND ! preg_match(Service_Prx400_Pipeline::POS_PATH_PATTERN, $path)) throw new Prx400_Error('pos_path_invalid', 400);
         $draft = array_merge(['raw_name' => '', 'code_doc' => '', 'qty' => NULL, 'unit' => '', 'unit_price' => NULL,
             'total_price' => NULL, 'section' => '', 'flags' => []], $fields);
@@ -407,7 +407,7 @@ final class Service_Prx400_Rows
         $fields = [];
         foreach ($limits as $field => $max)
         {
-            if (array_key_exists($field, $post)) $fields[$field] = mb_substr(trim((string) $post[$field]), 0, $max);
+            if (array_key_exists($field, $post)) $fields[$field] = mb_substr(trim(Prx400_Input::text($post[$field])), 0, $max);
         }
         foreach (['qty' => 'qty_invalid', 'unit_price' => 'price_invalid', 'total_price' => 'price_invalid'] as $field => $error)
         {
@@ -421,7 +421,8 @@ final class Service_Prx400_Rows
     {
         if (is_int($raw) OR is_float($raw)) return is_finite((float) $raw) && abs((float) $raw) < 1e12 ? (float) $raw : throw new Prx400_Error($error, 400);
         if ($raw === NULL) return NULL;
-        $value = str_replace([' ', "\u{00A0}", ','], ['', '', '.'], trim((string) $raw));
+        if ( ! is_string($raw)) throw new Prx400_Error($error, 400); // true, [], {} — не число
+        $value = str_replace([' ', "\u{00A0}", ','], ['', '', '.'], trim($raw));
         if ($value === '') return NULL;
         if ( ! preg_match('/\A-?\d{1,12}(?:\.\d{1,4})?\z/', $value)) throw new Prx400_Error($error, 400);
 

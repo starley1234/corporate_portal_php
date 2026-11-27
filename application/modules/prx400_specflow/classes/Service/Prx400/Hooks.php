@@ -89,7 +89,14 @@ final class Service_Prx400_Hooks
         foreach (Model_Prx400_Hook::claim_due($limit) as $d)
         {
             $hook = Model_Prx400_Hook::get((int) $d['owner_id']);
-            $error = $hook === NULL ? 'unsubscribed' : self::send($hook, $d);
+            try {
+                $error = $hook === NULL ? 'unsubscribed' : self::send($hook, $d);
+            } catch (Throwable $e) {
+                // Сбой одной доставки (битый payload, curl) не роняет пачку и
+                // не оставляет её в аренде без счёта попыток.
+                $error = 'internal';
+                Log_Plain::event(Log::ERROR, 'prx400 stage=hook delivery=:d error_type=:t', [':d' => (int) $d['id'], ':t' => get_class($e)]);
+            }
             if ($error === NULL)
             {
                 Model_Prx400_Hook::mark_sent((int) $d['id']);
@@ -137,7 +144,14 @@ final class Service_Prx400_Hooks
     {
         if ( ! empty(Service_Prx400_Limits::hooks()['allow_private'])) return filter_var($ip, FILTER_VALIDATE_IP) !== FALSE;
 
-        return filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== FALSE;
+        // GLOBAL_RANGE (PHP 8.2+) шире пары NO_PRIV|NO_RES: ещё CGNAT 100.64/10,
+        // 192.0.0/24, 198.18/15, документационные сети, IPv6 ULA/link-local.
+        $flags = FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE | (defined('FILTER_FLAG_GLOBAL_RANGE') ? FILTER_FLAG_GLOBAL_RANGE : 0);
+        if (filter_var($ip, FILTER_VALIDATE_IP, $flags) === FALSE) return FALSE;
+        // IPv4 внутри IPv6 (::ffff:127.0.0.1, ::127.0.0.1) — проверяем сам IPv4.
+        if (preg_match('/\A::(?:ffff:(?:0:)?)?(\d{1,3}(?:\.\d{1,3}){3})\z/i', $ip, $m)) return self::ip_allowed($m[1]);
+
+        return TRUE;
     }
 
     /** @return string|null код ошибки доставки; NULL — доставлено */

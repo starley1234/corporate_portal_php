@@ -180,8 +180,10 @@ final class Service_Prx400_Pipeline
             {
                 try {
                     $file_ids = Service_Prx400_Specs::file_ids($spec);
-                    Model_Prx400_Spec::delete((int) $spec['id']);
-                    foreach ($file_ids as $file_id) Storage::delete_owned($file_id, Service_Prx400_Specs::MODULE);
+                    if ( ! Model_Prx400_Spec::delete_expired((int) $spec['id'], $days)) continue; // ожила — не трогаем
+                    // Файл мог перейти к другой записи (перезагрузка) — удаляем только ничьи.
+                    $orphaned = array_diff($file_ids, array_map('intval', Model_Prx400_Spec::referenced_files($file_ids)));
+                    foreach ($orphaned as $file_id) Storage::delete_owned($file_id, Service_Prx400_Specs::MODULE);
                     $report['purged']++;
                 } catch (Throwable $e) {
                     $report['errors']++;

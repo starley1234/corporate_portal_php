@@ -141,7 +141,7 @@ X-PRX-Signature: t=1795780800,v1=&lt;hex HMAC-SHA256(secret, "t.тело")&gt;
         <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">
             Тело ошибки — <?php echo $code('{"error": {"code": "…"}}'); ?>.
             401 — нет/неверный ключ; 403 — у ключа нет scope; 404 — спецификация или строка не найдена либо чужая; 409 — конфликт ключа идемпотентности;
-            400 — неверные параметры (<?php echo $code('invalid_parse_mode'); ?>, <?php echo $code('qty_invalid'); ?>, <?php echo $code('invalid_filter'); ?>…); 405 — метод не поддерживается;
+            400 — неверные параметры (<?php echo $code('invalid_parse_mode'); ?>, <?php echo $code('qty_invalid'); ?>, <?php echo $code('invalid_filter'); ?>, <?php echo $code('invalid_field'); ?> — массив вместо строки…); 405 — метод не поддерживается;
             409 — состояние не позволяет (<?php echo $code('wrong_state'); ?>, <?php echo $code('issues_pending'); ?>, <?php echo $code('row_has_children'); ?>, <?php echo $code('split_sum_mismatch'); ?>);
             410 — исходный PDF удалён по сроку хранения; 413 — файл больше лимита или слишком много файлов; 415 — не PDF;
             429 — лимит запросов или бюджет задач; 503 — хранилище, очередь или внешний справочник НСИ недоступны.

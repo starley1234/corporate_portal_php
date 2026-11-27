@@ -188,14 +188,33 @@ class Model_Prx400_Spec {
               WHERE status IN (\'queued\', \'running\') ORDER BY id LIMIT '.max(1, $limit));
     }
 
+    /**
+     * Срок хранения истёк: done/failed, статус не менялся N дней И строки не
+     * правили N дней (правка строк не трогает updated_at — он остаётся
+     * временем результата разбора для выгрузки).
+     */
+    private const EXPIRED = 's.status IN (\'done\', \'failed\')
+                AND s.updated_at < now() - (CAST(:d AS int) * interval \'1 day\')
+                AND NOT EXISTS (SELECT 1 FROM prx_400_edits e
+                                 WHERE e.spec_id = s.id AND e.created_at >= now() - (CAST(:d AS int) * interval \'1 day\'))';
+
     /** Завершённые старше срока хранения. */
     public static function expired(int $days, int $limit = 100): array
     {
         return Prx_Db::select(
-            'SELECT id, job_id, file_id FROM prx_400_specs
-              WHERE status IN (\'done\', \'failed\') AND updated_at < now() - (CAST(:d AS int) * interval \'1 day\')
-              ORDER BY updated_at, id LIMIT '.max(1, $limit),
+            'SELECT s.id, s.job_id, s.file_id FROM prx_400_specs s
+              WHERE '.self::EXPIRED.'
+              ORDER BY s.updated_at, s.id LIMIT '.max(1, $limit),
             [':d' => $days]);
+    }
+
+    /**
+     * Удалить, если срок всё ещё истёк: условие проверяется в том же DELETE,
+     * поэтому перезапуск или правка между expired() и удалением запись спасают.
+     */
+    public static function delete_expired(int $id, int $days): bool
+    {
+        return Prx_Db::execute('DELETE FROM prx_400_specs s WHERE s.id = :id AND '.self::EXPIRED, [':id' => $id, ':d' => $days]) > 0;
     }
 
     /** Какие из артефактов prx212 ещё нужны спецификациям (Storage::sweep_orphans). */

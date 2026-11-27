@@ -21,6 +21,16 @@ class Controller_Prx400_Ui extends Controller_Base
             throw HTTP_Exception::factory(403, 'Оцифровка спецификаций доступна администратору');
         }
         $this->response->headers('Cache-Control', 'no-store');
+        // Формы модуля шлют только скаляры (файлы — в $_FILES): массив в
+        // параметре — подделка запроса; 400 вместо «Array to string» → 500.
+        foreach ([(array) $this->request->query(), (array) $this->request->post()] as $params)
+        {
+            try {
+                Prx400_Input::scalars($params);
+            } catch (Prx400_Error $e) {
+                throw HTTP_Exception::factory(400, 'Неверные параметры запроса');
+            }
+        }
         $this->set_title('Оцифровка спецификаций');
         if ( ! in_array($this->request->action(), self::BINARY, TRUE))
         {

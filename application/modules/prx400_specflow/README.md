@@ -17,10 +17,10 @@
 |   Внешний НСИ | 93 | 0,8 КБ |
 |   Выгрузки | 103 | 0,4 КБ |
 |   Конфигурация | 109 | 0,4 КБ |
-|   Внешнее API (prx150) | 115 | 1,5 КБ |
-|   Хранение | 137 | 0,4 КБ |
-|   Тесты и качество | 143 | 1,0 КБ |
-|   Деплой | 155 | 0,5 КБ |
+|   Внешнее API (prx150) | 115 | 1,7 КБ |
+|   Хранение | 140 | 0,7 КБ |
+|   Тесты и качество | 148 | 1,2 КБ |
+|   Деплой | 161 | 0,5 КБ |
 <!-- context-index:end -->
 ## Статусы спецификаций
 `queued → running → review (есть позиции на проверку) → done`; `failed` —
@@ -130,7 +130,10 @@ webhook) и `prx400.review` (работа с позициями); `Authorization
 4. Webhook: `PUT /api/v1/spec-extractions/webhook {url, events}` → `secret`;
    POST на адрес клиента с `X-PRX-Signature: t=<unix>,v1=HMAC-SHA256(secret,
    "t.тело")`, тело — только ссылка на статус; повторы 1 мин … 24 ч,
-   доставляет `prx400:hooks`. Адрес — https и публичный IP.
+   доставляет `prx400:hooks`. Адрес — https и публичный IP (частные,
+   служебные, CGNAT и IPv4-в-IPv6 — отказ).
+5. Вход — скаляры: массив/объект в поле или `?q[]=` → 400 `invalid_field`
+   (списки — только `quantities` и `events`).
 
 Полный контракт с примерами: `/prx400_specflow/api-docs`.
 
@@ -138,13 +141,16 @@ webhook) и `prx400.review` (работа с позициями); `Authorization
 Фасад `Storage` (prx212): PDF — артефакт модуля без пользователя
 (`read_owned`/`delete_owned`), ссылки — `prx_400_spec_files` (файл №1 ещё и в
 `prx_400_specs.file_id`), целостность — sha256 каждого файла. Файлы без записи старше 48 ч и записи старше
-`PRX400_RETENTION_DAYS` (если > 0) убирает `prx400:purge`.
+`PRX400_RETENTION_DAYS` (если > 0) убирает `prx400:purge`; срок считается от
+последней смены статуса **и** последней правки строк (журнал), DELETE
+перепроверяет условие — запись, которую правят или перезапустили, не удаляется.
 
 ## Тесты и качество
 - PHP-контракт: `tests/Contracts/prx400_match_export.php` — `bin/test --contracts`.
 - Smoke: `SpecflowPipelineTest`, `SpecflowRecoveryTest`, `SpecflowCatalogImportTest`,
   `SpecflowStructureTest` (несколько PDF, BOM, HITL по HTTP, повтор, webhook,
-  внешний НСИ, рендер страниц); читатель таблиц — `tests/Unit/PrxSpreadsheetTest.php`.
+  внешний НСИ, рендер страниц), `SpecflowHardeningTest` (срок хранения vs
+  правки, форма входа API, сбой доставки webhook, кеш Matcher); читатель таблиц — `tests/Unit/PrxSpreadsheetTest.php`.
 - Python: `workers/tests/handlers/prx400_specflow/` (парсер, протокол воркера).
 - Корпус качества парсера: `workers/tests/handlers/prx400_specflow/eval/`
   (`<имя>.txt` + `<имя>.expected.json`; гейт — `test_eval.py`); отчёт —

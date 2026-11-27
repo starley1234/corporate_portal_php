@@ -20,6 +20,8 @@ final class Service_Prx400_Matcher
     private array $memory = [];
     /** @var array<string, array|null> */
     private array $items = [];
+    /** @var array<string, array> «наименование\0обозначение» → match по источнику */
+    private array $matched = [];
     /** @var array<string, array> сработавшие ключи памяти */
     private array $used = [];
 
@@ -56,8 +58,10 @@ final class Service_Prx400_Matcher
         }
         else
         {
-            $this->source ??= $this->provider->batch();
-            $match = Service_Prx400_Match::apply($name, $code_doc, ($this->source)(Service_Prx400_Match::query($name, $code_doc)))['match'];
+            // Повторы в спецификации (болты, гайки по сборкам) — один запрос к
+            // источнику и один перебор кандидатов на партию.
+            $this->matched[$name."\0".$code_doc] ??= $this->fuzzy($name, $code_doc);
+            $match = $this->matched[$name."\0".$code_doc];
         }
         $flags = Service_Prx400_Checks::refresh($row, $match);
 
@@ -73,6 +77,13 @@ final class Service_Prx400_Matcher
     public function memory_hits(): int
     {
         return count($this->used);
+    }
+
+    private function fuzzy(string $name, string $code_doc): array
+    {
+        $this->source ??= $this->provider->batch();
+
+        return Service_Prx400_Match::apply($name, $code_doc, ($this->source)(Service_Prx400_Match::query($name, $code_doc)))['match'];
     }
 
     private function item(string $code): ?array

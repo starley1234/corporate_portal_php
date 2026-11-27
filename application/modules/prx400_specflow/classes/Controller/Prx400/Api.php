@@ -30,10 +30,13 @@
 class Controller_Prx400_Api extends Controller_Prx150_Machine
 {
     protected const SCOPE = Service_Prx400_Specs::SCOPE;
+    /** Поля тела, где допустим список скаляров. */
+    private const LIST_FIELDS = ['quantities', 'events'];
 
     public function action_index(): void
     {
         $this->respond(function () {
+            $this->guard_query();
             $id = (int) $this->request->param('id');
             $section = (string) $this->request->param('section');
             if ($id <= 0)
@@ -73,6 +76,7 @@ class Controller_Prx400_Api extends Controller_Prx150_Machine
     public function action_webhook(): void
     {
         $this->respond(function () {
+            $this->guard_query();
             switch ($this->request->method())
             {
                 case Request::GET:
@@ -96,6 +100,7 @@ class Controller_Prx400_Api extends Controller_Prx150_Machine
     public function action_catalog(): void
     {
         $this->respond(function () {
+            $this->guard_query();
             $this->require_method(Request::GET);
             $provider = Service_Prx400_Catalog::provider();
             $this->_json_response([
@@ -260,10 +265,16 @@ class Controller_Prx400_Api extends Controller_Prx150_Machine
             $data = json_decode($raw, TRUE);
             if ( ! is_array($data) OR array_is_list($data) && $data !== []) throw new Prx400_Error('invalid_json', 400);
 
-            return $data;
+            return Prx400_Input::scalars($data, self::LIST_FIELDS);
         }
 
-        return (array) $this->request->post();
+        return Prx400_Input::scalars((array) $this->request->post(), self::LIST_FIELDS);
+    }
+
+    /** Параметры строки запроса — только скаляры (?q[]=… → 400, а не 500). */
+    private function guard_query(): void
+    {
+        Prx400_Input::scalars((array) $this->request->query());
     }
 
     private static function flag($value): bool
