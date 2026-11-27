@@ -167,7 +167,10 @@ class DocMergeLifecycleTest extends TestCase
             $c = $this->contract('audited');
             $file_ids = array_map('intval', array_column(Model_Prx399_File::for_contract($c['id']), 'file_id'));
             $this->assertCount(2, $file_ids);
-            $this->assertSame($file_ids, Model_Prx399_File::referenced_files($file_ids));
+            $referenced = Model_Prx399_File::referenced_files($file_ids);
+            sort($referenced);
+            sort($file_ids);
+            $this->assertSame($file_ids, $referenced); // порядок строк без ORDER BY не гарантирован
 
             (new Service_Prx399_Contracts)->delete($this->actor(), $c['id']);
             $this->assertNull(Model_Prx399_Contract::get($c['id']));
