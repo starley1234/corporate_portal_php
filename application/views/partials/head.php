@@ -96,7 +96,7 @@
 	<script src="/assets/js/template.js?v=1"></script>
 	<script src="/assets/js/app.js?v=2"></script>
 	<script src="/assets/js/search-layout.js?v=1"></script>
-	<script src="/assets/js/navpalette.js?v=2"></script>
+	<script src="/assets/js/navpalette.js?v=3"></script>
 
     <?php if (isset($styles) && is_array($styles)): ?>
         <?php foreach ($styles as $style): ?>

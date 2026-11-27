@@ -136,6 +136,18 @@ test('ошибка сохранения не выдаётся за успех и
     p.dom.window.close();
 });
 
+test('отказ сервера закрепить страницу (422) объясняется, а не выдаётся за сбой связи', async () => {
+    const p = await page({ card: '<button class="nav-pin-card" data-nav-pin-card="/inbox" data-nav-pin-title="Входящие документы">⋆</button>' });
+    p.server.failNext = { method: 'POST', url: '/favorites', status: 422 };
+    click(p.window, p.doc.querySelector('.nav-pin-card'));
+    await tick();
+    assert.equal(p.doc.querySelector('[data-nav-group="pinned"] a[href="/inbox"]'), null);
+    assert.equal(p.doc.querySelector('.nav-pin-card').getAttribute('aria-pressed'), 'false');
+    assert.match(p.doc.getElementById('nav-favorite-status').textContent, /нельзя добавить в Избранное/);
+    assert.doesNotMatch(p.doc.getElementById('nav-favorite-status').textContent, /Не удалось подтвердить/);
+    p.dom.window.close();
+});
+
 test('повторное чтение без изменений сохраняет исходный DOM и фокус', async () => {
     const p = await page({ initial: [catalog.items[0]] });
     p.originalLink.focus();

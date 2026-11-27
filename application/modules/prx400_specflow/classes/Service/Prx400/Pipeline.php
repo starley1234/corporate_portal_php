@@ -77,16 +77,35 @@ final class Service_Prx400_Pipeline
 
         // Матчинг — до транзакции: блокировка записи не ждёт перебор НСИ.
         $matcher = new Service_Prx400_Matcher;
-        $matcher->prime($rows);
-        foreach ($rows as &$row)
-        {
-            $assessed = $matcher->assess($row);
-            $row['match'] = $assessed['match'];
-            $row['flags'] = $assessed['flags'];
-            $row['status'] = $assessed['status'];
+        $catalog_down = FALSE;
+        try {
+            $matcher->prime($rows);
+            foreach ($rows as &$row)
+            {
+                $assessed = $matcher->assess($row);
+                $row['match'] = $assessed['match'];
+                $row['flags'] = $assessed['flags'];
+                $row['status'] = $assessed['status'];
+            }
+            unset($row);
+        } catch (Prx400_Error $e) {
+            if ($e->getMessage() !== 'catalog_unavailable') throw $e;
+            // Внешний НСИ лёг: 503 воркеру = повтор очереди = заново OCR/vision
+            // всего PDF (деньги и время). Принимаем строки без сопоставления;
+            // оператор нажмёт «Пересопоставить с НСИ», когда источник вернётся.
+            unset($row);
+            $catalog_down = TRUE;
+            foreach ($rows as &$row)
+            {
+                $row['match'] = ['alternatives' => []];
+                $row['flags'] = Service_Prx400_Checks::refresh($row, $row['match']);
+                $row['status'] = Service_Prx400_Match::row_status($row['flags'], $row['match']);
+            }
+            unset($row);
+            Log_Plain::event(Log::WARNING, 'prx400 spec=:s job_id=:j stage=match catalog_unavailable — строки приняты без сопоставления', [':s' => $spec_id, ':j' => $job_id]);
         }
-        unset($row);
         $math = self::clean_math($body);
+        if ($catalog_down) $math['warnings'] = array_values(array_unique(array_merge($math['warnings'], ['catalog_unavailable'])));
         $owner = (int) $spec['owner_id'];
 
         $outcome = $this->finish($job_id, $spec_id, static function () use ($spec_id, $owner, $rows, $body, $math): array {

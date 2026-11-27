@@ -78,6 +78,55 @@ class FavoritesTest extends TestCase
         });
     }
 
+    /** Решение о публикации модуля внутри транзакции with_users (откатится). */
+    private function publication(string $module, string $state): void
+    {
+        DB::query(Database::UPDATE, 'INSERT INTO prx_110_publications (module_name, state, note) VALUES (:m, :s, :n)
+            ON CONFLICT (module_name) DO UPDATE SET state = EXCLUDED.state')
+            ->parameters([':m' => $module, ':s' => $state, ':n' => 'FavoritesTest'])->execute();
+        $cache = new ReflectionProperty(Service_Prx110_Publication::class, 'decisions');
+        $cache->setValue(NULL, NULL);
+    }
+
+    /**
+     * Сервис «в работе» (wip, напр. beta prx400) не на витрине, но открыт
+     * администратору — его страницы закрепляются (раньше: 422 и «Не удалось
+     * подтвердить состояние Избранного»). Без доступа, unpublished и архив — нет.
+     */
+    public function test_work_in_progress_service_can_be_pinned_by_those_who_can_open_it(): void
+    {
+        $login = $this->login_context();
+        $admin = $this->admin_context();
+        try {
+            $this->with_users(function ($first) use ($login, $admin) {
+                $this->publication('prx400_specflow', 'wip');
+                $this->assertTrue(Service_Prx110_Favorites::set($first, '/prx400_specflow', TRUE, $admin));
+                $this->assertTrue(Service_Prx110_Favorites::set($first, '/prx400_specflow/spec/5', TRUE, $admin, 'Спецификация №5'));
+                $this->assertFalse(Service_Prx110_Favorites::set($first, '/prx400_specflow', TRUE, $login), 'аудитория admin');
+                $items = array_column(Service_Prx110_Favorites::items($first, $admin), NULL, 'href');
+                $this->assertSame(['/prx400_specflow', '/prx400_specflow/spec/5'], array_keys($items));
+                $this->assertSame('Оцифровка спецификаций', $items['/prx400_specflow']['title'], 'метаданные корня — из манифеста');
+                $this->assertSame('fas fa-table-list', $items['/prx400_specflow']['icon']);
+                $this->assertSame('Спецификация №5', $items['/prx400_specflow/spec/5']['title']);
+                $this->assertSame([], Service_Prx110_Favorites::items($first, $login), 'чужой аудитории не видно');
+
+                // Сняли с публикации или отправили в архив — закладки скрыты и не создаются.
+                foreach (['unpublished', 'archived'] as $state) {
+                    $this->publication('prx400_specflow', $state);
+                    $this->assertSame([], Service_Prx110_Favorites::items($first, $admin), $state);
+                    $this->assertFalse(Service_Prx110_Favorites::set($first, '/prx400_specflow/spec/6', TRUE, $admin), $state);
+                }
+                // Одобрили — обычный сервис витрины.
+                $this->publication('prx400_specflow', 'approved');
+                $this->assertSame(['/prx400_specflow', '/prx400_specflow/spec/5'], array_column(Service_Prx110_Favorites::items($first, $admin), 'href'));
+                // Удалить свою запись можно в любом состоянии.
+                $this->assertTrue(Service_Prx110_Favorites::set($first, '/prx400_specflow', FALSE, $login));
+            });
+        } finally {
+            (new ReflectionProperty(Service_Prx110_Publication::class, 'decisions'))->setValue(NULL, NULL);
+        }
+    }
+
     /**
      * @runInSeparateProcess
      * @preserveGlobalState disabled

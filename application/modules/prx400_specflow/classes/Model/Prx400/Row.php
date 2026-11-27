@@ -103,6 +103,14 @@ class Model_Prx400_Row {
         return $row !== NULL ? self::decode($row) : NULL;
     }
 
+    /** Все строки спецификации под блокировкой (пересопоставление пачкой). */
+    public static function lock_for_spec(int $spec_id): array
+    {
+        return array_map([self::class, 'decode'], Prx_Db::select(
+            'SELECT * FROM prx_400_rows WHERE spec_id = :spec ORDER BY seq ASC, id ASC FOR UPDATE',
+            [':spec' => $spec_id]));
+    }
+
     public static function children_count(int $id): int
     {
         $row = Prx_Db::one('SELECT count(*) AS c FROM prx_400_rows WHERE parent_id = :id', [':id' => $id]);

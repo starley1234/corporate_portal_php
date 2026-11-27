@@ -19,6 +19,7 @@
  *   POST   …/rows/<row>/code {code} | DELETE           код НСИ / снять ручной код    [review]
  *   POST   …/rows/<row>/split {quantities: [..]}       разделить по количествам      [review]
  *   POST   /api/v1/spec-extractions/<id>/verify-bulk   {min_score?}                  [review]
+ *   POST   /api/v1/spec-extractions/<id>/rematch       пересопоставить с НСИ нерешённые строки [review]
  *   POST   /api/v1/spec-extractions/<id>/relaunch      {parse_mode?, template_id?}   [review после разбора]
  *   POST   /api/v1/spec-extractions/<id>/finish        {accept_issues?}              [review]
  *   GET|PUT|DELETE /api/v1/spec-extractions/webhook    подписка на события
@@ -53,6 +54,10 @@ class Controller_Prx400_Api extends Controller_Prx150_Machine
                 case 'verify-bulk':
                     $this->require_method(Request::POST);
                     $this->_json_response((new Service_Prx400_Rows)->bulk_verify($this->principal(), $id, $this->input()['min_score'] ?? NULL));
+                    return;
+                case 'rematch':
+                    $this->require_method(Request::POST);
+                    $this->_json_response((new Service_Prx400_Rows)->rematch($this->principal(), $id));
                     return;
                 case 'relaunch':
                     $this->require_method(Request::POST);

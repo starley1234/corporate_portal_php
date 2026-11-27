@@ -69,7 +69,15 @@ class Controller_Prx400_Ui extends Controller_Base
             return;
         }
 
-        $list = $this->page(fn () => $service->listing($this->actor(), (array) $this->request->query()));
+        try {
+            $list = $service->listing($this->actor(), (array) $this->request->query());
+        } catch (Prx400_Error $e) {
+            if ($e->getMessage() !== 'invalid_filter') throw Prx400_Messages::http($e);
+            // Ссылка с испорченным фильтром (дата руками, старая закладка) —
+            // сбросить фильтр с пояснением, а не голая страница 400.
+            Session::instance()->set(self::FLASH, ['type' => 'err', 'text' => Prx400_Messages::text('invalid_filter').' Фильтр сброшен.']);
+            HTTP::redirect('/prx400_specflow', 303);
+        }
         $this->template->content = View::factory('prx400/index', [
             'list' => $list,
             'statuses' => Service_Prx400_Specs::STATUSES,
@@ -226,6 +234,14 @@ class Controller_Prx400_Ui extends Controller_Base
         $id = $this->post_id();
         $result = $this->act($this->spec_url($id), fn () => (new Service_Prx400_Rows)->bulk_verify($this->actor(), $id, $this->request->post('min_score')));
         $this->done($this->spec_url($id), 'Подтверждено строк: '.(int) $result['verified'].'.');
+    }
+
+    /** Пересопоставить с НСИ строки без решения оператора (после обновления справочника/сбоя НСИ). */
+    public function action_rematch()
+    {
+        $id = $this->post_id();
+        $result = $this->act($this->spec_url($id), fn () => (new Service_Prx400_Rows)->rematch($this->actor(), $id));
+        $this->done($this->spec_url($id), sprintf('Пересопоставлено строк: %d, изменилось: %d. Решения оператора не тронуты.', $result['checked'], $result['changed']));
     }
 
     /** Поиск в справочнике НСИ для выбора кода строки (JSON, GET). */

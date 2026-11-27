@@ -52,12 +52,16 @@ class Service_Prx110_Favorites
             // при закреплении; доступ проверит сам маршрут при переходе.
             // Но не страница сервиса, который стал невидим (сняли роль/архив):
             // иначе сохранённое название и ссылка продолжали бы показываться.
-            if ( ! self::valid_href($href) OR self::hidden_service($href, $catalog)) continue;
+            if ( ! self::valid_href($href)) continue;
+            $owner = self::owner_module($href);
+            if (self::hidden_owner($owner, $catalog, $ctx)) continue;
+            // Корень сервиса «в работе» (wip): название и иконка — из манифеста.
+            $root = $owner !== NULL && rtrim((string) $owner['href'], '/') === rtrim($href, '/');
             $items[] = [
                 'href' => $href,
-                'title' => $own_title ?? $href,
-                'icon' => $own_icon ?? 'fas fa-star',
-                'nav_paths' => [],
+                'title' => $own_title ?? ($root ? (string) $owner['title'] : $href),
+                'icon' => $own_icon ?? ($root && (string) ($owner['icon'] ?? '') !== '' ? (string) $owner['icon'] : 'fas fa-star'),
+                'nav_paths' => $root ? array_values(array_filter((array) ($owner['nav_paths'] ?? []), 'is_string')) : [],
                 'sort' => $row['sort'],
                 'category' => $row['category'],
                 'note' => $row['note'],
@@ -140,9 +144,17 @@ class Service_Prx110_Favorites
                 $title = $catalog[$href]['title'];
                 $icon = $catalog[$href]['icon'];
             }
-            elseif (self::hidden_service($href, $catalog))
+            else
             {
-                return FALSE; // страница сервиса, которого пользователь не видит
+                $owner = self::owner_module($href);
+                // Страница сервиса, к которому у пользователя нет доступа
+                // (аудитория/ACL), неопубликованного или в архиве.
+                if (self::hidden_owner($owner, $catalog, $ctx)) return FALSE;
+                if ($owner !== NULL AND rtrim((string) $owner['href'], '/') === rtrim($href, '/'))
+                {
+                    $title = (string) $owner['title'];
+                    $icon = (string) ($owner['icon'] ?? '') !== '' ? (string) $owner['icon'] : $icon;
+                }
             }
 
             try
@@ -212,7 +224,7 @@ class Service_Prx110_Favorites
     }
 
     /**
-     * Адрес принадлежит сервису каталога, НЕвидимому в $visible (catalog_map).
+     * Сервис каталога, которому принадлежит адрес (см. hidden_owner).
      *
      * Владелец страницы (инвариант единого префикса модуля):
      *   1. первый сегмент /prxNNN, /prxNNN_index, /prxNNN_slug, /prxNNN/...;
@@ -220,11 +232,18 @@ class Service_Prx110_Favorites
      *   3. самый длинный совпавший href/nav_paths манифеста.
      * Страница без владельца (общий маршрут) — не сервис: доступ проверит маршрут.
      */
-    protected static function hidden_service(string $href, array $visible): bool
+    /**
+     * Сервис-владелец скрыт для Избранного: нет на витрине И не «в работе»
+     * с доступом. Сервис в состоянии wip (ещё не одобрен в каталоге, напр.
+     * beta) не показывается на /services, но его страницы уже работают для
+     * тех, кого пускают аудитория и ACL, — закрепить их можно. Нет доступа,
+     * unpublished (catalog:false / решение) и архив — нельзя.
+     */
+    protected static function hidden_owner(?array $owner, array $visible, $ctx = NULL): bool
     {
-        $owner = self::owner_module($href);
+        if ($owner === NULL OR isset($visible[(string) $owner['href']])) return FALSE;
 
-        return $owner !== NULL AND ! isset($visible[(string) $owner['href']]);
+        return ! Service_Prx110_Catalog::open_in_progress($owner, $ctx === NULL ? Service_Prx110_Catalog::user_context() : $ctx);
     }
 
     protected static function owner_module(string $href): ?array

@@ -18,7 +18,7 @@ Route::set('prx400_specflow_api_catalog', 'api/v1/spec-catalog')
     ->defaults(['controller' => 'Prx400_Api', 'action' => 'catalog']);
 Route::set('prx400_specflow_api', 'api/v1/spec-extractions(/<id>(/<section>(/<row>(/<op>))))', [
     'id' => '[1-9][0-9]{0,17}',
-    'section' => 'rows|export|files|verify-bulk|relaunch|finish',
+    'section' => 'rows|export|files|verify-bulk|rematch|relaunch|finish',
     'row' => '[1-9][0-9]{0,17}',
     'op' => 'verify|code|split',
 ])->defaults(['controller' => 'Prx400_Api', 'action' => 'index']);
@@ -37,7 +37,7 @@ Route::set('prx400_specflow_api_docs', 'prx400_specflow/api-docs')
     ->defaults(['controller' => 'Prx400_Ui', 'action' => 'api_docs']);
 
 Route::set('prx400_specflow_ui', 'prx400_specflow/<action>(/<id>)', [
-    'action' => 'spec|verify|edit|code|row_add|row_delete|split|bulk_verify|catalog_item|catalog_search|finish|launch|reupload|file|export|delete'
+    'action' => 'spec|verify|edit|code|row_add|row_delete|split|bulk_verify|rematch|catalog_item|catalog_search|finish|launch|reupload|file|export|delete'
         .'|catalog|catalog_delete|catalog_import|catalog_export|aliases|alias_revoke|templates|template_enable|template_delete',
     'id' => '[1-9][0-9]{0,17}',
 ])->defaults(['controller' => 'Prx400_Ui']);

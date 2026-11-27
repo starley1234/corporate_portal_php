@@ -3,7 +3,7 @@
 /**
  * prx_400_edits — журнал действий оператора по строкам (только вставка и
  * чтение). field — имя поля или действие: code (код НСИ), verified,
- * row_add, row_delete, split, bulk_verify. actor_id — подписанный (UI < 0,
+ * row_add, row_delete, split, bulk_verify, rematch. actor_id — подписанный (UI < 0,
  * API-ключ > 0). Удалённая строка оставляет запись (row_id → NULL, row_label).
  */
 class Model_Prx400_Edit {

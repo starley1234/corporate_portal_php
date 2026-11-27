@@ -180,6 +180,18 @@ class Model_Prx400_Spec {
             ]);
     }
 
+    /** Убрать предупреждение из итога разбора (например, catalog_unavailable после пересопоставления). */
+    public static function drop_warning(int $id, string $code): int
+    {
+        return Prx_Db::execute(
+            'UPDATE prx_400_specs
+                SET math = jsonb_set(math, \'{warnings}\', coalesce(
+                    (SELECT jsonb_agg(w) FROM jsonb_array_elements(math->\'warnings\') w WHERE w <> to_jsonb(CAST(:code AS text))),
+                    \'[]\'::jsonb))
+              WHERE id = :id AND jsonb_typeof(math->\'warnings\') = \'array\'',
+            [':id' => $id, ':code' => $code]);
+    }
+
     /** queued/running — кандидаты сверки с очередью (уборка). */
     public static function in_flight(int $limit = 200): array
     {

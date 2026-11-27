@@ -112,6 +112,7 @@ POST   /api/v1/spec-extractions/42/rows/501/split    {"quantities": [4, 8]}   (�
 POST   /api/v1/spec-extractions/42/rows              {"raw_name": "…", "qty": 1, "unit": "шт", "after_row_id"?, "parent_row_id"?, "pos_path"?}
 DELETE /api/v1/spec-extractions/42/rows/501          (строку с составом — 409 row_has_children)
 POST   /api/v1/spec-extractions/42/verify-bulk       {"min_score": 0.9}  → {"verified": 17}
+POST   /api/v1/spec-extractions/42/rematch           → {"checked": 40, "changed": 12}  (строки без решения оператора — заново с НСИ)
 POST   /api/v1/spec-extractions/42/finish            {"accept_issues": false}
 POST   /api/v1/spec-extractions/42/relaunch          {"parse_mode"?, "template_id"?}  → 202
 GET    /api/v1/spec-catalog?q=болт м16&amp;limit=20     → {"provider": "<?php echo HTML::chars($catalog_provider); ?>", "items": [{"code", "name", "unit", "okei_code"}]}</pre>

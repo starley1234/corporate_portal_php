@@ -320,6 +320,61 @@ final class Service_Prx400_Rows
 
     // ------------------------------------------------------------------
 
+    /**
+     * Пересопоставить с НСИ строки, по которым оператор ещё не решал (не
+     * подтверждены, без ручного кода): после импорта/обновления справочника,
+     * роста памяти сопоставлений или разбора при недоступном НСИ
+     * (catalog_unavailable). Решения оператора не трогаются; статус
+     * спецификации не меняется — завершает по-прежнему оператор.
+     *
+     * Сопоставление (внешний НСИ) — до транзакции; запись — под блокировкой
+     * строк, строку, которую успели править, пропускаем.
+     *
+     * @return array{spec_id: int, checked: int, changed: int}
+     */
+    public function rematch(Prx_Principal $principal, int $spec_id): array
+    {
+        $actor = Policy_Prx400_Spec::require_review($principal);
+        $this->editable_spec($principal, $spec_id, FALSE);
+        $pending = array_values(array_filter(Model_Prx400_Row::for_spec($spec_id), [self::class, 'undecided']));
+
+        $matcher = new Service_Prx400_Matcher;
+        $matcher->prime($pending);
+        $assessed = [];
+        foreach ($pending as $row) $assessed[(int) $row['id']] = ['row' => $row] + $matcher->assess($row);
+
+        $result = Prx_Db::transaction(function () use ($principal, $actor, $spec_id, $assessed): array {
+            $this->editable_spec($principal, $spec_id);
+            $checked = $changed = 0;
+            foreach (Model_Prx400_Row::lock_for_spec($spec_id) as $row)
+            {
+                $a = $assessed[(int) $row['id']] ?? NULL;
+                if ($a === NULL OR ! self::undecided($row) OR ! self::same_text($row, $a['row'])) continue;
+                $checked++;
+                // Флаги — по текущим количеству/единице строки (могли поправить).
+                $flags = Service_Prx400_Checks::refresh($row, $a['match']);
+                $status = Service_Prx400_Match::row_status($flags, $a['match']);
+                if ($a['match'] == $row['match'] AND $flags == $row['flags'] AND $status === $row['status']) continue;
+                Model_Prx400_Row::set_assessment((int) $row['id'], $flags, $a['match'], $status);
+                $changed++;
+            }
+            Model_Prx400_Edit::add(NULL, $spec_id, 'rematch', NULL, $changed.' из '.$checked, $actor, 'строк: '.$checked);
+            Model_Prx400_Spec::drop_warning($spec_id, 'catalog_unavailable');
+
+            return ['spec_id' => $spec_id, 'checked' => $checked, 'changed' => $changed];
+        });
+        $matcher->record_hits();
+        Log_Plain::event(Log::INFO, 'prx400 spec=:s stage=rematch checked=:c changed=:n', [':s' => $spec_id, ':c' => $result['checked'], ':n' => $result['changed']]);
+
+        return $result;
+    }
+
+    /** Строка, по которой оператор не решал: не подтверждена и без ручного кода. */
+    private static function undecided(array $row): bool
+    {
+        return empty($row['verified']) && empty($row['match']['manual']);
+    }
+
     private function apply_code(array $row, array $item, int $actor, string $source): void
     {
         $match = Service_Prx400_Match::from_item($item, 'manual', TRUE, (array) ($row['match']['alternatives'] ?? []));

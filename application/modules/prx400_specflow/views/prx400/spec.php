@@ -208,6 +208,10 @@ $pos_label = static fn (array $r): string => $r['pos_path'] !== '' ? $r['pos_pat
                     <button class="prx-btn-secondary prx-btn-sm" type="submit" data-prx-confirm="Строки «совпало с НСИ» с уверенностью не ниже порога будут отмечены проверенными. Отметку можно снять по строке." data-prx-title="Подтвердить пачкой?" data-prx-ok="Подтвердить"><i class="fas fa-check-double"></i>Подтвердить</button>
                 </form>
 <?php endif; ?>
+                <form method="post" action="/prx400_specflow/rematch/<?php echo $spec_id; ?>" class="text-sm">
+                    <?php echo $back; ?>
+                    <button class="prx-btn-secondary prx-btn-sm" type="submit" title="Заново сопоставить со справочником строки без решения оператора: после импорта НСИ, его обновления или сбоя во время разбора" data-prx-confirm="Строки без подтверждения и без ручного кода будут сопоставлены со справочником заново. Подтверждённые строки и ручные коды не изменятся." data-prx-title="Пересопоставить с НСИ?" data-prx-ok="Пересопоставить"><i class="fas fa-arrows-rotate"></i>Пересопоставить с НСИ</button>
+                </form>
                 <details class="text-sm">
                     <summary class="prx-btn-secondary prx-btn-sm cursor-pointer list-none"><i class="fas fa-plus"></i>Добавить строку</summary>
                     <form method="post" action="/prx400_specflow/row_add/<?php echo $spec_id; ?>" class="mt-2 grid max-w-3xl gap-2 rounded-lg border border-gray-200 bg-white p-3 sm:grid-cols-6 dark:border-gray-700 dark:bg-gray-900">
@@ -367,7 +371,7 @@ $pos_label = static fn (array $r): string => $r['pos_path'] !== '' ? $r['pos_pat
 <?php if ( ! empty($edits)): ?>
 <?php $field_ru = ['raw_name' => 'наименование', 'code_doc' => 'тип, марка', 'qty' => 'кол-во', 'unit' => 'ед.', 'unit_price' => 'цена',
     'total_price' => 'сумма', 'section' => 'раздел', 'code' => 'код НСИ', 'verified' => 'проверено', 'row_add' => 'строка добавлена',
-    'row_delete' => 'строка удалена', 'split' => 'разделение', 'bulk_verify' => 'пакетное подтверждение', 'catalog_add' => 'новая позиция НСИ',
+    'row_delete' => 'строка удалена', 'split' => 'разделение', 'bulk_verify' => 'пакетное подтверждение', 'rematch' => 'пересопоставление с НСИ', 'catalog_add' => 'новая позиция НСИ',
     'finish' => 'проверка завершена', 'relaunch' => 'разобрано заново']; ?>
     <section class="prx-card mt-5 overflow-x-auto p-0">
         <div class="border-b border-gray-100 px-4 py-3.5 dark:border-gray-700/60">

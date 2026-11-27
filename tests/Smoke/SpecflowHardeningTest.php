@@ -16,11 +16,14 @@ class SpecflowHardeningTest extends TestCase
     private array $file_ids = [];
     private array $owner_ids = [];
     private array $key_ids = [];
+    private array $job_ids = [];
     private ?int $user_id = NULL;
 
     protected function tearDown(): void
     {
         Service_Prx400_Hooks::use_transport(NULL);
+        Service_Prx400_Catalog::use_provider(NULL);
+        foreach ($this->job_ids as $id) Prx_Db::execute('DELETE FROM prx_120_jobs WHERE id = :id', [':id' => $id]);
         foreach ($this->owner_ids as $id) Prx_Db::execute('DELETE FROM prx_400_deliveries WHERE owner_id = :id', [':id' => $id]);
         foreach ($this->owner_ids as $id) Prx_Db::execute('DELETE FROM prx_400_hooks WHERE owner_id = :id', [':id' => $id]);
         foreach ($this->spec_ids as $id) Prx_Db::execute('DELETE FROM prx_400_specs WHERE id = :id', [':id' => $id]);
@@ -256,5 +259,99 @@ class SpecflowHardeningTest extends TestCase
         $this->assertSame('B-16', $results[0]['match']['code'] ?? NULL);
         $this->assertSame($results[0]['match'], $results[2]['match']);
         $this->assertNotSame($results[0]['status'], '');
+    }
+
+    /**
+     * НСИ лёг во время приёма результата: строки приняты без сопоставления с
+     * предупреждением (а не 503 → повтор всего OCR/vision); «Пересопоставить
+     * с НСИ» после возврата источника кодирует нерешённые строки и не трогает
+     * решения оператора.
+     */
+    public function test_catalog_outage_keeps_parse_and_rematch_fills_codes_later(): void
+    {
+        $provider = new class implements Prx400_Catalog_Provider {
+            public bool $down = TRUE;
+            private array $items = [
+                ['id' => 0, 'code' => 'B-16', 'name' => 'Болт М16х60 ГОСТ 7798', 'unit' => 'шт', 'okei_code' => '796', 'keywords' => ''],
+                ['id' => 0, 'code' => 'N-16', 'name' => 'Гайка М16 ГОСТ 5915', 'unit' => 'шт', 'okei_code' => '796', 'keywords' => ''],
+            ];
+            public function name(): string { return 'flaky'; }
+            public function writable(): bool { return FALSE; }
+            public function count(): ?int { return NULL; }
+            public function batch(): callable
+            {
+                return function (string $query): array {
+                    if ($this->down) throw new Prx400_Error('catalog_unavailable', 503);
+                    return $this->items;
+                };
+            }
+            public function search(string $query, int $limit): array { return $this->down ? throw new Prx400_Error('catalog_unavailable', 503) : $this->items; }
+            public function by_code(string $code): ?array
+            {
+                if ($this->down) throw new Prx400_Error('catalog_unavailable', 503);
+                foreach ($this->items as $item) if ($item['code'] === $code) return $item;
+                return NULL;
+            }
+        };
+        Service_Prx400_Catalog::use_provider($provider);
+
+        $user = ORM::factory('User');
+        $suffix = bin2hex(random_bytes(6));
+        $user->username = 'specflow-rematch-'.$suffix;
+        $user->email = $suffix.'@example.test';
+        $user->password = bin2hex(random_bytes(16));
+        $user->create();
+        $this->user_id = (int) $user->id;
+        $admin = new Prx_Actor($this->user_id, ['admin']);
+
+        $spec_id = $this->finished_spec('done', 0, -$this->user_id);
+        $job_id = (int) Service_Prx120_JobQueue::push(Service_Prx400_Specs::CHANNEL, ['spec_id' => $spec_id], ['module' => 'prx400']);
+        $this->job_ids[] = $job_id;
+        Model_Prx400_Spec::queue($spec_id, $job_id, 'ocr');
+        Prx_Db::execute('UPDATE prx_120_jobs SET status = \'processing\', attempts = 1, claimed_by = \'smoke\', claimed_at = now() WHERE id = :id', [':id' => $job_id]);
+
+        $rows = (new Service_Prx400_Rows);
+        $this->expect_error(static fn () => $rows->rematch($admin, $spec_id), 'wrong_state', 409);
+
+        $out = (new Service_Prx400_Pipeline)->store_result($job_id, 1, [
+            'template_id' => 'spec_generic_v1', 'template_title' => 'Спецификация', 'pages' => 1,
+            'rows' => [
+                ['pos_path' => '1', 'raw_name' => 'Болт М16х60 ГОСТ 7798', 'qty' => 4, 'unit' => 'шт', 'file_no' => 1, 'page' => 1],
+                ['pos_path' => '2', 'raw_name' => 'Гайка М16 ГОСТ 5915', 'qty' => 4, 'unit' => 'шт', 'file_no' => 1, 'page' => 1],
+                ['pos_path' => '3', 'raw_name' => 'Шайба 16', 'qty' => 8, 'unit' => 'шт', 'file_no' => 1, 'page' => 1],
+            ],
+            'math' => ['row_errors' => [], 'gaps' => [], 'totals' => [], 'summary' => ''],
+            'warnings' => [], 'stats' => ['via' => 'ocr', 'pages_processed' => 1],
+        ]);
+        $this->assertSame('review', $out['status'], 'разбор не потерян из-за НСИ');
+        $spec = Model_Prx400_Spec::get($spec_id);
+        $math = is_array($spec['math']) ? $spec['math'] : json_decode((string) $spec['math'], TRUE);
+        $this->assertContains('catalog_unavailable', $math['warnings']);
+        $before = Model_Prx400_Row::for_spec($spec_id);
+        $this->assertSame([NULL, NULL, NULL], array_map(static fn (array $r) => $r['match']['code'] ?? NULL, $before));
+
+        // Оператор уже решил по гайке (подтвердил «как есть») — пересопоставление её не трогает.
+        $rows->verify($admin, (int) $before[1]['id'], TRUE);
+        // НСИ всё ещё лежит — честная 503, строки не тронуты.
+        $this->expect_error(static fn () => $rows->rematch($admin, $spec_id), 'catalog_unavailable', 503);
+
+        $provider->down = FALSE;
+        $result = $rows->rematch($admin, $spec_id);
+        $this->assertSame(['spec_id' => $spec_id, 'checked' => 2, 'changed' => 2], $result);
+        $after = array_column(Model_Prx400_Row::for_spec($spec_id), NULL, 'id');
+        $this->assertSame('B-16', $after[(int) $before[0]['id']]['match']['code'] ?? NULL);
+        $this->assertSame('ok', $after[(int) $before[0]['id']]['status']);
+        $this->assertNull($after[(int) $before[1]['id']]['match']['code'] ?? NULL, 'подтверждённая строка не пересопоставлена');
+        $this->assertTrue((bool) $after[(int) $before[1]['id']]['verified']);
+        $this->assertNotEmpty($after[(int) $before[2]['id']]['match']['alternatives'], 'шайба получила кандидатов');
+
+        $spec = Model_Prx400_Spec::get($spec_id);
+        $math = is_array($spec['math']) ? $spec['math'] : json_decode((string) $spec['math'], TRUE);
+        $this->assertNotContains('catalog_unavailable', $math['warnings'], 'предупреждение снято');
+        $this->assertSame('review', $spec['status'], 'статус меняет только оператор');
+        $this->assertContains('rematch', array_column(Model_Prx400_Edit::for_spec($spec_id), 'field'));
+
+        // Повтор без изменений справочника — ничего не меняет.
+        $this->assertSame(0, $rows->rematch($admin, $spec_id)['changed']);
     }
 }

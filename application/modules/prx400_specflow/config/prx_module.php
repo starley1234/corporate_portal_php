@@ -27,7 +27,7 @@ return [
     'api' => [
         '/api/v1/spec-extractions', '/api/v1/spec-extractions/{id}', '/api/v1/spec-extractions/{id}/export',
         '/api/v1/spec-extractions/{id}/files/{n}', '/api/v1/spec-extractions/{id}/rows', '/api/v1/spec-extractions/{id}/rows/{row}',
-        '/api/v1/spec-extractions/{id}/verify-bulk', '/api/v1/spec-extractions/{id}/relaunch', '/api/v1/spec-extractions/{id}/finish',
+        '/api/v1/spec-extractions/{id}/verify-bulk', '/api/v1/spec-extractions/{id}/rematch', '/api/v1/spec-extractions/{id}/relaunch', '/api/v1/spec-extractions/{id}/finish',
         '/api/v1/spec-extractions/webhook', '/api/v1/spec-catalog',
     ],
     'api_scopes' => [
