@@ -19,3 +19,4 @@ entities:
   - { id: documents, type: service, title: Реестр документов prx391, owner: Делопроизводство, data_class: confidential }
   - { id: analysis, type: service, title: ИИ-разбор prx392, owner: Делопроизводство, data_class: confidential }
   - { id: workflow, type: service, title: Сроки и маршруты prx393, owner: Делопроизводство, data_class: internal }
+  - { id: specflow, type: service, title: Оцифровка спецификаций prx400, owner: ПТО и снабжение, data_class: confidential }

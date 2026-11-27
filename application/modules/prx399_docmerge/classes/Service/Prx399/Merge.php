@@ -170,12 +170,19 @@ class Service_Prx399_Merge {
             return $nodes;
         }
 
-        // annul: якорь + все узлы, путь которых начинается с якоря.
-        $prefix = $anchor.'.';
+        // annul: якорь + все узлы, путь которых начинается с якоря. Словесный
+        // раздел («раздел-3») владеет нумерованными пунктами своего номера (3.x).
+        $prefixes = [$anchor.'.'];
+        if (preg_match('/\Aраздел-(\d+)\z/iu', $anchor, $m)) $prefixes[] = $m[1].'.';
         foreach ($nodes as $i => $node)
         {
             $path = (string) $node['path'];
-            if ($path === $anchor OR strpos($path.'.', $prefix) === 0)
+            $inside = FALSE;
+            foreach ($prefixes as $prefix)
+            {
+                if (strpos($path.'.', $prefix) === 0) $inside = TRUE;
+            }
+            if ($path === $anchor OR $inside)
             {
                 $nodes[$i]['history'][] = ['rev' => $rev, 'op' => 'annul', 'file_id' => $file_id, 'text' => $node['text']];
                 $nodes[$i]['text'] = '';

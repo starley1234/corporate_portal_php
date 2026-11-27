@@ -6,7 +6,7 @@
  * Правильное место справочника — отдельный модуль НСИ/MDM (общий для
  * сервисов); до его появления позиции ведутся здесь и матчатся при разборе.
  *
- * Переменные: $catalog, $flash, $csrf.
+ * Переменные: $catalog, $can_edit, $flash, $csrf.
  */
 ?>
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
@@ -19,11 +19,6 @@
 
     <?php echo View::factory('partials/flash', ['flash' => $flash]); ?>
 
-    <div class="prx-seg mt-5" role="tablist" aria-label="Разделы оцифровки спецификаций">
-        <a class="prx-seg-item" role="tab" aria-selected="false" href="/prx400_specflow"><i class="fas fa-file-pdf mr-1.5"></i>Спецификации</a>
-        <a class="prx-seg-item is-active" role="tab" aria-selected="true" href="/prx400_specflow/catalog"><i class="fas fa-book mr-1.5"></i>Справочник НСИ <span class="prx-count"><?php echo count($catalog); ?></span></a>
-        <a class="prx-seg-item" role="tab" aria-selected="false" href="/prx400_specflow/templates"><i class="fas fa-layer-group mr-1.5"></i>Шаблоны</a>
-    </div>
 
     <div class="mt-5 gap-5 space-y-5 lg:grid lg:grid-cols-3 lg:items-start lg:space-y-0">
         <section class="prx-card lg:col-span-2 overflow-x-auto p-0">
@@ -44,10 +39,12 @@
                     <td class="font-mono text-xs text-gray-500 dark:text-gray-400"><?php echo HTML::chars((string) $c['okei_code']); ?></td>
                     <td class="max-w-[200px]"><span class="block truncate text-xs text-gray-400" title="<?php echo HTML::chars((string) $c['keywords']); ?>"><?php echo HTML::chars((string) $c['keywords']); ?></span></td>
                     <td class="text-right">
+<?php if ($can_edit): ?>
                         <form method="post" action="/prx400_specflow/catalog_delete/<?php echo (int) $c['id']; ?>" class="inline">
                             <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
                             <button type="submit" class="prx-btn-danger prx-btn-sm" data-prx-arm="Удалить запись справочника? Двойное нажатие."><i class="fas fa-trash"></i><span class="sr-only">Удалить</span></button>
                         </form>
+<?php endif; ?>
                     </td>
                 </tr>
 <?php endforeach; ?>
@@ -58,6 +55,9 @@
 
         <aside class="prx-card">
             <h2 class="prx-h3">Добавить позицию</h2>
+<?php if ( ! $can_edit): ?>
+            <p class="prx-hint mt-3">Изменение справочника доступно с правом prx400.run.</p>
+<?php else: ?>
             <form method="post" action="/prx400_specflow/catalog" class="mt-4 space-y-3">
                 <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
                 <label class="block">
@@ -85,6 +85,7 @@
                 </label>
                 <button class="prx-btn-cta w-full justify-center" type="submit"><i class="fas fa-plus"></i>Добавить в справочник</button>
             </form>
+<?php endif; ?>
             <p class="prx-hint mt-3">Матчинг нечёткий: «Гайка М12 ГОСТ 5915-70 цинк» найдёт «Гайка шестигранная М12…». ≥92% — автоматическая привязка, 65–92% — на подтверждение оператору.</p>
         </aside>
     </div>

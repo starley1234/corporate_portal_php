@@ -9,17 +9,36 @@
  * привязка кода автоматически, >= manual_review — на подтверждение с
  * подсказками top-K, ниже — «новая позиция».
  */
-class Service_Prx400_Match {
+final class Service_Prx400_Match {
 
     public static function thresholds(): array
     {
-        $cfg = Kohana::$config->load('prx400_specflow')->get('match') ?? [];
+        return Service_Prx400_Limits::match();
+    }
 
-        return [
-            'auto_accept'   => (float) ($cfg['auto_accept'] ?? 0.92),
-            'manual_review' => (float) ($cfg['manual_review'] ?? 0.65),
-            'top_k'         => (int) ($cfg['top_k'] ?? 3),
-        ];
+    /**
+     * Источник кандидатов для партии строк: небольшой справочник — весь в
+     * памяти (точный перебор), большой — предотбор pg_trgm на каждую строку.
+     * Без pg_trgm большой справочник честно перебирается целиком (+ запись в журнал).
+     *
+     * @return callable(string): array кандидаты для строки
+     */
+    public static function catalog_source(): callable
+    {
+        $t = self::thresholds();
+        $count = Model_Prx400_Catalog::count();
+        if ($count <= $t['full_scan_max'] OR ! Model_Prx400_Catalog::trigram_available())
+        {
+            if ($count > $t['full_scan_max'])
+            {
+                Log_Plain::event(Log::WARNING, 'prx400 stage=match full_scan catalog=:n (pg_trgm недоступен)', [':n' => $count]);
+            }
+            $all = Model_Prx400_Catalog::all();
+
+            return static fn (string $query): array => $all;
+        }
+
+        return static fn (string $query): array => Model_Prx400_Catalog::candidates($query, $t['candidates']);
     }
 
     /** Нормализованная строка для сравнения. */
@@ -58,6 +77,17 @@ class Service_Prx400_Match {
         return round(0.6 * max(0.0, $lev) + 0.4 * $jac, 4);
     }
 
+    /** Строка запроса к НСИ: наименование + марка/обозначение. */
+    public static function query(string $name, string $code_doc): string
+    {
+        $name = trim($name);
+        $code_doc = trim(preg_replace('~\s+~u', ' ', $code_doc) ?? '');
+        // Обозначение уже внутри наименования — не удваиваем вес его слов.
+        if ($code_doc === '' OR mb_stripos($name, $code_doc) !== FALSE) return $name;
+
+        return trim($name.' '.$code_doc);
+    }
+
     /**
      * Сопоставить строку со справочником: match JSONB + статус по порогам.
      * Каталог пуст → «новая позиция» без подсказок (честно).
@@ -65,7 +95,7 @@ class Service_Prx400_Match {
     public static function apply(string $name, string $code_doc, array $catalog): array
     {
         $t = self::thresholds();
-        $query = trim($name.' '.preg_replace('~\s+~u', ' ', $code_doc ?? ''));
+        $query = self::query($name, $code_doc);
 
         $scored = [];
         foreach ($catalog as $item)
@@ -108,6 +138,31 @@ class Service_Prx400_Match {
         }
 
         return ['status' => $status, 'match' => $match];
+    }
+
+    /**
+     * Статус строки из её данных — единственное правило для результата
+     * воркера, правки оператора и снятия отметки «Проверено»:
+     *  error  — не сошлась арифметика строки;
+     *  ok     — код НСИ привязан (с дробным количеством штучных — review);
+     *  review — лучший кандидат выше порога подтверждения;
+     *  new    — кандидатов выше порога нет (заведение в НСИ).
+     */
+    public static function row_status(array $flags, ?array $match): string
+    {
+        $types = array_map(static fn ($f): string => is_array($f) ? (string) ($f['type'] ?? '') : '', $flags);
+        if (in_array('math_row', $types, TRUE)) return 'error';
+
+        $fractional = in_array('unit_fractional', $types, TRUE);
+        if ( ! empty($match['code'])) return $fractional ? 'review' : 'ok';
+
+        $best = 0.0;
+        foreach ((array) ($match['alternatives'] ?? []) as $alt)
+        {
+            $best = max($best, (float) ($alt['score'] ?? 0));
+        }
+
+        return $best >= self::thresholds()['manual_review'] ? 'review' : 'new';
     }
 
     /** mb-Левенштейн (стандартный levenshtein() не безопасен для UTF-8). */

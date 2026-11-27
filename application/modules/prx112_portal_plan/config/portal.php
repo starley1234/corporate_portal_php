@@ -64,7 +64,8 @@ return ['domains' => [
         ['module' => 'prx399_docmerge', 'title' => 'Слияние договоров и ДС (ИИ)', 'status' => $docflow_status],
     ]],
     'projects' => ['title' => 'Управление проектами', 'services' => [
-        ['module' => 'prx400_projects', 'title' => 'Доска общих проектов', 'status' => 'planned'],
+        // prx400 занят prx400_specflow (единый префикс классов/таблиц/прав) — доска проектов на prx405.
+        ['module' => 'prx405_projects', 'title' => 'Доска общих проектов', 'status' => 'planned'],
         ['module' => 'prx401_tasks', 'title' => 'Управление задачами команд', 'status' => 'planned'],
         ['module' => 'prx402_minutes', 'title' => 'Протоколы совещаний', 'status' => 'planned'],
         ['module' => 'prx403_milestones', 'title' => 'Трекер вех', 'status' => 'planned'],

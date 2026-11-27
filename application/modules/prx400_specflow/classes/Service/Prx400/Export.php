@@ -5,7 +5,7 @@
  * + audit) и CSV для быстрой ручной выгрузки. Только детерминированные
  * преобразования записанных строк; артефакты верификации — в audit.
  */
-class Service_Prx400_Export {
+final class Service_Prx400_Export {
 
     /** JSON для ERP/НСИ (схема — см. спецификацию модуля, output_json_mapping). */
     public static function json(array $spec, array $rows): array
@@ -15,9 +15,9 @@ class Service_Prx400_Export {
 
         foreach ($rows as $r)
         {
-            $match = is_array($r['match'] ?? NULL) ? $r['match'] : json_decode((string) ($r['match'] ?? 'null'), TRUE);
+            $match = is_array($r['match'] ?? NULL) ? $r['match'] : [];
             $matched_code = (string) ($match['code'] ?? '');
-            $flags = is_array($r['flags'] ?? NULL) ? $r['flags'] : json_decode((string) ($r['flags'] ?? '[]'), TRUE);
+            $flags = is_array($r['flags'] ?? NULL) ? $r['flags'] : [];
 
             if ($matched_code !== '' AND ! empty($match['manual']))
             {
@@ -41,12 +41,13 @@ class Service_Prx400_Export {
                 'catalog_code' => $matched_code !== '' ? $matched_code : NULL,
                 'standard_name' => (string) ($match['name'] ?? ''),
                 'match_score' => isset($match['score']) ? (float) $match['score'] : NULL,
+                'section' => (string) ($r['section'] ?? ''),
                 'quantity' => $r['qty'] !== NULL ? (float) $r['qty'] : NULL,
                 'unit' => (string) $r['unit'],
                 'okei_unit_code' => (string) ($match['okei_code'] ?? ''),
                 'unit_price' => $r['unit_price'] !== NULL ? (float) $r['unit_price'] : NULL,
                 'total_price' => $r['total_price'] !== NULL ? (float) $r['total_price'] : NULL,
-                'verification_status' => in_array($r['verified'] ?? NULL, ['t', TRUE, '1'], TRUE) ? 'verified' : (string) $r['status'],
+                'verification_status' => ! empty($r['verified']) ? 'verified' : (string) $r['status'],
                 'warnings' => array_values(array_filter(array_map(
                     static function ($f): string {
                         return is_array($f) ? (string) ($f['type'] ?? '') : '';
@@ -56,11 +57,14 @@ class Service_Prx400_Export {
 
         return [
             'meta' => [
+                'spec_id' => (int) $spec['id'],
+                'status' => (string) ($spec['status'] ?? ''),
                 'template_id' => (string) $spec['template_id'],
                 'specification_code' => (string) ($spec['spec_number'] ?: 'spec-'.$spec['id']),
                 'department' => (string) $spec['department'],
                 'original_name' => (string) $spec['original_name'],
                 'pages' => (int) $spec['pages'],
+                'parse_mode' => (string) ($spec['parse_mode'] ?? ''),
                 'text_sha256' => (string) $spec['text_sha256'],
                 'processed_timestamp' => date('c', strtotime((string) $spec['updated_at'])),
             ],
@@ -74,20 +78,28 @@ class Service_Prx400_Export {
     {
         $out = fopen('php://temp', 'r+');
         fwrite($out, "\xEF\xBB\xBF"); // BOM для Excel/WPS
-        fputcsv($out, ['№', 'Наименование', 'Тип, марка', 'Кол-во', 'Ед.', 'Цена', 'Сумма', 'Код НСИ', 'Статус'], ';');
+        fputcsv($out, ['№', 'Наименование', 'Тип, марка', 'Кол-во', 'Ед.', 'Цена', 'Сумма', 'Код НСИ', 'Статус'], ';', '"', '');
         $status_ru = ['ok' => 'совпало', 'review' => 'на подтверждении', 'new' => 'новая позиция', 'error' => 'ошибка'];
         foreach ($rows as $r)
         {
-            $match = is_array($r['match'] ?? NULL) ? $r['match'] : json_decode((string) ($r['match'] ?? 'null'), TRUE);
+            $match = is_array($r['match'] ?? NULL) ? $r['match'] : [];
             fputcsv($out, [
-                $r['pos'], $r['raw_name'], $r['code_doc'],
-                $r['qty'], $r['unit'], $r['unit_price'], $r['total_price'],
-                (string) ($match['code'] ?? ''),
-                $status_ru[(string) $r['status']] ?? (string) $r['status'],
-            ], ';');
+                $r['pos'], self::cell($r['raw_name']), self::cell($r['code_doc']),
+                $r['qty'], self::cell($r['unit']), $r['unit_price'], $r['total_price'],
+                self::cell((string) ($match['code'] ?? '')),
+                ! empty($r['verified']) ? 'проверено' : ($status_ru[(string) $r['status']] ?? (string) $r['status']),
+            ], ';', '"', '');
         }
         rewind($out);
 
         return (string) stream_get_contents($out);
+    }
+
+    /** Текст из скана не должен стать формулой Excel (=, +, -, @ в начале ячейки). */
+    private static function cell($value): string
+    {
+        $value = (string) $value;
+
+        return preg_match('/\A[=+\-@\t\r]/', $value) ? "'".$value : $value;
     }
 }

@@ -1,12 +1,14 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
 /**
- * Протокол воркера prx400 (X-Worker-Token): GET /worker/<id>/file — исходный
- * PDF, POST /worker/<id>/result — позиции+математика. Атtempt-заголовок
- * обязателен; результат идемпотентен для повторной попытки.
+ * Протокол воркера prx400 (X-Worker-Token, Prx_Gate::worker_request):
+ *   GET  /prx400_specflow/worker/health
+ *   GET  /prx400_specflow/worker/<job_id>/file    — исходный PDF (lease + sha256)
+ *   POST /prx400_specflow/worker/<job_id>/result  — позиции или {error_code}
+ * Номер попытки X-PRX-Worker-Attempt обязателен и сверяется с очередью.
  */
-class Controller_Prx400_Worker extends Controller {
-
+class Controller_Prx400_Worker extends Controller
+{
     public $auto_render = FALSE;
 
     private function respond(callable $action): void
@@ -18,7 +20,9 @@ class Controller_Prx400_Worker extends Controller {
         } catch (Prx400_Error $e) {
             $this->_json_response($e->payload(), $e->getCode());
         } catch (Throwable $e) {
-            Log_Plain::event(Log::ERROR, 'prx400 worker error_type=:type', [':type' => get_class($e)]);
+            Log_Plain::event(Log::ERROR, 'prx400 worker id=:id error_type=:type', [
+                ':id' => (int) $this->request->param('id'), ':type' => get_class($e),
+            ]);
             $this->_json_response(['error' => ['code' => 'service_unavailable']], 503);
         }
     }
@@ -31,6 +35,7 @@ class Controller_Prx400_Worker extends Controller {
         }
     }
 
+    /** @return array{0: int, 1: int} [job_id, attempt] */
     private function lease(string $method): array
     {
         $this->require_method($method);
@@ -43,15 +48,15 @@ class Controller_Prx400_Worker extends Controller {
     {
         $this->respond(function () {
             $this->require_method(Request::GET);
-            $this->_json_response(['ok' => TRUE, 'module' => 'prx400']);
+            $this->_json_response(['ok' => TRUE, 'module' => Service_Prx400_Specs::MODULE]);
         });
     }
 
     public function action_file(): void
     {
         $this->respond(function () {
-            [$id, $attempt] = $this->lease(Request::GET);
-            $pdf = (new Service_Prx400_Specs)->read_pdf_for_job($id);
+            [$job_id, $attempt] = $this->lease(Request::GET);
+            $pdf = (new Service_Prx400_Pipeline)->read_pdf($job_id, $attempt);
             $this->response->headers('Content-Type', 'application/pdf');
             $this->response->headers('Content-Length', (string) strlen($pdf));
             $this->response->body($pdf);
@@ -61,15 +66,13 @@ class Controller_Prx400_Worker extends Controller {
     public function action_result(): void
     {
         $this->respond(function () {
-            [$id, $attempt] = $this->lease(Request::POST);
+            [$job_id, $attempt] = $this->lease(Request::POST);
             $raw = (string) $this->request->body();
-            if (strlen($raw) > 64 * 1024 * 1024) throw new Prx400_Error('result_too_large', 413);
-
+            if (strlen($raw) > Service_Prx400_Limits::get('max_result_bytes')) throw new Prx400_Error('result_too_large', 413);
             $body = json_decode($raw, TRUE);
             if ( ! is_array($body)) throw new Prx400_Error('invalid_result', 400);
 
-            $out = (new Service_Prx400_Specs)->result_for_job($id, $body);
-            $this->_json_response(is_array($out) ? $out : ['status' => 'done']);
+            $this->_json_response((new Service_Prx400_Pipeline)->store_result($job_id, $attempt, $body));
         });
     }
 

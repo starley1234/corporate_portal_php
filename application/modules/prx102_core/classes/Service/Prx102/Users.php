@@ -39,4 +39,28 @@ final class Service_Prx102_Users
         foreach ($roles_by_user as $id => $roles) $actors[] = new Prx_Actor((int) $id, $roles);
         return $actors;
     }
+
+    /**
+     * Отображаемые имена для списков модулей («кто загрузил»): только ФИО
+     * из профиля, без прочих полей. Неизвестный ID в ответ не попадает.
+     *
+     * @param  int[] $user_ids
+     * @return array<int, string> user_id => ФИО
+     */
+    public static function display_names(array $user_ids): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $user_ids), static fn (int $id): bool => $id > 0)));
+        if ($ids === []) return [];
+
+        $names = [];
+        foreach (Prx_Db::select(
+            'SELECT user_id, full_name FROM user_profiles WHERE user_id IN :ids',
+            [':ids' => $ids]
+        ) as $row)
+        {
+            $name = trim((string) $row['full_name']);
+            if ($name !== '') $names[(int) $row['user_id']] = $name;
+        }
+        return $names;
+    }
 }

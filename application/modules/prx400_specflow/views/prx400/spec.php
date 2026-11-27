@@ -5,8 +5,13 @@
  * качества (зелёный/жёлтый/красный), математический отчёт, верификация
  * оператора, экспорт.
  *
- * Переменные: $spec, $rows, $catalog_count, $job, $math, $csrf, $flash.
+ * Переменные: $spec (status/error — действующие, с учётом очереди), $rows,
+ * $edits, $templates, $parse_modes, $catalog_count, $job_stage, $math,
+ * $file_ok, $can_edit, $csrf, $flash.
  */
+$mode_ru = ['ocr' => 'Точный OCR (без LLM)', 'ocr_vision' => 'OCR + Vision (фолбэк)', 'vision' => 'Vision (по страницам)'];
+$rows_editable = $can_edit && in_array($spec['status'], ['review', 'done'], TRUE);
+$pipeline_actions = $can_edit && in_array($spec['status'], ['failed', 'queued', 'running'], TRUE);
 $row_status_ru = [
     'ok' => 'совпало с НСИ',
     'review' => 'на подтверждении',
@@ -21,7 +26,7 @@ $spec_status_ru = [
     'failed' => ['prx-badge-err', 'ошибка'],
 ];
 list($badge, $status_label) = $spec_status_ru[(string) $spec['status']] ?? ['prx-badge-wait', (string) $spec['status']];
-$issues = count(array_filter($rows, static fn ($r) => (string) $r['status'] !== 'ok' && (string) $r['verified'] !== 't'));
+$issues = count(array_filter($rows, static fn ($r) => (string) $r['status'] !== 'ok' && ! $r['verified']));
 $row_style = [
     'ok' => 'border-l-4 border-emerald-400',
     'review' => 'border-l-4 border-amber-400 bg-amber-50/40 dark:bg-amber-950/20',
@@ -35,11 +40,13 @@ $row_style = [
         'title' => 'Спецификация №'.(int) $spec['id'],
         'pill' => ['prx400 · карточка спецификации', 'fa-table-list'],
         'lead' => HTML::chars((string) $spec['template_title']).($spec['spec_number'] ? ' · шифр '.HTML::chars((string) $spec['spec_number']) : '').($spec['department'] ? ' · '.HTML::chars((string) $spec['department']) : ''),
-        'actions' => [
-            ['label' => 'Исходный PDF', 'href' => '/prx400_specflow/file/'.(int) $spec['id'], 'icon' => 'fa-file-pdf', 'role' => 'secondary'],
-            ['label' => 'JSON для ERP', 'href' => '/prx400_specflow/export/'.(int) $spec['id'], 'icon' => 'fa-file-export', 'role' => 'secondary'],
-            ['label' => 'CSV', 'href' => '/prx400_specflow/export/'.(int) $spec['id'].'?format=csv', 'icon' => 'fa-file-csv', 'role' => 'secondary'],
-        ],
+        'actions' => array_merge(
+            ! empty($file_ok) ? [['label' => 'Исходный PDF', 'href' => '/prx400_specflow/file/'.(int) $spec['id'], 'icon' => 'fa-file-pdf', 'role' => 'secondary']] : [],
+            in_array($spec['status'], ['review', 'done'], TRUE) ? [
+                ['label' => 'JSON для ERP', 'href' => '/prx400_specflow/export/'.(int) $spec['id'], 'icon' => 'fa-file-export', 'role' => 'secondary'],
+                ['label' => 'CSV', 'href' => '/prx400_specflow/export/'.(int) $spec['id'].'?format=csv', 'icon' => 'fa-file-csv', 'role' => 'secondary'],
+            ] : []
+        ),
     ]); ?>
 
     <?php echo View::factory('partials/flash', ['flash' => $flash]); ?>
@@ -64,33 +71,20 @@ $job_stage_text = trim((string) ($job_stage['stage'] ?? ''));
 
     <div class="mt-5 flex flex-wrap items-center gap-3">
         <span class="<?php echo HTML::chars($badge); ?>"><span class="prx-dot"></span><?php echo HTML::chars($status_label); ?></span>
-        <span class="prx-count">Режим: <?php echo HTML::chars((string) $spec['parse_mode']); ?></span>
+        <span class="prx-count">Режим: <?php echo HTML::chars($mode_ru[(string) $spec['parse_mode']] ?? (string) $spec['parse_mode']); ?></span>
 <?php if ($spec['status'] === 'failed'): ?>
-        <span class="text-sm text-rose-600 dark:text-rose-400"><?php echo HTML::chars((string) $spec['error']); ?></span>
-<?php $prx400_hint = [
-    'no_text' => 'Текст не извлечён — скан без распознаваемого слоя. Перезалейте с режимом «Vision» или «OCR + Vision».',
-    'header_not_found' => 'Шаблон не распознан по якорям. Попробуйте режим «OCR + Vision» — колонки подберёт vision-разбор, или добавьте шаблон на странице «Шаблоны».',
-    'no_rows' => 'Строки позиций не найдены. Попробуйте режим «OCR + Vision» или «Vision» — они разбирают страницы по изображению, а не по тексту OCR.',
-    'vision_config' => 'Vision недоступен: у воркера не настроен LLM-шлюз (LOCAL_API_URL / LOCAL_API_KEY / DEFAULT_LLM_MODEL).',
-    'vision_unavailable' => 'Vision-модель не ответила или не поддерживает изображения — проверьте LLM-шлюз воркера.',
-    'template_not_found' => 'Выбранного шаблона нет в библиотеке — выберите другой на странице «Шаблоны» или верните авто-детекцию.',
-];
-foreach ($prx400_hint as $code => $text): if (strpos((string) $spec['error'], $code) !== FALSE): ?>
-        <span class="block w-full text-sm text-gray-600 dark:text-gray-300"><i class="fas fa-circle-info mr-1 text-gray-400"></i><?php echo HTML::chars($text); ?></span>
-<?php endif; endforeach; ?>
-<?php if (strpos((string) $spec['error'], 'file_unavailable') !== FALSE): ?>
-<?php if ( ! empty($file_ok)): ?>
-        <span class="block w-full text-sm text-emerald-700 dark:text-emerald-400"><i class="fas fa-circle-check mr-1"></i>Файл снова доступен в хранилище — путь перепривязан после выкатки кода. Ошибка задачи устарела: нажмите «Повторить разбор», перезаливка не нужна.</span>
-<?php else: ?>
-        <span class="block w-full text-sm text-gray-600 dark:text-gray-300"><i class="fas fa-circle-info mr-1 text-gray-400"></i>Исходного PDF нет в хранилище (путь записи: <code class="font-mono text-xs"><?php echo HTML::chars((string) $spec['storage_path']); ?></code>) — файл не пережил выкатку релиза. Перезалейте его прямо здесь — карточка и её история сохранятся:</span>
+        <span class="block w-full text-sm text-rose-600 dark:text-rose-400"><i class="fas fa-circle-exclamation mr-1"></i><?php echo HTML::chars(Prx400_Messages::text((string) $spec['error'])); ?></span>
+<?php endif; ?>
+<?php if ($pipeline_actions AND empty($file_ok)): ?>
+        <span class="block w-full text-sm text-gray-600 dark:text-gray-300"><i class="fas fa-circle-info mr-1 text-gray-400"></i>Исходного PDF нет в хранилище (файл до перехода на prx212 или удалён). Перезалейте его здесь — карточка и её история сохранятся:</span>
         <form method="post" action="/prx400_specflow/reupload/<?php echo (int) $spec['id']; ?>" enctype="multipart/form-data" class="mt-2 flex w-full flex-wrap items-center gap-2">
             <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
             <input type="file" name="pdf" accept="application/pdf,.pdf" required
                    class="prx-input max-w-[320px] file:mr-3 file:rounded-lg file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white">
             <select name="parse_mode" class="prx-input max-w-[220px]">
-                <option value="ocr">Точный OCR (без LLM)</option>
-                <option value="ocr_vision">OCR + Vision (фолбэк)</option>
-                <option value="vision" selected>Vision (по страницам)</option>
+<?php foreach ($parse_modes as $mode): ?>
+                <option value="<?php echo HTML::chars($mode); ?>"<?php echo $spec['parse_mode'] === $mode ? ' selected' : ''; ?>><?php echo HTML::chars($mode_ru[$mode] ?? $mode); ?></option>
+<?php endforeach; ?>
             </select>
             <select name="template_id" class="prx-input max-w-[240px]">
                 <option value="">Шаблон: авто (по якорям)</option>
@@ -100,14 +94,22 @@ foreach ($prx400_hint as $code => $text): if (strpos((string) $spec['error'], $c
             </select>
             <button class="prx-btn-cta prx-btn-sm" type="submit"><i class="fas fa-upload"></i>Перезалить и разобрать</button>
         </form>
-<?php endif; endif; endif; ?>
+<?php endif; ?>
 <?php if ($spec['status'] === 'review'): ?>
         <span class="text-sm text-gray-500 dark:text-gray-400">Осталось спорных позиций: <?php echo (int) $issues; ?>. Подтвердите их и завершите проверку.</span>
 <?php endif; ?>
         <span class="ml-auto flex gap-2">
-<?php if ($spec['status'] === 'failed'): ?>
-            <?php if ( ! empty($file_ok)): ?><form method="post" action="/prx400_specflow/launch/<?php echo (int) $spec['id']; ?>" class="inline"><input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><select name="parse_mode" class="prx-input max-w-[200px]"><option value="ocr"<?php echo $spec['parse_mode'] === 'ocr' ? ' selected' : ''; ?>>Точный OCR (без LLM)</option><option value="ocr_vision"<?php echo $spec['parse_mode'] === 'ocr_vision' ? ' selected' : ''; ?>>OCR + Vision (фолбэк)</option><option value="vision"<?php echo $spec['parse_mode'] === 'vision' ? ' selected' : ''; ?>>Vision (по страницам)</option></select><select name="template_id" class="prx-input max-w-[240px]"><option value="">Шаблон: авто (по якорям)</option><?php foreach ($templates as $t): ?><option value="<?php echo HTML::chars($t['id']); ?>"><?php echo HTML::chars($t['title']); ?></option><?php endforeach; ?></select><button class="prx-btn-secondary prx-btn-sm" type="submit"><i class="fas fa-rotate-right"></i>Повторить разбор</button></form><?php endif; ?>
-<?php elseif ($spec['status'] === 'review'): ?>
+<?php if ($pipeline_actions AND ! empty($file_ok)): ?>
+            <form method="post" action="/prx400_specflow/launch/<?php echo (int) $spec['id']; ?>" class="inline flex flex-wrap items-center gap-2"><input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
+                <select name="parse_mode" class="prx-input max-w-[200px]">
+<?php foreach ($parse_modes as $mode): ?>
+                    <option value="<?php echo HTML::chars($mode); ?>"<?php echo $spec['parse_mode'] === $mode ? ' selected' : ''; ?>><?php echo HTML::chars($mode_ru[$mode] ?? $mode); ?></option>
+<?php endforeach; ?>
+                </select>
+                <select name="template_id" class="prx-input max-w-[240px]"><option value="">Шаблон: авто (по якорям)</option><?php foreach ($templates as $t): ?><option value="<?php echo HTML::chars($t['id']); ?>"><?php echo HTML::chars($t['title']); ?></option><?php endforeach; ?></select>
+                <button class="prx-btn-secondary prx-btn-sm" type="submit"<?php echo $spec['status'] !== 'failed' ? ' data-prx-confirm="Текущая задача разбора будет отменена и поставлена заново." data-prx-title="Перезапустить разбор?" data-prx-ok="Перезапустить"' : ''; ?>><i class="fas fa-rotate-right"></i><?php echo $spec['status'] === 'failed' ? 'Повторить разбор' : 'Перезапустить'; ?></button>
+            </form>
+<?php elseif ($can_edit AND $spec['status'] === 'review'): ?>
             <form method="post" action="/prx400_specflow/finish/<?php echo (int) $spec['id']; ?>" class="inline flex items-center gap-2"><input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><?php if ($issues > 0): ?><label class="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-300"><input type="checkbox" name="accept_issues" value="1" class="accent-emerald-600">принимаю с расхождениями (<?php echo (int) $issues; ?>)</label><?php endif; ?><button class="prx-btn-cta prx-btn-sm" type="submit"><i class="fas fa-check-double"></i>Завершить проверку</button></form>
 <?php endif; ?>
         </span>
@@ -123,7 +125,13 @@ foreach ($prx400_hint as $code => $text): if (strpos((string) $spec['error'], $c
 <?php if (isset($m['totals']) && $m['totals']['ok'] !== NULL): ?>
             <span>Итого по документу: <?php echo $m['totals']['ok'] ? '<strong class="text-emerald-600 dark:text-emerald-400">сходится</strong>' : '<strong class="text-rose-600 dark:text-rose-400">не сходится</strong> ('.(float) $m['totals']['computed'].' против '.(float) $m['totals']['declared'].')'; ?></span>
 <?php endif; ?>
+<?php if ( ! empty($m['via'])): ?>
+            <span>Источник строк: <strong><?php echo $m['via'] === 'vision' ? 'vision' : 'OCR/текстовый слой'; ?></strong></span>
+<?php endif; ?>
         </div>
+<?php foreach ((array) ($m['warnings'] ?? []) as $warning): ?>
+        <p class="mt-2 text-sm text-amber-700 dark:text-amber-400"><i class="fas fa-triangle-exclamation mr-1"></i><?php echo HTML::chars(Prx400_Messages::warning((string) $warning)); ?></p>
+<?php endforeach; ?>
     </section>
 
     <section class="prx-card mt-5 overflow-x-auto p-0">
@@ -138,8 +146,8 @@ foreach ($prx400_hint as $code => $text): if (strpos((string) $spec['error'], $c
         <table class="prx-table">
             <thead><tr><th>№</th><th>Наименование</th><th>Тип, марка</th><th>Кол-во</th><th>Ед.</th><th>Цена</th><th>Сумма</th><th>НСИ</th><th></th></tr></thead>
             <tbody>
-<?php foreach ($rows as $r): $rmatch = is_array($r['match'] ?? NULL) ? $r['match'] : json_decode((string) ($r['match'] ?? 'null'), TRUE); ?>
-            <tr class="<?php echo HTML::chars($row_style[(string) $r['status']] ?? ''); ?>">
+<?php foreach ($rows as $r): $rmatch = is_array($r['match']) ? $r['match'] : []; ?>
+            <tr id="row-<?php echo (int) $r['id']; ?>" class="<?php echo HTML::chars($r['verified'] ? 'border-l-4 border-emerald-400' : ($row_style[(string) $r['status']] ?? '')); ?>">
                 <td class="font-mono tabular-nums"><?php echo $r['pos'] !== NULL ? (int) $r['pos'] : '—'; ?>
 <?php foreach ((array) ($r['flags'] ?? []) as $f): if ((string) $f['type'] === 'gap'): ?>
                     <i class="fas fa-triangle-exclamation text-amber-500" title="Пропуск нумерации: после позиции <?php echo (int) $f['after_pos']; ?>"></i>
@@ -164,16 +172,25 @@ foreach ($prx400_hint as $code => $text): if (strpos((string) $spec['error'], $c
                     <span class="prx-badge prx-badge-ok"><span class="prx-dot"></span><?php echo HTML::chars($code); ?></span>
                     <span class="block text-xs text-gray-400"><?php echo HTML::chars((string) ($rmatch['name'] ?? '')); ?> · <?php echo round(100 * (float) ($rmatch['score'] ?? 0)); ?>%<?php echo ! empty($rmatch['manual']) ? ' · вручную' : ''; ?></span>
 <?php else: ?>
+<?php if ((string) $r['status'] === 'review'): ?>
+                    <span class="prx-badge prx-badge-wait"><span class="prx-dot"></span>подтвердите</span>
+<?php else: ?>
                     <span class="prx-badge prx-badge-err"><span class="prx-dot"></span>новая</span>
+<?php endif; ?>
 <?php $alts = (array) ($rmatch['alternatives'] ?? []); if ($alts): ?>
-                    <span class="mt-1 block text-xs text-gray-400">похожие: <?php foreach (array_slice($alts, 0, 3) as $alt): ?><form method="post" action="/prx400_specflow/verify/<?php echo (int) $r['id']; ?>" class="inline"><input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><input type="hidden" name="code" value="<?php echo HTML::chars((string) $alt['code']); ?>"><button type="submit" class="font-mono text-blue-600 hover:underline dark:text-blue-400" title="Подтвердить: <?php echo HTML::chars((string) $alt['name']); ?> (<?php echo round(100 * (float) $alt['score']); ?>%)"><?php echo HTML::chars((string) $alt['code']); ?></button></form> <?php endforeach; ?></span>
+                    <span class="mt-1 block text-xs text-gray-400">похожие: <?php foreach (array_slice($alts, 0, 3) as $alt): ?><?php if ( ! $rows_editable): ?><span class="font-mono" title="<?php echo HTML::chars((string) $alt['name']); ?> (<?php echo round(100 * (float) $alt['score']); ?>%)"><?php echo HTML::chars((string) $alt['code']); ?></span> <?php continue; endif; ?><form method="post" action="/prx400_specflow/verify/<?php echo (int) $r['id']; ?>" class="inline"><input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><input type="hidden" name="back_spec" value="<?php echo (int) $spec['id']; ?>"><input type="hidden" name="code" value="<?php echo HTML::chars((string) $alt['code']); ?>"><button type="submit" class="font-mono text-blue-600 hover:underline dark:text-blue-400" title="Подтвердить: <?php echo HTML::chars((string) $alt['name']); ?> (<?php echo round(100 * (float) $alt['score']); ?>%)"><?php echo HTML::chars((string) $alt['code']); ?></button></form> <?php endforeach; ?></span>
 <?php endif; endif; ?>
                 </td>
-                <td class="text-right">
+                <td class="text-right whitespace-nowrap">
+<?php if ($r['verified']): ?>
+                    <span class="mr-1 text-xs text-emerald-600 dark:text-emerald-400" title="Подтверждено оператором"><i class="fas fa-circle-check"></i></span>
+<?php endif; ?>
+<?php if ($rows_editable): ?>
                     <details class="mb-1 inline-block text-left">
                         <summary class="prx-btn-secondary prx-btn-sm cursor-pointer list-none" title="Исправить распознанные поля"><i class="fas fa-pencil"></i><span class="sr-only">Исправить</span></summary>
                         <form method="post" action="/prx400_specflow/edit/<?php echo (int) $r['id']; ?>" class="mt-2 w-64 space-y-2 rounded-lg border border-gray-200 bg-white p-3 text-left dark:border-gray-700 dark:bg-gray-900">
                             <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
+                            <input type="hidden" name="back_spec" value="<?php echo (int) $spec['id']; ?>">
                             <label class="block"><span class="prx-label">Кол-во</span><input class="prx-input mt-1 w-full" name="qty" value="<?php echo $r['qty'] !== NULL ? HTML::chars((string) $r['qty']) : ''; ?>" placeholder="—"></label>
                             <label class="block"><span class="prx-label">Ед.</span><input class="prx-input mt-1 w-full" name="unit" value="<?php echo HTML::chars((string) $r['unit']); ?>"></label>
                             <label class="block"><span class="prx-label">Наименование</span><textarea class="prx-input mt-1 w-full" name="raw_name" rows="2"><?php echo HTML::chars((string) $r['raw_name']); ?></textarea></label>
@@ -181,11 +198,12 @@ foreach ($prx400_hint as $code => $text): if (strpos((string) $spec['error'], $c
                             <button class="prx-btn-cta w-full justify-center" type="submit"><i class="fas fa-floppy-disk"></i>Сохранить</button>
                         </form>
                     </details>
-<?php if ((string) $r['verified'] === 't'): ?>
-                    <form method="post" action="/prx400_specflow/verify/<?php echo (int) $r['id']; ?>" class="inline"><input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><button type="submit" class="prx-btn-secondary prx-btn-sm" title="Снять отметку «Проверено» — строка вернётся в прежнее состояние"><i class="fas fa-rotate-left"></i><span class="sr-only">Снять отметку</span></button></form>
+<?php if ($r['verified']): ?>
+                    <form method="post" action="/prx400_specflow/verify/<?php echo (int) $r['id']; ?>" class="inline"><input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><input type="hidden" name="back_spec" value="<?php echo (int) $spec['id']; ?>"><button type="submit" class="prx-btn-secondary prx-btn-sm" title="Снять отметку «Проверено» — строка вернётся в прежнее состояние"><i class="fas fa-rotate-left"></i><span class="sr-only">Снять отметку</span></button></form>
 <?php else: ?>
 <?php $row_error = FALSE; foreach ((array) ($r['flags'] ?? []) as $f) { if (in_array((string) ($f['type'] ?? ''), ['math_row', 'unit_fractional'], TRUE)) { $row_error = TRUE; break; } } ?>
-                    <form method="post" action="/prx400_specflow/verify/<?php echo (int) $r['id']; ?>" class="inline"><input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><button type="submit" class="prx-btn-secondary prx-btn-sm" title="Подтвердить строку"<?php echo $row_error ? ' data-prx-confirm="Строка с ошибкой (математика/единицы). Подтвердить как есть? Отметку можно снять повторным нажатием." data-prx-title="Подтвердить строку с ошибкой?" data-prx-ok="Подтвердить"' : ''; ?>><i class="fas fa-check"></i><span class="sr-only">Подтвердить</span></button></form>
+                    <form method="post" action="/prx400_specflow/verify/<?php echo (int) $r['id']; ?>" class="inline"><input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>"><input type="hidden" name="back_spec" value="<?php echo (int) $spec['id']; ?>"><button type="submit" class="prx-btn-secondary prx-btn-sm" title="Подтвердить строку"<?php echo $row_error ? ' data-prx-confirm="Строка с ошибкой (математика/единицы). Подтвердить как есть? Отметку можно снять повторным нажатием." data-prx-title="Подтвердить строку с ошибкой?" data-prx-ok="Подтвердить"' : ''; ?>><i class="fas fa-check"></i><span class="sr-only">Подтвердить</span></button></form>
+<?php endif; ?>
 <?php endif; ?>
                 </td>
             </tr>
@@ -195,8 +213,30 @@ foreach ($prx400_hint as $code => $text): if (strpos((string) $spec['error'], $c
 <?php endif; ?>
     </section>
 
+<?php if ( ! empty($edits)): ?>
+    <section class="prx-card mt-5 overflow-x-auto p-0">
+        <div class="border-b border-gray-100 px-4 py-3.5 dark:border-gray-700/60">
+            <h2 class="prx-h3"><i class="fas fa-clock-rotate-left mr-1.5 text-gray-400"></i>Журнал правок <span class="prx-count ml-1"><?php echo count($edits); ?></span></h2>
+        </div>
+        <table class="prx-table">
+            <thead><tr><th>Когда</th><th>Позиция</th><th>Поле</th><th>Было</th><th>Стало</th></tr></thead>
+            <tbody>
+<?php foreach ($edits as $e): ?>
+            <tr>
+                <td class="whitespace-nowrap text-xs text-gray-500 dark:text-gray-400"><?php echo date('d.m.Y H:i', strtotime((string) $e['created_at'])); ?></td>
+                <td class="font-mono tabular-nums"><a class="prx-link" href="#row-<?php echo (int) $e['row_id']; ?>"><?php echo $e['pos'] !== NULL ? (int) $e['pos'] : '#'.((int) $e['seq'] + 1); ?></a></td>
+                <td class="text-xs"><?php echo HTML::chars((string) $e['field']); ?></td>
+                <td class="max-w-[260px] text-xs text-gray-500 line-through dark:text-gray-400"><?php echo HTML::chars((string) $e['old_value']); ?></td>
+                <td class="max-w-[260px] text-xs text-gray-900 dark:text-white"><?php echo HTML::chars((string) $e['new_value']); ?></td>
+            </tr>
+<?php endforeach; ?>
+            </tbody>
+        </table>
+    </section>
+<?php endif; ?>
+
 <?php if ($catalog_count === 0): ?>
-    <p class="prx-hint mt-4">Справочник НСИ пуст — все позиции помечены «новая». <a href="/prx400_specflow/catalog" class="prx-link">Наполните справочник</a> и запустите разбор повторно — матчинг привяжет коды.</p>
+    <p class="prx-hint mt-4">Справочник НСИ пуст — все позиции помечены «новая». <a href="/prx400_specflow/catalog" class="prx-link">Наполните справочник</a> — следующие разборы привяжут коды автоматически, а здесь код можно назначить вручную.</p>
 <?php endif; ?>
 </div>
 

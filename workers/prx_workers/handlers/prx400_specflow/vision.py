@@ -87,7 +87,7 @@ def _columns_hint(tpl: dict | None) -> str:
     }
     parts = []
     for key, meta in columns.items():
-        syn = ", ".join((meta or {}).get("synonyms") or [])
+        syn = ", ".join(str(m) for m in ((meta or {}).get("match") or []) if isinstance(m, str))
         parts.append(f"{key} ({titles.get(key, key)}{'; ' + syn if syn else ''})")
     return "Колонки таблицы: " + ("; ".join(parts) if parts else "Поз.; Наименование; Обозначение; Кол.; Ед. изм.")
 
@@ -132,12 +132,21 @@ async def detect(path: Path, pages: int, templates: list[dict], lim: dict) -> di
 
 
 async def extract(path: Path, pages: int, tpl: dict | None, lim: dict, progress) -> dict:
-    """Строки со всех страниц (vision). Возвращает {rows, spec_number, department, warnings}."""
+    """Строки со страниц (vision): {rows, warnings, pages_processed}.
+
+    Страниц больше PRX400_MAX_VISION_PAGES — разбираются первые, в warnings
+    уходит vision_pages_truncated (оператор видит это в карточке). Страница,
+    которую модель не разобрала, — vision_page_<N>_failed; не разобралась ни
+    одна — vision_unavailable. Строки сверх max_rows не режутся: handler
+    вернёт result_too_large вместо молча неполной таблицы.
+    """
     cap = min(max(1, pages), lim["max_vision_pages"])
-    if pages > cap:
-        log.warning("specflow vision: страниц %d больше лимита %d — обрезано", pages, cap)
     rows: list[dict] = []
     warnings: list[str] = []
+    if pages > cap:
+        log.warning("specflow vision: страниц %d больше лимита %d — разобраны первые", pages, cap)
+        warnings.append("vision_pages_truncated")
+    failed = 0
     hint = _columns_hint(tpl)
     for page in range(1, cap + 1):
         await progress("vision_page", f"{page}/{cap}")
@@ -156,7 +165,8 @@ async def extract(path: Path, pages: int, tpl: dict | None, lim: dict, progress)
             raise PermanentJobError("vision_config") from None
         except Exception as e:  # noqa: BLE001
             log.error("specflow vision page=%d failed: %s", page, type(e).__name__)
-            warnings.append(f"page_{page}_failed")
+            warnings.append(f"vision_page_{page}_failed")
+            failed += 1
             continue
         log.info("specflow vision: page=%d ok rows=%d", page, len(parsed.rows or []))
         for r in parsed.rows:
@@ -169,4 +179,6 @@ async def extract(path: Path, pages: int, tpl: dict | None, lim: dict, progress)
                 "flags": [],
             })
         await asyncio.sleep(0)
-    return {"rows": rows[: lim["max_rows"]], "spec_number": None, "department": None, "warnings": warnings}
+    if failed == cap:
+        raise PermanentJobError("vision_unavailable")
+    return {"rows": rows, "warnings": warnings, "pages_processed": cap - failed}

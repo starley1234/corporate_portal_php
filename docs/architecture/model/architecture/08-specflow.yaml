@@ -1,0 +1,56 @@
+title: Сервис · Оцифровка спецификаций
+overview:
+  lead: >-
+    **prx400_specflow — скан спецификации/BOM → проверенная таблица с кодами НСИ.**
+    Три входа с разной аутентификацией сходятся в одном сервисе: UI (сессия и CSRF),
+    внешнее API prx150 (ключ и scope `prx400.extract`), воркер (токен и номер попытки).
+  blocks:
+    - scheme:
+        size: [1180, 520]
+        groups:
+          - [20, 40, 250, 440, "Вход"]
+          - [300, 40, 560, 440, "Сервис"]
+          - [890, 40, 270, 440, "Разбор"]
+        nodes:
+          - { id: operator, at: [145, 120, 190], label: Оператор, sub: prx400.view / prx400.run, kind: user }
+          - { id: erp, at: [145, 260, 190], label: ERP / интегратор, sub: ключ prx150, kind: ext }
+          - { id: specflow, at: [430, 120, 230], label: prx400 · Specs, sub: Policy и idempotency, kind: module, info: "{specflow}" }
+          - { id: storage, at: [430, 260, 230], label: prx212 · Storage, sub: PDF без пользователя, kind: data, info: "{storage}" }
+          - { id: queue, at: [720, 120, 200], label: prx120 · specflow.parse, sub: lease по попытке, kind: queue, info: "{queue}" }
+          - { id: pipeline, at: [720, 260, 200], label: prx400 · Pipeline, sub: приём результата и purge, kind: module }
+          - { id: worker, at: [1025, 120, 210], label: Python-воркер, sub: шаблон и математика, kind: queue, info: "{workers}" }
+          - { id: llm, at: [1025, 260, 210], label: Vision-LLM, sub: только vision-режимы, kind: ai, info: "{llm}" }
+        edges:
+          - operator -> specflow: { label: загрузка и проверка }
+          - erp -> specflow: { label: POST / GET }
+          - specflow -> storage: { rel: uses, label: file_id и sha256 }
+          - specflow -> queue: { rel: uses, label: push / cancel }
+          - queue -> worker: { label: claim }
+          - worker -> llm: { rel: uses, label: страницы }
+          - worker --> pipeline: { rel: carries, label: строки или error_code }
+          - pipeline -> specflow: { rel: uses, label: матчинг НСИ и статус }
+        routes:
+          Разбор: operator -> specflow -> queue -> worker
+          Результат: worker -> pipeline -> specflow
+        hint: GET ничего не пишет — статус в работе сверяется с очередью для показа, итог сверки записывает prx400:purge.
+    - cards:
+        - title: Матчинг и статусы
+          text: Строки воркера сопоставляются со справочником НСИ в PHP до транзакции; цвет строки — одно правило row_status для разбора и правок.
+          color: "#6366f1"
+          chips: [prx400, НСИ, HITL]
+        - title: Ошибки
+          text: Машинные коды из белого списка; воркер сообщает терминальный код один раз, текст для оператора — в UI.
+          color: "#e11d48"
+          chips: [error_code, lease_lost]
+detail:
+  lead: >-
+    **Границы и пределы.** Все пределы — env с границами в `config/prx400_specflow.php`;
+    размер PDF и строк воркер и PHP читают из одних переменных.
+  blocks:
+    - table:
+        head: [Этап, Контракт, Диагностика]
+        rows:
+          - [Приём, 'PDF до PRX400_MAX_PDF_BYTES, Idempotency-Key, scope prx400.extract', 'HTTP 202 — постановка, а не успех разбора']
+          - [Воркер, 'X-PRX-Worker-Attempt, тело до PRX400_MAX_RESULT_BYTES', 'prx400 spec=… stage=… в журнале сайта']
+          - [Проверка, 'review → done только при нуле спорных строк или осознанном принятии', 'Журнал правок prx_400_edits']
+          - [Обслуживание, 'bin/console prx400:purge: сверка, срок хранения, сироты', 'Манифест schedule']

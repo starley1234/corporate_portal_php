@@ -1,967 +1,654 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
 /**
- * Жизненный цикл спецификации prx400: загрузка → задача specflow.parse →
- * приём результата воркера (позиции + математика) → матчинг с НСИ →
- * верификация оператором → экспорт JSON.
+ * Жизненный цикл спецификации prx400 — общий фасад для UI (Prx_Actor) и
+ * внешнего API (Prx150_Principal):
+ *
+ *   submit → prx212 + prx_400_specs + задача specflow.parse (одна транзакция
+ *   с ключом идемпотентности) → воркер (Service_Prx400_Pipeline) → матчинг
+ *   с НСИ → верификация оператором → экспорт JSON/CSV.
+ *
+ * Права решает Policy_Prx400_Spec; SQL — модели Model_Prx400_*; файлы —
+ * только фасад Storage. Ошибки — Prx400_Error с машинным кодом.
  */
-class Service_Prx400_Specs {
-
-    protected $_max_upload;
-    protected $_max_rows;
-
-    public function __construct()
-    {
-        $cfg = Kohana::$config->load('prx400_specflow');
-        $this->_max_upload = (int) ($cfg->get('max_upload_bytes') ?? 20971520);
-        $this->_max_rows = (int) ($cfg->get('max_rows') ?? 2000);
-    }
+final class Service_Prx400_Specs
+{
+    const CHANNEL = 'specflow.parse';
+    const MODULE = 'prx400';
+    const SCOPE = 'prx400.extract';
 
     /**
-     * Корень легаси-хранилища (до перехода на prx212): env-каталог или
-     * storage/specflow в корне проекта. Новые загрузки этот путь не пишут;
-     * используется только resolve_pdf при перепривязке старых записей.
+     * Терминальные коды разбора (воркер → PHP, очередь → статус). Всё, что не
+     * в списке, отображается как job_failed: произвольная строка из очереди
+     * не становится «кодом ошибки» для интегратора.
      */
-    protected static function storage_dir(): string
-    {
-        $dir = (string) (Kohana::$config->load('prx400_specflow')->get('storage_dir') ?: 'storage/specflow');
+    const FAILED_CODES = [
+        'invalid_pdf', 'encrypted_pdf', 'page_limit', 'result_too_large', 'no_text',
+        'ocr_config', 'ocr_unavailable', 'ocr_auth', 'ocr_rejected', 'ocr_invalid_response',
+        'ocr_incomplete', 'ocr_page_failed', 'file_unavailable', 'invalid_result', 'pdf_required',
+        'header_not_found', 'template_missing', 'template_not_found', 'template_invalid',
+        'no_rows', 'vision_config', 'vision_unavailable', 'bad_payload',
+        'job_failed', 'job_timeout', 'job_unavailable', 'job_canceled', 'result_missing',
+    ];
 
-        return rtrim(Storage_Path::absolute(getenv('PRX400_STORAGE_DIR') ?: $dir), '/');
-    }
+    /** Статусы, в которых строки ещё не принадлежат оператору. */
+    const PIPELINE_STATUSES = ['queued', 'running', 'failed'];
+
+    // ------------------------------------------------------------------
+    // Постановка разбора
+    // ------------------------------------------------------------------
 
     /**
-     * Список спецификаций (+ счётчики строк, имя владельца). Модуль
-     * admin-аудитории — видимы все спецификации (как пакеты prx399);
-     * владелец записан в БД (owner_id, и user_id у файла prx212) —
-     * показываем имя через публичный API владельца профилей.
+     * Принять PDF и поставить разбор. Повтор с тем же ключом и тем же файлом
+     * (и режимом) возвращает ту же спецификацию; другой файл — конфликт.
+     *
+     * @param array{parse_mode?: mixed, template_id?: mixed} $options
+     * @return int ID спецификации
      */
-    public function list($actor): array
+    public function submit(Prx_Principal $principal, string $key, $upload, array $options = []): int
     {
-        $specs = Model_Prx400_Spec::all_specs();
-        $names = [];
-        if (class_exists('Model_Prx102_User'))
-        {
-            try
-            {
-                foreach (Model_Prx102_User::get_all_names() as $uid => $p)
-                {
-                    $names[(int) $uid] = trim((string) ($p['full_name'] ?? ''));
-                }
-            }
-            catch (Throwable $e) { /* имена не критичны для списка */ }
-        }
-        $out = [];
-        foreach ($specs as $s)
-        {
-            $s = (array) $s;
-            $s['owner_name'] = $names[(int) $s['owner_id']] ?? ('user #'.(int) $s['owner_id']);
-            $s['rows_total'] = 0;
-            $s['rows_issue'] = 0;
-            $out[$s['id']] = $s;
-        }
-        if ($out)
-        {
-            foreach (Prx_Db::select(
-                'SELECT spec_id, count(*) AS total,
-                        count(*) FILTER (WHERE status <> \'ok\') AS issue
-                 FROM prx_400_rows WHERE spec_id IN ('.implode(',', array_map('intval', array_keys($out))).')
-                 GROUP BY spec_id') as $agg)
-            {
-                $agg = (array) $agg;
-                if (isset($out[(int) $agg['spec_id']]))
-                {
-                    $out[(int) $agg['spec_id']]['rows_total'] = (int) $agg['total'];
-                    $out[(int) $agg['spec_id']]['rows_issue'] = (int) $agg['issue'];
-                }
-            }
-        }
-
-        return array_values($out);
-    }
-
-    /** Загрузить PDF спецификации и поставить задачу разбора. */
-    public function create($actor, array $files, array $post = [])
-    {
-        ($actor ?? Prx_Actor::guest())->require('prx400.run');
-
-        return $this->_ingest((int) $actor->id(), $files, $post);
-    }
-
-    /**
-     * Внешнее API (токен PRX400_API_TOKEN проверен контроллером): та же
-     * приёмка, что и в UI, владелец записи — 0 (машинный интегратор).
-     */
-    public function api_create(array $files, array $post = [])
-    {
-        $spec = $this->_ingest(0, $files, $post);
-        $fresh = Model_Prx400_Spec::get((int) $spec['id']);
-
-        return is_array($fresh) ? $fresh : $spec; // parse_mode уже записан пушем
-    }
-
-    /** Общая приёмка PDF: валидация → prx212 → запись → задача разбора. */
-    protected function _ingest(int $owner_id, array $files, array $post)
-    {
-        $upload = $files['pdf'] ?? NULL;
-        if (empty($upload['name']))
-        {
-            throw new Prx400_Error('pdf_required', 400);
-        }
-        if ($upload['error'] !== UPLOAD_ERR_OK OR ! is_uploaded_file($upload['tmp_name']))
-        {
-            throw new Prx400_Error('upload_error', 400);
-        }
-        if (strtolower(pathinfo($upload['name'], PATHINFO_EXTENSION)) !== 'pdf')
-        {
-            throw new Prx400_Error('pdf_required', 400);
-        }
-        if ($upload['size'] > $this->_max_upload)
-        {
-            throw new Prx400_Error('file_too_large', 413);
-        }
-
-        $sha = hash_file('sha256', $upload['tmp_name']);
-        $name = mb_substr(trim((string) $upload['name']), 0, 255);
-        $content = (string) file_get_contents($upload['tmp_name']);
-        if ($content === '')
-        {
-            throw new Prx400_Error('upload_error', 400);
-        }
-
-        // Хранение — через платформенное хранилище prx212 (фасад Storage):
-        // путь и бекенд ведёт prx212 в своей БД, файл переживает выкатку
-        // релиза и не зависит от каталога кода. Локальный каталог остался
-        // только для ЛЕГАси-записей (resolve_pdf ниже).
-        try
-        {
-            // Артефакт пайплайна принадлежит МОДУЛЮ (user_id NULL): read_owned/
-            // delete_owned prx212 определены только для «файлов без
-            // пользователя». Загрузка от user_id делала файл «личным» —
-            // read_owned его не отдавал (file_unavailable воркера,
-            // лог prx400_diag 26.11); владелец записи — prx_400_specs.owner_id.
-            $file_id = Storage::put($content, $name, 'prx400', NULL, FALSE, 'application/pdf');
-        }
-        catch (Throwable $e)
-        {
-            Log_Plain::event(Log::ERROR, 'prx400 storage put failed: :m', [':m' => $e->getMessage()]);
-            throw new Prx400_Error('storage_unavailable', 503);
-        }
-
-        $spec = Model_Prx400_Spec::insert([
-            'owner_id' => $owner_id,
-            'original_name' => $name,
-            'storage_path' => 'prx212:'.$file_id, // маркер фасада, не путь ФС
-            'file_sha256' => $sha,
-        ]);
-
-        Log_Plain::event(Log::INFO, 'prx400_diag stage=ingest spec=:s owner=:o mode=:m tpl=:t', [
-            ':s' => (int) $spec['id'], ':o' => $owner_id,
-            ':m' => $this->_parse_mode($post), ':t' => $this->_template_id($post) ?: 'auto',
-        ]);
-        $this->_push_job((int) $spec['id'], $owner_id, $this->_parse_mode($post), $this->_template_id($post));
-
-        return $spec;
-    }
-
-    /** Повторный запуск разбора (упавшая/отменённая задача). */
-    public function launch($actor, $spec_id, array $post = [])
-    {
-        ($actor ?? Prx_Actor::guest())->require('prx400.run');
-        $spec = Model_Prx400_Spec::get($spec_id);
-        if ( ! $spec)
-        {
-            throw new Prx400_Error('not_found', 404);
-        }
-        if ( ! in_array($spec['status'], ['failed', 'queued', 'running'], TRUE))
-        {
-            throw new Prx400_Error('wrong_state', 409);
-        }
-
-        // Повтор: явный режим из POST (селектор), иначе сохранённый на
-        // спецификации — старая открытая страница без селектора не откатывает
-        // разбор скана в OCR молча (кейс job 91: mode=ocr при выборе Vision).
-        // template_id: «» = авто-детекция; явный код → воркер без детекции.
-        $this->_push_job((int) $spec_id, $actor->id(), $this->_mode_for_retry($spec, $post), $this->_template_id($post));
-        Model_Prx400_Spec::set_status((int) $spec_id, 'queued', NULL);
-    }
-
-    /** Режим разбора из POST: валидируется по списку из конфига, чужое → ocr. */
-    protected function _parse_mode(array $post): string
-    {
-        $modes = (array) (Kohana::$config->load('prx400_specflow')->get('parse_modes') ?: ['ocr', 'ocr_vision', 'vision']);
-        $mode = trim((string) ($post['parse_mode'] ?? ''));
-
-        return in_array($mode, $modes, TRUE) ? $mode : 'ocr';
-    }
-
-    /** Режим повтора: явный из POST, иначе сохранённый на спецификации. */
-    protected function _mode_for_retry(array $spec, array $post): string
-    {
-        if (array_key_exists('parse_mode', $post))
-        {
-            return $this->_parse_mode($post);
-        }
-        $modes = (array) (Kohana::$config->load('prx400_specflow')->get('parse_modes') ?: ['ocr', 'ocr_vision', 'vision']);
-        $stored = trim((string) ($spec['parse_mode'] ?? ''));
-
-        return in_array($stored, $modes, TRUE) ? $stored : 'ocr';
-    }
-
-    /** Шаблон из POST: ''/отсутствует = авто-детекция; код проверен по библиотеке. */
-    protected function _template_id(array $post): string
-    {
-        $tpl = trim((string) ($post['template_id'] ?? ''));
-        if ($tpl === '')
-        {
-            return '';
-        }
-
-        return Service_Prx400_Templates::get($tpl) !== NULL ? $tpl : '';
-    }
-
-    protected function _push_job($spec_id, $actor_id, $mode = 'ocr', $template_id = '')
-    {
+        $owner = Policy_Prx400_Spec::require_edit($principal);
+        if ( ! preg_match('/'.Prx_Idempotency::KEY_PATTERN.'/', $key)) throw new Prx400_Error('invalid_idempotency_key', 400);
+        self::require_worker();
+        $mode = self::mode($options['parse_mode'] ?? NULL);
+        $template = Service_Prx400_Templates::resolve((string) ($options['template_id'] ?? ''));
         $templates = Service_Prx400_Templates::for_payload();
-        if (empty($templates))
-        {
-            // Пустая библиотека = обречённая задача (воркер вернёт
-            // template_missing). Честная ошибка сразу, на стороне сайта.
-            throw new Prx400_Error('template_library_empty', 503);
+        [$file, $name] = self::validated_upload($upload);
+        $sha = self::sha256($file['tmp_name']);
+
+        $file_id = self::store($file);
+        try {
+            $idem = Prx_Idempotency::begin(self::SCOPE, (string) $owner, $key, hash('sha256', $sha.'|'.$mode.'|'.$template));
+        } catch (Throwable $e) {
+            self::discard($file_id);
+            throw $e;
         }
 
-        // Режим живёт на спецификации: повторы и карточка видят его всегда.
-        Model_Prx400_Spec::set_parse_mode((int) $spec_id, $mode);
-        $job_id = Service_Prx120_JobQueue::push('specflow.parse', [
-            'spec_id' => (int) $spec_id,
-            'templates' => $templates,
-            'parse_mode' => (string) $mode,
-            'template_id' => (string) $template_id, // '' = авто-детекция по якорям
-        ], [
-            'module' => 'prx400',
-            'priority' => 40,
-            'max_attempts' => 2,
-            'timeout_sec' => 1800,
-            'created_by' => (int) $actor_id,
+        if ($idem['state'] !== Prx_Idempotency::STATE_NEW)
+        {
+            self::discard($file_id);
+            if ($idem['state'] === Prx_Idempotency::STATE_REPLAY AND (int) ($idem['result']['spec_id'] ?? 0) > 0)
+            {
+                return (int) $idem['result']['spec_id'];
+            }
+            throw new Prx400_Error($idem['state'] === Prx_Idempotency::STATE_EXPIRED ? 'idempotency_key_expired' : 'idempotency_conflict', 409);
+        }
+
+        try {
+            $spec = Model_Prx400_Spec::insert([
+                'owner_id' => $owner, 'original_name' => $name, 'file_id' => $file_id,
+                'file_sha256' => $sha, 'parse_mode' => $mode,
+            ]);
+            $spec_id = (int) $spec['id'];
+            $job_id = self::push($principal, $spec_id, $mode, $template, $templates);
+            Model_Prx400_Spec::queue($spec_id, $job_id, $mode);
+            Prx_Idempotency::finish((int) $idem['id'], ['spec_id' => $spec_id]);
+        } catch (Throwable $e) {
+            Prx_Idempotency::abort();
+            self::discard($file_id);
+            throw self::queue_error($e);
+        }
+
+        Log_Plain::event(Log::INFO, 'prx400 spec=:s job_id=:j stage=queued mode=:m tpl=:t', [
+            ':s' => $spec_id, ':j' => $job_id, ':m' => $mode, ':t' => $template !== '' ? $template : 'auto',
         ]);
-        Model_Prx400_Spec::set_job($spec_id, $job_id);
+
+        return $spec_id;
     }
 
-    /** Карточка: спецификация + позиции (+ задача и этап воркера для индикации). */
-    public function spec($actor, $id)
+    /**
+     * Повторный разбор (failed или «застрявшая» задача): текущая задача
+     * отменяется, новая ставится в той же транзакции. Режим — явный из
+     * запроса, иначе сохранённый на спецификации.
+     */
+    public function launch(Prx_Principal $principal, int $id, array $options = []): void
     {
-        ($actor ?? Prx_Actor::guest())->require('prx400.view');
-        $spec = Model_Prx400_Spec::get($id);
-        if ( ! $spec)
+        Policy_Prx400_Spec::require_edit($principal);
+        $spec = Policy_Prx400_Spec::require_view($principal, Model_Prx400_Spec::get($id));
+        self::require_worker();
+        $mode = self::retry_mode($spec, $options);
+        $template = Service_Prx400_Templates::resolve((string) ($options['template_id'] ?? ''));
+        $templates = Service_Prx400_Templates::for_payload();
+        if ((int) ($spec['file_id'] ?? 0) <= 0) throw new Prx400_Error('file_unavailable', 410);
+
+        try {
+            $job_id = Prx_Db::transaction(function () use ($principal, $id, $mode, $template, $templates): int {
+                $spec = Model_Prx400_Spec::lock($id);
+                if ($spec === NULL) throw new Prx400_Error('not_found', 404);
+                if ( ! in_array($spec['status'], self::PIPELINE_STATUSES, TRUE)) throw new Prx400_Error('wrong_state', 409);
+                self::cancel_job((int) ($spec['job_id'] ?? 0));
+                $job_id = self::push($principal, $id, $mode, $template, $templates);
+                Model_Prx400_Spec::queue($id, $job_id, $mode);
+                return $job_id;
+            });
+        } catch (Throwable $e) {
+            throw self::queue_error($e);
+        }
+        Log_Plain::event(Log::INFO, 'prx400 spec=:s job_id=:j stage=relaunch mode=:m', [':s' => $id, ':j' => $job_id, ':m' => $mode]);
+    }
+
+    /**
+     * Перезалить PDF существующей спецификации (файл утерян/не тот):
+     * ID и история карточки сохраняются, старый файл убирается после COMMIT.
+     */
+    public function reupload(Prx_Principal $principal, int $id, $upload, array $options = []): void
+    {
+        Policy_Prx400_Spec::require_edit($principal);
+        $spec = Policy_Prx400_Spec::require_view($principal, Model_Prx400_Spec::get($id));
+        self::require_worker();
+        $mode = self::retry_mode($spec, $options);
+        $template = Service_Prx400_Templates::resolve((string) ($options['template_id'] ?? ''));
+        $templates = Service_Prx400_Templates::for_payload();
+        [$file, $name] = self::validated_upload($upload);
+        $sha = self::sha256($file['tmp_name']);
+
+        $file_id = self::store($file);
+        try {
+            $old_file = Prx_Db::transaction(function () use ($principal, $id, $mode, $template, $templates, $file_id, $name, $sha): int {
+                $spec = Model_Prx400_Spec::lock($id);
+                if ($spec === NULL) throw new Prx400_Error('not_found', 404);
+                if ( ! in_array($spec['status'], self::PIPELINE_STATUSES, TRUE)) throw new Prx400_Error('wrong_state', 409);
+                self::cancel_job((int) ($spec['job_id'] ?? 0));
+                Model_Prx400_Spec::set_file($id, $file_id, $name, $sha);
+                $job_id = self::push($principal, $id, $mode, $template, $templates);
+                Model_Prx400_Spec::queue($id, $job_id, $mode);
+                return (int) ($spec['file_id'] ?? 0);
+            });
+        } catch (Throwable $e) {
+            self::discard($file_id);
+            throw self::queue_error($e);
+        }
+        if ($old_file > 0) self::discard($old_file);
+        Log_Plain::event(Log::INFO, 'prx400 spec=:s stage=reupload mode=:m', [':s' => $id, ':m' => $mode]);
+    }
+
+    // ------------------------------------------------------------------
+    // Чтение
+    // ------------------------------------------------------------------
+
+    /** Список: рабочее место видит всё, API-ключ — своё. Имена владельцев — через prx102. */
+    public function listing(Prx_Principal $principal, int $limit = 100): array
+    {
+        $owner = Policy_Prx400_Spec::ownerId($principal);
+        $rows = Model_Prx400_Spec::listing($principal instanceof Prx_Actor ? NULL : $owner, $limit);
+
+        $user_ids = [];
+        foreach ($rows as $r) if ((int) $r['owner_id'] < 0) $user_ids[] = -(int) $r['owner_id'];
+        $names = Service_Prx102_Users::display_names($user_ids);
+
+        $in_flight = array_filter($rows, static fn (array $r): bool => in_array($r['status'], ['queued', 'running'], TRUE));
+        $jobs = self::jobs(array_map(static fn (array $r): int => (int) ($r['job_id'] ?? 0), $in_flight));
+        foreach ($rows as &$r)
         {
-            throw new Prx400_Error('not_found', 404);
+            $owner_id = (int) $r['owner_id'];
+            $r['owner_name'] = $owner_id < 0
+                ? ($names[-$owner_id] ?? 'сотрудник #'.(-$owner_id))
+                : ($owner_id > 0 ? 'API-ключ #'.$owner_id : 'API (до prx150)');
+            [$r['status'], $r['error']] = self::effective($r, $jobs[(int) ($r['job_id'] ?? 0)] ?? NULL);
         }
 
-        $this->_reconcile((int) $id, $spec);
-        $spec = Model_Prx400_Spec::get($id);
-        $spec['parse_mode'] = (string) ($spec['parse_mode'] ?? 'ocr');
+        return $rows;
+    }
 
-        // Последняя задача этого spec_id + её ЖИВОЙ этап (payload_jobs —
-        // SQL у владельца очереди prx120; первое = последнее по времени).
+    /** Карточка: спецификация (действующий статус), позиции, этап воркера, журнал правок. */
+    public function card(Prx_Principal $principal, int $id): array
+    {
+        $spec = Policy_Prx400_Spec::require_view($principal, Model_Prx400_Spec::get($id));
+        $job = self::job((int) ($spec['job_id'] ?? 0));
+        [$spec['status'], $spec['error']] = self::effective($spec, $job);
+
         $job_stage = NULL;
-        if (class_exists('Service_Prx120_JobQueue'))
+        if (in_array($spec['status'], ['queued', 'running'], TRUE))
         {
-            try
+            foreach (Service_Prx120_JobQueue::instance()->payload_jobs(self::MODULE, 'spec_id', $id, 1) as $row)
             {
-                foreach (Service_Prx120_JobQueue::instance()->payload_jobs('prx400', 'spec_id', (int) $id, 10) as $job)
-                {
-                    $job_stage = $job;
-                    break;
-                }
+                $job_stage = (array) $row;
             }
-            catch (Throwable $e) { /* индикация не должна ломать карточку */ }
         }
 
         return [
             'spec' => $spec,
             'rows' => Model_Prx400_Row::for_spec($id),
+            'edits' => Model_Prx400_Edit::for_spec($id, 50),
             'templates' => Service_Prx400_Templates::options(),
+            'parse_modes' => Service_Prx400_Limits::parse_modes(),
             'catalog_count' => Model_Prx400_Catalog::count(),
             'job_stage' => $job_stage,
-            'math' => json_decode((string) ($spec['math'] ?? 'null'), TRUE),
-            'file_ok' => $this->file_ok($id),
+            'math' => is_string($spec['math'] ?? NULL) ? json_decode($spec['math'], TRUE) : NULL,
+            'file_ok' => (int) ($spec['file_id'] ?? 0) > 0 && Storage::metadata((int) $spec['file_id']) !== NULL,
+            'can_edit' => $principal instanceof Prx_Actor && $principal->can(Policy_Prx400_Spec::EDIT_ACL),
         ];
     }
 
     /**
-     * Самолечение зомби-спецификаций: queued/running сверяем с задачей
-     * (публичный JobQueue::get). failed/cancelled/missing → failed с причиной
-     * и «Повторить разбор»; done без позиций → результат не был записан →
-     * failed. Живая задача (pending/processing) — ждать.
+     * Статус для внешнего API: queued/running/failed/canceled; review/done —
+     * результат по схеме экспорта ERP (review помечен awaiting_operator).
      */
-    private function _reconcile($id, array $spec)
+    public function status(Prx_Principal $principal, int $id): array
     {
-        if ( ! class_exists('Service_Prx120_JobQueue')
-            OR ! in_array($spec['status'], ['queued', 'running'], TRUE))
+        $spec = Policy_Prx400_Spec::require_view($principal, Model_Prx400_Spec::get($id));
+        $job = self::job((int) ($spec['job_id'] ?? 0));
+        [$status, $error] = self::effective($spec, $job);
+
+        $out = [
+            'spec_id' => $id,
+            'status' => $status === 'failed' && $error === 'job_canceled' ? 'canceled' : $status,
+            'parse_mode' => (string) $spec['parse_mode'],
+            'attempt' => (int) ($job['attempts'] ?? 0),
+            'status_url' => '/api/v1/spec-extractions/'.$id,
+        ];
+        if ($status === 'failed')
         {
-            return;
+            $out['error'] = ['code' => self::public_code((string) $error)];
+        }
+        elseif (in_array($status, ['review', 'done'], TRUE))
+        {
+            $out['awaiting_operator'] = $status === 'review';
+            $out['result'] = Service_Prx400_Export::json($spec, Model_Prx400_Row::for_spec($id));
         }
 
-        $job_id = (int) ($spec['job_id'] ?? 0);
-        if ($job_id <= 0)
-        {
-            return; // задача ещё не записана — считать рабочей
-        }
-
-        try
-        {
-            $job = Service_Prx120_JobQueue::instance()->get($job_id);
-        }
-        catch (Throwable $e)
-        {
-            return; // очередь недоступна — не ломаем показ
-        }
-
-        if ($job === NULL)
-        {
-            Model_Prx400_Spec::set_status($id, 'failed',
-                'Задача очереди не найдена (удалена или не была создана) — запустите разбор повторно');
-
-            return;
-        }
-        if (in_array($job['status'], ['failed', 'cancelled'], TRUE))
-        {
-            $error = trim((string) ($job['error'] ?? ''));
-            Model_Prx400_Spec::set_status($id, 'failed',
-                'Задача очереди завершилась ошибкой'.($error !== '' ? ': '.mb_substr($error, 0, 200) : ''));
-
-            return;
-        }
-        if ($job['status'] === 'done')
-        {
-            // Воркер вернул задачу как выполненную, а результат не записан
-            // (сбой POST результата) — ждать нечего.
-            Model_Prx400_Spec::set_status($id, 'failed',
-                'Задача завершилась, но результат разбора не был записан — запустите разбор повторно');
-        }
+        return $out;
     }
 
-    /** Исходный PDF для воркера и для карточки. */
-    public function read_pdf($spec_id)
+    /** Данные экспорта (UI): только разобранные спецификации. */
+    public function export(Prx_Principal $principal, int $id): array
     {
-        $spec = Model_Prx400_Spec::get($spec_id);
-        if ( ! $spec)
-        {
-            throw new Prx400_Error('not_found', 404);
-        }
+        $spec = Policy_Prx400_Spec::require_view($principal, Model_Prx400_Spec::get($id));
+        if ( ! in_array($spec['status'], ['review', 'done'], TRUE)) throw new Prx400_Error('wrong_state', 409);
 
-        $bytes = $this->_pdf_bytes($spec);
+        return [$spec, Model_Prx400_Row::for_spec($id)];
+    }
+
+    /** Исходный PDF для сверки оператором. */
+    public function pdf(Prx_Principal $principal, int $id): string
+    {
+        $spec = Policy_Prx400_Spec::require_view($principal, Model_Prx400_Spec::get($id));
+        $bytes = self::pdf_bytes($spec);
+        if ($bytes === NULL) throw new Prx400_Error('file_unavailable', 410);
+
+        return $bytes;
+    }
+
+    /**
+     * Содержимое PDF спецификации с проверкой sha256 записи. Штатно —
+     * read_owned (артефакт модуля без пользователя). Ранние загрузки (до
+     * 26.11) привязывали файл к пользователю — их читает bytes(): file_id
+     * взят из авторизованной записи (контракт фасада), подмену ловит хеш.
+     */
+    public static function pdf_bytes(array $spec): ?string
+    {
+        $file_id = (int) ($spec['file_id'] ?? 0);
+        if ($file_id <= 0) return NULL;
+
+        $max = Service_Prx400_Limits::get('max_pdf_bytes');
+        $bytes = Storage::read_owned($file_id, self::MODULE, $max);
         if ($bytes === NULL)
         {
-            throw new Prx400_Error('file_unavailable', 404);
+            $bytes = Storage::bytes($file_id);
+            if ($bytes !== NULL) Log_Plain::event(Log::WARNING, 'prx400 spec=:s stage=pdf legacy_user_file file_id=:f', [':s' => (int) $spec['id'], ':f' => $file_id]);
+        }
+        if ($bytes === NULL OR strlen($bytes) > $max OR ! hash_equals((string) $spec['file_sha256'], hash('sha256', $bytes)))
+        {
+            return NULL;
         }
 
         return $bytes;
     }
 
-    /** Содержимое PDF: маркер prx212 → фасад; легаси-пути → resolve_pdf. */
-    private function _pdf_bytes(array $spec): ?string
+    // ------------------------------------------------------------------
+    // Работа оператора (HITL)
+    // ------------------------------------------------------------------
+
+    /** Подтвердить строку (переключатель) или назначить код НСИ вручную. */
+    public function verify_row(Prx_Principal $principal, int $row_id, string $manual_code = ''): int
     {
-        $raw = (string) $spec['storage_path'];
-
-        if (strpos($raw, 'prx212:') === 0)
-        {
-            $file_id = (int) substr($raw, 7);
-            $bytes = $file_id > 0 ? Storage::read_owned($file_id, 'prx400', $this->_max_upload) : NULL;
-            $mode = 'owned';
-            if ($bytes === NULL AND $file_id > 0)
+        $actor_id = self::editor_id($principal);
+        return Prx_Db::transaction(function () use ($principal, $actor_id, $row_id, $manual_code): int {
+            [$row] = $this->editable_row($principal, $row_id);
+            $manual_code = trim($manual_code);
+            if ($manual_code !== '')
             {
-                // Ранние загрузки prx400 привязывали артефакт к пользователю
-                // (user_id != NULL): read_owned их не отдаёт (в журнале
-                // «чужой артефакт»/WARNING) — читаем bytes(), право
-                // подтверждено строкой prx_400_specs, которой принадлежит файл.
-                $bytes = Storage::bytes($file_id);
-                $mode = 'bytes';
-            }
-            Log_Plain::event(Log::INFO, 'prx400_diag stage=pdf_resolve spec=:id via=prx212 file_id=:f mode=:m result=:r', [
-                ':id' => (int) $spec['id'], ':f' => $file_id, ':m' => $mode,
-                ':r' => $bytes !== NULL ? 'ok bytes='.strlen((string) $bytes) : 'missing',
-            ]);
-
-            return $bytes;
-        }
-
-        [$path, $healed] = self::resolve_pdf($raw);
-        Log_Plain::event(Log::INFO, 'prx400_diag stage=pdf_resolve spec=:id via=legacy result=:r healed=:h path=:p', [
-            ':id' => (int) $spec['id'],
-            ':r' => $path !== NULL ? 'ok' : 'missing',
-            ':h' => $healed ?? '-',
-            ':p' => $path ?? $raw,
-        ]);
-        if ($healed !== NULL)
-        {
-            // Легаси-запись нашлась по перепривязке — чиним запись навсегда.
-            Prx_Db::execute(
-                'UPDATE prx_400_specs SET storage_path = :p WHERE id = :id',
-                [':id' => (int) $spec['id'], ':p' => $healed]);
-        }
-
-        return $path !== NULL ? (string) file_get_contents($path) : NULL;
-    }
-
-    /**
-     * Путь PDF из записи: относительный (канон, prx399) → абсолютизируем;
-     * абсолютный (легаси до фикса) → пробуем как есть, затем перепривязываем
-     * к ТЕКУЩЕМУ корню проекта по маркеру /storage/ (переживает перевыкатку).
-     * [путь|NULL, healed_relative|NULL].
-     */
-    public static function resolve_pdf(string $raw): array
-    {
-        if ($raw === '')
-        {
-            return [NULL, NULL]; // путь не был записан при загрузке
-        }
-
-        if ($raw[0] !== '/' AND ! preg_match('~^[A-Za-z]:[\\\\/]~', $raw))
-        {
-            return [is_file(Storage_Path::absolute($raw)) ? Storage_Path::absolute($raw) : NULL, NULL];
-        }
-
-        if (is_file($raw))
-        {
-            return [$raw, self::to_relative($raw)];
-        }
-
-        // Файл по абсолютному пути не найден: перепривязка по СТРУКТУРЕ
-        // нашего хранилища <storage>/<id>/spec-*.pdf к ТЕКУЩЕМУ корню
-        // хранилища (env-каталог может лежать вне корня проекта — тогда
-        // перепривязка к корню проекта не сработала бы).
-        if (preg_match('~/([1-9][0-9]{0,8})/(spec-[^/\\\\]+)$~', str_replace('\\', '/', $raw), $m))
-        {
-            $candidate = rtrim(self::storage_dir(), '/').'/'.$m[1].'/'.$m[2];
-            if (is_file($candidate))
-            {
-                return [$candidate, self::to_relative($candidate)];
-            }
-        }
-
-        return [NULL, NULL];
-    }
-
-    /** Абсолютный путь → относительный от корня проекта (если он внутри корня). */
-    public static function to_relative(string $absolute): string
-    {
-        $root = rtrim(str_replace('\\', '/', dirname(APPPATH)), '/');
-        $normalized = rtrim(str_replace('\\', '/', $absolute), '/');
-        if (strpos($normalized, $root.'/') === 0)
-        {
-            return ltrim(substr($normalized, strlen($root)), '/');
-        }
-
-        return $absolute; // нештатный каталог (env) — храним как есть
-    }
-
-    /** Жив ли исходный файл у спецификации (для честных подсказок карточки). */
-    public function file_ok($spec_id): bool
-    {
-        $spec = Model_Prx400_Spec::get($spec_id);
-        if ( ! $spec)
-        {
-            return FALSE;
-        }
-        $raw = (string) $spec['storage_path'];
-
-        if (strpos($raw, 'prx212:') === 0)
-        {
-            $ok = Storage::metadata((int) substr($raw, 7)) !== NULL;
-            Log_Plain::event(Log::INFO, 'prx400_diag stage=file_ok spec=:id via=prx212 file_id=:file result=:r', [
-                ':id' => (int) $spec['id'], ':file' => (int) substr($raw, 7), ':r' => $ok ? 'ok' : 'missing',
-            ]);
-
-            return $ok;
-        }
-        [$path, $healed] = self::resolve_pdf($raw);
-        Log_Plain::event(Log::INFO, 'prx400_diag stage=file_ok spec=:id via=legacy result=:r healed=:h path=:p', [
-            ':id' => (int) $spec['id'],
-            ':r' => $path !== NULL ? 'ok' : 'missing',
-            ':h' => $healed ?? '-',
-            ':p' => $path ?? $raw,
-        ]);
-        if ($healed !== NULL)
-        {
-            // Самолечение при простом показе карточки: перепривязанный путь
-            // записываем навсегда, даже если разбор ещё не перезапускали.
-            Prx_Db::execute(
-                'UPDATE prx_400_specs SET storage_path = :p WHERE id = :id',
-                [':id' => (int) $spec['id'], ':p' => $healed]);
-        }
-
-        return $path !== NULL;
-    }
-
-    /**
-     * Перезалить файл СУЩЕСТВУЮЩЕЙ спецификации (карточка → «Перезалить»):
-     * валидация как в create(), файл — в prx212 (маркер prx212:<id>),
-     * старый файл убирается, задача разбора ставится заново. ID и история
-     * карточки сохраняются — в отличие от создания новой записи.
-     */
-    public function reupload($actor, $spec_id, array $files, array $post = [])
-    {
-        ($actor ?? Prx_Actor::guest())->require('prx400.run');
-        $spec = Model_Prx400_Spec::get($spec_id);
-        if ( ! $spec)
-        {
-            throw new Prx400_Error('not_found', 404);
-        }
-
-        $upload = $files['pdf'] ?? NULL;
-        if (empty($upload['name']))
-        {
-            throw new Prx400_Error('pdf_required', 400);
-        }
-        if ($upload['error'] !== UPLOAD_ERR_OK OR ! is_uploaded_file($upload['tmp_name']))
-        {
-            throw new Prx400_Error('upload_error', 400);
-        }
-        if (strtolower(pathinfo($upload['name'], PATHINFO_EXTENSION)) !== 'pdf')
-        {
-            throw new Prx400_Error('pdf_required', 400);
-        }
-        if ($upload['size'] > $this->_max_upload)
-        {
-            throw new Prx400_Error('file_too_large', 413);
-        }
-
-        $content = (string) file_get_contents($upload['tmp_name']);
-        if ($content === '')
-        {
-            throw new Prx400_Error('upload_error', 400);
-        }
-        try
-        {
-            // Артефакт модуля (user_id NULL) — см. комментарий в create().
-            $file_id = Storage::put($content, mb_substr(trim((string) $upload['name']), 0, 255), 'prx400', NULL, FALSE, 'application/pdf');
-        }
-        catch (Throwable $e)
-        {
-            Log_Plain::event(Log::ERROR, 'prx400 storage put failed: :m', [':m' => $e->getMessage()]);
-            throw new Prx400_Error('storage_unavailable', 503);
-        }
-
-        // Старый файл убираем ПОСЛЕ успешной записи нового (без «дыры»).
-        $raw = (string) $spec['storage_path'];
-        if (strpos($raw, 'prx212:') === 0)
-        {
-            $this->_prx212_cleanup($actor, (int) substr($raw, 7));
-        }
-        else
-        {
-            [$old] = self::resolve_pdf($raw);
-            if ($old !== NULL AND is_file($old))
-            {
-                @unlink($old);
-            }
-        }
-
-        Model_Prx400_Spec::set_file((int) $spec_id, 'prx212:'.$file_id, hash('sha256', $content));
-        $this->_push_job((int) $spec_id, $actor->id(), $this->_mode_for_retry($spec, $post), $this->_template_id($post));
-        Model_Prx400_Spec::set_status((int) $spec_id, 'queued', NULL);
-    }
-
-    /**
-     * Результат воркера: позиции (+математика от воркера) → матчинг с НСИ →
-     * статусы строк. Живёт только с queued/running.
-     */
-    public function result($spec_id, array $body)
-    {
-        $spec = Model_Prx400_Spec::get($spec_id);
-        if ( ! $spec)
-        {
-            throw new Prx400_Error('not_found', 404);
-        }
-        if ( ! in_array($spec['status'], ['queued', 'running'], TRUE))
-        {
-            throw new Prx400_Error('wrong_state', 409);
-        }
-
-        $rows_in = $body['rows'] ?? [];
-        if ( ! is_array($rows_in))
-        {
-            throw new Prx400_Error('invalid_rows', 400);
-        }
-        if (count($rows_in) > $this->_max_rows)
-        {
-            throw new Prx400_Error('result_too_large', 413);
-        }
-
-        $catalog = Model_Prx400_Catalog::all();
-        $rows = [];
-        foreach (array_values($rows_in) as $seq => $r)
-        {
-            if ( ! is_array($r)) continue;
-            $clean = [
-                'seq' => $seq,
-                'section' => mb_substr(trim((string) ($r['section'] ?? '')), 0, 255),
-                'pos' => isset($r['pos']) && $r['pos'] !== NULL ? (int) $r['pos'] : NULL,
-                'raw_name' => mb_substr(trim((string) ($r['raw_name'] ?? '')), 0, 4000),
-                'code_doc' => mb_substr(trim((string) ($r['code_doc'] ?? '')), 0, 255),
-                'qty' => isset($r['qty']) && is_numeric($r['qty']) ? (float) $r['qty'] : NULL,
-                'unit' => mb_substr(trim((string) ($r['unit'] ?? '')), 0, 16),
-                'unit_price' => isset($r['unit_price']) && is_numeric($r['unit_price']) ? (float) $r['unit_price'] : NULL,
-                'total_price' => isset($r['total_price']) && is_numeric($r['total_price']) ? (float) $r['total_price'] : NULL,
-                'flags' => array_slice((array) ($r['flags'] ?? []), 0, 10),
-            ];
-
-            $m = Service_Prx400_Match::apply($clean['raw_name'], $clean['code_doc'], $catalog);
-            $clean['match'] = $m['match'];
-
-            // Статус строки: красный — арифметика/ед./нет в НСИ; жёлтый — на
-            // подтверждение; зелёный — сошлось и найдено.
-            $flags = array_column($clean['flags'], 'type');
-            if (in_array('math_row', $flags, TRUE))
-            {
-                $clean['status'] = 'error';
-            }
-            elseif (in_array('unit_fractional', $flags, TRUE))
-            {
-                $clean['status'] = $m['status'] === 'ok' ? 'review' : $m['status'];
-            }
-            else
-            {
-                $clean['status'] = $m['status'];
-            }
-
-            $rows[] = $clean;
-        }
-
-        // Пустой разбор — не успех: старый воркер мог привезти 0 строк
-        // (карточка «готово» без позиций, кейс spec 10). Честный failed с
-        // подсказкой; протокол отвечаем по канону prx397 (failed + error_code).
-        if (empty($rows))
-        {
-            Log_Plain::event(Log::WARNING, 'prx400_diag stage=result spec=:s rows=0 → failed(no_rows)', [':s' => (int) $spec_id]);
-            Model_Prx400_Spec::set_status((int) $spec_id, 'failed', 'no_rows: строки не найдены — перезапустите разбор с режимом «Vision»');
-
-            return ['status' => 'failed', 'error_code' => 'no_rows'];
-        }
-
-        Model_Prx400_Row::replace_for_spec((int) $spec_id, $rows);
-
-        $math = is_array($body['math'] ?? NULL) ? $body['math'] : [];
-        $issues = count(array_filter($rows, static fn (array $r): bool => $r['status'] !== 'ok'));
-        $summary = sprintf('Позиций: %d; совпало с НСИ: %d; на подтверждение: %d; новых: %d; с ошибками: %d.',
-            count($rows),
-            count(array_filter($rows, static fn (array $r): bool => $r['status'] === 'ok')),
-            count(array_filter($rows, static fn (array $r): bool => $r['status'] === 'review')),
-            count(array_filter($rows, static fn (array $r): bool => $r['status'] === 'new')),
-            count(array_filter($rows, static fn (array $r): bool => $r['status'] === 'error')));
-
-        Model_Prx400_Spec::set_parse_result((int) $spec_id, [
-            'template_id' => (string) ($body['template_id'] ?? ''),
-            'template_title' => (string) ($body['template_title'] ?? ''),
-            'spec_number' => (string) ($body['spec_number'] ?? ''),
-            'department' => (string) ($body['department'] ?? ''),
-            'pages' => (int) ($body['pages'] ?? 0),
-            'text_sha256' => (string) ($body['text_sha256'] ?? ''),
-            'math' => $math,
-            'summary' => trim((string) ($math['summary'] ?? '').' '.$summary),
-        ]);
-
-        // Ревью нужен, если есть что подтверждать; идеальный прогон — сразу готов.
-        Model_Prx400_Spec::set_status((int) $spec_id, $issues > 0 ? 'review' : 'done', NULL);
-
-        return ['ok' => TRUE, 'rows' => count($rows), 'issues' => $issues];
-    }
-
-    /** Верификация строки: подтверждение сопоставления НСИ оператором. */
-    public function verify_row($actor, $row_id, $manual_code = NULL)
-    {
-        ($actor ?? Prx_Actor::guest())->require('prx400.run');
-        $row = Model_Prx400_Row::get($row_id);
-        if ( ! $row)
-        {
-            throw new Prx400_Error('not_found', 404);
-        }
-
-        if ($manual_code !== NULL AND $manual_code !== '')
-        {
-            $item = Prx_Db::one(
-                'SELECT id, code, name, unit, okei_code FROM prx_400_catalog WHERE code = :c',
-                [':c' => (string) $manual_code]);
-            if ( ! $item)
-            {
-                throw new Prx400_Error('catalog_code_not_found', 400);
-            }
-            $match = [
-                'catalog_id' => (int) $item['id'], 'code' => (string) $item['code'],
-                'name' => (string) $item['name'], 'unit' => (string) $item['unit'],
-                'okei_code' => (string) ($item['okei_code'] ?? ''), 'score' => 1.0, 'manual' => TRUE,
-            ];
-            Model_Prx400_Row::set_manual_match((int) $row_id, $actor->id(), $match);
-
-            return;
-        }
-
-        // «Проверено» — переключатель: повторное нажатие снимает отметку,
-        // статус строки пересчитывается из её же данных (ошибка/ок/ревью/новая).
-        // Оператор не может застрять: нажал с ошибкой — можно откатить.
-        if ((string) $row['verified'] === 't')
-        {
-            Model_Prx400_Row::set_verified((int) $row_id, $actor->id(), FALSE);
-            Model_Prx400_Row::recompute_status((int) $row_id);
-
-            return;
-        }
-
-        Model_Prx400_Row::set_verified((int) $row_id, $actor->id(), TRUE);
-    }
-
-    /**
-     * Удалить спецификацию: позиции — каскадом (FK), файл — из хранилища
-     * (prx212-файл через delete_owned; легаси-локальный — unlink). Файл
-     * убираем ПОСЛЕ записи в БД: падение файловой операции не оставляет
-     * живую запись без файла (осиротевший файл безвреден).
-     */
-    public function delete($actor, $id)
-    {
-        ($actor ?? Prx_Actor::guest())->require('prx400.run');
-        $spec = Model_Prx400_Spec::get($id);
-        if ( ! $spec)
-        {
-            throw new Prx400_Error('not_found', 404);
-        }
-
-        $raw = (string) $spec['storage_path'];
-        Model_Prx400_Spec::delete((int) $id);
-
-        if (strpos($raw, 'prx212:') === 0)
-        {
-            $this->_prx212_cleanup($actor, (int) substr($raw, 7));
-
-            return;
-        }
-        [$path] = self::resolve_pdf($raw);
-        if ($path !== NULL AND is_file($path))
-        {
-            @unlink($path);
-        }
-    }
-
-    /**
-     * Убрать артефакт prx400 из хранилища: штатно delete_owned («файл без
-     * пользователя»). Ранние загрузки привязывали артефакт к пользователю —
-     * delete_owned отказывает («чужой артефакт», лог 26.11 23:01) — тогда
-     * удаляет владелец файла. Уборка НИКОГДА не валит операцию: осиротевший
-     * файл безвреден, и падение после удаления записи честнее 500.
-     */
-    private function _prx212_cleanup($actor, int $file_id)
-    {
-        try
-        {
-            if (Storage::delete_owned($file_id, 'prx400'))
-            {
-                Log_Plain::event(Log::INFO, 'prx400_diag stage=file_delete file_id=:f result=ok mode=owned', [':f' => $file_id]);
-            }
-            else
-            {
-                Log_Plain::event(Log::INFO, 'prx400_diag stage=file_delete file_id=:f result=missing', [':f' => $file_id]);
-            }
-
-            return;
-        }
-        catch (Storage_Exception $e)
-        {
-            try
-            {
-                Storage::delete($file_id, ($actor ?? Prx_Actor::guest())->id());
-                Log_Plain::event(Log::INFO, 'prx400_diag stage=file_delete file_id=:f result=ok mode=owner', [':f' => $file_id]);
-            }
-            catch (Throwable $e2)
-            {
-                Log_Plain::event(Log::WARNING, 'prx400_diag stage=file_delete file_id=:f result=orphan :m', [
-                    ':f' => $file_id, ':m' => $e2->getMessage(),
+                $item = Model_Prx400_Catalog::by_code($manual_code);
+                if ($item === NULL) throw new Prx400_Error('catalog_code_not_found', 400);
+                Model_Prx400_Row::set_manual_match($row_id, $actor_id, [
+                    'catalog_id' => (int) $item['id'], 'code' => (string) $item['code'],
+                    'name' => (string) $item['name'], 'unit' => (string) $item['unit'],
+                    'okei_code' => (string) ($item['okei_code'] ?? ''), 'score' => 1.0, 'manual' => TRUE,
+                    'alternatives' => (array) ($row['match']['alternatives'] ?? []),
                 ]);
+                return (int) $row['spec_id'];
             }
-        }
+
+            // «Проверено» — переключатель; снятие возвращает статус из данных строки.
+            $verified = ! $row['verified'];
+            Model_Prx400_Row::set_verified($row_id, $actor_id, $verified);
+            return (int) $row['spec_id'];
+        });
     }
 
     /**
-     * Правка полей строки оператором (qty/unit/наименование/марка):
-     * журнал правок — prx_400_edits, статус пересчитывается. Возвращает
-     * spec_id для редиректа на карточку.
+     * Правка полей строки: каждое изменённое поле — в журнал prx_400_edits;
+     * затем пересчёт арифметики, повторный матчинг (если сопоставление не
+     * ручное) и статуса. Возвращает spec_id.
      */
-    public function row_edit($actor, $row_id, array $post)
+    public function row_edit(Prx_Principal $principal, int $row_id, array $post): int
     {
-        ($actor ?? Prx_Actor::guest())->require('prx400.run');
-        $row = Model_Prx400_Row::get($row_id);
-        if ( ! $row)
-        {
-            throw new Prx400_Error('not_found', 404);
-        }
+        $actor_id = self::editor_id($principal);
+        $fields = self::edit_fields($post);
 
-        $fields = [];
-        if (array_key_exists('raw_name', $post))
-        {
-            $fields['raw_name'] = mb_substr(trim((string) $post['raw_name']), 0, 4000);
-        }
-        if (array_key_exists('code_doc', $post))
-        {
-            $fields['code_doc'] = mb_substr(trim((string) $post['code_doc']), 0, 255);
-        }
-        if (array_key_exists('unit', $post))
-        {
-            $fields['unit'] = mb_substr(trim((string) $post['unit']), 0, 16);
-        }
-        if (array_key_exists('qty', $post))
-        {
-            $qty = trim((string) $post['qty']);
-            if ($qty === '')
+        return Prx_Db::transaction(function () use ($principal, $actor_id, $row_id, $fields): int {
+            [$row] = $this->editable_row($principal, $row_id);
+            $changed = [];
+            foreach ($fields as $field => $value)
             {
-                $fields['qty'] = NULL;
+                $old = $row[$field] === NULL ? NULL : (string) $row[$field];
+                $new = $value === NULL ? NULL : (string) $value;
+                if ($field === 'qty' AND $old !== NULL AND $new !== NULL AND (float) $old === (float) $new) continue;
+                if ($old === $new) continue;
+                Model_Prx400_Edit::add($row_id, (int) $row['spec_id'], $field, $old, $new, $actor_id);
+                Model_Prx400_Row::set_field($row_id, $field, $value);
+                $row[$field] = $value;
+                $changed[] = $field;
             }
-            elseif (is_numeric(str_replace([' ', ','], ['', '.'], $qty)))
-            {
-                $fields['qty'] = (float) str_replace([' ', ','], ['', '.'], $qty);
-            }
-            else
-            {
-                throw new Prx400_Error('qty_invalid', 400);
-            }
-        }
-        if ($fields !== [])
-        {
-            Model_Prx400_Row::apply_edit((int) $row_id, $actor->id(), $fields);
-        }
+            if ($changed === []) return (int) $row['spec_id'];
 
-        return (int) $row['spec_id'];
+            $flags = array_values(array_filter($row['flags'], static fn ($f): bool =>
+                ! in_array(is_array($f) ? ($f['type'] ?? '') : '', ['math_row', 'unit_fractional'], TRUE)));
+            $flags = array_merge($flags, Service_Prx400_Checks::row_flags($row));
+
+            $match = $row['match'];
+            if (empty($match['manual']) AND array_intersect($changed, ['raw_name', 'code_doc']))
+            {
+                $query = Service_Prx400_Match::query((string) $row['raw_name'], (string) $row['code_doc']);
+                $match = Service_Prx400_Match::apply((string) $row['raw_name'], (string) $row['code_doc'],
+                    (Service_Prx400_Match::catalog_source())($query))['match'];
+            }
+            $status = ! empty($match['manual']) && ! in_array('math_row', array_column($flags, 'type'), TRUE)
+                ? 'ok' : Service_Prx400_Match::row_status($flags, $match);
+            Model_Prx400_Row::set_assessment($row_id, $flags, $match, $status);
+
+            return (int) $row['spec_id'];
+        });
     }
 
-    /** Добавить позицию в справочник НСИ (MVP-наполнение через UI). */
-    public function catalog_add($actor, array $post)
+    /** Завершение проверки оператором (HITL): review → done; расхождения — только осознанно. */
+    public function finish(Prx_Principal $principal, int $spec_id, bool $accept_issues): void
     {
-        ($actor ?? Prx_Actor::guest())->require('prx400.run');
+        self::editor_id($principal);
+        Prx_Db::transaction(function () use ($principal, $spec_id, $accept_issues): void {
+            $spec = Policy_Prx400_Spec::require_view($principal, Model_Prx400_Spec::lock($spec_id));
+            if ($spec['status'] !== 'review') throw new Prx400_Error('wrong_state', 409);
+            $issues = Model_Prx400_Row::pending_count($spec_id);
+            if ($issues > 0 AND ! $accept_issues) throw new Prx400_Error('issues_pending', 409, ['issues' => $issues]);
+            Model_Prx400_Spec::set_status($spec_id, 'done');
+        });
+    }
 
+    /**
+     * Удалить спецификацию: живая задача отменяется, строки и правки — каскадом,
+     * файл — после COMMIT (осиротевший файл добирает prx400:purge).
+     */
+    public function delete(Prx_Principal $principal, int $id): void
+    {
+        self::editor_id($principal);
+        $file_id = Prx_Db::transaction(function () use ($principal, $id): int {
+            $spec = Policy_Prx400_Spec::require_view($principal, Model_Prx400_Spec::lock($id));
+            self::cancel_job((int) ($spec['job_id'] ?? 0));
+            Model_Prx400_Spec::delete($id);
+            return (int) ($spec['file_id'] ?? 0);
+        });
+        if ($file_id > 0) self::discard($file_id);
+        Log_Plain::event(Log::INFO, 'prx400 spec=:s stage=deleted', [':s' => $id]);
+    }
+
+    /** Добавить/обновить позицию справочника НСИ. */
+    public function catalog_add(Prx_Principal $principal, array $post): void
+    {
+        self::editor_id($principal);
         $code = mb_substr(trim((string) ($post['code'] ?? '')), 0, 64);
-        $name = mb_substr(trim((string) ($post['name'] ?? '')), 0, 500);
-        if ($code === '' OR $name === '')
-        {
-            throw new Prx400_Error('catalog_fields_required', 400);
-        }
+        $name = mb_substr(trim((string) ($post['name'] ?? '')), 0, 4000);
+        if ($code === '' OR $name === '') throw new Prx400_Error('catalog_fields_required', 400);
 
         Model_Prx400_Catalog::insert([
             'code' => $code,
             'name' => $name,
-            'unit' => mb_substr(trim((string) ($post['unit'] ?? 'шт.')) ?: 'шт.', 0, 16),
+            'unit' => mb_substr(trim((string) ($post['unit'] ?? '')), 0, 16) ?: 'шт.',
             'okei_code' => mb_substr(trim((string) ($post['okei_code'] ?? '')), 0, 8),
             'keywords' => mb_substr(trim((string) ($post['keywords'] ?? '')), 0, 500),
         ]);
     }
 
-    /** Убрать позицию из справочника НСИ. */
-    public function catalog_delete($actor, $id)
+    public function catalog_delete(Prx_Principal $principal, int $id): void
     {
-        ($actor ?? Prx_Actor::guest())->require('prx400.run');
-        Model_Prx400_Catalog::delete((int) $id);
+        self::editor_id($principal);
+        if (Model_Prx400_Catalog::delete($id) < 1) throw new Prx400_Error('not_found', 404);
     }
+
+    // ------------------------------------------------------------------
+    // Статусы и коды
+    // ------------------------------------------------------------------
 
     /**
-     * Исходный PDF по id ЗАДАЧИ prx120: URL воркера несёт job_id, а не
-     * spec_id (канон prx397: WHERE job_id =). Раньше job_id трактовался как
-     * spec_id — совпадали они только в первых тестах (spec 1 ↔ job 1),
-     * дальше все скачивания падали 404 file_unavailable при живом файле.
+     * Действующий статус записи с учётом очереди (только чтение — запись
+     * делает prx400:purge через Pipeline::maintain). [status, error_code].
      */
-    public function read_pdf_for_job($job_id)
+    public static function effective(array $spec, ?array $job): array
     {
-        $spec = Model_Prx400_Spec::get_by_job($job_id);
-        if ( ! $spec)
-        {
-            Log_Plain::event(Log::WARNING, 'prx400_diag stage=worker_file job=:j result=no_spec', [':j' => (int) $job_id]);
-            throw new Prx400_Error('file_unavailable', 404);
-        }
-        $pdf = $this->read_pdf((int) $spec['id']);
-        Log_Plain::event(Log::INFO, 'prx400_diag stage=worker_file job=:j spec=:s result=ok bytes=:b', [
-            ':j' => (int) $job_id, ':s' => (int) $spec['id'], ':b' => strlen((string) $pdf),
-        ]);
-
-        return $pdf;
-    }
-
-    /** Результат разбора по id задачи prx120 (см. read_pdf_for_job). */
-    public function result_for_job($job_id, array $body)
-    {
-        $spec = Model_Prx400_Spec::get_by_job($job_id);
-        if ( ! $spec)
-        {
-            throw new Prx400_Error('not_found', 404);
-        }
-
-        return $this->result((int) $spec['id'], $body);
-    }
-
-    /**
-     * Статус/результат для внешнего API: queued/running → задача в работе;
-     * failed → код ошибки; review/done → СТРУКТУРИРОВАННЫЙ JSON той же
-     * схемы, что экспорт ERP (meta/positions/audit; review помечен
-     * awaiting_operator — строки есть, но ждут оператора).
-     */
-    public function api_status($id): array
-    {
-        $spec = Model_Prx400_Spec::get($id);
-        if ( ! $spec)
-        {
-            throw new Prx400_Error('not_found', 404);
-        }
-
         $status = (string) $spec['status'];
-        $out = [
-            'spec_id' => (int) $spec['id'],
-            'status' => $status,
-            'parse_mode' => (string) ($spec['parse_mode'] ?? 'ocr'),
-            'poll_url' => '/prx400_specflow/api/spec/'.(int) $spec['id'],
+        $error = $spec['error'] ?? NULL;
+        if ( ! in_array($status, ['queued', 'running'], TRUE)) return [$status, $error];
+
+        $job_id = (int) ($spec['job_id'] ?? 0);
+        if ($job_id <= 0 OR $job === NULL) return ['failed', 'job_unavailable'];
+        switch ((string) $job['status'])
+        {
+            case 'pending': return ['queued', NULL];
+            case 'processing': return ['running', NULL];
+            case 'cancelled': return ['failed', 'job_canceled'];
+            case 'failed': return ['failed', self::error_code((string) ($job['error'] ?? ''))];
+            default: return ['failed', 'result_missing']; // done без записанного результата
+        }
+    }
+
+    /** Код из текста ошибки очереди: только из белого списка. */
+    public static function error_code(string $error): string
+    {
+        if (preg_match('/\A(?:DocumentJobError|PermanentJobError): ([a-z_]+)\z/', $error, $m)
+            AND in_array($m[1], self::FAILED_CODES, TRUE)) return $m[1];
+        if (str_starts_with($error, 'Превышен таймаут задачи')) return 'job_timeout';
+
+        return 'job_failed';
+    }
+
+    /** Код для API: легаси-записи хранили русский текст — наружу только код. */
+    public static function public_code(string $error): string
+    {
+        if (in_array($error, self::FAILED_CODES, TRUE)) return $error;
+        foreach (self::FAILED_CODES as $code)
+        {
+            if (str_starts_with($error, $code.':')) return $code;
+        }
+
+        return 'job_failed';
+    }
+
+    // ------------------------------------------------------------------
+    // Внутреннее
+    // ------------------------------------------------------------------
+
+    private static function require_worker(): void
+    {
+        if (trim((string) getenv('WORKER_API_TOKEN')) === '') throw new Prx400_Error('worker_not_configured', 503);
+    }
+
+    /** Режим разбора: пусто → по умолчанию; неизвестный — ошибка (без тихого отката в ocr). */
+    private static function mode($raw): string
+    {
+        $mode = trim((string) $raw);
+        if ($mode === '') return Service_Prx400_Limits::default_mode();
+        if ( ! in_array($mode, Service_Prx400_Limits::parse_modes(), TRUE)) throw new Prx400_Error('invalid_parse_mode', 400);
+
+        return $mode;
+    }
+
+    private static function retry_mode(array $spec, array $options): string
+    {
+        if (trim((string) ($options['parse_mode'] ?? '')) !== '') return self::mode($options['parse_mode']);
+        $stored = (string) ($spec['parse_mode'] ?? '');
+
+        return in_array($stored, Service_Prx400_Limits::parse_modes(), TRUE) ? $stored : Service_Prx400_Limits::default_mode();
+    }
+
+    /** @return array{0: array, 1: string} [файл для Storage::save, отображаемое имя] */
+    private static function validated_upload($file): array
+    {
+        $error = is_array($file) ? ($file['error'] ?? UPLOAD_ERR_NO_FILE) : UPLOAD_ERR_NO_FILE;
+        if (in_array($error, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], TRUE)) throw new Prx400_Error('file_too_large', 413);
+        if (in_array($error, [UPLOAD_ERR_NO_TMP_DIR, UPLOAD_ERR_CANT_WRITE, UPLOAD_ERR_EXTENSION], TRUE))
+            throw new Prx400_Error('upload_unavailable', 503);
+        if ($error !== UPLOAD_ERR_OK OR ! is_string($file['tmp_name'] ?? NULL) OR ! is_uploaded_file($file['tmp_name']))
+            throw new Prx400_Error('file_required', 400);
+
+        $path = $file['tmp_name'];
+        $size = filesize($path);
+        if ($size === FALSE) throw new Prx400_Error('upload_unavailable', 503);
+        if ($size > Service_Prx400_Limits::get('max_pdf_bytes')) throw new Prx400_Error('file_too_large', 413);
+        if ($size < 5 OR file_get_contents($path, FALSE, NULL, 0, 5) !== '%PDF-'
+            OR (new finfo(FILEINFO_MIME_TYPE))->file($path) !== 'application/pdf')
+            throw new Prx400_Error('pdf_required', 415);
+
+        $name = trim(preg_replace('/[\x00-\x1F\x7F]+/u', ' ', basename((string) ($file['name'] ?? ''))) ?? '');
+        $name = mb_substr($name !== '' ? $name : 'specification.pdf', 0, 255);
+
+        return [['tmp_name' => $path, 'name' => 'specification.pdf', 'size' => $size, 'type' => 'application/pdf'], $name];
+    }
+
+    private static function sha256(string $path): string
+    {
+        $sha = hash_file('sha256', $path);
+        if ($sha === FALSE) throw new Prx400_Error('upload_unavailable', 503);
+
+        return $sha;
+    }
+
+    /** Артефакт модуля (user_id NULL): read_owned/delete_owned/owned_ids_before. */
+    private static function store(array $file): int
+    {
+        try {
+            return Storage::save($file, self::MODULE, NULL, FALSE, Service_Prx400_Limits::get('max_pdf_bytes'));
+        } catch (Storage_Exception $e) {
+            Log_Plain::event(Log::ERROR, 'prx400 stage=storage_save error_type=:t', [':t' => get_class($e)]);
+            throw new Prx400_Error('storage_unavailable', 503);
+        }
+    }
+
+    /** Убрать артефакт; неудача — в журнал (prx400:purge доберёт сироту). */
+    public static function discard(int $file_id): void
+    {
+        try {
+            Storage::delete_owned($file_id, self::MODULE);
+            return;
+        } catch (Throwable $e) {
+            Log_Plain::event(Log::WARNING, 'prx400 stage=discard file_id=:f error_type=:t', [':f' => $file_id, ':t' => get_class($e)]);
+        }
+    }
+
+    private static function push(Prx_Principal $principal, int $spec_id, string $mode, string $template, array $templates): int
+    {
+        $options = [
+            'module' => self::MODULE,
+            'priority' => 40,
+            'max_attempts' => Service_Prx400_Limits::get('max_attempts'),
+            'timeout_sec' => Service_Prx400_Limits::get('task_timeout_sec'),
         ];
-
-        if (in_array($status, ['queued', 'running'], TRUE))
+        if ($principal instanceof Prx_Actor)
         {
-            $out['job_id'] = (int) ($spec['job_id'] ?? 0) ?: NULL;
-
-            return $out;
+            $options['created_by'] = $principal->id();
+            // Правило prx120: без visitor_id задача не попадает в «Мои задачи».
+            $options['visitor_id'] = Visitor::uid();
         }
-        if ($status === 'failed')
+        $job_id = (int) Service_Prx120_JobQueue::push(self::CHANNEL, [
+            'spec_id' => $spec_id,
+            'templates' => $templates,
+            'parse_mode' => $mode,
+            'template_id' => $template, // '' = авто-детекция по якорям
+        ], $options);
+        if ($job_id < 1) throw new RuntimeException('prx400: очередь не вернула ID задачи');
+
+        return $job_id;
+    }
+
+    /** Отменить живую задачу (force): её воркер получит lease_lost и не запишет результат. */
+    private static function cancel_job(int $job_id): void
+    {
+        if ($job_id <= 0) return;
+        $job = self::job($job_id);
+        if ($job !== NULL AND in_array((string) $job['status'], ['pending', 'processing'], TRUE))
         {
-            $out['error'] = ['code' => (string) $spec['error']];
-
-            return $out;
+            Service_Prx120_JobQueue::instance()->cancel($job_id, TRUE);
         }
+    }
 
-        $out['result'] = Service_Prx400_Export::json((array) $spec, Model_Prx400_Row::for_spec((int) $spec['id']));
-        $out['awaiting_operator'] = $status === 'review';
+    /** Бюджет prx120 — доменная ошибка 429, остальное — как есть. */
+    private static function queue_error(Throwable $e): Throwable
+    {
+        return $e instanceof Prx120_Budget_Exception ? new Prx400_Error('budget_exceeded', 429) : $e;
+    }
+
+    public static function job(int $job_id): ?array
+    {
+        return $job_id > 0 ? Service_Prx120_JobQueue::instance()->get($job_id) : NULL;
+    }
+
+    /** @return array<int, array> задачи по ID (только для записей в работе) */
+    private static function jobs(array $job_ids): array
+    {
+        $out = [];
+        foreach (array_unique(array_filter($job_ids)) as $job_id)
+        {
+            $job = self::job((int) $job_id);
+            if ($job !== NULL) $out[(int) $job_id] = $job;
+        }
 
         return $out;
     }
 
-    /** Завершение проверки оператором (HITL): review → done. */
-    public function finish($actor, $spec_id, array $post = [])
+    private static function editor_id(Prx_Principal $principal): int
     {
-        ($actor ?? Prx_Actor::guest())->require('prx400.run');
-        $spec = Model_Prx400_Spec::get($spec_id);
-        if ( ! $spec)
+        Policy_Prx400_Spec::require_edit($principal);
+        if ( ! $principal instanceof Prx_Actor) throw new Prx400_Error('forbidden', 403);
+
+        return $principal->id();
+    }
+
+    /** Строка под блокировкой + её спецификация в статусе, где строки принадлежат оператору. */
+    private function editable_row(Prx_Principal $principal, int $row_id): array
+    {
+        $row = Model_Prx400_Row::lock($row_id);
+        if ($row === NULL) throw new Prx400_Error('not_found', 404);
+        $spec = Policy_Prx400_Spec::require_view($principal, Model_Prx400_Spec::get((int) $row['spec_id']));
+        if (in_array($spec['status'], self::PIPELINE_STATUSES, TRUE)) throw new Prx400_Error('wrong_state', 409);
+
+        return [$row, $spec];
+    }
+
+    /** Поля правки из формы: только белый список, qty — число или пусто. */
+    private static function edit_fields(array $post): array
+    {
+        $limits = ['raw_name' => 4000, 'code_doc' => 255, 'unit' => 16];
+        $fields = [];
+        foreach ($limits as $field => $max)
         {
-            throw new Prx400_Error('not_found', 404);
+            if (array_key_exists($field, $post)) $fields[$field] = mb_substr(trim((string) $post[$field]), 0, $max);
         }
-        if ( ! in_array($spec['status'], ['review'], TRUE))
+        if (array_key_exists('qty', $post))
         {
-            throw new Prx400_Error('wrong_state', 409);
+            $qty = str_replace([' ', "\u{00A0}", ','], ['', '', '.'], trim((string) $post['qty']));
+            if ($qty === '') $fields['qty'] = NULL;
+            elseif (preg_match('/\A-?\d{1,10}(?:\.\d{1,4})?\z/', $qty)) $fields['qty'] = (float) $qty;
+            else throw new Prx400_Error('qty_invalid', 400);
         }
 
-        // Гейт качества: с неподтверждёнными расхождениями завершение только
-        // осознанное — чекбокс «принимаю с расхождениями» в форме карточки.
-        $issues = 0;
-        foreach (Model_Prx400_Row::for_spec((int) $spec_id) as $r)
-        {
-            if ((string) $r['status'] !== 'ok' AND (string) $r['verified'] !== 't')
-            {
-                $issues++;
-            }
-        }
-        if ($issues > 0 AND trim((string) ($post['accept_issues'] ?? '')) !== '1')
-        {
-            throw new Prx400_Error('issues_pending', 409, ['issues' => $issues]);
-        }
-
-        Model_Prx400_Spec::set_status((int) $spec_id, 'done', NULL);
+        return $fields;
     }
 }

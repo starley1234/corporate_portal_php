@@ -7,7 +7,7 @@
  * пользовательские JSON — загрузка/удаление. Изменения применяются с новой
  * задачи разбора (шаблоны уезжают в payload).
  *
- * Переменные: $registry, $flash, $csrf.
+ * Переменные: $registry, $can_edit, $flash, $csrf.
  */
 ?>
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
@@ -20,11 +20,6 @@
 
     <?php echo View::factory('partials/flash', ['flash' => $flash]); ?>
 
-    <div class="prx-seg mt-5" role="tablist" aria-label="Разделы оцифровки спецификаций">
-        <a class="prx-seg-item" role="tab" aria-selected="false" href="/prx400_specflow"><i class="fas fa-file-pdf mr-1.5"></i>Спецификации</a>
-        <a class="prx-seg-item" role="tab" aria-selected="false" href="/prx400_specflow/catalog"><i class="fas fa-book mr-1.5"></i>Справочник НСИ</a>
-        <a class="prx-seg-item is-active" role="tab" aria-selected="true" href="/prx400_specflow/templates"><i class="fas fa-layer-group mr-1.5"></i>Шаблоны <span class="prx-count"><?php echo count($registry); ?></span></a>
-    </div>
 
     <div class="mt-5 gap-5 space-y-5 lg:grid lg:grid-cols-3 lg:items-start lg:space-y-0">
         <section class="prx-card lg:col-span-2 overflow-x-auto p-0">
@@ -58,6 +53,7 @@
                             <pre class="mt-2 max-h-72 max-w-xl overflow-auto rounded-lg border border-gray-200 bg-white p-3 text-xs dark:border-gray-700 dark:bg-gray-900"><?php echo HTML::chars((string) json_encode($t['json'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)); ?></pre>
                         </details>
 <?php endif; ?>
+<?php if ($can_edit): ?>
                         <form method="post" action="/prx400_specflow/template_enable" class="inline">
                             <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
                             <input type="hidden" name="code" value="<?php echo HTML::chars($t['code']); ?>">
@@ -71,6 +67,7 @@
                             <button type="submit" class="prx-btn-danger prx-btn-sm" data-prx-arm="Удалить пользовательский шаблон? Двойное нажатие."><i class="fas fa-trash"></i><span class="sr-only">Удалить</span></button>
                         </form>
 <?php endif; ?>
+<?php endif; ?>
                     </td>
                 </tr>
 <?php endforeach; ?>
@@ -81,6 +78,9 @@
 
         <aside class="prx-card">
             <h2 class="prx-h3">Загрузить шаблон</h2>
+<?php if ( ! $can_edit): ?>
+            <p class="prx-hint mt-3">Изменение библиотеки доступно с правом prx400.run.</p>
+<?php else: ?>
             <form method="post" action="/prx400_specflow/templates" enctype="multipart/form-data" class="mt-4 space-y-3">
                 <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
                 <label class="block">
@@ -90,7 +90,8 @@
                 </label>
                 <button class="prx-btn-cta w-full justify-center" type="submit"><i class="fas fa-upload"></i>Добавить в библиотеку</button>
             </form>
-            <p class="prx-hint mt-3">Обязательные поля: <code class="font-mono text-xs">template_id</code>, <code class="font-mono text-xs">template_name</code>, <code class="font-mono text-xs">detection_policy.anchor_keywords</code> (≥1), <code class="font-mono text-xs">table_rules.columns</code>. Коды встроенных шаблонов зарезервированы.</p>
+<?php endif; ?>
+            <p class="prx-hint mt-3">Файл до 64 КиБ. Обязательные поля: <code class="font-mono text-xs">template_id</code>, <code class="font-mono text-xs">template_name</code>, <code class="font-mono text-xs">detection_policy.anchor_keywords</code> (≥1), <code class="font-mono text-xs">table_rules.columns</code>. Коды встроенных шаблонов зарезервированы.</p>
             <p class="prx-hint mt-2">Отключённые шаблоны не уезжают в задачи — их якоря перестают влиять на детекцию. Встроенные отключаются оверлеем в БД, файлы модуля не меняются.</p>
         </aside>
     </div>

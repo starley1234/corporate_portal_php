@@ -1,37 +1,109 @@
 <?php
 /**
- * Контракт prx400_specflow: библиотека шаблонов, матчинг с НСИ (пороги доверия),
- * экспорт JSON/CSV. PHP CLI: php tests/Contracts/prx400_match_export.php
+ * Контракт prx400_specflow без БД: библиотека шаблонов и их валидация,
+ * матчинг с НСИ (пороги доверия), правило статуса строки, построчные
+ * проверки, приём результата воркера (clean_row/clean_math), коды ошибок
+ * очереди и API, экспорт JSON/CSV. PHP CLI: php tests/Contracts/prx400_match_export.php
  */
 if (!defined('SYSPATH')) define('SYSPATH', dirname(__DIR__, 2).'/system/');
 
-require dirname(__DIR__, 2).'/application/modules/prx400_specflow/classes/Service/Prx400/Templates.php';
-require dirname(__DIR__, 2).'/application/modules/prx400_specflow/classes/Service/Prx400/Match.php';
-require dirname(__DIR__, 2).'/application/modules/prx400_specflow/classes/Service/Prx400/Export.php';
+/** Проверка контракта: не зависит от zend.assertions (в prod-ini assert() выключен). */
+function check(bool $condition, string $message = 'contract violated'): void
+{
+    if ( ! $condition) {
+        $at = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]['line'] ?? 0;
+        fwrite(STDERR, 'FAIL line '.$at.': '.$message."\n");
+        exit(1);
+    }
+}
+
+/** Доменная ошибка с ожидаемым кодом. */
+function check_error(callable $fn, string $code, int $status): void
+{
+    try {
+        $fn();
+    } catch (Prx_DomainError $e) {
+        check($e->getMessage() === $code, 'код ошибки: '.$e->getMessage().' вместо '.$code);
+        check($e->getCode() === $status, 'HTTP-статус '.$code.': '.$e->getCode());
+        return;
+    }
+    check(FALSE, 'ожидалась ошибка '.$code);
+}
+
+$root = dirname(__DIR__, 2);
+$module = $root.'/application/modules/prx400_specflow';
+
+// ---- Заглушки инфраструктуры: конфиг модуля — настоящий, БД нет.
+class Kohana
+{
+    public static $config;
+}
+class ContractConfig
+{
+    private array $data;
+    public function __construct(array $data) { $this->data = $data; }
+    public function load($name) { return $this; }
+    public function get($key) { return $this->data[$key] ?? NULL; }
+}
+class Log { const ERROR = 3; const WARNING = 4; const INFO = 6; }
+class Log_Plain { public static array $events = []; public static function event($level, $message, array $values = NULL) { self::$events[] = $message; } }
+class Model_Prx400_Template { public static function all(): array { return []; } }
+
+require $root.'/application/classes/Prx/DomainError.php';
+require $module.'/classes/Prx400/Error.php';
+require $module.'/classes/Prx400/Messages.php';
+foreach (['Limits', 'Templates', 'Match', 'Checks', 'Pipeline', 'Specs', 'Export'] as $class) {
+    require $module.'/classes/Service/Prx400/'.$class.'.php';
+}
+Kohana::$config = new ContractConfig(require $module.'/config/prx400_specflow.php');
+
+// ---- Конфиг: пороги и пределы читаются только через Limits, значения в границах
+$t = Service_Prx400_Limits::match();
+check($t['auto_accept'] > $t['manual_review'] && $t['manual_review'] > 0, 'пороги доверия упорядочены');
+check(in_array(Service_Prx400_Limits::default_mode(), Service_Prx400_Limits::parse_modes(), TRUE), 'режим по умолчанию — из списка');
+check(Service_Prx400_Limits::get('max_pdf_bytes') >= 1024 ** 2, 'лимит PDF не «тихий ноль»');
+check(Service_Prx400_Limits::get('max_rows') >= 10);
+check(Service_Prx400_Limits::get('max_result_bytes') > 0, 'лимит тела результата воркера задан');
+check_error(static fn () => Service_Prx400_Limits::assert_request_size(Service_Prx400_Limits::get('max_pdf_bytes') + 10 ** 6), 'file_too_large', 413);
+Service_Prx400_Limits::assert_request_size(1000);
 
 // ---- Шаблоны: валидные JSON, минимум один универсальный, поля разбора на месте
 $templates = Service_Prx400_Templates::all();
-assert count($templates) >= 1;
+check(count($templates) >= 1);
 $generic = Service_Prx400_Templates::get('spec_generic_v1');
-assert $generic !== NULL;
-assert ! empty($generic['detection_policy']['anchor_keywords']);
-assert ! empty($generic['table_rules']['columns']['qty']['match']);
-assert Service_Prx400_Templates::get('нет_такого') === NULL;
+check($generic !== NULL);
+check( ! empty($generic['detection_policy']['anchor_keywords']));
+check( ! empty($generic['table_rules']['columns']['qty']['match']));
+check(Service_Prx400_Templates::get('нет_такого') === NULL);
 foreach ($templates as $tpl) {
-    assert isset($tpl['template_id'], $tpl['template_name'], $tpl['table_rules']['columns']['pos']);
+    check(isset($tpl['template_id'], $tpl['template_name'], $tpl['table_rules']['columns']['pos']));
+    $copy = $tpl;
+    $copy['template_id'] = 'copy_'.$tpl['template_id']; // коды встроенных зарезервированы
+    Service_Prx400_Templates::validate($copy); // встроенные проходят ту же валидацию, что и загружаемые
 }
+check(Service_Prx400_Templates::resolve('') === '', 'пусто — авто-детекция');
+check(Service_Prx400_Templates::resolve('spec_generic_v1') === 'spec_generic_v1');
+check_error(static fn () => Service_Prx400_Templates::resolve('нет_такого'), 'template_not_found', 400);
+check_error(static fn () => Service_Prx400_Templates::validate(['template_id' => 'Bad Code']), 'template_invalid', 400);
+check_error(static fn () => Service_Prx400_Templates::validate($generic), 'template_code_reserved', 409);
+$broken = ['template_id' => 'custom_x'] + $generic;
+$broken['table_rules']['columns']['synonyms_col'] = ['match' => ['x']];
+check_error(static fn () => Service_Prx400_Templates::validate($broken), 'template_invalid_column', 400);
+$no_pos = ['template_id' => 'custom_y'] + $generic;
+unset($no_pos['table_rules']['columns']['pos']);
+check_error(static fn () => Service_Prx400_Templates::validate($no_pos), 'template_invalid_column', 400);
 
 // ---- Нормализация: регистр, ё, пунктуация
-assert Service_Prx400_Match::normalize('Гайка М12, ГОСТ 5915-70 (цинк)') === 'гайка м12 гост 5915 70 цинк';
-assert Service_Prx400_Match::normalize('Ёлка-палка') === 'елка палка';
+check(Service_Prx400_Match::normalize('Гайка М12, ГОСТ 5915-70 (цинк)') === 'гайка м12 гост 5915 70 цинк');
+check(Service_Prx400_Match::normalize('Ёлка-палка') === 'елка палка');
 
 // ---- Скор: идентичное = 1, unrelated = низкий, опечатки/сокращения — высокий
 $gaika = 'Гайка М12-6Н.5 (S18) ГОСТ 5915-70 цинк';
 $cat_gaika = 'Гайка шестигранная М12 ГОСТ 5915-70 оцинкованная';
-assert Service_Prx400_Match::score($gaika, $gaika) === 1.0;
+check(Service_Prx400_Match::score($gaika, $gaika) === 1.0);
 $score_match = Service_Prx400_Match::score($gaika, $cat_gaika);
-assert $score_match > 0.5, 'синонимы/ГОСТ дают высокий скор: '.$score_match;
-assert Service_Prx400_Match::score($gaika, 'Подшипник роликовый конический 7508') < 0.4;
+check($score_match > 0.5, 'синонимы/ГОСТ дают высокий скор: '.$score_match);
+check(Service_Prx400_Match::score($gaika, 'Подшипник роликовый конический 7508') < 0.4);
 
 // ---- Пороги доверия: auto_accept → ok, manual_review → review, ниже → new
 $catalog = [
@@ -40,56 +112,131 @@ $catalog = [
     ['id' => 3, 'code' => 'NSI-0003', 'name' => 'Кран шаровой Ду50 Ру16', 'unit' => 'шт.', 'okei_code' => '796', 'keywords' => 'арматура'],
 ];
 $m = Service_Prx400_Match::apply($gaika, 'Гайка М12', $catalog);
-assert $m['status'] === 'ok' || $m['status'] === 'review', 'крепёж со словарём: '.$m['status'];
-assert $m['match']['alternatives'] !== NULL;
+// Описательные вариации («шестигранная», «оцинкованная») скорер оценивает
+// ниже порога подтверждения, но верная позиция — первая подсказка оператору.
+check(($m['match']['alternatives'][0]['code'] ?? '') === 'NSI-0001', 'лучшая подсказка — гайка: '.json_encode($m['match']));
 
 $m2 = Service_Prx400_Match::apply('Совершенно неизвестная деталь №999', '', $catalog);
-assert $m2['status'] === 'new', 'низкий скор → новая позиция';
-assert count($m2['match']['alternatives']) <= 3, 'top-K подсказок';
+check($m2['status'] === 'new', 'низкий скор → новая позиция');
+check(count($m2['match']['alternatives']) <= $t['top_k'], 'top-K подсказок');
+check(Service_Prx400_Match::apply('Что угодно', '', [])['status'] === 'new', 'пустой справочник — честно «новая»');
 
-// порог auto_accept: точное вхождение имени каталога
 $m3 = Service_Prx400_Match::apply('Подшипник роликовый конический 7508', '', $catalog);
-assert $m3['status'] === 'ok' && $m3['match']['code'] === 'NSI-0002';
+check($m3['status'] === 'ok' && $m3['match']['code'] === 'NSI-0002', 'точное имя — автопривязка');
+
+// query(): код документа без дублей имени
+check(Service_Prx400_Match::query('Гайка М12', 'Гайка М12') === 'Гайка М12');
+check(Service_Prx400_Match::query('Кран', 'Ду50') === 'Кран Ду50');
+
+// ---- row_status: одно правило для воркера, правки и снятия «Проверено»
+$ok_match = $m3['match'];
+check(Service_Prx400_Match::row_status([], $ok_match) === 'ok');
+check(Service_Prx400_Match::row_status([['type' => 'math_row', 'expected' => 10.0]], $ok_match) === 'error', 'арифметика важнее кода');
+check(Service_Prx400_Match::row_status([['type' => 'unit_fractional', 'unit' => 'шт']], $ok_match) === 'review', 'дробные штуки — на подтверждение');
+check(Service_Prx400_Match::row_status([['type' => 'gap', 'after_pos' => 3]], $ok_match) === 'ok', 'пропуск нумерации — контекст документа, не ошибка строки');
+check(Service_Prx400_Match::row_status([], ['alternatives' => [['score' => $t['manual_review'] + 0.01]]]) === 'review');
+check(Service_Prx400_Match::row_status([], ['alternatives' => [['score' => $t['manual_review'] - 0.01]]]) === 'new');
+check(Service_Prx400_Match::row_status([], NULL) === 'new');
+
+// ---- Checks::row_flags — зеркало run_math_checks воркера
+check(Service_Prx400_Checks::row_flags(['qty' => 2, 'unit' => 'шт', 'unit_price' => 4.5, 'total_price' => 9.0]) === []);
+$f = Service_Prx400_Checks::row_flags(['qty' => 2, 'unit' => 'кг', 'unit_price' => 4.5, 'total_price' => 10.0]);
+check(count($f) === 1 && $f[0]['type'] === 'math_row' && $f[0]['expected'] === 9.0, 'расхождение суммы: '.json_encode($f));
+$f = Service_Prx400_Checks::row_flags(['qty' => 1.5, 'unit' => 'Шт.', 'unit_price' => NULL, 'total_price' => NULL]);
+check(count($f) === 1 && $f[0]['type'] === 'unit_fractional', 'дробные штуки');
+check(Service_Prx400_Checks::row_flags(['qty' => 1.5, 'unit' => 'м']) === [], 'дробные метры — норма');
+check(Service_Prx400_Checks::row_flags(['qty' => 'abc', 'unit' => 'шт', 'unit_price' => 1, 'total_price' => 5]) === [], 'нечисло не сравнивается');
+
+// ---- Pipeline::clean_row: типы, длины, белый список флагов, строчные флаги — от сервера
+$row = Service_Prx400_Pipeline::clean_row(4, [
+    'pos' => 5, 'raw_name' => '  '.str_repeat('я', 5000), 'code_doc' => 'ГОСТ 1', 'qty' => '3', 'unit' => 'шт',
+    'unit_price' => 2, 'total_price' => 7, 'section' => 'Крепёж',
+    'flags' => [['type' => 'gap', 'after_pos' => 3], ['type' => 'evil', 'x' => 1], ['type' => 'math_row', 'expected' => 999]],
+]);
+check($row['seq'] === 4 && $row['pos'] === 5 && $row['qty'] === 3.0);
+check(mb_strlen($row['raw_name']) === 4000, 'наименование обрезано до 4000');
+$types = array_column($row['flags'], 'type');
+sort($types);
+check($types === ['gap', 'math_row'], 'флаги: '.json_encode($row['flags']));
+foreach ($row['flags'] as $flag) {
+    if ($flag['type'] === 'math_row') check($flag['expected'] === 6.0, 'expected пересчитан сервером, а не взят у воркера');
+}
+$row = Service_Prx400_Pipeline::clean_row(0, ['pos' => '7', 'qty' => INF, 'raw_name' => ['array'], 'flags' => 'oops']);
+check($row['pos'] === NULL && $row['qty'] === NULL && $row['raw_name'] === '' && $row['flags'] === [], 'мусор воркера не проходит');
+
+$math = Service_Prx400_Pipeline::clean_math([
+    'math' => ['row_errors' => [['pos' => 1], 'bad'], 'gaps' => [], 'totals' => ['declared' => '10', 'computed' => 9.5, 'ok' => FALSE], 'summary' => 'Итого не сходится.'],
+    'warnings' => ['vision_pages_truncated', 'vision_page_3_failed', '<script>', 42],
+    'stats' => ['via' => 'vision', 'pages_processed' => 2],
+]);
+check(count($math['row_errors']) === 1 && $math['totals']['declared'] === 10.0 && $math['totals']['ok'] === FALSE);
+check($math['warnings'] === ['vision_pages_truncated', 'vision_page_3_failed'], 'предупреждения — только коды');
+check($math['via'] === 'vision' && $math['pages_processed'] === 2);
+check(Service_Prx400_Pipeline::clean_math([])['via'] === 'ocr' && Service_Prx400_Pipeline::clean_math([])['totals']['ok'] === NULL);
+check(Prx400_Messages::warning('vision_page_3_failed') !== 'vision_page_3_failed', 'у предупреждения есть текст');
+
+// ---- Коды ошибок: из очереди и для API — только белый список
+check(Service_Prx400_Specs::error_code('PermanentJobError: no_text') === 'no_text');
+check(Service_Prx400_Specs::error_code('DocumentJobError: header_not_found') === 'header_not_found');
+check(Service_Prx400_Specs::error_code('PermanentJobError: /etc/passwd leaked') === 'job_failed', 'произвольный текст очереди не становится кодом');
+check(Service_Prx400_Specs::error_code('Превышен таймаут задачи (600 с)') === 'job_timeout');
+check(Service_Prx400_Specs::public_code('no_rows') === 'no_rows');
+check(Service_Prx400_Specs::public_code('no_rows: Строки не найдены') === 'no_rows', 'легаси «код: текст»');
+check(Service_Prx400_Specs::public_code('Какой-то русский текст') === 'job_failed');
+foreach (Service_Prx400_Specs::FAILED_CODES as $code) {
+    check(Prx400_Messages::text($code) !== $code, 'нет текста для кода '.$code);
+}
+
+// ---- effective(): статус записи с учётом очереди (только чтение)
+$spec_q = ['status' => 'queued', 'job_id' => 5, 'error' => NULL];
+check(Service_Prx400_Specs::effective($spec_q, ['status' => 'pending']) === ['queued', NULL]);
+check(Service_Prx400_Specs::effective($spec_q, ['status' => 'processing']) === ['running', NULL]);
+check(Service_Prx400_Specs::effective($spec_q, ['status' => 'cancelled']) === ['failed', 'job_canceled']);
+check(Service_Prx400_Specs::effective($spec_q, ['status' => 'failed', 'error' => 'PermanentJobError: no_text']) === ['failed', 'no_text']);
+check(Service_Prx400_Specs::effective($spec_q, ['status' => 'done']) === ['failed', 'result_missing']);
+check(Service_Prx400_Specs::effective($spec_q, NULL) === ['failed', 'job_unavailable']);
+check(Service_Prx400_Specs::effective(['status' => 'review', 'job_id' => 5, 'error' => NULL], NULL) === ['review', NULL], 'разобранная запись от очереди не зависит');
 
 // ---- Экспорт: схема приёмника (meta + positions + audit) и верификация
 $spec = [
-    'id' => 7, 'template_id' => 'spec_generic_v1', 'template_title' => 'Спецификация',
-    'spec_number' => '41-ПЗ', 'department' => 'ПТО', 'original_name' => 'scan.pdf',
+    'id' => 7, 'status' => 'review', 'template_id' => 'spec_generic_v1', 'template_title' => 'Спецификация',
+    'spec_number' => '41-ПЗ', 'department' => 'ПТО', 'original_name' => 'scan.pdf', 'parse_mode' => 'ocr',
     'pages' => 3, 'text_sha256' => str_repeat('a', 64), 'updated_at' => '2026-11-25 12:00:00',
 ];
 $rows = [
-    ['seq' => 0, 'pos' => 1, 'raw_name' => $gaika, 'code_doc' => 'Гайка М12', 'qty' => 500.0, 'unit' => 'шт.',
+    ['seq' => 0, 'pos' => 1, 'section' => 'Крепёж', 'raw_name' => $gaika, 'code_doc' => 'Гайка М12', 'qty' => 500.0, 'unit' => 'шт.',
      'unit_price' => 4.5, 'total_price' => 2250.0, 'flags' => [],
      'match' => ['catalog_id' => 1, 'code' => 'NSI-0001', 'name' => $cat_gaika, 'unit' => 'шт.', 'okei_code' => '796', 'score' => 0.94],
-     'status' => 'ok', 'verified' => 'f'],
-    ['seq' => 1, 'pos' => 2, 'raw_name' => 'Заглушка новую поставить', 'code_doc' => '', 'qty' => 2.0, 'unit' => 'шт.',
+     'status' => 'ok', 'verified' => FALSE],
+    ['seq' => 1, 'pos' => 2, 'section' => '', 'raw_name' => '=HYPERLINK("http://x")', 'code_doc' => '', 'qty' => 2.0, 'unit' => 'шт.',
      'unit_price' => NULL, 'total_price' => NULL, 'flags' => [['type' => 'gap', 'after_pos' => 1]],
-     'match' => null, 'status' => 'new', 'verified' => 't'],
+     'match' => NULL, 'status' => 'new', 'verified' => TRUE],
 ];
 $json = Service_Prx400_Export::json($spec, $rows);
-assert $json['meta']['specification_code'] === '41-ПЗ';
-assert $json['meta']['template_id'] === 'spec_generic_v1';
-assert count($json['positions']) === 2;
+check($json['meta']['specification_code'] === '41-ПЗ');
+check($json['meta']['template_id'] === 'spec_generic_v1' && $json['meta']['spec_id'] === 7 && $json['meta']['status'] === 'review');
+check(count($json['positions']) === 2);
 $p0 = $json['positions'][0];
-assert $p0['catalog_code'] === 'NSI-0001' && $p0['okei_unit_code'] === '796';
-assert $p0['verification_status'] === 'ok';
-assert $p0['quantity'] === 500.0 && $p0['total_price'] === 2250.0;
+check($p0['catalog_code'] === 'NSI-0001' && $p0['okei_unit_code'] === '796' && $p0['section'] === 'Крепёж');
+check($p0['verification_status'] === 'ok');
+check($p0['quantity'] === 500.0 && $p0['total_price'] === 2250.0);
 $p1 = $json['positions'][1];
-assert $p1['catalog_code'] === NULL && $p1['verification_status'] === 'verified';
-assert in_array('gap', $p1['warnings'], TRUE);
-assert $json['audit']['auto_matched'] === 1 && $json['audit']['new_positions'] === 1;
+check($p1['catalog_code'] === NULL && $p1['verification_status'] === 'verified');
+check(in_array('gap', $p1['warnings'], TRUE));
+check($json['audit']['auto_matched'] === 1 && $json['audit']['new_positions'] === 1);
 
-// верификация вручную подтверждённой строки попадает в audit.corrections
+// вручную назначенный код попадает в audit.corrections
 $rows[0]['match']['manual'] = TRUE;
 $json2 = Service_Prx400_Export::json($spec, $rows);
-assert $json2['audit']['confirmed_by_operator'] === 1;
-assert count($json2['audit']['corrections']) === 1;
+check($json2['audit']['confirmed_by_operator'] === 1);
+check(count($json2['audit']['corrections']) === 1);
 
-// ---- CSV: заголовок, разделитель «;», BOM для Excel, статус по-русски
+// ---- CSV: заголовок, «;», BOM для Excel, статус по-русски, без формул из скана
 $csv = Service_Prx400_Export::csv($spec, $rows);
-assert strpos($csv, "\xEF\xBB\xBF") === 0;
-assert strpos($csv, 'Наименование') !== FALSE;
-assert strpos($csv, 'NSI-0001') !== FALSE;
-assert strpos($csv, 'новая позиция') !== FALSE;
+check(strpos($csv, "\xEF\xBB\xBF") === 0);
+check(strpos($csv, 'Наименование') !== FALSE);
+check(strpos($csv, 'NSI-0001') !== FALSE);
+check(strpos($csv, 'проверено') !== FALSE, 'подтверждённая строка помечена');
+check(strpos($csv, ';=HYPERLINK') === FALSE && strpos($csv, "'=HYPERLINK") !== FALSE, 'CSV-инъекция нейтрализована');
 
 echo "OK prx400_match_export\n";

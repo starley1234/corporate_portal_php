@@ -1,28 +1,49 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
 /**
- * Настройки prx400_specflow (env могут переопределять в bootstrap окружении).
+ * Настройки prx400_specflow. Числовые пределы — env с границами (как prx397):
+ * мусор или выход за границы → значение по умолчанию, а не «тихий» ноль.
+ * Читать только через Service_Prx400_Limits.
  */
+$integer = static function ($raw, int $default, int $min, int $max): int {
+    $raw = trim((string) $raw);
+    if ( ! preg_match('/\A[0-9]{1,9}\z/', $raw)) return $default;
+    $value = (int) $raw;
+    return $value >= $min && $value <= $max ? $value : $default;
+};
+$mib = 1024 ** 2;
+
 return [
     // Пороги доверия матчинга с НСИ (Confidence Scoring):
     //  >= auto_accept  — автоматическая привязка кода номенклатуры;
-    //  >= manual_review — на подтверждение оператору (подсказки top-3);
+    //  >= manual_review — на подтверждение оператору (подсказки top-K);
     //  ниже            — «новая позиция» (заведение в НСИ).
     'match' => [
         'auto_accept'   => 0.92,
         'manual_review' => 0.65,
         'top_k'         => 3,
+        // Справочник больше порога — кандидатов на строку предотбирает
+        // PostgreSQL (pg_trgm), а не PHP-перебор всего каталога.
+        'full_scan_max' => $integer(getenv('PRX400_MATCH_FULL_SCAN_MAX'), 2000, 0, 100000),
+        'candidates'    => 50,
     ],
-    // Хранилище исходных PDF (относительный путь — Storage_Path::absolute).
-    'storage_dir' => 'storage/specflow',
 
     // Режимы разбора (payload parse_mode): ocr — детерминированный конвейер
     // без LLM; ocr_vision — OCR с vision-фолбэком при пустом результате;
     // vision — мультимодальный разбор страниц (сканы, где OCR даёт 0).
     'parse_modes' => ['ocr', 'ocr_vision', 'vision'],
     'parse_mode_default' => 'ocr',
-    // Грубая отсечка загрузки (воркер сверяет точнее при скачивании).
-    'max_upload_bytes' => 20971520,
-    // Пределы строк результата при записи (воркер считает до 2000).
-    'max_rows' => 2000,
+
+    // Пределы приёмки и протокола воркера. PRX400_MAX_PDF_BYTES/PRX400_MAX_ROWS
+    // читает и воркер (handlers/prx400_specflow/limits.py) — одно значение.
+    'max_pdf_bytes'    => $integer(getenv('PRX400_MAX_PDF_BYTES'), 20 * $mib, $mib, 100 * $mib),
+    'max_rows'         => $integer(getenv('PRX400_MAX_ROWS'), 2000, 10, 100000),
+    'max_result_bytes' => $integer(getenv('PRX400_MAX_RESULT_BYTES'), 8 * $mib, $mib, 64 * $mib),
+    'task_timeout_sec' => $integer(getenv('PRX400_TASK_TIMEOUT_SEC'), 1800, 60, 7200),
+    'max_attempts'     => $integer(getenv('PRX400_MAX_ATTEMPTS'), 2, 1, 10),
+
+    // Хранение: 0 — спецификации живут бессрочно (это рабочие документы
+    // для ERP); N > 0 — prx400:purge удаляет завершённые (done/failed)
+    // старше N дней вместе с файлом.
+    'retention_days'   => $integer(getenv('PRX400_RETENTION_DAYS'), 0, 0, 3650),
 ];

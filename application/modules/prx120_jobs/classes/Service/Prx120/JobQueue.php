@@ -989,7 +989,9 @@ class Service_Prx120_JobQueue {
      */
     public function payload_jobs($module, $key, $value, $limit = 20)
     {
-        return $this->_db->query(Database::SELECT,
+        // DB::query + parameters(): $db->query() выполняет SQL сразу, и
+        // плейсхолдеры :m/:key/:value уходили в PostgreSQL как есть.
+        return DB::query(Database::SELECT,
             'SELECT j.id, j.channel, j.status, j.attempts, j.max_attempts, j.error, j.payload,
                     j.created_at, j.started_at, j.finished_at, j.claimed_by,
                     ev.message AS stage, ev.created_at AS stage_at
@@ -1001,11 +1003,11 @@ class Service_Prx120_JobQueue {
                   ORDER BY e.id DESC LIMIT 1
              ) ev ON TRUE
              WHERE j.module = :m AND j.payload->>:key = :value
-             ORDER BY j.id DESC LIMIT '.(int) $limit, FALSE)->parameters([
+             ORDER BY j.id DESC LIMIT '.(int) $limit)->parameters([
                 ':m' => (string) $module,
                 ':key' => (string) $key,
                 ':value' => (string) $value,
-            ])->as_array();
+            ])->execute($this->_db)->as_array();
     }
 
     /**

@@ -22,4 +22,6 @@ def limits() -> dict[str, int]:
         "pdf_memory_mb": _int("PRX400_PDF_MEMORY_MB", 512, 64, 4096),
         "max_rows": _int("PRX400_MAX_ROWS", 2000, 10, 100000),
         "max_vision_pages": _int("PRX400_MAX_VISION_PAGES", 8, 1, 50),
+        # Тот же предел, что у PHP (config/prx400_specflow.php max_result_bytes).
+        "max_result_bytes": _int("PRX400_MAX_RESULT_BYTES", 8 * MIB, MIB, 64 * MIB),
     }

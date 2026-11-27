@@ -1,385 +1,302 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
 /**
- * UI prx400_specflow. Права: просмотр prx400.view, действия prx400.run
- * (deny by default, ключи — application/config/acl.php). POST — CSRF.
+ * UI prx400_specflow. Просмотр — prx400.view, действия — prx400.run
+ * (Policy_Prx400_Spec; ключи — application/config/acl.php). CSRF всех
+ * POST проверяет Prx_PostGuard глобально; GET ничего не пишет.
+ * Доменные ошибки: действия — flash и PRG-редирект, страницы — HTTP-статус.
  */
-class Controller_Prx400_Ui extends Controller_Base {
+class Controller_Prx400_Ui extends Controller_Base
+{
+    private const FLASH = 'prx400_flash';
 
     public function before()
     {
         parent::before();
-        if ( ! $this->can('prx400.view'))
+        if ( ! $this->can(Policy_Prx400_Spec::VIEW_ACL))
         {
             throw HTTP_Exception::factory(403, 'Оцифровка спецификаций доступна администратору');
         }
         $this->response->headers('Cache-Control', 'no-store');
         $this->set_title('Оцифровка спецификаций');
+        if ( ! in_array($this->request->action(), ['file', 'export'], TRUE))
+        {
+            $this->set_module_nav([
+                ['title' => 'Спецификации', 'href' => '/prx400_specflow', 'icon' => 'fas fa-file-pdf'],
+                ['title' => 'Справочник НСИ', 'href' => '/prx400_specflow/catalog', 'icon' => 'fas fa-book'],
+                ['title' => 'Шаблоны', 'href' => '/prx400_specflow/templates', 'icon' => 'fas fa-layer-group'],
+                ['title' => 'API', 'href' => '/prx400_specflow/api-docs', 'icon' => 'fas fa-plug'],
+            ]);
+        }
     }
 
     public function after()
     {
-        if ($this->request->action() === 'file')
-        {
-            // бинарный ответ — без layout
-            return;
-        }
+        if (in_array($this->request->action(), ['file', 'export'], TRUE)) return; // бинарный ответ — без layout
         parent::after();
     }
 
-    /** Список спецификаций + загрузка PDF. */
+    /** Список спецификаций + загрузка PDF (POST). */
     public function action_index()
     {
+        $this->allow(Request::GET, Request::POST);
         $service = new Service_Prx400_Specs;
-        $flash = Session::instance()->get_once('prx400_flash', ['text' => '']);
 
         if ($this->request->method() === Request::POST)
         {
-            $this->_guard_csrf();
-            $spec = $service->create($this->actor(), $_FILES, (array) $this->request->post());
-            Session::instance()->set('prx400_flash', ['type' => 'ok', 'text' => 'Спецификация загружена — разбор идёт в очереди воркеров.']);
-            HTTP::redirect('/prx400_specflow/spec/'.$spec['id'], 303);
+            $spec_id = $this->act('/prx400_specflow', function () use ($service): int {
+                Service_Prx400_Limits::assert_request_size((int) $this->request->headers('Content-Length'));
+                return $service->submit($this->actor(), self::request_key((string) $this->request->post('request_key')),
+                    $_FILES['pdf'] ?? NULL, (array) $this->request->post());
+            });
+            $this->done('/prx400_specflow/spec/'.$spec_id, 'Спецификация загружена — разбор идёт в очереди воркеров.');
+            return;
         }
 
         $this->template->content = View::factory('prx400/index', [
-            'specs' => $service->list($this->actor()),
+            'specs' => $this->page(fn () => $service->listing($this->actor())),
             'templates' => Service_Prx400_Templates::options(),
             'catalog_count' => Model_Prx400_Catalog::count(),
-            'flash' => $flash,
+            'max_pdf' => Service_Prx400_Limits::pdf_label(),
+            'can_edit' => $this->can(Policy_Prx400_Spec::EDIT_ACL),
+            'request_key' => bin2hex(random_bytes(16)),
+            'flash' => $this->flash(),
             'csrf' => Security::token(),
         ]);
-    }
-
-    /** Справочник НСИ: список + добавление (POST). */
-    public function action_catalog()
-    {
-        $service = new Service_Prx400_Specs;
-        $flash = Session::instance()->get_once('prx400_flash', ['text' => '']);
-
-        if ($this->request->method() === Request::POST)
-        {
-            $this->_guard_csrf();
-            try
-            {
-                $service->catalog_add($this->actor(), $this->request->post());
-                Session::instance()->set('prx400_flash', ['type' => 'ok', 'text' => 'Позиция добавлена в справочник НСИ — матчинг применится на следующем разборе.']);
-            }
-            catch (Prx400_Error $e)
-            {
-                Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Не удалось добавить: '.$e->getMessage()]);
-            }
-            HTTP::redirect('/prx400_specflow/catalog', 303);
-        }
-
-        $this->template->content = View::factory('prx400/catalog', [
-            'catalog' => Model_Prx400_Catalog::all(),
-            'flash' => $flash,
-            'csrf' => Security::token(),
-        ]);
-    }
-
-    /** Убрать позицию справочника НСИ (POST). */
-    public function action_catalog_delete()
-    {
-        $id = (int) $this->request->param('id');
-        $this->_guard_csrf();
-        if ( ! $this->can('prx400.run'))
-        {
-            throw HTTP_Exception::factory(403, 'Действие доступно с правом prx400.run');
-        }
-        try
-        {
-            (new Service_Prx400_Specs)->catalog_delete($this->actor(), $id);
-        }
-        catch (Prx400_Error $e)
-        {
-            Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Не удалось убрать: '.$e->getMessage()]);
-        }
-        HTTP::redirect('/prx400_specflow/catalog', 303);
-    }
-
-    /** Страница «API для интеграторов»: контракт + честное состояние API. */
-    public function action_api_docs()
-    {
-        $this->template->content = View::factory('prx400/api_docs', [
-            'api_enabled' => trim((string) getenv('PRX400_API_TOKEN')) !== '',
-        ]);
-    }
-
-    /** Правка полей строки (qty/ед./наименование/марка) — журнал в prx_400_edits. */
-    public function action_edit()
-    {
-        $row_id = (int) $this->request->param('id');
-        $this->_guard_csrf();
-        $spec_id = 0;
-        try
-        {
-            $spec_id = (new Service_Prx400_Specs)->row_edit($this->actor(), $row_id, $this->request->post());
-            Session::instance()->set('prx400_flash', ['type' => 'ok', 'text' => 'Строка исправлена — правка в журнале, статус пересчитан.']);
-        }
-        catch (Prx400_Error $e)
-        {
-            Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Не удалось исправить: '.$e->getMessage()]);
-        }
-        HTTP::redirect('/prx400_specflow/spec/'.$spec_id, 303);
-    }
-
-    /** Страница «Шаблоны»: реестр + загрузка пользовательского JSON (POST). */
-    public function action_templates()
-    {
-        $flash = Session::instance()->get_once('prx400_flash', ['text' => '']);
-
-        if ($this->request->method() === Request::POST)
-        {
-            $this->_guard_csrf();
-            $file = $_FILES['tpl'] ?? NULL;
-            if (empty($file['tmp_name']) OR $file['error'] !== UPLOAD_ERR_OK)
-            {
-                Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Файл шаблона не передан.']);
-            }
-            else
-            {
-                $data = json_decode((string) file_get_contents($file['tmp_name']), TRUE);
-                if ( ! is_array($data))
-                {
-                    Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Файл не является корректным JSON.']);
-                }
-                else
-                {
-                    try
-                    {
-                        [$code, $title, $json] = Service_Prx400_Templates::validate($data);
-                        Model_Prx400_Template::save_custom($code, $title, $json);
-                        Session::instance()->set('prx400_flash', ['type' => 'ok', 'text' => 'Шаблон «'.$title.'» добавлен — применяется с новой задачи разбора.']);
-                    }
-                    catch (Prx400_Error $e)
-                    {
-                        Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Шаблон не принят: '.$e->getMessage()]);
-                    }
-                }
-            }
-            HTTP::redirect('/prx400_specflow/templates', 303);
-        }
-
-        $this->template->content = View::factory('prx400/templates', [
-            'registry' => Service_Prx400_Templates::registry(),
-            'flash' => $flash,
-            'csrf' => Security::token(),
-        ]);
-    }
-
-    /** Вкл/выкл шаблона (POST; встроенные — строка-оверлей, кастомные — UPDATE). */
-    public function action_template_enable()
-    {
-        $code = trim((string) $this->request->post('code'));
-        $enable = $this->request->post('enable') === '1';
-        $this->_guard_csrf();
-        if ( ! $this->can('prx400.run'))
-        {
-            throw HTTP_Exception::factory(403, 'Действие доступно с правом prx400.run');
-        }
-        // Встроенный = код совпадает с template_id одного из файлов модуля.
-        $is_builtin = FALSE;
-        foreach ((array) glob(Service_Prx400_Templates::dir().'/*.json') as $__f)
-        {
-            $__b = json_decode((string) file_get_contents((string) $__f), TRUE);
-            if (is_array($__b) AND (string) ($__b['template_id'] ?? '') === $code)
-            {
-                $is_builtin = TRUE;
-                break;
-            }
-        }
-        try
-        {
-            Model_Prx400_Template::set_enabled($code, $enable, $is_builtin);
-            Session::instance()->set('prx400_flash', ['type' => 'ok', 'text' => 'Шаблон '.($enable ? 'включён' : 'отключён').' — применяется с новой задачи разбора.']);
-        }
-        catch (Throwable $e)
-        {
-            Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Не удалось изменить шаблон: '.$e->getMessage()]);
-        }
-        HTTP::redirect('/prx400_specflow/templates', 303);
-    }
-
-    /** Удалить пользовательский шаблон (POST). */
-    public function action_template_delete()
-    {
-        $code = trim((string) $this->request->post('code'));
-        $this->_guard_csrf();
-        if ( ! $this->can('prx400.run'))
-        {
-            throw HTTP_Exception::factory(403, 'Действие доступно с правом prx400.run');
-        }
-        try
-        {
-            Model_Prx400_Template::delete_custom($code);
-            Session::instance()->set('prx400_flash', ['type' => 'ok', 'text' => 'Пользовательский шаблон удалён.']);
-        }
-        catch (Throwable $e)
-        {
-            Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Не удалось удалить: '.$e->getMessage()]);
-        }
-        HTTP::redirect('/prx400_specflow/templates', 303);
-    }
-
-    /** Перезалить PDF существующей спецификации (карточка) и перезапустить разбор. */
-    public function action_reupload()
-    {
-        $id = (int) $this->request->param('id');
-        $this->_guard_csrf();
-        try
-        {
-            (new Service_Prx400_Specs)->reupload($this->actor(), $id, $_FILES, (array) $this->request->post());
-            Session::instance()->set('prx400_flash', ['type' => 'ok', 'text' => 'Файл перезалит — разбор запущен, статус обновится автоматически.']);
-        }
-        catch (Prx400_Error $e)
-        {
-            Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Не удалось перезалить: '.$e->getMessage()]);
-        }
-        HTTP::redirect('/prx400_specflow/spec/'.$id, 303);
-    }
-
-    /** Удалить спецификацию (позиции каскадом, файл — из хранилища). */
-    public function action_delete()
-    {
-        $id = (int) $this->request->param('id');
-        $this->_guard_csrf();
-        if ( ! $this->can('prx400.run'))
-        {
-            throw HTTP_Exception::factory(403, 'Действие доступно с правом prx400.run');
-        }
-        try
-        {
-            (new Service_Prx400_Specs)->delete($this->actor(), $id);
-            Session::instance()->set('prx400_flash', ['type' => 'ok', 'text' => 'Спецификация удалена: позиции и файл убраны.']);
-        }
-        catch (Prx400_Error $e)
-        {
-            Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Не удалось удалить: '.$e->getMessage()]);
-        }
-        HTTP::redirect('/prx400_specflow', 303);
     }
 
     /** Карточка спецификации: таблица, цвета качества, верификация, экспорт. */
     public function action_spec()
     {
+        $this->allow(Request::GET);
         $id = (int) $this->request->param('id');
-        $data = (new Service_Prx400_Specs)->spec($this->actor(), $id);
+        $data = $this->page(fn () => (new Service_Prx400_Specs)->card($this->actor(), $id));
 
         $this->template->content = View::factory('prx400/spec', $data + [
             'csrf' => Security::token(),
-            'flash' => Session::instance()->get_once('prx400_flash', ['text' => '']),
+            'flash' => $this->flash(),
         ]);
     }
 
-    /** Подтвердить строку (или назначить код НСИ вручную: ?code=). */
-    public function action_verify()
-    {
-        $id = (int) $this->request->param('id');
-        $this->_guard_csrf();
-        if ( ! $this->can('prx400.run'))
-        {
-            throw HTTP_Exception::factory(403, 'Действие доступно с правом prx400.run');
-        }
-
-        $spec_id = 0;
-        try
-        {
-            (new Service_Prx400_Specs)->verify_row($this->actor(), $id, (string) $this->request->post('code'));
-            $row = Model_Prx400_Row::get($id);
-            $spec_id = (int) ($row['spec_id'] ?? 0);
-        }
-        catch (Prx400_Error $e)
-        {
-            Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Не удалось подтвердить: '.$e->getMessage()]);
-        }
-
-        HTTP::redirect('/prx400_specflow/spec/'.$spec_id, 303);
-    }
-
-    /** Завершить проверку: review → done. */
-    public function action_finish()
-    {
-        $id = (int) $this->request->param('id');
-        $this->_guard_csrf();
-        if ( ! $this->can('prx400.run'))
-        {
-            throw HTTP_Exception::factory(403, 'Действие доступно с правом prx400.run');
-        }
-
-        try
-        {
-            (new Service_Prx400_Specs)->finish($this->actor(), $id, (array) $this->request->post());
-        }
-        catch (Prx400_Error $e)
-        {
-            Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Не удалось завершить: '.$e->getMessage()]);
-        }
-
-        HTTP::redirect('/prx400_specflow/spec/'.$id, 303);
-    }
-
-    /** Повторный запуск разбора. */
-    public function action_launch()
-    {
-        $id = (int) $this->request->param('id');
-        $this->_guard_csrf();
-        if ( ! $this->can('prx400.run'))
-        {
-            throw HTTP_Exception::factory(403, 'Действие доступно с правом prx400.run');
-        }
-
-        try
-        {
-            (new Service_Prx400_Specs)->launch($this->actor(), $id, (array) $this->request->post());
-        }
-        catch (Prx400_Error $e)
-        {
-            Session::instance()->set('prx400_flash', ['type' => 'err', 'text' => 'Не удалось запустить: '.$e->getMessage()]);
-        }
-
-        HTTP::redirect('/prx400_specflow/spec/'.$id, 303);
-    }
-
-    /** Исходный PDF (скачивание для сверки side-by-side). */
+    /** Исходный PDF (сверка side-by-side). */
     public function action_file()
     {
-        $pdf = (new Service_Prx400_Specs)->read_pdf((int) $this->request->param('id'));
+        $this->allow(Request::GET);
+        $pdf = $this->page(fn () => (new Service_Prx400_Specs)->pdf($this->actor(), (int) $this->request->param('id')));
         $this->response->headers('Content-Type', 'application/pdf');
         $this->response->headers('Content-Length', (string) strlen($pdf));
-        $this->response->headers('Content-Disposition', 'inline');
+        $this->response->headers('Content-Disposition', 'inline; filename="spec-'.(int) $this->request->param('id').'.pdf"');
+        $this->response->headers('X-Content-Type-Options', 'nosniff');
         $this->response->body($pdf);
     }
 
     /** Экспорт JSON для ERP (?format=csv — быстрая ручная выгрузка). */
     public function action_export()
     {
+        $this->allow(Request::GET);
         $id = (int) $this->request->param('id');
-        $data = (new Service_Prx400_Specs)->spec($this->actor(), $id);
-        $format = (string) $this->request->query('format');
+        [$spec, $rows] = $this->page(fn () => (new Service_Prx400_Specs)->export($this->actor(), $id));
 
-        if ($format === 'csv')
+        if ((string) $this->request->query('format') === 'csv')
         {
-            $body = Service_Prx400_Export::csv($data['spec'], $data['rows']);
             $this->response->headers('Content-Type', 'text/csv; charset=utf-8');
             $this->response->headers('Content-Disposition', 'attachment; filename="spec-'.$id.'.csv"');
-            $this->response->body($body);
-
+            $this->response->body(Service_Prx400_Export::csv($spec, $rows));
             return;
         }
 
-        $body = json_encode(Service_Prx400_Export::json($data['spec'], $data['rows']),
-            JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
         $this->response->headers('Content-Type', 'application/json; charset=utf-8');
         $this->response->headers('Content-Disposition', 'attachment; filename="spec-'.$id.'.json"');
-        $this->response->body($body);
+        $this->response->body(json_encode(Service_Prx400_Export::json($spec, $rows),
+            JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
     }
 
-    private function _guard_csrf()
+    /** Повторный запуск разбора (режим/шаблон из формы). */
+    public function action_launch()
     {
-        if ( ! Security::check((string) $this->request->post('csrf')))
+        $id = $this->post_id();
+        $this->act('/prx400_specflow/spec/'.$id, fn () => (new Service_Prx400_Specs)->launch($this->actor(), $id, (array) $this->request->post()));
+        $this->done('/prx400_specflow/spec/'.$id, 'Разбор поставлен в очередь — статус обновится автоматически.');
+    }
+
+    /** Перезалить PDF существующей спецификации и перезапустить разбор. */
+    public function action_reupload()
+    {
+        $id = $this->post_id();
+        $this->act('/prx400_specflow/spec/'.$id, function () use ($id): void {
+            Service_Prx400_Limits::assert_request_size((int) $this->request->headers('Content-Length'));
+            (new Service_Prx400_Specs)->reupload($this->actor(), $id, $_FILES['pdf'] ?? NULL, (array) $this->request->post());
+        });
+        $this->done('/prx400_specflow/spec/'.$id, 'Файл перезалит — разбор запущен.');
+    }
+
+    /** Подтвердить строку (переключатель) или назначить код НСИ (поле code). */
+    public function action_verify()
+    {
+        $row_id = $this->post_id();
+        $back = (string) $this->request->post('back_spec');
+        $spec_id = $this->act('/prx400_specflow/spec/'.(int) $back, fn () => (new Service_Prx400_Specs)
+            ->verify_row($this->actor(), $row_id, (string) $this->request->post('code')));
+        $this->done('/prx400_specflow/spec/'.$spec_id.'#row-'.$row_id, NULL);
+    }
+
+    /** Правка полей строки — журнал в prx_400_edits, пересчёт статуса и матчинга. */
+    public function action_edit()
+    {
+        $row_id = $this->post_id();
+        $back = (string) $this->request->post('back_spec');
+        $spec_id = $this->act('/prx400_specflow/spec/'.(int) $back, fn () => (new Service_Prx400_Specs)
+            ->row_edit($this->actor(), $row_id, (array) $this->request->post()));
+        $this->done('/prx400_specflow/spec/'.$spec_id.'#row-'.$row_id, 'Строка исправлена — правка в журнале, статус пересчитан.');
+    }
+
+    /** Завершить проверку: review → done. */
+    public function action_finish()
+    {
+        $id = $this->post_id();
+        $this->act('/prx400_specflow/spec/'.$id, fn () => (new Service_Prx400_Specs)
+            ->finish($this->actor(), $id, (string) $this->request->post('accept_issues') === '1'));
+        $this->done('/prx400_specflow/spec/'.$id, 'Проверка завершена — спецификация готова к выгрузке.');
+    }
+
+    /** Удалить спецификацию (позиции и правки каскадом, файл — из хранилища). */
+    public function action_delete()
+    {
+        $id = $this->post_id();
+        $this->act('/prx400_specflow', fn () => (new Service_Prx400_Specs)->delete($this->actor(), $id));
+        $this->done('/prx400_specflow', 'Спецификация удалена: позиции и файл убраны.');
+    }
+
+    /** Справочник НСИ: список + добавление (POST). */
+    public function action_catalog()
+    {
+        $this->allow(Request::GET, Request::POST);
+        if ($this->request->method() === Request::POST)
         {
-            throw HTTP_Exception::factory(403, 'Сессия формы устарела');
+            $this->act('/prx400_specflow/catalog', fn () => (new Service_Prx400_Specs)->catalog_add($this->actor(), (array) $this->request->post()));
+            $this->done('/prx400_specflow/catalog', 'Позиция сохранена в справочнике НСИ — матчинг применится на следующем разборе.');
+            return;
         }
+
+        $this->template->content = View::factory('prx400/catalog', [
+            'catalog' => Model_Prx400_Catalog::all(),
+            'can_edit' => $this->can(Policy_Prx400_Spec::EDIT_ACL),
+            'flash' => $this->flash(),
+            'csrf' => Security::token(),
+        ]);
+    }
+
+    public function action_catalog_delete()
+    {
+        $id = $this->post_id();
+        $this->act('/prx400_specflow/catalog', fn () => (new Service_Prx400_Specs)->catalog_delete($this->actor(), $id));
+        $this->done('/prx400_specflow/catalog', 'Позиция убрана из справочника.');
+    }
+
+    /** Шаблоны: реестр + загрузка пользовательского JSON (POST). */
+    public function action_templates()
+    {
+        $this->allow(Request::GET, Request::POST);
+        if ($this->request->method() === Request::POST)
+        {
+            $title = $this->act('/prx400_specflow/templates', fn () => Service_Prx400_Templates::upload($this->actor(), $_FILES['tpl'] ?? NULL));
+            $this->done('/prx400_specflow/templates', 'Шаблон «'.$title.'» добавлен — применяется с новой задачи разбора.');
+            return;
+        }
+
+        $this->template->content = View::factory('prx400/templates', [
+            'registry' => Service_Prx400_Templates::registry(),
+            'can_edit' => $this->can(Policy_Prx400_Spec::EDIT_ACL),
+            'flash' => $this->flash(),
+            'csrf' => Security::token(),
+        ]);
+    }
+
+    public function action_template_enable()
+    {
+        $this->allow(Request::POST);
+        $enable = (string) $this->request->post('enable') === '1';
+        $this->act('/prx400_specflow/templates', fn () => Service_Prx400_Templates::set_enabled(
+            $this->actor(), (string) $this->request->post('code'), $enable));
+        $this->done('/prx400_specflow/templates', 'Шаблон '.($enable ? 'включён' : 'отключён').' — применяется с новой задачи разбора.');
+    }
+
+    public function action_template_delete()
+    {
+        $this->allow(Request::POST);
+        $this->act('/prx400_specflow/templates', fn () => Service_Prx400_Templates::delete($this->actor(), (string) $this->request->post('code')));
+        $this->done('/prx400_specflow/templates', 'Пользовательский шаблон удалён.');
+    }
+
+    /** «API для интеграторов»: контракт prx150 (ключ + scope). */
+    public function action_api_docs()
+    {
+        $this->allow(Request::GET);
+        $this->template->content = View::factory('prx400/api_docs', [
+            'scope' => Service_Prx400_Specs::SCOPE,
+            'parse_modes' => Service_Prx400_Limits::parse_modes(),
+            'templates' => Service_Prx400_Templates::options(),
+            'max_pdf' => Service_Prx400_Limits::pdf_label(),
+            'can_keys' => $this->can('prx150.admin'),
+        ]);
+    }
+
+    // ------------------------------------------------------------------
+
+    /** Разрешённые методы действия; прочие — 405 с Allow. */
+    private function allow(string ...$methods): void
+    {
+        if ( ! in_array($this->request->method(), $methods, TRUE))
+        {
+            throw (HTTP_Exception::factory(405))->allowed($methods);
+        }
+    }
+
+    /** ID из маршрута для POST-действия. */
+    private function post_id(): int
+    {
+        $this->allow(Request::POST);
+
+        return (int) $this->request->param('id');
+    }
+
+    /** GET-страница: доменная ошибка → HTTP-статус с понятным текстом. */
+    private function page(callable $read)
+    {
+        try {
+            return $read();
+        } catch (Prx400_Error $e) {
+            throw Prx400_Messages::http($e);
+        }
+    }
+
+    /** POST-действие: доменная ошибка → flash и PRG-редирект на $back. */
+    private function act(string $back, callable $operation)
+    {
+        try {
+            return $operation();
+        } catch (Prx400_Error $e) {
+            $text = Prx400_Messages::text($e->getMessage());
+            if (isset($e->details()['issues'])) $text .= ' Осталось: '.(int) $e->details()['issues'].'.';
+            Session::instance()->set(self::FLASH, ['type' => 'err', 'text' => $text]);
+            HTTP::redirect($back, 303);
+        }
+    }
+
+    private function done(string $to, ?string $text): void
+    {
+        if ($text !== NULL) Session::instance()->set(self::FLASH, ['type' => 'ok', 'text' => $text]);
+        HTTP::redirect($to, 303);
+    }
+
+    private function flash(): array
+    {
+        return (array) Session::instance()->get_once(self::FLASH, ['text' => '']);
+    }
+
+    /** Ключ идемпотентности формы загрузки: из скрытого поля, иначе новый. */
+    private static function request_key(string $posted): string
+    {
+        return preg_match('/'.Prx_Idempotency::KEY_PATTERN.'/', $posted) ? 'ui:'.substr($posted, 0, 120) : 'ui:'.bin2hex(random_bytes(16));
     }
 }
