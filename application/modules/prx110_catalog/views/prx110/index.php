@@ -57,7 +57,7 @@ $nav_favorites_ready = ($nav_favorites['status'] ?? '') === 'ready';
                                 <i class="<?php echo HTML::chars($m['icon']); ?> w-4 shrink-0 text-center text-sm text-gray-400"></i>
                                 <span class="truncate"><?php echo HTML::chars($m['title']); ?></span>
                                 <?php if ( ! empty($m['badge'])): ?>
-                                <span class="shrink-0 text-[10px] font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400"><?php echo HTML::chars((string) $m['badge']); ?></span>
+                                <span class="shrink-0 text-xs font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400"><?php echo HTML::chars((string) $m['badge']); ?></span>
                                 <?php endif; ?>
                             </a>
                             <?php // Состояние звезды приходит в первом HTML вместе с аккаунтом. ?>

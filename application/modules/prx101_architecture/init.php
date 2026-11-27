@@ -14,6 +14,14 @@ Route::set('prx101_architecture_data', 'architecture/data.json')
         'action'     => 'data',
     ]);
 
+// Памятка программиста: действие и ссылка «Памятка» в меню модуля были, маршрута — нет (404).
+Route::set('prx101_architecture_guide', 'architecture/guide')
+    ->defaults([
+        'directory'  => 'Prx101',
+        'controller' => 'Architecture',
+        'action'     => 'guide',
+    ]);
+
 Route::set('prx101_architecture', 'architecture')
     ->defaults([
         'directory'  => 'Prx101',

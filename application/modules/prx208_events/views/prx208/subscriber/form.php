@@ -61,7 +61,7 @@ $field_error = function (string $name) use ($errors): string {
 
         <div class="flex flex-wrap gap-6">
             <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                <input type="checkbox" name="is_active" value="1" class="h-4 w-4 accent-emerald-600"<?php echo $subscriber->is_active ? ' checked' : ''; ?>>
+                <input type="checkbox" name="is_active" value="1" class="h-4 w-4 accent-emerald-600"<?php /* новая подписка активна по умолчанию — как в API */ echo ($subscriber->is_active ?? TRUE) ? ' checked' : ''; ?>>
                 Активна
             </label>
             <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">

@@ -58,7 +58,7 @@ $type_labels = ['invoice'=>'Счёт', 'contract'=>'Договор', 'letter'=>'
                     </div>
                     <div class="flex flex-wrap gap-3">
                         <button class="prx-btn-process" type="submit"><span data-prx-idle><i class="fas fa-play mr-1" aria-hidden="true"></i>Маршрутизировать</span><span class="hidden" data-prx-busy><i class="fas fa-circle-notch prx-spin mr-1" aria-hidden="true"></i>Отправка</span></button>
-                        <a class="prx-btn-outline" href="/prx398_doc_router?op=example"><i class="fas fa-flask mr-1" aria-hidden="true"></i>Скачать пример PDF</a>
+                        <a class="prx-btn-secondary" href="/prx398_doc_router?op=example"><i class="fas fa-flask mr-1" aria-hidden="true"></i>Скачать пример PDF</a>
                     </div>
                 </form>
             </section>

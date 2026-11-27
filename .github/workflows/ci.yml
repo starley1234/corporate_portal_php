@@ -24,6 +24,8 @@ jobs:
           coverage: none
       - run: make check && make env-check && make test-contracts && make lint
       - run: python -m pip install -r .tools/requirements.txt && make lint-sql
+      # Полный набор статических проверок PHP/дизайна/доков (раньше — только локально, и вечно красный).
+      - run: bash .tools/php_check_all.sh
       - run: npm ci && npm test && npm run architecture && npm run test:architecture
       - run: python -m pip install -r workers/requirements-dev.txt
       - run: PYTHONPATH=workers python -m pytest workers/tests -q
@@ -80,3 +82,19 @@ jobs:
             python3 .tools/phpunit_report.py --output /tmp/prx-phpunit.log
           fi
           python3 .tools/phpunit_report.py /tmp/prx-phpunit.xml
+      # Сквозной HTTP-смоук: настоящий веб-сервер, сессия, CSRF, JSON-ошибки API,
+      # Избранное, каталог. Без него контракт «страница → JSON → браузер» не
+      # проверялся ничем (PHPUnit ходит мимо роутера и PostGuard).
+      - name: E2E HTTP smoke
+        env:
+          ADMIN_USERNAME: e2e-admin
+          ADMIN_PASSWORD: e2e-only-password-1
+          SMOKE_URL: http://127.0.0.1:8080
+          SMOKE_EXPECT_DOCFLOW: '1'
+          SMOKE_PUBLICATION_WRITE: '1'
+        run: |
+          php public_html/index.php auth:user --email=e2e-admin@example.test --username="$ADMIN_USERNAME" --password="$ADMIN_PASSWORD" --admin
+          PORT=8080 bash bin/serve > /tmp/prx-serve.log 2>&1 &
+          for _ in $(seq 1 30); do curl -fsS -o /dev/null http://127.0.0.1:8080/auth/login && break; sleep 1; done
+          export WORKER_API_TOKEN="$(grep -E '^WORKER_API_TOKEN=' .env | cut -d= -f2- | tr -d '"')"
+          python3 tests/E2e/http_smoke.py || { echo '--- bin/serve log ---'; tail -n 80 /tmp/prx-serve.log; exit 1; }

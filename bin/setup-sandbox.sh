@@ -273,6 +273,10 @@ ok "PostgreSQL поднят"
 [[ -f .env ]] || bash bin/setup.sh
 msg "Миграции"
 bash bin/console db:migrate | tail -1
+# Решения о публикации — как в CI (bin/test --backfill-publications): без них
+# все модули «в работе», и тесты каталога/Избранного расходятся с CI.
+msg "Решения о публикации (backfill, существующие не перезаписывает)"
+bash bin/console prx110:publication:backfill --apply=1 | tail -1
 source bin/_env.sh
 prx_load_env "$ROOT/.env"
 case "${PRX_DEFAULT_ADMIN:-1}" in

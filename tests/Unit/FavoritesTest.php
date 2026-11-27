@@ -131,6 +131,24 @@ class FavoritesTest extends TestCase
      * @runInSeparateProcess
      * @preserveGlobalState disabled
      */
+    /** Звезда есть в шапке каждой страницы: открывшийся сервис обязан закрепляться. */
+    public function test_every_service_that_opens_can_be_pinned(): void
+    {
+        $this->with_users(function ($first) {
+            foreach ([$this->admin_context(), $this->login_context()] as $ctx) {
+                foreach (Service_Prx110_Catalog::modules() as $m) {
+                    $opens = Service_Prx110_Catalog::can_see($m, $ctx) OR Service_Prx110_Catalog::open_in_progress($m, $ctx);
+                    if ( ! $opens) continue;
+                    $href = (string) $m['href'];
+                    $this->assertTrue(Service_Prx110_Favorites::set($first, $href, TRUE, $ctx), $href);
+                    $this->assertTrue(Service_Prx110_Favorites::set($first, rtrim($href, '/').'/page/1', TRUE, $ctx, 'Подстраница'), $href.'/page/1');
+                    $this->assertTrue(Service_Prx110_Favorites::set($first, $href, FALSE, $ctx), $href);
+                    $this->assertTrue(Service_Prx110_Favorites::set($first, rtrim($href, '/').'/page/1', FALSE, $ctx), $href.'/page/1');
+                }
+            }
+        });
+    }
+
     public function test_kicked_session_cannot_read_favorites_or_render_personal_html(): void
     {
         $old_host = $_SERVER['HTTP_HOST'] ?? NULL;

@@ -67,7 +67,7 @@ $check_labels = [
                             <span data-prx-idle><i class="fas fa-play mr-1" aria-hidden="true"></i>Распознать счёт</span>
                             <span class="hidden" data-prx-busy><i class="fas fa-circle-notch prx-spin mr-1" aria-hidden="true"></i>Отправка · <span data-prx-clock>0:00</span></span>
                         </button>
-                        <a class="prx-btn-outline" href="/prx397_invoice?op=example"><i class="fas fa-flask mr-1" aria-hidden="true"></i>Скачать пример PDF</a>
+                        <a class="prx-btn-secondary" href="/prx397_invoice?op=example"><i class="fas fa-flask mr-1" aria-hidden="true"></i>Скачать пример PDF</a>
                     </div>
                 </form>
             </section>

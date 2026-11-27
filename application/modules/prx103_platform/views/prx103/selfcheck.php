@@ -61,12 +61,12 @@ $badge = [
             <?php $group = NULL; ?>
             <?php foreach ($results as $row): ?>
                 <?php if ($row['group'] !== $group): $group = $row['group']; ?>
-                <p class="px-3.5 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                <p class="px-3.5 pt-3 pb-1 text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">
                     <?php echo HTML::chars($group); ?>
                 </p>
                 <?php endif; ?>
                 <div class="flex items-start gap-2.5 px-3.5 py-2">
-                    <span class="shrink-0 inline-flex justify-center min-w-[44px] rounded px-1.5 py-0.5 text-[11px] font-bold <?php echo $badge[$row['status']] ?? ''; ?>">
+                    <span class="shrink-0 inline-flex justify-center min-w-[44px] rounded px-1.5 py-0.5 text-xs font-bold <?php echo $badge[$row['status']] ?? ''; ?>">
                         <?php echo HTML::chars($row['status']); ?>
                     </span>
                     <span class="text-xs text-gray-700 dark:text-gray-300 break-words min-w-0">
@@ -84,16 +84,16 @@ $badge = [
                 <i class="fas fa-code mr-1.5 text-gray-400"></i>Синтаксис PHP
                 <span class="ml-1 text-xs font-semibold text-gray-400">— <?php echo (int) $lint_max; ?> файлов, идёт по частям…</span>
             </p>
-            <span data-lint-counter class="shrink-0 prx-count">0 / <?php echo (int) $lint_max; ?></span>
-        </div>
-        <div class="px-3.5 pt-2">
-            <div class="h-2 rounded bg-gray-200 dark:bg-gray-700 overflow-hidden">
-                <div data-lint-bar class="h-full w-0 bg-emerald-500 transition-all"></div>
-            </div>
+            <?php // Ход — спиннер, счётчик файлов и секундомер; полос прогресса нет (AGENTS.md). ?>
+            <span class="inline-flex shrink-0 items-center gap-2">
+                <i data-lint-spinner class="fas fa-spinner fa-spin text-gray-400" aria-hidden="true"></i>
+                <span data-lint-counter class="prx-count">0 / <?php echo (int) $lint_max; ?></span>
+                <span data-lint-clock class="prx-clock">0:00</span>
+            </span>
         </div>
         <div data-lint-status class="px-3.5 py-2 text-xs text-gray-500 dark:text-gray-400">подождите…</div>
         <div data-lint-bad class="px-3.5 pb-3 hidden">
-            <p class="text-[11px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 pb-1">Ошибки</p>
+            <p class="text-xs font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500 pb-1">Ошибки</p>
             <div data-lint-list class="space-y-1.5"></div>
         </div>
     </div>
@@ -115,7 +115,8 @@ $badge = [
     var total = parseInt(root.dataset.total || '0', 10);
     if (!total) return;
 
-    var bar = root.querySelector('[data-lint-bar]');
+    var spinner = root.querySelector('[data-lint-spinner]');
+    var watch = window.PRX && window.PRX.stopwatch ? window.PRX.stopwatch(root.querySelector('[data-lint-clock]'), 0) : null;
     var counter = root.querySelector('[data-lint-counter]');
     var status = root.querySelector('[data-lint-status]');
     var badBox = root.querySelector('[data-lint-bad]');
@@ -125,16 +126,23 @@ $badge = [
     var badCount = 0;
     var stopped = false;
 
+    function done() {
+        if (spinner) spinner.classList.add('hidden');
+        if (watch) watch.stop();
+    }
+
     function note(text) {
+        done();
         status.textContent = text;
         status.classList.remove('text-gray-500', 'dark:text-gray-400');
         status.classList.add('text-amber-600', 'dark:text-amber-400');
     }
 
     function finalLine(text, ok) {
+        done();
         status.textContent = text;
         status.classList.remove('text-gray-500', 'dark:text-gray-400');
-        status.classList.add(ok ? 'text-emerald-600' : 'text-red-600', ok ? 'dark:text-emerald-400' : 'dark:text-red-400');
+        status.classList.add(ok ? 'text-emerald-600' : 'text-rose-600', ok ? 'dark:text-emerald-400' : 'dark:text-rose-400');
     }
 
     function appendBad(rows) {
@@ -142,7 +150,7 @@ $badge = [
         badBox.classList.remove('hidden');
         rows.forEach(function (item) {
             var line = document.createElement('p');
-            line.className = 'text-xs text-red-600 dark:text-red-400 break-words';
+            line.className = 'text-xs text-rose-600 dark:text-rose-400 break-words';
             line.textContent = item.file + ': ' + item.text;
             list.appendChild(line);
         });
@@ -172,20 +180,15 @@ $badge = [
                 if (!data || stopped) return;
                 if (data.ok !== true) {
                     stopped = true;
-                    bar.classList.remove('bg-emerald-500');
-                    bar.classList.add('bg-amber-500');
                     note(data.note || 'проверка синтаксиса не смогла начаться — обновите страницу');
                     return;
                 }
                 offset = Math.max(offset, data.done);
                 badCount += data.bad.length;
                 appendBad(data.bad);
-                bar.style.width = Math.round((offset / data.total) * 100) + '%';
                 if (counter) counter.textContent = offset + ' / ' + data.total;
 
                 if (data.finished) {
-                    if (bar) bar.classList.toggle('bg-emerald-500', badCount === 0);
-                    if (badCount === 0) bar.classList.add('bg-emerald-500');
                     finalLine(badCount === 0
                         ? 'php -l: ' + data.total + ' файлов — ошибок нет'
                         : 'php -l: ' + data.total + ' файлов, найдено ошибок: ' + badCount, badCount === 0);

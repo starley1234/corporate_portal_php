@@ -81,7 +81,7 @@
                     <div class="flex justify-between gap-2"><dt class="text-gray-500 dark:text-gray-400">ID</dt><dd class="font-mono"><?php echo (int) $u->id; ?></dd></div>
                     <div class="flex justify-between gap-2"><dt class="text-gray-500 dark:text-gray-400">Входов всего</dt><dd class="font-mono"><?php echo (int) $u->logins; ?></dd></div>
                     <div class="flex justify-between gap-2"><dt class="text-gray-500 dark:text-gray-400">Последний вход</dt><dd><?php $ll = (string) $u->last_login; echo ($ll !== '' AND $ll !== '0') ? HTML::chars(Date::formatted_time(ctype_digit($ll) ? '@'.(int) $ll : $ll, 'd.m.Y H:i')) : '—'; ?></dd></div>
-                    <div class="flex justify-between gap-2"><dt class="text-gray-500 dark:text-gray-400">Статус</dt><dd class="font-semibold <?php echo Model_Prx102_User::is_active($u->active) ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'; ?>"><?php echo Model_Prx102_User::is_active($u->active) ? 'активен' : 'деактивирован'; ?></dd></div>
+                    <div class="flex justify-between gap-2"><dt class="text-gray-500 dark:text-gray-400">Статус</dt><dd class="font-semibold <?php echo Model_Prx102_User::is_active($u->active) ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'; ?>"><?php echo Model_Prx102_User::is_active($u->active) ? 'активен' : 'деактивирован'; ?></dd></div>
                 </dl>
                 <p class="prx-hint mt-2 border-t border-gray-100 pt-2 dark:border-gray-700">Пароль хранится хэшем драйвера Auth — прочитать его нельзя, только заменить.</p>
                 <?php if (empty($is_me)): ?>

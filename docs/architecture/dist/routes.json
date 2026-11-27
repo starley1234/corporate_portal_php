@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "count": 146,
+  "count": 147,
   "routes": [
     {
       "name": "cookie_consent_close",
@@ -35,6 +35,15 @@
       "regex": "",
       "controller": "Prx101_Architecture",
       "action": "data",
+      "module": "prx101_architecture",
+      "file": "application/modules/prx101_architecture/classes/Controller/Prx101/Architecture.php"
+    },
+    {
+      "name": "prx101_architecture_guide",
+      "uri": "architecture/guide",
+      "regex": "",
+      "controller": "Prx101_Architecture",
+      "action": "guide",
       "module": "prx101_architecture",
       "file": "application/modules/prx101_architecture/classes/Controller/Prx101/Architecture.php"
     },
