@@ -133,15 +133,13 @@ class Service_Prx395_Extraction
             .' AND api_client_id = '.(int) $client.' AND expires_at > now()');
         if ( ! $row) throw new Prx395_Error('not_found', 404);
         $job = $this->queue->get($id);
-        $state = [
-            'pending' => 'queued', 'processing' => 'running', 'done' => 'succeeded',
-            'failed' => 'failed', 'cancelled' => 'canceled',
-        ][$job['status'] ?? ''] ?? 'failed';
+        $state = Prx120_JobOutcome::stopped_as($job)
+            ?? ['pending' => 'queued', 'processing' => 'running', 'done' => 'succeeded'][$job['status'] ?? ''] ?? 'failed';
         $response = ['job_id' => $id, 'status' => $state, 'attempt' => (int) ($job['attempts'] ?? 0),
             'expires_at' => gmdate('c', strtotime($row['expires_at']))];
         if ($state === 'failed')
         {
-            $response['error'] = ['code' => self::error_code($job['error'] ?? '', $job !== NULL)];
+            $response['error'] = ['code' => self::error_code($job)];
         }
         elseif ($state === 'succeeded')
         {
@@ -156,13 +154,10 @@ class Service_Prx395_Extraction
         return $response;
     }
 
-    public static function error_code(string $error, bool $found = TRUE): string
+    /** Код отказа задачи: разбор текстов очереди — у prx120 (failure_code). */
+    public static function error_code(?array $job): string
     {
-        if ( ! $found) return 'job_unavailable';
-        if (preg_match('/\A(?:DocumentJobError|PermanentJobError): ([a-z_]+)\z/', $error, $m)
-            && in_array($m[1], self::FAILED_CODES, TRUE)) return $m[1];
-        if (str_starts_with($error, 'Превышен таймаут задачи')) return 'job_timeout';
-        return 'job_failed';
+        return Prx120_JobOutcome::failure_code($job, self::FAILED_CODES);
     }
 
     public function read_pdf(int $id, int $attempt): string
@@ -255,18 +250,13 @@ class Service_Prx395_Extraction
         // Компенсация после SIGKILL между сохранением в Storage и записью
         // ссылки в БД. Возрастной порог — страховка для сирот; файлы со ссылками
         // в БД не удаляются этим обходом независимо от TTL.
-        foreach (Storage::owned_ids_before(self::MODULE, 48) as $file_id)
-        {
-            if ($this->one('SELECT 1 FROM prx_395_extractions WHERE file_id = '.$file_id
-                .' UNION ALL SELECT 1 FROM prx_395_results WHERE file_id = '.$file_id.' LIMIT 1')) continue;
-            try {
-                if ( ! Storage::delete_owned($file_id, self::MODULE)) throw new RuntimeException('Артефакт не удалён');
-                $report['orphans']++;
-            } catch (Throwable $e) {
-                $report['errors']++;
-                Log_Plain::event(Log::ERROR, 'prx395 stage=purge_orphan file_id=:id', [':id' => $file_id]);
-            }
-        }
+        $sweep = Storage::sweep_orphans(self::MODULE, static function (array $ids): array {
+            $list = implode(', ', array_map('intval', $ids));
+            return array_column(Prx_Db::select('SELECT file_id FROM prx_395_extractions WHERE file_id IN ('.$list.')'
+                .' UNION SELECT file_id FROM prx_395_results WHERE file_id IN ('.$list.')'), 'file_id');
+        });
+        $report['orphans'] += $sweep['orphans'];
+        $report['errors'] += $sweep['errors'];
         return $report;
     }
 

@@ -11,6 +11,7 @@ require $module.'/classes/Model/Prx396/Batches.php';
 require $module.'/classes/Model/Prx396/Parts.php';
 require $module.'/classes/Service/Prx396/Extraction.php';
 require $root.'/application/classes/Storage.php';
+require $root.'/application/modules/prx120_jobs/classes/Prx120/JobOutcome.php';
 require $root.'/application/classes/Storage/Exception.php';
 require $root.'/application/modules/prx120_jobs/classes/Prx120/Budget/Exception.php';
 
@@ -138,17 +139,21 @@ same_limit($status->invoke($svc, 'queued', ['status' => 'failed']), 'failed', 'j
 same_limit($status->invoke($svc, 'running', ['status' => 'processing']), 'running', 'processing');
 same_limit($status->invoke($svc, 'running', ['status' => 'pending']), 'queued', 'pending');
 same_limit($status->invoke($svc, 'running', ['status' => 'cancelled']), 'canceled', 'cancelled');
+same_limit($status->invoke($svc, 'running', ['status' => 'cancelled', 'error' => 'Воркер не отвечал больше 240 с']), 'failed', 'смерть воркера — сбой, не отмена');
 same_limit($status->invoke($svc, 'running', ['status' => 'done']), 'running', 'job done, batch ещё не');
 same_limit($status->invoke($svc, 'done', ['status' => 'done']), 'succeeded', 'batch done');
 same_limit($status->invoke($svc, 'failed', ['status' => 'failed']), 'failed', 'batch failed');
 same_limit($status->invoke($svc, 'running', NULL), 'queued', 'нет задачи');
 
 // 5. Разбор кода ошибки задачи для статуса владельца.
-same_limit(Service_Prx396_Extraction::error_code('PermanentJobError: no_text'), 'no_text', 'permanent parse');
-same_limit(Service_Prx396_Extraction::error_code('DocumentJobError: worker_endpoint_unavailable'), 'worker_endpoint_unavailable', 'retryable parse');
-same_limit(Service_Prx396_Extraction::error_code('PermanentJobError: strange_code'), 'job_failed', 'unknown code');
-same_limit(Service_Prx396_Extraction::error_code('Превышен таймаут задачи 600'), 'job_timeout', 'timeout');
-same_limit(Service_Prx396_Extraction::error_code('', FALSE), 'job_unavailable', 'job gone');
+$failed = static fn (string $error): array => ['status' => 'failed', 'error' => $error];
+same_limit(Service_Prx396_Extraction::error_code($failed('PermanentJobError: no_text')), 'no_text', 'permanent parse');
+same_limit(Service_Prx396_Extraction::error_code($failed('DocumentJobError: worker_endpoint_unavailable')), 'worker_endpoint_unavailable', 'retryable parse');
+same_limit(Service_Prx396_Extraction::error_code($failed('PermanentJobError: strange_code')), 'job_failed', 'unknown code');
+same_limit(Service_Prx396_Extraction::error_code($failed('Превышен таймаут задачи 600')), 'job_timeout', 'timeout');
+same_limit(Service_Prx396_Extraction::error_code(NULL), 'job_unavailable', 'job gone');
+same_limit(Service_Prx396_Extraction::error_code(['status' => 'cancelled', 'error' => 'Воркер молчал 900 с']), 'worker_lost', 'worker lost');
+same_limit(Service_Prx396_Extraction::error_code($failed('Воркер перезапускался на этой задаче 3 раза')), 'worker_crash_loop', 'crash loop');
 
 // 6. Постановка: снимок лимитов в полезной нагрузке + visitor_id (правило prx120).
 putenv('WORKER_API_TOKEN=fixture');

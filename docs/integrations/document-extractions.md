@@ -134,7 +134,10 @@ curl --fail-with-body "$PRX_URL/api/v1/document-extractions/42" \
   `{"error":{"code":"…","details":{…}}}`. Ошибка фоновой задачи приходит в HTTP 200
   со статусом `failed` и `error.code`: например `invalid_pdf`, `encrypted_pdf`,
   `page_limit`, `no_text`, `ocr_unavailable`, `ocr_timeout`, `ocr_invalid_response`,
-  `worker_auth`, `file_unavailable`. Сетевые/сервисные сбои повторяются до трёх
+  `worker_auth`, `file_unavailable`, `worker_lost` (воркер умер посреди обработки —
+  поставьте файл заново с новым ключом), `worker_crash_loop` (воркер падает именно
+  на этом файле — повтор не поможет); `canceled` — только ручная отмена
+  администратором. Сетевые/сервисные сбои повторяются до трёх
   попыток с backoff очереди; некорректный PDF или конфигурация — без повтора.
 - Зашифрованные PDF отклоняются. Смешанный PDF локально обрабатывается
   постранично; страницы с валидным текстовым слоем не OCR-ятся. Пустые

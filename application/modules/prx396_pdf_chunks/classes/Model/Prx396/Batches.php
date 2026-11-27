@@ -132,13 +132,15 @@ class Model_Prx396_Batches {
 	}
 
 	/** Есть ли ссылка на файл артефакта в batches или parts (сироты при уборке). */
-	public static function has_file(int $file_id): bool
+	/** Какие из артефактов prx212 ещё нужны пачкам и частям (Storage::sweep_orphans). */
+	public static function referenced_files(array $ids): array
 	{
-		return (bool) Prx_Db::one(
-			'SELECT 1 FROM prx_396_batches WHERE file_id = :f
-			 UNION ALL
-			 SELECT 1 FROM prx_396_parts WHERE text_file_id = :f
-			 LIMIT 1',
-			[':f' => $file_id]);
+		if ($ids === []) return [];
+		$list = implode(', ', array_map('intval', $ids));
+
+		return array_column(Prx_Db::select(
+			'SELECT file_id FROM prx_396_batches WHERE file_id IN ('.$list.')
+			 UNION
+			 SELECT text_file_id FROM prx_396_parts WHERE text_file_id IN ('.$list.')'), 'file_id');
 	}
 }

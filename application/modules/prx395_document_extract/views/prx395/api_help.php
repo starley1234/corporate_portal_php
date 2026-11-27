@@ -32,7 +32,7 @@ $labels = $limits['labels'];
     <pre id="prx395-api-status" class="mt-2 overflow-x-auto rounded-lg bg-gray-900 p-3 text-xs leading-5 text-gray-100"><code>curl --fail-with-body "$PRX_URL/api/v1/document-extractions/42" \
   -H "Authorization: Bearer $PRX_API_KEY"</code></pre>
     <p class="prx-hint mt-2">42 — пример. Используйте <code>status_url</code> из ответа своего запроса.</p>
-    <p class="prx-hint mt-3"><code>queued → running → succeeded</code>; при отказе — <code>failed</code> и <code>error.code</code>. Возможна отмена <code>canceled</code>. HTTP 200 не означает успешный OCR: проверяйте поле <code>status</code>.</p>
+    <p class="prx-hint mt-3"><code>queued → running → succeeded</code>; при отказе — <code>failed</code> и <code>error.code</code>. <code>canceled</code> — только ручная отмена администратором; смерть воркера — <code>failed</code> с кодом <code>worker_lost</code> (поставьте файл заново с новым ключом) или <code>worker_crash_loop</code> (файл роняет воркер). HTTP 200 не означает успешный OCR: проверяйте поле <code>status</code>.</p>
 </section>
 <section class="prx-card" aria-labelledby="prx395-limits">
     <h2 id="prx395-limits" class="prx-h3">Лимиты и повторные запросы</h2>

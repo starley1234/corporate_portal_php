@@ -138,13 +138,73 @@ final class Storage {
     }
 
     /**
-     * ID своих приватных артефактов старше $hours часов — уборка после сбоев.
+     * ID своих приватных артефактов старше $hours часов, от новых к старым;
+     * $before_id > 0 — следующая страница. Для уборки — sweep_orphans().
      * @return int[]
      */
-    public static function owned_ids_before(string $module, int $hours, int $limit = 100): array
+    public static function owned_ids_before(string $module, int $hours, int $limit = 100, int $before_id = 0): array
     {
-        $ids = self::read('owned_ids_before '.$module, fn ($service) => $service->owned_file_ids_before($module, $hours, $limit));
+        $ids = self::read('owned_ids_before '.$module, fn ($service) => $service->owned_file_ids_before($module, $hours, $limit, $before_id));
         return is_array($ids) ? array_map('intval', $ids) : [];
+    }
+
+    /** Страница и потолок страниц sweep_orphans() за один проход. */
+    const SWEEP_BATCH = 200;
+    const SWEEP_PAGES = 100;
+
+    /**
+     * Убрать осиротевшие артефакты модуля: файл сохранён, а ссылка на него в
+     * таблице модуля не записана (сбой между Storage::save и INSERT).
+     *
+     * Обход постраничный, от новых к старым: живые файлы со ссылками (их у
+     * модуля с долгим хранением тысячи) не заслоняют сирот — раньше первые
+     * 100 старейших живых файлов съедали всю выборку, и сироты не убирались.
+     *
+     *   Storage::sweep_orphans('prx397', fn (array $ids) => Model_X::referenced_files($ids));
+     *
+     * @param callable(int[]): int[] $referenced какие из ID ещё нужны модулю (один запрос на страницу)
+     * @return array{orphans: int, errors: int}
+     */
+    public static function sweep_orphans(string $module, callable $referenced, int $hours = 48, int $batch = self::SWEEP_BATCH): array
+    {
+        $report = ['orphans' => 0, 'errors' => 0];
+        $before = 0;
+        for ($page = 0; $page < self::SWEEP_PAGES; $page++)
+        {
+            $ids = self::owned_ids_before($module, $hours, $batch, $before);
+            if ($ids === []) break;
+            try
+            {
+                $keep = array_flip(array_map('intval', $referenced($ids)));
+            }
+            catch (Throwable $e)
+            {
+                // Не знаем, что живо, — ничего не удаляем.
+                $report['errors']++;
+                Kohana::$log->add(Log::ERROR, 'Storage: sweep_orphans :module referenced — :type', [':module' => $module, ':type' => get_class($e)]);
+                break;
+            }
+            foreach ($ids as $file_id)
+            {
+                if (isset($keep[$file_id])) continue;
+                try
+                {
+                    if ( ! self::delete_owned($file_id, $module)) throw new RuntimeException('не удалён');
+                    $report['orphans']++;
+                }
+                catch (Throwable $e)
+                {
+                    $report['errors']++;
+                    Kohana::$log->add(Log::ERROR, 'Storage: sweep_orphans :module file_id=:id — :type', [
+                        ':module' => $module, ':id' => $file_id, ':type' => get_class($e),
+                    ]);
+                }
+            }
+            if (count($ids) < $batch) break;
+            $before = min($ids);
+        }
+
+        return $report;
     }
 
     // ------------------------------------------------------------------

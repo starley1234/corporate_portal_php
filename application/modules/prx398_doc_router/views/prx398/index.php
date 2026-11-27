@@ -3,6 +3,9 @@ $labels_limits = $limits['labels'];
 $state = $row['status'] ?? '';
 $labels = ['queued'=>'В очереди','running'=>'В обработке','done'=>'Маршрут определён','review'=>'Ручная проверка','failed'=>'Ошибка','canceled'=>'Отменено'];
 $messages = [
+    'worker_lost' => 'Воркер остановился посреди обработки (перезапуск или сбой). Загрузите файл ещё раз.',
+    'worker_crash_loop' => 'Воркер падает именно на этом файле — повтор не поможет. Проверьте файл и журнал воркера.',
+    'job_timeout' => 'Обработка не уложилась в отведённое время. Попробуйте файл поменьше или повторите позже.',
     'worker_not_configured'=>'На стороне PHP не задан WORKER_API_TOKEN.',
     'file_required'=>'Выберите PDF-файл.', 'file_too_large'=>'Файл больше '.$labels_limits['max_pdf'].'.',
     'pdf_required'=>'Загрузите именно PDF.', 'page_limit'=>'Превышен лимит страниц: '.$labels_limits['max_pages'].'.',

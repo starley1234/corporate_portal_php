@@ -54,6 +54,7 @@ require $root.'/application/classes/Prx/DomainError.php';
 foreach (['JobQueue/Maintenance', 'JobQueue/Monitor', 'JobQueue'] as $part) {
     require $root.'/application/modules/prx120_jobs/classes/Service/Prx120/'.$part.'.php';
 }
+require $root.'/application/modules/prx120_jobs/classes/Prx120/JobOutcome.php';
 require $module.'/classes/Prx400/Error.php';
 require $module.'/classes/Prx400/Messages.php';
 foreach (['Limits', 'Templates', 'Match', 'Checks', 'Pipeline', 'Specs', 'Export'] as $class) {
@@ -180,10 +181,11 @@ check(Service_Prx400_Pipeline::clean_math([])['via'] === 'ocr' && Service_Prx400
 check(Prx400_Messages::warning('vision_page_3_failed') !== 'vision_page_3_failed', 'у предупреждения есть текст');
 
 // ---- Коды ошибок: из очереди и для API — только белый список
-check(Service_Prx400_Specs::error_code('PermanentJobError: no_text') === 'no_text');
-check(Service_Prx400_Specs::error_code('DocumentJobError: header_not_found') === 'header_not_found');
-check(Service_Prx400_Specs::error_code('PermanentJobError: /etc/passwd leaked') === 'job_failed', 'произвольный текст очереди не становится кодом');
-check(Service_Prx400_Specs::error_code('Превышен таймаут задачи (600 с)') === 'job_timeout');
+$failed = static fn (string $error): array => ['status' => 'failed', 'error' => $error];
+check(Service_Prx400_Specs::error_code($failed('PermanentJobError: no_text')) === 'no_text');
+check(Service_Prx400_Specs::error_code($failed('DocumentJobError: header_not_found')) === 'header_not_found');
+check(Service_Prx400_Specs::error_code($failed('PermanentJobError: /etc/passwd leaked')) === 'job_failed', 'произвольный текст очереди не становится кодом');
+check(Service_Prx400_Specs::error_code($failed('Превышен таймаут задачи (600 с)')) === 'job_timeout');
 check(Service_Prx400_Specs::public_code('no_rows') === 'no_rows');
 check(Service_Prx400_Specs::public_code('no_rows: Строки не найдены') === 'no_rows', 'легаси «код: текст»');
 check(Service_Prx400_Specs::public_code('Какой-то русский текст') === 'job_failed');

@@ -194,7 +194,7 @@ class Service_Prx396_Extraction
         ];
         if ($state === 'failed')
         {
-            $code = $batch['error_code'] ?: self::error_code($job['error'] ?? '', $job !== NULL);
+            $code = $batch['error_code'] ?: self::error_code($job);
             $response['error'] = ['code' => $code];
         }
         return $response;
@@ -205,23 +205,17 @@ class Service_Prx396_Extraction
         if ($batch_status === 'done') return 'succeeded';
         if ($batch_status === 'failed') return 'failed';
         if ( ! $job) return 'queued';
-        $map = [
-            'pending' => 'queued', 'processing' => 'running', 'done' => 'succeeded',
-            'failed' => 'failed', 'cancelled' => 'canceled',
-        ];
-        $js = $map[$job['status'] ?? ''] ?? 'queued';
         // failed в очереди — финал (попытки исчерпаны или PermanentJobError):
         // показывать «running» значит врать владельцу, что будет повтор.
-        return $js === 'succeeded' ? 'running' : $js;
+        // done в очереди, а пачка не собрана — ещё «running».
+        return Prx120_JobOutcome::stopped_as($job)
+            ?? ['pending' => 'queued', 'processing' => 'running', 'done' => 'running'][$job['status'] ?? ''] ?? 'queued';
     }
 
-    public static function error_code(string $error, bool $found = TRUE): string
+    /** Код отказа задачи: разбор текстов очереди — у prx120 (failure_code). */
+    public static function error_code(?array $job): string
     {
-        if ( ! $found) return 'job_unavailable';
-        if (preg_match('/\A(?:DocumentJobError|PermanentJobError): ([a-z_]+)\z/', $error, $m)
-            && in_array($m[1], self::FAILED_CODES, TRUE)) return $m[1];
-        if (str_starts_with($error, 'Превышен таймаут задачи')) return 'job_timeout';
-        return 'job_failed';
+        return Prx120_JobOutcome::failure_code($job, self::FAILED_CODES);
     }
 
     public function plan(int $batch_id, int $attempt, array $body): array
@@ -484,17 +478,9 @@ class Service_Prx396_Extraction
                 Log_Plain::event(Log::ERROR, 'prx396 batch_id=:id stage=purge error_type=:type', [':id' => $id, ':type' => get_class($e)]);
             }
         }
-        foreach (Storage::owned_ids_before(self::MODULE, 48) as $file_id)
-        {
-            if (Model_Prx396_Batches::has_file($file_id)) continue;
-            try {
-                if ( ! Storage::delete_owned($file_id, self::MODULE)) throw new RuntimeException('Артефакт не удалён');
-                $report['orphans']++;
-            } catch (Throwable $e) {
-                $report['errors']++;
-                Log_Plain::event(Log::ERROR, 'prx396 stage=purge_orphan file_id=:id', [':id' => $file_id]);
-            }
-        }
+        $sweep = Storage::sweep_orphans(self::MODULE, [Model_Prx396_Batches::class, 'referenced_files']);
+        $report['orphans'] += $sweep['orphans'];
+        $report['errors'] += $sweep['errors'];
         return $report;
     }
 

@@ -484,14 +484,18 @@ class Service_Prx212_Storage {
         return $file === NULL || $this->_delete_file($file);
     }
 
-    /** Инвентаризация приватных артефактов после аварий до регистрации в модуле. */
-    public function owned_file_ids_before(string $module, int $hours, int $limit = 100): array
+    /**
+     * Инвентаризация приватных артефактов после аварий до регистрации в модуле.
+     * От новых к старым; $before_id > 0 — следующая страница (ID меньше курсора).
+     */
+    public function owned_file_ids_before(string $module, int $hours, int $limit = 100, int $before_id = 0): array
     {
-        $rows = DB::select('id')->from('prx_212_files')
+        $query = DB::select('id')->from('prx_212_files')
             ->where('module_prefix', '=', $module)->where('user_id', 'IS', NULL)
             ->where('deleted_at', 'IS', NULL)->where('is_public', '=', 0)
-            ->where('created_at', '<', DB::expr('now() - interval \'1 hour\' * '.max(1, $hours)))
-            ->order_by('id')->limit(max(1, min(1000, $limit)))->execute()->as_array();
+            ->where('created_at', '<', DB::expr('now() - interval \'1 hour\' * '.max(1, $hours)));
+        if ($before_id > 0) $query->where('id', '<', $before_id);
+        $rows = $query->order_by('id', 'DESC')->limit(max(1, min(1000, $limit)))->execute()->as_array();
         return array_map('intval', array_column($rows, 'id'));
     }
 

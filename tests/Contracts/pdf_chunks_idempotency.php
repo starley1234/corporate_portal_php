@@ -11,6 +11,7 @@ require $module.'/classes/Model/Prx396/Batches.php';
 require $module.'/classes/Model/Prx396/Parts.php';
 require $module.'/classes/Service/Prx396/Extraction.php';
 require $root.'/application/classes/Storage.php';
+require $root.'/application/modules/prx120_jobs/classes/Prx120/JobOutcome.php';
 require $root.'/application/classes/Storage/Exception.php';
 
 class Kohana { public static $config; public static $log; }

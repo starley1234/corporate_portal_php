@@ -151,16 +151,9 @@ final class Service_Prx400_Pipeline
             }
         }
 
-        foreach (Storage::owned_ids_before(Service_Prx400_Specs::MODULE, 48) as $file_id)
-        {
-            if (Model_Prx400_Spec::file_referenced($file_id)) continue;
-            try {
-                if (Storage::delete_owned($file_id, Service_Prx400_Specs::MODULE)) $report['orphans']++;
-            } catch (Throwable $e) {
-                $report['errors']++;
-                Log_Plain::event(Log::ERROR, 'prx400 file_id=:f stage=orphan error_type=:t', [':f' => $file_id, ':t' => get_class($e)]);
-            }
-        }
+        $sweep = Storage::sweep_orphans(Service_Prx400_Specs::MODULE, [Model_Prx400_Spec::class, 'referenced_files']);
+        $report['orphans'] += $sweep['orphans'];
+        $report['errors'] += $sweep['errors'];
 
         return $report;
     }

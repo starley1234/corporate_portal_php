@@ -104,7 +104,10 @@ curl --fail-with-body "$PRX_URL/api/v1/pdf-chunks/42/result" \
   (`queued`, `running`, `succeeded`, `failed`, `canceled`), `attempt`,
   `parts_done`/`parts_total`, `next_part`, `pages_total`, `expires_at`.
   `failed` в очереди — финал: попытки исчерпаны или ошибка не лечится
-  повтором, в ответе есть `error.code`.
+  повтором, в ответе есть `error.code`. `worker_lost` — воркер умер посреди
+  обработки (стоит поставить тот же файл с новым `Idempotency-Key`),
+  `worker_crash_loop` — воркер падает именно на этом файле (повтор не поможет).
+  `canceled` — только ручная отмена администратором.
 - `GET .../result` доступен при `succeeded` и отдаёт `text/plain` по частям
   (spool-чтение, не «весь текст в JSON»); до готовности —
   `409 result_not_ready`.

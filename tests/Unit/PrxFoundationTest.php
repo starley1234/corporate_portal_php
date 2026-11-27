@@ -206,6 +206,57 @@ class PrxFoundationTest extends TestCase
         }
     }
 
+    /**
+     * Уборка сирот не застревает на живых файлах: раньше модуль брал 100
+     * старейших артефактов и пропускал живые — при сотне живых сирота не
+     * удалялась никогда. Здесь страница = 2, а живых старых файлов — 3.
+     */
+    public function test_storage_sweep_orphans_pages_past_live_files(): void
+    {
+        $db = $this->db_with('prx_212_storage_backends');
+        if ($db === NULL) $this->markTestSkipped('Нет БД: Storage::sweep_orphans не проверен');
+
+        $root = sys_get_temp_dir().'/prx_storage_test_'.bin2hex(random_bytes(4));
+        $db->begin();
+        try
+        {
+            $db->query(Database::UPDATE, 'UPDATE prx_212_storage_backends SET is_active = 0', FALSE);
+            $db->query(Database::INSERT, 'INSERT INTO prx_212_storage_backends (name, driver, config_data, is_active) VALUES ('
+                .$db->quote('prx_test_'.bin2hex(random_bytes(4))).", 'local', "
+                .$db->quote(json_encode(['root_path' => $root])).', 1)', FALSE);
+
+            $module = 'prx999_sweep_'.bin2hex(random_bytes(3));   // свой префикс — чужие файлы стенда не мешают
+            $ids = [];
+            for ($i = 0; $i < 6; $i++) $ids[] = Storage::put('artifact '.$i, 'a.txt', $module, NULL, FALSE, 'text/plain');
+            $fresh = array_pop($ids);                                  // моложе 48 ч — не трогается
+            $db->query(Database::UPDATE, 'UPDATE prx_212_files SET created_at = now() - interval \'3 days\' WHERE id IN ('
+                .implode(',', $ids).')', FALSE);
+            $live = array_slice($ids, 0, 3);                           // три старейших — со ссылками
+            $orphans = array_slice($ids, 3);
+
+            $seen = [];
+            $report = Storage::sweep_orphans($module, function (array $page) use ($live, &$seen): array {
+                $seen[] = $page;
+                return array_values(array_intersect($page, $live));
+            }, 48, 2);
+
+            $this->assertSame(['orphans' => 2, 'errors' => 0], $report);
+            foreach ($orphans as $id) $this->assertNull(Storage::read_owned($id, $module, 100));
+            foreach (array_merge($live, [$fresh]) as $id) $this->assertNotNull(Storage::read_owned($id, $module, 100));
+            $this->assertSame([[$orphans[1], $orphans[0]], [$live[2], $live[1]], [$live[0]]], $seen); // от новых к старым, по 2
+
+            // Сбой проверки ссылок — ничего не удаляется.
+            $failed = Storage::sweep_orphans($module, function (): array { throw new RuntimeException('db down'); });
+            $this->assertSame(['orphans' => 0, 'errors' => 1], $failed);
+            foreach ($live as $id) $this->assertNotNull(Storage::read_owned($id, $module, 100));
+        }
+        finally
+        {
+            $db->rollback();
+            self::remove_tree($root);
+        }
+    }
+
     private static function remove_tree(string $dir): void
     {
         if ( ! is_dir($dir)) return;

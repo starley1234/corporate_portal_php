@@ -58,49 +58,17 @@ class Service_Prx120_JobQueue {
     }
 
     // ---------------------------------------------------------------------
-    // Почему задачу остановило обслуживание очереди
+    // Почему задачу остановило обслуживание очереди — Prx120_JobOutcome
+    // (чистая классификация без БД; здесь — совместимые псевдонимы)
     // ---------------------------------------------------------------------
 
-    /** Воркер замолчал (упал, перезапущен на другом узле, завис) — повтор осмыслен. */
-    const STOP_WORKER_LOST = 'worker_lost';
+    const STOP_WORKER_LOST = Prx120_JobOutcome::WORKER_LOST;
+    const STOP_CRASH_LOOP = Prx120_JobOutcome::CRASH_LOOP;
 
-    /** Воркер падал именно на этой задаче, попытки исчерпаны — повтор вреден. */
-    const STOP_CRASH_LOOP = 'worker_crash_loop';
-
-    /**
-     * Причина остановки задачи обслуживанием очереди — для модулей, которые
-     * решают, перезапускать ли свою работу. Тексты ошибок принадлежат prx120
-     * (Maintenance здесь и workers/prx_workers/queue.py в pg-режиме), поэтому
-     * разбирает их только prx120: модулю нужен код, а не чужая строка.
-     *
-     * @return string|NULL STOP_WORKER_LOST | STOP_CRASH_LOOP | NULL (иное)
-     */
+    /** @see Prx120_JobOutcome::stop_reason() */
     public static function stop_reason(?array $job): ?string
     {
-        if ($job === NULL OR ! in_array((string) ($job['status'] ?? ''), [self::STATUS_CANCELLED, self::STATUS_FAILED], TRUE))
-        {
-            return NULL;
-        }
-        $error = (string) ($job['error'] ?? '');
-
-        if (str_starts_with($error, 'Воркер перезапускался на этой задаче'))
-        {
-            return self::STOP_CRASH_LOOP;
-        }
-        foreach ([
-            'Воркер не отвечал больше ',            // авто-стоп по пульсу (PHP и python)
-            'Воркер не выходил на связь больше ',   // пульс есть, прогресса нет
-            'Воркер молчал ',                       // правило 1: молчание дольше timeout
-            'Воркер перестал подавать признаки жизни', // правило 2а
-        ] as $prefix)
-        {
-            if (str_starts_with($error, $prefix))
-            {
-                return self::STOP_WORKER_LOST;
-            }
-        }
-
-        return NULL;
+        return Prx120_JobOutcome::stop_reason($job);
     }
 
     // ---------------------------------------------------------------------

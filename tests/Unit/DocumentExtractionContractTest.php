@@ -32,10 +32,17 @@ class DocumentExtractionContractTest extends TestCase
         ]);
         $this->assertSame(['provider' => 'remote', 'format' => 'markdown',
             'pages_total' => 3, 'pages_processed' => NULL, 'warnings' => []], $result);
-        $this->assertSame('invalid_pdf', Service_Prx395_Extraction::error_code('PermanentJobError: invalid_pdf'));
-        $this->assertSame('ocr_timeout', Service_Prx395_Extraction::error_code('DocumentJobError: ocr_timeout'));
-        $this->assertSame('job_failed', Service_Prx395_Extraction::error_code('PermanentJobError: invalid_pdf private-text'));
-        $this->assertSame('job_unavailable', Service_Prx395_Extraction::error_code('', FALSE));
+        $failed = static fn (string $error): array => ['status' => 'failed', 'error' => $error];
+        $this->assertSame('invalid_pdf', Service_Prx395_Extraction::error_code($failed('PermanentJobError: invalid_pdf')));
+        $this->assertSame('ocr_timeout', Service_Prx395_Extraction::error_code($failed('DocumentJobError: ocr_timeout')));
+        $this->assertSame('job_failed', Service_Prx395_Extraction::error_code($failed('PermanentJobError: invalid_pdf private-text')));
+        $this->assertSame('job_unavailable', Service_Prx395_Extraction::error_code(NULL));
+        // Обслуживание очереди остановило задачу умершего воркера: клиенту — сбой с кодом, не «отменено».
+        $lost = ['status' => 'cancelled', 'error' => 'Воркер не отвечал больше 240 с'];
+        $this->assertSame('worker_lost', Service_Prx395_Extraction::error_code($lost));
+        $this->assertSame('failed', Prx120_JobOutcome::stopped_as($lost));
+        $this->assertSame('canceled', Prx120_JobOutcome::stopped_as(['status' => 'cancelled', 'error' => 'Отменено администратором']));
+        $this->assertNull(Prx120_JobOutcome::stopped_as(['status' => 'processing']));
     }
 
     public function test_incomplete_page_count_is_rejected_on_callback(): void

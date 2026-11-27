@@ -489,19 +489,15 @@ final class Service_Prx400_Specs
             case 'pending': return ['queued', NULL];
             case 'processing': return ['running', NULL];
             case 'cancelled': return ['failed', 'job_canceled'];
-            case 'failed': return ['failed', self::error_code((string) ($job['error'] ?? ''))];
+            case 'failed': return ['failed', self::error_code($job)];
             default: return ['failed', 'result_missing']; // done без записанного результата
         }
     }
 
-    /** Код из текста ошибки очереди: только из белого списка. */
-    public static function error_code(string $error): string
+    /** Код отказа задачи: только из белого списка; разбор текстов очереди — у prx120. */
+    public static function error_code(?array $job): string
     {
-        if (preg_match('/\A(?:DocumentJobError|PermanentJobError): ([a-z_]+)\z/', $error, $m)
-            AND in_array($m[1], self::FAILED_CODES, TRUE)) return $m[1];
-        if (str_starts_with($error, 'Превышен таймаут задачи')) return 'job_timeout';
-
-        return 'job_failed';
+        return Prx120_JobOutcome::failure_code($job, self::FAILED_CODES);
     }
 
     /** Код для API: легаси-записи хранили русский текст — наружу только код. */

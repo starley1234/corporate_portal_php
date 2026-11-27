@@ -169,8 +169,11 @@ class Model_Prx400_Spec {
             [':d' => $days]);
     }
 
-    public static function file_referenced(int $file_id): bool
+    /** Какие из артефактов prx212 ещё нужны спецификациям (Storage::sweep_orphans). */
+    public static function referenced_files(array $ids): array
     {
-        return Prx_Db::one('SELECT 1 AS x FROM prx_400_specs WHERE file_id = :f LIMIT 1', [':f' => $file_id]) !== NULL;
+        if ($ids === []) return [];
+
+        return array_column(Prx_Db::select('SELECT file_id FROM prx_400_specs WHERE file_id IN ('.implode(', ', array_map('intval', $ids)).')'), 'file_id');
     }
 }
