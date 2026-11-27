@@ -15,7 +15,7 @@
  *       'reset'  => '/prx300/admin/employees',         // необязательно
  *   ]); ?>
  *
- * `type`: search|text|select|checkbox. Форма всегда GET: фильтры не меняют
+ * `type`: search|text|date|select|checkbox. Форма всегда GET: фильтры не меняют
  * состояние и должны быть ссылкой, которой можно поделиться.
  */
 $fl_id = isset($id) ? (string) $id : 'fl';
@@ -54,7 +54,7 @@ $fl_grid = $fl_columns[count($fl_fields)] ?? 'md:grid-cols-2 xl:grid-cols-4';
         <?php endforeach; ?>
             </select>
     <?php else: ?>
-            <input id="<?php echo HTML::chars($fl_field_id); ?>" name="<?php echo HTML::chars($fl_name); ?>" type="<?php echo $fl_type === 'search' ? 'search' : 'text'; ?>" value="<?php echo HTML::chars((string) $fl_value); ?>"<?php if ( ! empty($fl_field['placeholder'])): ?> placeholder="<?php echo HTML::chars((string) $fl_field['placeholder']); ?>"<?php endif; ?> class="prx-input mt-1 w-full">
+            <input id="<?php echo HTML::chars($fl_field_id); ?>" name="<?php echo HTML::chars($fl_name); ?>" type="<?php echo in_array($fl_type, ['search', 'date'], TRUE) ? $fl_type : 'text'; ?>" value="<?php echo HTML::chars((string) $fl_value); ?>"<?php if ( ! empty($fl_field['placeholder'])): ?> placeholder="<?php echo HTML::chars((string) $fl_field['placeholder']); ?>"<?php endif; ?> class="prx-input mt-1 w-full">
     <?php endif; ?>
         </div>
 <?php endif; ?>

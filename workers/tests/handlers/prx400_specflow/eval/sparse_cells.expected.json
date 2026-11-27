@@ -1,0 +1,6 @@
+{"template_id": "spec_generic_v1", "rows": [
+ {"pos_path": "1", "name": "Уголок стальной 50х5", "qty": 1.2, "unit": "т", "level": 0},
+ {"pos_path": "2", "name": "Электроды сварочные", "qty": 45, "unit": "кг", "level": 0},
+ {"pos_path": "3", "name": "Грунт-эмаль по ржавчине серая, быстросохнущая", "qty": 18, "unit": "кг", "level": 0},
+ {"pos_path": "4", "name": "Болт фундаментный", "qty": 16, "unit": "шт.", "level": 0}
+]}

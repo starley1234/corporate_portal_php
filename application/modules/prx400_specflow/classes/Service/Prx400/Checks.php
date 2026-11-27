@@ -31,6 +31,28 @@ final class Service_Prx400_Checks
         return $flags;
     }
 
+    /** Флаги, которые считает сервер (пересчёт после правки); прочие (gap) — контекст документа. */
+    public const SERVER_FLAGS = ['math_row', 'unit_fractional', 'unit_mismatch'];
+
+    /** Единица строки расходится с единицей привязанной позиции НСИ (синонимы — Match::unit_key). */
+    public static function match_flags(array $row, ?array $match): array
+    {
+        $catalog_unit = Service_Prx400_Match::unit_key((string) ($match['unit'] ?? ''));
+        $row_unit = Service_Prx400_Match::unit_key((string) ($row['unit'] ?? ''));
+        if (empty($match['code']) OR $catalog_unit === '' OR $row_unit === '' OR $catalog_unit === $row_unit) return [];
+
+        return [['type' => 'unit_mismatch', 'unit' => mb_substr((string) $match['unit'], 0, 16)]];
+    }
+
+    /** Флаги строки заново: контекст документа сохраняется, серверные — пересчитываются. */
+    public static function refresh(array $row, ?array $match): array
+    {
+        $kept = array_values(array_filter((array) ($row['flags'] ?? []), static fn ($f): bool =>
+            is_array($f) && ! in_array((string) ($f['type'] ?? ''), self::SERVER_FLAGS, TRUE)));
+
+        return array_merge($kept, self::row_flags($row), self::match_flags($row, $match));
+    }
+
     public static function number($value): ?float
     {
         return is_int($value) || is_float($value) || (is_string($value) && is_numeric($value)) ? (float) $value : NULL;

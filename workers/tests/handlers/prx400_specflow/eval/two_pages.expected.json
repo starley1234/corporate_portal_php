@@ -1,0 +1,6 @@
+{"template_id": "spec_generic_v1", "rows": [
+ {"pos_path": "1", "name": "Труба стальная 57х3,5", "qty": 36, "unit": "м", "level": 0, "page": 1},
+ {"pos_path": "2", "name": "Отвод 90-57х3,5", "qty": 12, "unit": "шт.", "level": 0, "page": 1},
+ {"pos_path": "3", "name": "Фланец 1-50-16", "qty": 8, "unit": "шт.", "level": 0, "page": 2},
+ {"pos_path": "4", "name": "Прокладка паронитовая Ду50", "qty": 8, "unit": "шт.", "level": 0, "page": 2}
+]}

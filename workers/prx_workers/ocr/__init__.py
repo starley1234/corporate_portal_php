@@ -58,6 +58,8 @@ async def extract_pdf(path: Path, *, provider: str | None = None, limits: dict, 
             "pages_total": total,
             "pages_processed": total,
             "warnings": [] if all(values) else ["empty_page"],
+            # Тексты по страницам (номер страницы строки — prx400); text — склейка.
+            "page_texts": list(values),
         }
     await progress("ocr_remote")
     return await extract_remote(path, probe["pages"], max_text_bytes=limits["max_text_bytes"], module=module)

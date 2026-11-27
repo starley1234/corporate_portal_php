@@ -144,3 +144,55 @@ def test_row_cap():
     tpl["_max_rows"] = 3
     result = parse.parse(SPEC_TEXT, tpl)
     assert len(result["rows"]) == 3
+
+
+# --- Иерархия BOM, страницы, уровни ----------------------------------------
+
+BOM_TEXT = """\
+СПЕЦИФИКАЦИЯ № КБ-20
+
+№      Наименование                Тип, марка      Кол-во      Ед. изм.
+1      Узел крепления сборный      КБ20.01         2           шт.
+1.1    Кронштейн                   КБ20.01.01      1           шт.
+1.2    Болт М16х60                 ГОСТ 7798-70    4           шт.
+1.4    Гайка М16                   ГОСТ 5915-70    4           шт.
+2.     Рама                        КБ20.02         1           шт.
+\fЛист 2
+№      Наименование                Тип, марка      Кол-во      Ед. изм.
+2.1    Швеллер 10П                 ГОСТ 8240       6           м
+"""
+
+
+def test_hierarchical_positions_pages_and_sibling_gaps():
+    out = parse.parse(BOM_TEXT, TPL)
+    rows = out["rows"]
+    assert [r["pos_path"] for r in rows] == ["1", "1.1", "1.2", "1.4", "2", "2.1"]
+    assert [r["pos"] for r in rows] == [1, 1, 2, 4, 2, 1]
+    assert [r["page"] for r in rows] == [1, 1, 1, 1, 1, 2], "страница строки — по \\f"
+    # пропуск только среди «братьев» 1.x (1.3), переход 1.4 → 2 и 2 → 2.1 — не пропуски
+    assert out["math"]["gaps"] == [{"after_pos": "1.2", "next_pos": "1.4"}]
+    assert {"type": "gap", "after_pos": "1.2"} in rows[3]["flags"]
+    assert "level" not in rows[0], "без колонки уровня его выводит сервер из pos_path"
+
+
+def test_flat_text_without_pages_keeps_old_contract():
+    rows = parse.parse(SPEC_TEXT, TPL)["rows"]
+    assert all("page" not in r for r in rows)
+    assert rows[0]["pos_path"] == "1"
+
+
+def test_level_column_sap_style_normalized_from_minimum():
+    tpl = json.loads(json.dumps(TPL))
+    tpl["table_rules"]["columns"]["level"] = {"match": ["уровень"], "type": "text"}
+    text = """\
+СПЕЦИФИКАЦИЯ
+
+Уровень   №    Наименование          Кол-во    Ед. изм.
+.1        1    Редуктор              1         шт.
+..2       2    Вал                   1         шт.
+..2       3    Подшипник 6205        2         шт.
+.1        4    Двигатель             1         шт.
+"""
+    rows = parse.parse(text, tpl)["rows"]
+    assert [r["level"] for r in rows] == [0, 1, 1, 0]
+    assert parse._level("3") == 3 and parse._level("...") == 3 and parse._level("abc") is None

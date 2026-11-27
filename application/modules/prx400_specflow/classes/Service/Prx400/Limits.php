@@ -36,10 +36,27 @@ final class Service_Prx400_Limits
         ];
     }
 
-    /** Грубая отсечка тела запроса до разбора multipart (как prx397). */
+    /** @return array{provider: string, url: string, token: string, timeout_ms: int} */
+    public static function catalog(): array
+    {
+        return (array) Kohana::$config->load(self::CONFIG)->get('catalog');
+    }
+
+    /** @return array{timeout_ms: int, max_attempts: int, allow_http: bool, allow_private: bool} */
+    public static function hooks(): array
+    {
+        return (array) Kohana::$config->load(self::CONFIG)->get('hooks');
+    }
+
+    public static function bulk_verify_min(): float
+    {
+        return (float) Kohana::$config->load(self::CONFIG)->get('bulk_verify_min');
+    }
+
+    /** Грубая отсечка тела запроса до разбора multipart (как prx397): все файлы спецификации. */
     public static function assert_request_size(int $bytes): void
     {
-        if ($bytes > self::get('max_pdf_bytes') + self::MULTIPART_OVERHEAD_BYTES)
+        if ($bytes > max(self::get('max_pdf_bytes'), self::get('max_total_bytes')) + self::MULTIPART_OVERHEAD_BYTES)
         {
             throw new Prx400_Error('file_too_large', 413);
         }

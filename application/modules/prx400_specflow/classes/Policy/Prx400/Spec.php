@@ -48,6 +48,25 @@ final class Policy_Prx400_Spec
         return $owner;
     }
 
+    /**
+     * Работа с позициями (HITL): правка, подтверждение, код НСИ, завершение,
+     * перезапуск. UI — prx400.run; API-ключ — scope prx400.review поверх
+     * prx400.extract и только по своим записям (require_view).
+     *
+     * @return int подписанный ID действующего лица (UI < 0, ключ > 0) — для
+     *             журнала правок и verified_by, как owner_id
+     */
+    public static function require_review(Prx_Principal $principal): int
+    {
+        $owner = self::require_edit($principal);
+        if ($principal instanceof Prx150_Principal AND ! $principal->hasScope('prx400.review'))
+        {
+            throw new Prx400_Error('forbidden', 403);
+        }
+
+        return $owner;
+    }
+
     /** Видимость конкретной записи; чужая для API-ключа — not_found. */
     public static function require_view(Prx_Principal $principal, ?array $spec): array
     {

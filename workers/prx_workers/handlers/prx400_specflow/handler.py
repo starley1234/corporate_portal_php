@@ -120,6 +120,55 @@ async def handle(ctx: HandlerContext, payload: dict) -> dict:
         raise
 
 
+# Содержательные ошибки одного файла многофайловой спецификации: файл
+# пропускается с предупреждением file_<n>_<code>, если другие дали строки.
+FILE_SOFT_CODES = {"no_text", "header_not_found", "no_rows"}
+MAX_FILES = 50
+
+
+def payload_files(payload: dict) -> list[int]:
+    """Номера файлов спецификации из payload (files: [{file_no}]); старые задачи — [1]."""
+    files = payload.get("files")
+    if files is None:
+        return [1]
+    if not isinstance(files, list) or not files or len(files) > MAX_FILES:
+        raise PermanentJobError("bad_payload")
+    numbers = []
+    for f in files:
+        n = f.get("file_no") if isinstance(f, dict) else None
+        if not isinstance(n, int) or isinstance(n, bool) or not 1 <= n <= 99 or n in numbers:
+            raise PermanentJobError("bad_payload")
+        numbers.append(n)
+    return numbers
+
+
+def paged_text(ocr: dict, lim: dict) -> str:
+    """Текст со страницами через \f (номер страницы строки); иначе склейка OCR."""
+    pages = ocr.get("page_texts")
+    if isinstance(pages, list) and pages and all(isinstance(p, str) for p in pages):
+        joined = "\f".join(p.replace("\f", "\n") for p in pages)
+        if len(joined.encode("utf-8")) <= lim["max_text_bytes"]:
+            return joined
+    return ocr.get("text", "")
+
+
+def merge_math(parts: list[dict]) -> dict:
+    """Математика нескольких файлов: ошибки и пропуски — списком, итоги — суммой."""
+    if len(parts) == 1:
+        return parts[0]
+    declared = [p["totals"]["declared"] for p in parts]
+    computed = [p["totals"]["computed"] for p in parts]
+    d = round(sum(declared), 2) if all(v is not None for v in declared) else None
+    c = round(sum(computed), 2) if all(v is not None for v in computed) else None
+    ok = abs(d - c) <= 0.01 if d is not None and c is not None else None
+    return {
+        "row_errors": [e for p in parts for e in p["row_errors"]],
+        "gaps": [g for p in parts for g in p["gaps"]],
+        "totals": {"declared": d, "computed": c, "ok": ok},
+        "summary": "; ".join(f"файл {i}: {p['summary']}" for i, p in enumerate(parts, 1)),
+    }
+
+
 async def _run(ctx: HandlerContext, payload: dict, headers: dict, url: str, job_id: int) -> dict:
     templates = payload.get("templates")
     if not isinstance(templates, list) or not templates or not all(isinstance(t, dict) for t in templates):
@@ -135,81 +184,130 @@ async def _run(ctx: HandlerContext, payload: dict, headers: dict, url: str, job_
     forced_tpl = next((t for t in templates if t.get("template_id") == forced), None)
     if forced and forced_tpl is None:
         raise PermanentJobError("template_not_found")
-    log.info("specflow.parse job_id=%s mode=%s templates=%d forced=%s", job_id, mode, len(templates), forced or "-")
+    numbers = payload_files(payload)
+    legacy = payload.get("files") is None
+    log.info("specflow.parse job_id=%s mode=%s templates=%d forced=%s files=%d",
+             job_id, mode, len(templates), forced or "-", len(numbers))
 
     lim = limits()
+    parts: list[dict] = []
+    skipped: list[tuple[int, str]] = []
     async with httpx.AsyncClient(headers=headers, timeout=60, follow_redirects=False) as client:
         with tempfile.TemporaryDirectory(prefix="prx400_") as tmp:
-            path = Path(tmp) / "document.pdf"
-            await ctx.progress("download_pdf")
-            await job_api.download_pdf(client, url + "/file", path, lim["max_pdf_bytes"])
+            for n in numbers:
+                path = Path(tmp) / f"document_{n}.pdf"
+                await ctx.progress("download_pdf", f"{n}/{len(numbers)}" if len(numbers) > 1 else "")
+                await job_api.download_pdf(client, url + ("/file" if legacy else f"/file/{n}"), path, lim["max_pdf_bytes"])
+                # Листы-продолжения часто без якорей шаблона: берём шаблон первого файла.
+                fallback = parts[0]["tpl"] if parts else None
+                try:
+                    part = await _parse_file(ctx, path, mode, templates, forced_tpl or None, fallback, lim)
+                except PermanentJobError as e:
+                    if len(numbers) == 1 or str(e) not in FILE_SOFT_CODES:
+                        raise
+                    log.warning("specflow.parse job_id=%s file=%d skipped code=%s", job_id, n, e)
+                    skipped.append((n, str(e)))
+                    path.unlink(missing_ok=True)
+                    continue
+                path.unlink(missing_ok=True)
+                for row in part["result"]["rows"]:
+                    row["file_no"] = n
+                part["file_no"] = n
+                parts.append(part)
+                if sum(len(p["result"]["rows"]) for p in parts) > lim["max_rows"]:
+                    raise PermanentJobError("result_too_large")
 
-            probe = await probe_pdf(path, local=True, limits=lim)
-            pages = int(probe["pages"])
+            if not parts:
+                raise PermanentJobError(skipped[0][1] if skipped else "no_rows")
 
-            result: dict | None = None
-            tpl: dict | None = None
-            hits: list[str] = []
-            info: dict = {}
-            text = ""
-            warnings: list[str] = []
-
-            if mode != "vision":
-                await ctx.progress("ocr")
-                ocr = await extract_pdf(path, limits=ocr_limits(lim), module="PRX400",
-                                        progress=lambda stage, detail="": ctx.progress(stage, detail))
-                text = ocr.get("text", "")
-                warnings += [w for w in (ocr.get("warnings") or []) if isinstance(w, str)]
-                if len(text.strip()) >= 40:
-                    await ctx.progress("template")
-                    if forced_tpl is not None:
-                        tpl, hits = forced_tpl, ["forced"]
-                    else:
-                        tpl, hits = parse.detect_template(text, templates)
-                    if tpl is not None:
-                        await ctx.progress("parse")
-                        try:
-                            result = parse.parse(text, tpl)
-                            result.setdefault("stats", {})["via"] = "ocr"
-                            result["stats"]["pages_processed"] = int(ocr.get("pages_processed") or pages)
-                        except ValueError:
-                            result = None  # ocr_vision уйдёт в vision-фолбэк
-
-            if mode == "ocr":
-                # Детерминированный путь без фолбэков: ошибка вместо «результат 0».
-                if len(text.strip()) < 40:
-                    raise PermanentJobError("no_text")
-                if tpl is None or result is None:
-                    raise PermanentJobError("header_not_found")
-
-            if mode != "ocr" and (result is None or not result["rows"]):
-                await ctx.progress("vision")
-                if forced_tpl is not None:
-                    tpl = forced_tpl
-                else:
-                    info = await vision.detect(path, pages, templates, lim)
-                    tpl = next((t for t in templates if t.get("template_id") == info["template_id"]), tpl)
-                vres = await vision.extract(path, pages, tpl, lim, ctx.progress)
-                warnings += vres["warnings"]
-                if vres["rows"]:
-                    rules = (tpl or {}).get("table_rules") or {}
-                    totals: dict = {}
-                    math = parse.run_math_checks(vres["rows"], totals, rules)
-                    result = {
-                        "rows": vres["rows"], "totals": totals, "math": math,
-                        "stats": {"via": "vision", "pages_processed": vres["pages_processed"]},
-                    }
-                    hits = []
-
-            if tpl is None:
-                raise PermanentJobError("header_not_found")
-            if result is None or not result["rows"]:
-                raise PermanentJobError("no_rows")
-            if len(result["rows"]) > lim["max_rows"]:
-                raise PermanentJobError("result_too_large")
-
-            body = result_body(tpl, hits, text, info, pages, result, warnings)
+            first = parts[0]
+            rows = [r for p in parts for r in p["result"]["rows"]]
+            warnings = [w for p in parts for w in p["warnings"]] + [f"file_{n}_{code}" for n, code in skipped]
+            vias = {p["result"].get("stats", {}).get("via") or "ocr" for p in parts}
+            result = {
+                "rows": rows,
+                "math": merge_math([p["result"]["math"] for p in parts]),
+                "stats": {"via": vias.pop() if len(vias) == 1 else "mixed",
+                          "pages_processed": sum(int(p["result"].get("stats", {}).get("pages_processed") or p["pages"]) for p in parts)},
+            }
+            text = "\n\n".join(p["text"] for p in parts if p["text"])
+            body = result_body(first["tpl"], first["hits"], text, first["info"], sum(p["pages"] for p in parts), result, warnings)
             check_result_size(body, lim)
             await ctx.progress("store")
             await job_api.post_result(client, url + "/result", body)
-            return {"status": "done", "job_id": job_id}
+            return {"status": "done", "job_id": job_id, "files": len(parts)}
+
+
+async def _parse_file(ctx: HandlerContext, path: Path, mode: str, templates: list[dict], forced_tpl: dict | None,
+                      fallback_tpl: dict | None, lim: dict) -> dict:
+    """Один PDF → {tpl, hits, info, text, warnings, result, pages}; строки с page."""
+    probe = await probe_pdf(path, local=True, limits=lim)
+    pages = int(probe["pages"])
+
+    result: dict | None = None
+    tpl: dict | None = None
+    hits: list[str] = []
+    info: dict = {}
+    text = ""
+    warnings: list[str] = []
+
+    if mode != "vision":
+        await ctx.progress("ocr")
+        ocr = await extract_pdf(path, limits=ocr_limits(lim), module="PRX400",
+                                progress=lambda stage, detail="": ctx.progress(stage, detail))
+        text = ocr.get("text", "")
+        warnings += [w for w in (ocr.get("warnings") or []) if isinstance(w, str)]
+        if len(text.strip()) >= 40:
+            await ctx.progress("template")
+            if forced_tpl is not None:
+                tpl, hits = forced_tpl, ["forced"]
+            else:
+                tpl, hits = parse.detect_template(text, templates)
+                if tpl is None and fallback_tpl is not None:
+                    tpl, hits = fallback_tpl, ["continuation"]
+            if tpl is not None:
+                await ctx.progress("parse")
+                try:
+                    result = parse.parse(paged_text(ocr, lim), tpl)
+                    result.setdefault("stats", {})["via"] = "ocr"
+                    result["stats"]["pages_processed"] = int(ocr.get("pages_processed") or pages)
+                except ValueError:
+                    result = None  # ocr_vision уйдёт в vision-фолбэк
+
+    if mode == "ocr":
+        # Детерминированный путь без фолбэков: ошибка вместо «результат 0».
+        if len(text.strip()) < 40:
+            raise PermanentJobError("no_text")
+        if tpl is None or result is None:
+            raise PermanentJobError("header_not_found")
+
+    if mode != "ocr" and (result is None or not result["rows"]):
+        await ctx.progress("vision")
+        if forced_tpl is not None:
+            tpl = forced_tpl
+        elif fallback_tpl is not None and tpl is None:
+            tpl = fallback_tpl
+        else:
+            info = await vision.detect(path, pages, templates, lim)
+            tpl = next((t for t in templates if t.get("template_id") == info["template_id"]), tpl)
+        vres = await vision.extract(path, pages, tpl, lim, ctx.progress)
+        warnings += vres["warnings"]
+        if vres["rows"]:
+            rules = (tpl or {}).get("table_rules") or {}
+            totals: dict = {}
+            parse.normalize_levels(vres["rows"])
+            math = parse.run_math_checks(vres["rows"], totals, rules)
+            result = {
+                "rows": vres["rows"], "totals": totals, "math": math,
+                "stats": {"via": "vision", "pages_processed": vres["pages_processed"]},
+            }
+            hits = []
+
+    if tpl is None:
+        raise PermanentJobError("header_not_found")
+    if result is None or not result["rows"]:
+        raise PermanentJobError("no_rows")
+    if len(result["rows"]) > lim["max_rows"]:
+        raise PermanentJobError("result_too_large")
+
+    return {"tpl": tpl, "hits": hits, "info": info, "text": text, "warnings": warnings, "result": result, "pages": pages}

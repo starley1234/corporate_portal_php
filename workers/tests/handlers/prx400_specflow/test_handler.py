@@ -161,3 +161,73 @@ async def test_vision_all_pages_failed_is_unavailable(monkeypatch, tmp_path):
     monkeypatch.setattr(vision, "arun_structured_messages", llm)
     with pytest.raises(PermanentJobError, match="vision_unavailable"):
         await vision.extract(tmp_path / "x.pdf", 2, TPL, {"max_vision_pages": 8, "max_rows": 100}, progress)
+
+
+def test_payload_files_contract():
+    assert h.payload_files({}) == [1], "задача до 007 — один файл по старому адресу"
+    assert h.payload_files({"files": [{"file_no": 1}, {"file_no": 2}]}) == [1, 2]
+    for bad in ([], [{"file_no": 0}], [{"file_no": 1}, {"file_no": 1}], [{"file_no": True}], "x"):
+        with pytest.raises(PermanentJobError, match="bad_payload"):
+            h.payload_files({"files": bad})
+
+
+def test_paged_text_and_merge_math():
+    lim = {"max_text_bytes": 1000}
+    assert h.paged_text({"text": "a\n\nb", "page_texts": ["a", "b"]}, lim) == "a\fb"
+    assert h.paged_text({"text": "a\n\nb"}, lim) == "a\n\nb"
+    assert h.paged_text({"text": "x", "page_texts": ["y" * 2000]}, lim) == "x", "сверх лимита — без страниц"
+    m1 = {"row_errors": [1], "gaps": [], "totals": {"declared": 10.0, "computed": 10.0, "ok": True}, "summary": "a"}
+    m2 = {"row_errors": [], "gaps": [2], "totals": {"declared": 5.0, "computed": 4.0, "ok": False}, "summary": "b"}
+    merged = h.merge_math([m1, m2])
+    assert merged["row_errors"] == [1] and merged["gaps"] == [2]
+    assert merged["totals"] == {"declared": 15.0, "computed": 14.0, "ok": False}
+    assert h.merge_math([m1]) is m1
+
+
+@pytest.mark.asyncio
+async def test_multi_file_rows_tagged_and_soft_failure_skipped(reports, monkeypatch):
+    downloaded, posted = [], {}
+
+    async def download(client, url, path, max_bytes):
+        downloaded.append(url.rsplit("/", 2)[-2:])
+        path.write_bytes(b"%PDF")
+
+    async def parse_file(ctx, path, mode, templates, forced, fallback, lim):
+        n = int(path.stem.rsplit("_", 1)[1])
+        if n == 2:
+            raise PermanentJobError("header_not_found")
+        assert (fallback is None) == (n == 1), "шаблон первого файла — подсказка для продолжений"
+        rows = [{"pos": 1, "pos_path": "1", "raw_name": f"Позиция файла {n}", "code_doc": "", "qty": 1.0, "unit": "шт",
+                 "unit_price": None, "total_price": None, "flags": [], "section": None, "page": 1}]
+        math = {"row_errors": [], "gaps": [], "totals": {"declared": None, "computed": None, "ok": None}, "summary": "ok"}
+        return {"tpl": TPL, "hits": ["спецификация"], "info": {}, "text": f"СПЕЦИФИКАЦИЯ {n}", "warnings": [],
+                "result": {"rows": rows, "math": math, "stats": {"via": "ocr", "pages_processed": 1}}, "pages": 1}
+
+    async def post(client, url, body):
+        posted.update(body)
+
+    monkeypatch.setattr(h.job_api, "download_pdf", download)
+    monkeypatch.setattr(h.job_api, "post_result", post)
+    monkeypatch.setattr(h, "_parse_file", parse_file)
+    payload = {"templates": [TPL], "parse_mode": "ocr", "files": [{"file_no": 1}, {"file_no": 2}, {"file_no": 3}]}
+    out = await h.handle(_ctx(), payload)
+    assert out["files"] == 2
+    assert downloaded == [["file", "1"], ["file", "2"], ["file", "3"]]
+    assert [r["file_no"] for r in posted["rows"]] == [1, 3]
+    assert "file_2_header_not_found" in posted["warnings"]
+    assert posted["pages"] == 2 and reports == []
+
+
+@pytest.mark.asyncio
+async def test_single_file_content_error_still_terminal(reports, monkeypatch):
+    async def download(client, url, path, max_bytes):
+        path.write_bytes(b"%PDF")
+
+    async def parse_file(*_a):
+        raise PermanentJobError("no_rows")
+
+    monkeypatch.setattr(h.job_api, "download_pdf", download)
+    monkeypatch.setattr(h, "_parse_file", parse_file)
+    with pytest.raises(PermanentJobError, match="no_rows"):
+        await h.handle(_ctx(), {"templates": [TPL], "parse_mode": "ocr", "files": [{"file_no": 1}]})
+    assert reports == ["no_rows"]

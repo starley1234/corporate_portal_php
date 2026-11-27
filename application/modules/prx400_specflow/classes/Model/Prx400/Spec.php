@@ -42,22 +42,51 @@ class Model_Prx400_Spec {
     }
 
     /**
-     * Список с агрегатами строк одним запросом. $owner NULL — рабочее место
-     * (все записи), иначе только записи владельца.
+     * Список с агрегатами строк, фильтрами и страницами. $owner NULL — рабочее
+     * место (все записи), иначе только записи владельца.
+     *
+     * @param array{status?: string, q?: string, from?: string, to?: string} $filter
+     * @return array{rows: array, total: int}
      */
-    public static function listing(?int $owner, int $limit = 100): array
+    public static function listing(?int $owner, int $limit = 100, int $offset = 0, array $filter = []): array
     {
-        return Prx_Db::select(
+        $where = ['(CAST(:owner AS BIGINT) IS NULL OR s.owner_id = CAST(:owner AS BIGINT))'];
+        $params = [':owner' => $owner];
+        if (($filter['status'] ?? '') !== '')
+        {
+            $where[] = 's.status = :status';
+            $params[':status'] = (string) $filter['status'];
+        }
+        if (trim((string) ($filter['q'] ?? '')) !== '')
+        {
+            $where[] = '(s.original_name ILIKE :q OR s.spec_number ILIKE :q OR s.department ILIKE :q OR s.template_title ILIKE :q)';
+            $params[':q'] = '%'.addcslashes(mb_substr(trim((string) $filter['q']), 0, 200), '%_\\').'%';
+        }
+        if (($filter['from'] ?? '') !== '')
+        {
+            $where[] = 's.created_at >= CAST(:from AS date)';
+            $params[':from'] = (string) $filter['from'];
+        }
+        if (($filter['to'] ?? '') !== '')
+        {
+            $where[] = 's.created_at < CAST(:to AS date) + 1';
+            $params[':to'] = (string) $filter['to'];
+        }
+        $sql_where = ' WHERE '.implode(' AND ', $where);
+        $total = Prx_Db::one('SELECT count(*) AS c FROM prx_400_specs s'.$sql_where, $params);
+
+        $rows = Prx_Db::select(
             'SELECT s.*, coalesce(r.total, 0) AS rows_total, coalesce(r.issue, 0) AS rows_issue
                FROM prx_400_specs s
                LEFT JOIN (
                     SELECT spec_id, count(*) AS total,
                            count(*) FILTER (WHERE status <> \'ok\' AND NOT verified) AS issue
                       FROM prx_400_rows GROUP BY spec_id
-               ) r ON r.spec_id = s.id
-              WHERE (CAST(:owner AS BIGINT) IS NULL OR s.owner_id = CAST(:owner AS BIGINT))
-              ORDER BY s.id DESC LIMIT '.max(1, $limit),
-            [':owner' => $owner]);
+               ) r ON r.spec_id = s.id'.$sql_where.'
+              ORDER BY s.id DESC LIMIT '.max(1, $limit).' OFFSET '.max(0, $offset),
+            $params);
+
+        return ['rows' => $rows, 'total' => (int) ($total['c'] ?? 0)];
     }
 
     public static function delete(int $id): int
@@ -155,7 +184,7 @@ class Model_Prx400_Spec {
     public static function in_flight(int $limit = 200): array
     {
         return Prx_Db::select(
-            'SELECT id, job_id, status, updated_at FROM prx_400_specs
+            'SELECT id, owner_id, job_id, status, updated_at FROM prx_400_specs
               WHERE status IN (\'queued\', \'running\') ORDER BY id LIMIT '.max(1, $limit));
     }
 
@@ -174,6 +203,11 @@ class Model_Prx400_Spec {
     {
         if ($ids === []) return [];
 
-        return array_column(Prx_Db::select('SELECT file_id FROM prx_400_specs WHERE file_id IN ('.implode(', ', array_map('intval', $ids)).')'), 'file_id');
+        $in = implode(', ', array_map('intval', $ids));
+
+        return array_values(array_unique(array_merge(
+            array_column(Prx_Db::select('SELECT file_id FROM prx_400_specs WHERE file_id IN ('.$in.')'), 'file_id'),
+            array_column(Prx_Db::select('SELECT file_id FROM prx_400_spec_files WHERE file_id IN ('.$in.')'), 'file_id')
+        )));
     }
 }

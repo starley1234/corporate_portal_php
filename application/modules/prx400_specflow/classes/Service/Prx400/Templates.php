@@ -12,7 +12,8 @@
 final class Service_Prx400_Templates
 {
     /** Колонки, которые понимает парсер воркера (parse.py). */
-    public const COLUMNS = ['pos', 'item_name', 'code_doc', 'qty', 'unit', 'unit_price', 'total_price'];
+    // level — уровень вложенности BOM («2», «..2»), если в документе есть такая графа.
+    public const COLUMNS = ['pos', 'item_name', 'code_doc', 'qty', 'unit', 'unit_price', 'total_price', 'level'];
     private const PATTERN_KEYS = ['skip_line_patterns', 'totals_patterns', 'section_patterns'];
     private const MAX_JSON_BYTES = 65536;
 

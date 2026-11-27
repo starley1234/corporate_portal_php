@@ -40,6 +40,7 @@ final class Service_Prx400_CatalogImport
     {
         Policy_Prx400_Spec::require_edit($principal);
         if ( ! $principal instanceof Prx_Actor) throw new Prx400_Error('forbidden', 403);
+        Service_Prx400_Catalog::require_writable(); // внешний НСИ ведётся в своей системе
 
         $error = is_array($upload) ? ($upload['error'] ?? UPLOAD_ERR_NO_FILE) : UPLOAD_ERR_NO_FILE;
         if (in_array($error, [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], TRUE)) throw new Prx400_Error('catalog_file_too_large', 413);

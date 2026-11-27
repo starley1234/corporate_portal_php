@@ -92,6 +92,8 @@
             </form>
 <?php endif; ?>
             <p class="prx-hint mt-3">Файл до 64 КиБ. Обязательные поля: <code class="font-mono text-xs">template_id</code>, <code class="font-mono text-xs">template_name</code>, <code class="font-mono text-xs">detection_policy.anchor_keywords</code> (≥1), <code class="font-mono text-xs">table_rules.columns</code>. Коды встроенных шаблонов зарезервированы.</p>
+            <p class="prx-hint mt-2">Колонки: <?php echo implode(', ', array_map(static fn (string $c): string => '<code class="font-mono text-xs">'.HTML::chars($c).'</code>', Service_Prx400_Templates::COLUMNS)); ?>.
+                Иерархия BOM: номер позиции вида «1.2.3» распознаётся сам; для выгрузок SAP/1С со столбцом уровня («Уровень», «..2») сопоставьте его колонке <code class="font-mono text-xs">level</code>.</p>
             <p class="prx-hint mt-2">Отключённые шаблоны не уезжают в задачи — их якоря перестают влиять на детекцию. Встроенные отключаются оверлеем в БД, файлы модуля не меняются.</p>
         </aside>
     </div>

@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import logging
+import re
 from pathlib import Path
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -34,8 +35,13 @@ class _Detect(BaseModel):
     department: str | None = Field(default=None, description="Разработал/подразделение, если видно")
 
 
+_POS_PATH = re.compile(r"^\d{1,4}(?:\.\d{1,4}){0,7}$")
+
+
 class _Row(BaseModel):
-    pos: int | None = Field(default=None, description="Позиция (графа «Поз.»)")
+    pos: int | None = Field(default=None, description="Позиция (графа «Поз.»), последнее число номера")
+    pos_path: str | None = Field(default=None, description="Номер позиции целиком, как в документе: 3 или 1.2.3 (иерархия BOM)")
+    level: int | None = Field(default=None, description="Уровень вложенности BOM, если в документе есть графа «Уровень»")
     section: str = Field(default="", description="Раздел: Документация, Сборочные единицы, Детали, Стандартные изделия…")
     raw_name: str = Field(default="", description="Наименование и техническая характеристика")
     code_doc: str = Field(default="", description="Обозначение/децимальный номер/тип/марка (например КБ20.01.02.01, В5-1-22)")
@@ -83,7 +89,7 @@ def _columns_hint(tpl: dict | None) -> str:
     columns = ((tpl or {}).get("table_rules") or {}).get("columns") or {}
     titles = {
         "pos": "Поз.", "item_name": "Наименование", "code_doc": "Обозначение/Тип, марка",
-        "qty": "Кол.", "unit": "Ед. изм.", "unit_price": "Цена", "total_price": "Сумма",
+        "qty": "Кол.", "unit": "Ед. изм.", "unit_price": "Цена", "total_price": "Сумма", "level": "Уровень",
     }
     parts = []
     for key, meta in columns.items():
@@ -170,14 +176,22 @@ async def extract(path: Path, pages: int, tpl: dict | None, lim: dict, progress)
             continue
         log.info("specflow vision: page=%d ok rows=%d", page, len(parsed.rows or []))
         for r in parsed.rows:
-            rows.append({
-                "pos": r.pos, "section": (r.section or "").strip()[:255],
+            path = (r.pos_path or "").strip().rstrip(".")
+            if not _POS_PATH.match(path):
+                path = str(r.pos) if isinstance(r.pos, int) and 0 <= r.pos <= 9999 else ""
+            row = {
+                "pos": int(path.rsplit(".", 1)[-1]) if path else r.pos, "pos_path": path or None,
+                "page": page,
+                "section": (r.section or "").strip()[:255],
                 "raw_name": (r.raw_name or "").strip()[:4000],
                 "code_doc": (r.code_doc or "").strip()[:255],
                 "qty": r.qty, "unit": (r.unit or "").strip()[:16],
                 "unit_price": r.unit_price, "total_price": r.total_price,
                 "flags": [],
-            })
+            }
+            if isinstance(r.level, int) and 0 <= r.level <= 20:
+                row["level"] = r.level
+            rows.append(row)
         await asyncio.sleep(0)
     if failed == cap:
         raise PermanentJobError("vision_unavailable")

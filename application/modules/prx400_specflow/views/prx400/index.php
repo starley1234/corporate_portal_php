@@ -1,11 +1,15 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
 /**
- * /prx400_specflow — список спецификаций + загрузка PDF.
+ * /prx400_specflow — список спецификаций (фильтры, страницы) + загрузка PDF
+ * (один или несколько файлов одной спецификации: листы, приложения).
  *
- * Переменные: $specs, $templates, $catalog_count, $max_pdf, $can_edit,
- * $request_key (идемпотентность формы), $flash, $csrf.
+ * Переменные: $list {rows,total,page,per,pages,filter}, $statuses,
+ * $per_options, $templates, $catalog_count, $catalog_provider, $max_pdf,
+ * $max_files, $can_edit, $request_key (идемпотентность формы), $flash, $csrf.
  */
+$specs = $list['rows'];
+$filter = $list['filter'];
 $status_ru = [
     'queued' => ['prx-badge-wait', 'в очереди'],
     'running' => ['prx-badge-run', 'разбор идёт'],
@@ -34,8 +38,8 @@ $status_ru = [
                 <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
                 <input type="hidden" name="request_key" value="<?php echo HTML::chars($request_key); ?>">
                 <label class="block">
-                    <span class="prx-label">PDF со спецификацией (текстовый слой или скан), до <?php echo HTML::chars($max_pdf); ?></span>
-                    <input type="file" name="pdf" accept="application/pdf,.pdf" required
+                    <span class="prx-label">PDF спецификации (текстовый слой или скан), до <?php echo HTML::chars($max_pdf); ?>. Несколько файлов (листы, приложения, до <?php echo (int) $max_files; ?>) — одна спецификация, порядок как при выборе</span>
+                    <input type="file" name="pdf[]" multiple accept="application/pdf,.pdf" required
                            class="prx-input mt-1 w-full file:mr-3 file:rounded-lg file:border-0 file:bg-blue-600 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white">
                 </label>
                 <fieldset class="block">
@@ -67,16 +71,35 @@ $status_ru = [
                 <li class="flex gap-2"><span class="prx-count">1</span><span>Загрузка PDF — разбор идёт в очереди воркеров.</span></li>
                 <li class="flex gap-2"><span class="prx-count">2</span><span>Воркер подбирает шаблон, склеивает многострочные наименования, сверяет арифметику.</span></li>
                 <li class="flex gap-2"><span class="prx-count">3</span><span>Позиции сопоставляются с НСИ: зелёные — автоматически, жёлтые — на ваше подтверждение, красные — новая позиция или ошибка.</span></li>
-                <li class="flex gap-2"><span class="prx-count">4</span><span>Подтвердите спорные строки и выгрузите JSON (или CSV) для ERP.</span></li>
+                <li class="flex gap-2"><span class="prx-count">4</span><span>Подтвердите спорные строки и выгрузите JSON, CSV или XLSX с закупочной ведомостью.</span></li>
             </ol>
+            <p class="prx-hint mt-3">Справочник НСИ: <?php echo $catalog_provider === 'local' ? 'локальный' : 'внешний ('.HTML::chars($catalog_provider).')'; ?>, позиций: <?php echo (int) $catalog_count; ?>. Всё то же доступно по <a href="/prx400_specflow/api-docs" class="prx-link">API</a>.</p>
         </aside>
     </div>
 
+<?php
+$status_options = ['' => 'Любой'];
+foreach ($statuses as $st) $status_options[$st] = $status_ru[$st][1] ?? $st;
+$filtered = $filter['status'] !== '' || $filter['q'] !== '' || $filter['from'] !== '' || $filter['to'] !== '';
+echo View::factory('partials/filters', [
+    'id' => 'prx400-specs',
+    'action' => '/prx400_specflow',
+    'fields' => [
+        ['type' => 'search', 'name' => 'q', 'label' => 'Поиск', 'placeholder' => 'файл, шифр, подразделение, шаблон', 'value' => $filter['q']],
+        ['type' => 'select', 'name' => 'status', 'label' => 'Статус', 'value' => $filter['status'], 'options' => $status_options],
+        ['type' => 'date', 'name' => 'from', 'label' => 'Загружена с', 'value' => $filter['from']],
+        ['type' => 'date', 'name' => 'to', 'label' => 'по', 'value' => $filter['to']],
+    ],
+    'reset' => $filtered ? '/prx400_specflow' : '',
+]); ?>
+
     <section class="prx-card mt-5 overflow-x-auto p-0">
         <div class="border-b border-gray-100 px-4 py-3.5 dark:border-gray-700/60">
-            <h2 class="prx-h3">Спецификации <span class="prx-count ml-1"><?php echo count($specs); ?></span></h2>
+            <h2 class="prx-h3">Спецификации <span class="prx-count ml-1"><?php echo (int) $list['total']; ?></span></h2>
         </div>
-<?php if (empty($specs)): ?>
+<?php if (empty($specs) AND $filtered): ?>
+        <p class="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">По фильтру ничего не нашлось. <a href="/prx400_specflow" class="prx-link">Сбросить фильтр</a></p>
+<?php elseif (empty($specs)): ?>
         <p class="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">Пока пусто. Загрузите первый PDF — и таблица появится здесь. Перед разбором наполните <a href="/prx400_specflow/catalog" class="prx-link">справочник НСИ</a> — иначе все позиции будут помечены «новая».</p>
 <?php else: ?>
         <table class="prx-table">
@@ -85,7 +108,7 @@ $status_ru = [
 <?php foreach ($specs as $s): list($badge, $label) = $status_ru[(string) $s['status']] ?? ['prx-badge-wait', $s['status']];
     $error_text = (string) $s['status'] === 'failed' ? Prx400_Messages::text((string) $s['error']) : ''; ?>
             <tr>
-                <td class="max-w-[280px]"><span class="block truncate font-semibold text-gray-900 dark:text-white" title="<?php echo HTML::chars($s['original_name']); ?>"><?php echo HTML::chars($s['original_name']); ?></span></td>
+                <td class="max-w-[280px]"><a href="/prx400_specflow/spec/<?php echo (int) $s['id']; ?>" class="block truncate font-semibold text-gray-900 hover:underline dark:text-white" title="<?php echo HTML::chars($s['original_name']); ?>"><?php echo HTML::chars($s['original_name']); ?></a><?php if ((int) $s['files_count'] > 1): ?><span class="text-xs text-gray-400"><i class="fas fa-copy mr-1"></i>файлов: <?php echo (int) $s['files_count']; ?></span><?php endif; ?></td>
                 <td class="text-xs text-gray-500 dark:text-gray-400"><?php echo HTML::chars((string) $s['owner_name']); ?></td>
                 <td class="text-xs text-gray-500 dark:text-gray-400"><?php echo HTML::chars((string) $s['template_title']); ?></td>
                 <td class="font-mono text-xs"><?php echo HTML::chars((string) $s['spec_number']); ?></td>
@@ -102,6 +125,12 @@ $status_ru = [
 <?php endforeach; ?>
             </tbody>
         </table>
+<?php if ($list['pages'] > 1 OR $list['total'] > min($per_options)): ?>
+        <?php echo View::factory('partials/pagination', [
+            'total' => $list['total'], 'page' => $list['page'], 'pages' => $list['pages'], 'per' => $list['per'], 'per_options' => $per_options,
+            'url_base' => '/prx400_specflow', 'params' => array_filter($filter, static fn ($v): bool => $v !== ''),
+        ]); ?>
+<?php endif; ?>
 <?php endif; ?>
     </section>
 </div>

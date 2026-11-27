@@ -3,7 +3,8 @@
 /**
  * Протокол воркера prx400 (X-Worker-Token, Prx_Gate::worker_request):
  *   GET  /prx400_specflow/worker/health
- *   GET  /prx400_specflow/worker/<job_id>/file    — исходный PDF (lease + sha256)
+ *   GET  /prx400_specflow/worker/<job_id>/file(/<n>) — исходный PDF n спецификации (lease + sha256;
+ *                                                     без n — файл 1, совместимость)
  *   POST /prx400_specflow/worker/<job_id>/result  — позиции или {error_code}
  * Номер попытки X-PRX-Worker-Attempt обязателен и сверяется с очередью.
  */
@@ -56,7 +57,8 @@ class Controller_Prx400_Worker extends Controller
     {
         $this->respond(function () {
             [$job_id, $attempt] = $this->lease(Request::GET);
-            $pdf = (new Service_Prx400_Pipeline)->read_pdf($job_id, $attempt);
+            $file_no = (int) ($this->request->param('file_no') ?: 1);
+            $pdf = (new Service_Prx400_Pipeline)->read_pdf($job_id, $attempt, $file_no);
             $this->response->headers('Content-Type', 'application/pdf');
             $this->response->headers('Content-Length', (string) strlen($pdf));
             $this->response->body($pdf);

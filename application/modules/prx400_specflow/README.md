@@ -8,21 +8,27 @@
 <!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index application/modules/prx400_specflow/README.md --write. Руками не править. -->
 | Раздел | Строка | Размер |
 |---|---|---|
-|   Статусы спецификаций | 21 | 0,7 КБ |
-|   Падение воркера | 31 | 0,9 КБ |
-|   Цвета строк (Confidence Scoring) — `Service_Prx400_Match::row_status` | 41 | 0,8 КБ |
-|   Справочник НСИ | 52 | 1,1 КБ |
-|   Конфигурация | 64 | 0,4 КБ |
-|   Внешнее API (prx150) | 70 | 0,7 КБ |
-|   Хранение | 82 | 0,4 КБ |
-|   Тесты | 88 | 0,4 КБ |
-|   Деплой | 94 | 0,2 КБ |
+|   Статусы спецификаций | 25 | 1,0 КБ |
+|   Падение воркера | 37 | 0,9 КБ |
+|   Несколько PDF и иерархия BOM | 47 | 1,0 КБ |
+|   Работа оператора | 59 | 1,1 КБ |
+|   Цвета строк (Confidence Scoring) — `Service_Prx400_Match::row_status` | 70 | 0,8 КБ |
+|   Справочник НСИ | 81 | 1,1 КБ |
+|   Внешний НСИ | 93 | 0,8 КБ |
+|   Выгрузки | 103 | 0,4 КБ |
+|   Конфигурация | 109 | 0,4 КБ |
+|   Внешнее API (prx150) | 115 | 1,5 КБ |
+|   Хранение | 137 | 0,4 КБ |
+|   Тесты и качество | 143 | 1,0 КБ |
+|   Деплой | 155 | 0,5 КБ |
 <!-- context-index:end -->
 ## Статусы спецификаций
 `queued → running → review (есть позиции на проверку) → done`; `failed` —
 ошибка разбора с машинным кодом (`prx_400_specs.error`, текст —
 `Prx400_Messages`). Отменённая задача во внешнем API — `canceled`.
-Повтор, смена режима/шаблона и перезаливка PDF — на карточке.
+Повтор, смена режима/шаблона и перезаливка PDF — на карточке; повтор из
+review/done переносит решения оператора на совпавшие строки нового разбора
+(подтверждения, ручные коды; добавленные вручную строки остаются).
 
 Статус в работе сверяется с очередью только для показа (GET ничего не пишет);
 записывает итог сверки `bin/console prx400:purge` (манифест `schedule`, раз в
@@ -37,6 +43,29 @@
 `worker_lost`. Воркер падает на этом же файле (`worker_crash_loop`) или
 задачу отменил человек (`job_canceled`) — не повторяется. Поздний результат
 мёртвой попытки отклоняется (`lease_lost`).
+
+## Несколько PDF и иерархия BOM
+Одна спецификация — до `PRX400_MAX_FILES` PDF (листы, продолжения) общим
+объёмом до `PRX400_MAX_TOTAL_BYTES`; порядок файлов = порядок листов.
+Продолжения без шапки таблицы разбираются шаблоном первого файла; файл, где
+таблица не найдена, пропускается с предупреждением «Файл N пропущен…».
+У каждой строки — файл и страница (ссылка «стр. N» открывает PDF на ней).
+
+Дерево строк: номер «1.2.3» → родитель «1.2» в том же файле; выгрузки
+SAP/1С со столбцом «Уровень» («2», «..2») — по уровню (колонка `level`
+шаблона). Карточка показывает отступы, экспорт — `position`, `level`,
+`parent_row_id`.
+
+## Работа оператора
+Вкладки-фильтры (спорные/зелёные/жёлтые/новые/ошибки/подтверждённые),
+подтверждение строки и «подтвердить все уверенные» (код НСИ, скор ≥
+`bulk_verify_min`, арифметика сошлась), поиск кода в НСИ прямо в строке,
+«завести в НСИ из строки» (локальный справочник), правка полей и цен,
+вставка строки (после сборки — за всем её составом), разделение по
+количествам, удаление (строку с составом — нельзя). Клавиши: j/k — строка,
+v — подтвердить, e — правка, Esc — закрыть. Всё пишется в журнал «Кто/что».
+Ручной код запоминается: следующие разборы подставят его сами
+(«Сопоставления» — список и отзыв).
 
 ## Цвета строк (Confidence Scoring) — `Service_Prx400_Match::row_status`
 - **зелёный (ok)** — код НСИ привязан (≥ auto_accept или вручную);
@@ -61,6 +90,22 @@ CSV/XLSX (1С, MDM, Excel; `Service_Prx400_CatalogImport`). Первая стр�
 --import=ФАЙЛ [--apply=1]` / `--export=ФАЙЛ`. Пределы:
 `PRX400_CATALOG_IMPORT_MAX_ROWS`, `PRX400_CATALOG_IMPORT_MAX_BYTES`.
 
+## Внешний НСИ
+`PRX400_CATALOG_PROVIDER=http` + `PRX400_CATALOG_URL` (+ `_TOKEN`,
+`_TIMEOUT_MS`) — матчинг и подбор кодов идут во внешний справочник
+(MDM/1С/SAP-шлюз) по контракту:
+`GET {url}/search?q=&limit=` → `{"items": [{code, name, unit, okei_code?, keywords?}]}`,
+`GET {url}/items/<code>` → позиция | 404. Только чтение: добавление/импорт
+в prx400 отключены (409 `catalog_readonly`), сбой источника — 503
+`catalog_unavailable`, а не «все позиции новые». Память сопоставлений
+остаётся локальной. Другой источник — реализация `Prx400_Catalog_Provider`.
+
+## Выгрузки
+JSON (`meta, positions, audit`), CSV, XLSX (листы «Позиции», «Закупка»,
+«Сводка»), закупочная ведомость `aggregate`: одинаковые коды НСИ суммируются,
+сборки с составом не закупаются; `bom=per_parent` умножает количество на
+количество сборок выше.
+
 ## Конфигурация
 `config/prx400_specflow.php` — пороги матчинга и пределы из env с границами
 (читать только через `Service_Prx400_Limits`); `config/templates/*.json` —
@@ -68,29 +113,48 @@ CSV/XLSX (1С, MDM, Excel; `Service_Prx400_CatalogImport`). Первая стр�
 Переменные — `.env.example`, раздел prx400.
 
 ## Внешнее API (prx150)
-Ключ выпускается в хабе API со scope `prx400.extract`
-(`Authorization: Bearer <ключ>`); ключ видит только свои спецификации.
+Ключ выпускается в хабе API со scope `prx400.extract` (загрузка, чтение,
+webhook) и `prx400.review` (работа с позициями); `Authorization: Bearer
+<ключ>`; ключ видит только свои спецификации.
 
-1. `POST /api/v1/spec-extractions` — multipart `file` (+ `parse_mode`,
-   `template_id`), заголовок `Idempotency-Key` → `202 {spec_id, status, status_url}`.
-2. `GET /api/v1/spec-extractions/<id>` → `200 {status: queued|running|failed|canceled|review|done}`;
-   для review/done — `result {meta, positions, audit}` (та же схема, что
-   экспорт ERP с карточки) и `awaiting_operator`.
+1. `POST /api/v1/spec-extractions` — multipart `file` или `files[]` (+
+   `parse_mode`, `template_id`), заголовок `Idempotency-Key` → `202 {spec_id,
+   status, status_url}`.
+2. `GET /api/v1/spec-extractions/<id>` → `status`, `files`; для review/done —
+   `counts` (по фильтрам), `result {meta, positions, audit}`, `awaiting_operator`.
+3. Позиции: `GET …/<id>/rows?filter=`, `PATCH|DELETE …/rows/<row>`,
+   `POST …/rows/<row>/verify|code|split`, `POST …/rows`, `POST
+   …/<id>/verify-bulk|finish|relaunch`; выгрузки `GET
+   …/<id>/export?format=json|csv|xlsx|aggregate&bom=`, исходники `GET
+   …/<id>/files/<n>`; поиск в НСИ `GET /api/v1/spec-catalog?q=`.
+4. Webhook: `PUT /api/v1/spec-extractions/webhook {url, events}` → `secret`;
+   POST на адрес клиента с `X-PRX-Signature: t=<unix>,v1=HMAC-SHA256(secret,
+   "t.тело")`, тело — только ссылка на статус; повторы 1 мин … 24 ч,
+   доставляет `prx400:hooks`. Адрес — https и публичный IP.
 
-Человекочитаемый контракт: `/prx400_specflow/api-docs`.
+Полный контракт с примерами: `/prx400_specflow/api-docs`.
 
 ## Хранение
 Фасад `Storage` (prx212): PDF — артефакт модуля без пользователя
-(`read_owned`/`delete_owned`), ссылка — `prx_400_specs.file_id`, целостность —
-`file_sha256`. Файлы без записи старше 48 ч и записи старше
+(`read_owned`/`delete_owned`), ссылки — `prx_400_spec_files` (файл №1 ещё и в
+`prx_400_specs.file_id`), целостность — sha256 каждого файла. Файлы без записи старше 48 ч и записи старше
 `PRX400_RETENTION_DAYS` (если > 0) убирает `prx400:purge`.
 
-## Тесты
+## Тесты и качество
 - PHP-контракт: `tests/Contracts/prx400_match_export.php` — `bin/test --contracts`.
-- Smoke: `SpecflowPipelineTest`, `SpecflowRecoveryTest`, `SpecflowCatalogImportTest`;
-  читатель таблиц — `tests/Unit/PrxSpreadsheetTest.php`.
-- Python: `workers/tests/handlers/prx400_specflow/` (парсер, протокол воркера, vision).
+- Smoke: `SpecflowPipelineTest`, `SpecflowRecoveryTest`, `SpecflowCatalogImportTest`,
+  `SpecflowStructureTest` (несколько PDF, BOM, HITL по HTTP, повтор, webhook,
+  внешний НСИ, рендер страниц); читатель таблиц — `tests/Unit/PrxSpreadsheetTest.php`.
+- Python: `workers/tests/handlers/prx400_specflow/` (парсер, протокол воркера).
+- Корпус качества парсера: `workers/tests/handlers/prx400_specflow/eval/`
+  (`<имя>.txt` + `<имя>.expected.json`; гейт — `test_eval.py`); отчёт —
+  `python3 -m prx_workers.handlers.prx400_specflow.evaluate <каталог>`.
+- Качество в бою: `bin/console prx400:eval [--days=30]` — доля автокодов,
+  откуда код, сколько автокодов заменили операторы, какие поля правят.
 
 ## Деплой
-`make migrate` (до `pgMigration_Prx_400_005_Platform`), рестарт воркеров
-(канал `specflow.parse`), расписание `prx400:purge` из манифеста.
+`make migrate` (до `pgMigration_Prx_400_007_Structure`), рестарт воркеров
+(канал `specflow.parse`; новый протокол `file/<n>` — старый воркер читает
+только файл 1), расписание `prx400:purge` и `prx400:hooks` из манифеста
+(исполняет `portal:maintain`), выдать ключам интеграторов scope
+`prx400.review` при необходимости, `post_max_size` ≥ `PRX400_MAX_TOTAL_BYTES`.

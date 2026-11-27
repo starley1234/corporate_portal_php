@@ -4,9 +4,10 @@
  * Жизненный цикл спецификации prx400 — общий фасад для UI (Prx_Actor) и
  * внешнего API (Prx150_Principal):
  *
- *   submit → prx212 + prx_400_specs + задача specflow.parse (одна транзакция
- *   с ключом идемпотентности) → воркер (Service_Prx400_Pipeline) → матчинг
- *   с НСИ → верификация оператором → экспорт JSON/CSV.
+ *   submit (1..N PDF) → prx212 + prx_400_specs/spec_files + задача
+ *   specflow.parse (одна транзакция с ключом идемпотентности) → воркер
+ *   (Service_Prx400_Pipeline) → матчинг с НСИ → проверка оператором
+ *   (Service_Prx400_Rows) → экспорт JSON/CSV/XLSX, webhook и уведомления.
  *
  * Права решает Policy_Prx400_Spec; SQL — модели Model_Prx400_*; файлы —
  * только фасад Storage. Ошибки — Prx400_Error с машинным кодом.
@@ -35,14 +36,19 @@ final class Service_Prx400_Specs
     /** Статусы, в которых строки ещё не принадлежат оператору. */
     const PIPELINE_STATUSES = ['queued', 'running', 'failed'];
 
+    /** Все статусы записи (фильтр списка). */
+    const STATUSES = ['queued', 'running', 'review', 'done', 'failed'];
+
     // ------------------------------------------------------------------
     // Постановка разбора
     // ------------------------------------------------------------------
 
     /**
-     * Принять PDF и поставить разбор. Повтор с тем же ключом и тем же файлом
-     * (и режимом) возвращает ту же спецификацию; другой файл — конфликт.
+     * Принять PDF (один или несколько — части одной спецификации, по порядку)
+     * и поставить разбор. Повтор с тем же ключом и теми же файлами (и режимом)
+     * возвращает ту же спецификацию; другие файлы — конфликт.
      *
+     * @param mixed $upload элемент $_FILES (одиночный или multiple) либо список элементов
      * @param array{parse_mode?: mixed, template_id?: mixed} $options
      * @return int ID спецификации
      */
@@ -54,20 +60,20 @@ final class Service_Prx400_Specs
         $mode = self::mode($options['parse_mode'] ?? NULL);
         $template = Service_Prx400_Templates::resolve((string) ($options['template_id'] ?? ''));
         $templates = Service_Prx400_Templates::for_payload();
-        [$file, $name] = self::validated_upload($upload);
-        $sha = self::sha256($file['tmp_name']);
+        $files = self::validated_uploads($upload);
 
-        $file_id = self::store($file);
+        $stored = self::store_all($files);
         try {
-            $idem = Prx_Idempotency::begin(self::SCOPE, (string) $owner, $key, hash('sha256', $sha.'|'.$mode.'|'.$template));
+            $idem = Prx_Idempotency::begin(self::SCOPE, (string) $owner, $key,
+                hash('sha256', implode(',', array_column($stored, 'sha')).'|'.$mode.'|'.$template));
         } catch (Throwable $e) {
-            self::discard($file_id);
+            self::discard_all($stored);
             throw $e;
         }
 
         if ($idem['state'] !== Prx_Idempotency::STATE_NEW)
         {
-            self::discard($file_id);
+            self::discard_all($stored);
             if ($idem['state'] === Prx_Idempotency::STATE_REPLAY AND (int) ($idem['result']['spec_id'] ?? 0) > 0)
             {
                 return (int) $idem['result']['spec_id'];
@@ -77,35 +83,55 @@ final class Service_Prx400_Specs
 
         try {
             $spec = Model_Prx400_Spec::insert([
-                'owner_id' => $owner, 'original_name' => $name, 'file_id' => $file_id,
-                'file_sha256' => $sha, 'parse_mode' => $mode,
+                'owner_id' => $owner, 'original_name' => self::title($stored), 'file_id' => $stored[0]['file_id'],
+                'file_sha256' => $stored[0]['sha'], 'parse_mode' => $mode,
             ]);
             $spec_id = (int) $spec['id'];
+            foreach ($stored as $i => $f) Model_Prx400_File::add($spec_id, $i + 1, $f['file_id'], $f['sha'], $f['name'], $f['size']);
             $job_id = self::push($principal, $spec_id, $mode, $template, $templates);
             Model_Prx400_Spec::queue($spec_id, $job_id, $mode);
             Prx_Idempotency::finish((int) $idem['id'], ['spec_id' => $spec_id]);
         } catch (Throwable $e) {
             Prx_Idempotency::abort();
-            self::discard($file_id);
+            self::discard_all($stored);
             throw self::queue_error($e);
         }
 
-        Log_Plain::event(Log::INFO, 'prx400 spec=:s job_id=:j stage=queued mode=:m tpl=:t', [
-            ':s' => $spec_id, ':j' => $job_id, ':m' => $mode, ':t' => $template !== '' ? $template : 'auto',
+        Log_Plain::event(Log::INFO, 'prx400 spec=:s job_id=:j stage=queued mode=:m tpl=:t files=:f', [
+            ':s' => $spec_id, ':j' => $job_id, ':m' => $mode, ':t' => $template !== '' ? $template : 'auto', ':f' => count($stored),
         ]);
 
         return $spec_id;
     }
 
     /**
-     * Повторный разбор (failed или «застрявшая» задача): текущая задача
-     * отменяется, новая ставится в той же транзакции. Режим — явный из
-     * запроса, иначе сохранённый на спецификации.
+     * Те же PDF (sha256) уже загружались: предупреждение, не запрет (повторная
+     * закупка по той же спецификации — штатный случай). Ключ видит только свои.
+     */
+    public function duplicates(Prx_Principal $principal, int $spec_id): array
+    {
+        Policy_Prx400_Spec::require_view($principal, Model_Prx400_Spec::get($spec_id));
+        $shas = array_column(Model_Prx400_File::for_spec($spec_id), 'file_sha256');
+        $owner = $principal instanceof Prx_Actor ? NULL : Policy_Prx400_Spec::ownerId($principal);
+
+        return array_map(static fn (array $d): array => [
+            'spec_id' => (int) $d['spec_id'], 'file_no' => (int) $d['file_no'], 'original_name' => (string) $d['original_name'],
+            'status' => (string) $d['status'], 'created_at' => (string) $d['created_at'],
+        ], Model_Prx400_File::duplicates($shas, $spec_id, $owner));
+    }
+
+    /**
+     * Повторный разбор: failed, «застрявшая» задача или уже разобранная
+     * спецификация (review/done — другой режим/шаблон; решения оператора
+     * переносятся на те же строки нового разбора, Pipeline::merge_decisions).
+     * Текущая задача отменяется, новая ставится в той же транзакции. Режим —
+     * явный из запроса, иначе сохранённый на спецификации.
      */
     public function launch(Prx_Principal $principal, int $id, array $options = []): void
     {
-        Policy_Prx400_Spec::require_edit($principal);
         $spec = Policy_Prx400_Spec::require_view($principal, Model_Prx400_Spec::get($id));
+        in_array($spec['status'], self::PIPELINE_STATUSES, TRUE)
+            ? Policy_Prx400_Spec::require_edit($principal) : Policy_Prx400_Spec::require_review($principal);
         self::require_worker();
         $mode = self::retry_mode($spec, $options);
         $template = Service_Prx400_Templates::resolve((string) ($options['template_id'] ?? ''));
@@ -116,7 +142,7 @@ final class Service_Prx400_Specs
             $job_id = Prx_Db::transaction(function () use ($principal, $id, $mode, $template, $templates): int {
                 $spec = Model_Prx400_Spec::lock($id);
                 if ($spec === NULL) throw new Prx400_Error('not_found', 404);
-                if ( ! in_array($spec['status'], self::PIPELINE_STATUSES, TRUE)) throw new Prx400_Error('wrong_state', 409);
+                if ( ! in_array($spec['status'], self::STATUSES, TRUE)) throw new Prx400_Error('wrong_state', 409);
                 self::cancel_job((int) ($spec['job_id'] ?? 0));
                 $job_id = self::push($principal, $id, $mode, $template, $templates);
                 Model_Prx400_Spec::queue($id, $job_id, $mode);
@@ -169,8 +195,9 @@ final class Service_Prx400_Specs
     }
 
     /**
-     * Перезалить PDF существующей спецификации (файл утерян/не тот):
-     * ID и история карточки сохраняются, старый файл убирается после COMMIT.
+     * Перезалить PDF существующей спецификации (файл утерян/не тот): все
+     * файлы заменяются новым набором, ID и история карточки сохраняются,
+     * старые файлы убираются после COMMIT.
      */
     public function reupload(Prx_Principal $principal, int $id, $upload, array $options = []): void
     {
@@ -180,42 +207,58 @@ final class Service_Prx400_Specs
         $mode = self::retry_mode($spec, $options);
         $template = Service_Prx400_Templates::resolve((string) ($options['template_id'] ?? ''));
         $templates = Service_Prx400_Templates::for_payload();
-        [$file, $name] = self::validated_upload($upload);
-        $sha = self::sha256($file['tmp_name']);
+        $files = self::validated_uploads($upload);
 
-        $file_id = self::store($file);
+        $stored = self::store_all($files);
         try {
-            $old_file = Prx_Db::transaction(function () use ($principal, $id, $mode, $template, $templates, $file_id, $name, $sha): int {
+            $old_files = Prx_Db::transaction(function () use ($principal, $id, $mode, $template, $templates, $stored): array {
                 $spec = Model_Prx400_Spec::lock($id);
                 if ($spec === NULL) throw new Prx400_Error('not_found', 404);
                 if ( ! in_array($spec['status'], self::PIPELINE_STATUSES, TRUE)) throw new Prx400_Error('wrong_state', 409);
+                $old = self::file_ids($spec);
                 self::cancel_job((int) ($spec['job_id'] ?? 0));
-                Model_Prx400_Spec::set_file($id, $file_id, $name, $sha);
+                Model_Prx400_Spec::set_file($id, $stored[0]['file_id'], self::title($stored), $stored[0]['sha']);
+                Model_Prx400_File::delete_for_spec($id);
+                foreach ($stored as $i => $f) Model_Prx400_File::add($id, $i + 1, $f['file_id'], $f['sha'], $f['name'], $f['size']);
                 $job_id = self::push($principal, $id, $mode, $template, $templates);
                 Model_Prx400_Spec::queue($id, $job_id, $mode);
-                return (int) ($spec['file_id'] ?? 0);
+                return $old;
             });
         } catch (Throwable $e) {
-            self::discard($file_id);
+            self::discard_all($stored);
             throw self::queue_error($e);
         }
-        if ($old_file > 0) self::discard($old_file);
-        Log_Plain::event(Log::INFO, 'prx400 spec=:s stage=reupload mode=:m', [':s' => $id, ':m' => $mode]);
+        foreach ($old_files as $file_id) self::discard($file_id);
+        Log_Plain::event(Log::INFO, 'prx400 spec=:s stage=reupload mode=:m files=:f', [':s' => $id, ':m' => $mode, ':f' => count($stored)]);
     }
 
     // ------------------------------------------------------------------
     // Чтение
     // ------------------------------------------------------------------
 
-    /** Список: рабочее место видит всё, API-ключ — своё. Имена владельцев — через prx102. */
-    public function listing(Prx_Principal $principal, int $limit = 100): array
+    /** Размеры страницы списка (UI и API). */
+    const PER_PAGE = [20, 50, 100, 200];
+
+    /**
+     * Список: рабочее место видит всё, API-ключ — своё. Фильтры: status,
+     * q (имя файла, шифр, подразделение, шаблон), from/to (YYYY-MM-DD),
+     * page/per. Имена владельцев — через prx102.
+     *
+     * @return array{rows: array, total: int, page: int, per: int, pages: int, filter: array}
+     */
+    public function listing(Prx_Principal $principal, array $query = []): array
     {
         $owner = Policy_Prx400_Spec::ownerId($principal);
-        $rows = Model_Prx400_Spec::listing($principal instanceof Prx_Actor ? NULL : $owner, $limit);
+        $filter = self::list_filter($query);
+        $per = in_array((int) ($query['per'] ?? 0), self::PER_PAGE, TRUE) ? (int) $query['per'] : 50;
+        $page = max(1, min(100000, (int) ($query['page'] ?? 1)));
+        $result = Model_Prx400_Spec::listing($principal instanceof Prx_Actor ? NULL : $owner, $per, ($page - 1) * $per, $filter);
+        $rows = $result['rows'];
 
         $user_ids = [];
         foreach ($rows as $r) if ((int) $r['owner_id'] < 0) $user_ids[] = -(int) $r['owner_id'];
         $names = Service_Prx102_Users::display_names($user_ids);
+        $files = Model_Prx400_File::counts(array_map(static fn (array $r): int => (int) $r['id'], $rows));
 
         $in_flight = array_filter($rows, static fn (array $r): bool => in_array($r['status'], ['queued', 'running'], TRUE));
         $jobs = self::jobs(array_map(static fn (array $r): int => (int) ($r['job_id'] ?? 0), $in_flight));
@@ -226,9 +269,53 @@ final class Service_Prx400_Specs
                 ? ($names[-$owner_id] ?? 'сотрудник #'.(-$owner_id))
                 : ($owner_id > 0 ? 'API-ключ #'.$owner_id : 'API (до prx150)');
             [$r['status'], $r['error']] = self::effective($r, $jobs[(int) ($r['job_id'] ?? 0)] ?? NULL);
+            $r['files_count'] = $files[(int) $r['id']] ?? 1;
+        }
+        unset($r);
+
+        return [
+            'rows' => $rows, 'total' => $result['total'], 'page' => $page, 'per' => $per,
+            'pages' => max(1, (int) ceil($result['total'] / $per)), 'filter' => $filter,
+        ];
+    }
+
+    /** Строка списка для API (без служебных полей таблицы). */
+    public static function list_item(array $r): array
+    {
+        return [
+            'spec_id' => (int) $r['id'],
+            'status' => (string) $r['status'],
+            'error' => $r['status'] === 'failed' ? ['code' => self::public_code((string) $r['error'])] : NULL,
+            'original_name' => (string) $r['original_name'],
+            'spec_number' => (string) ($r['spec_number'] ?? ''),
+            'template_id' => (string) ($r['template_id'] ?? ''),
+            'parse_mode' => (string) $r['parse_mode'],
+            'files' => (int) ($r['files_count'] ?? 1),
+            'rows_total' => (int) $r['rows_total'],
+            'rows_pending' => (int) $r['rows_issue'],
+            'created_at' => date('c', strtotime((string) $r['created_at'])),
+            'updated_at' => date('c', strtotime((string) $r['updated_at'])),
+            'status_url' => '/api/v1/spec-extractions/'.(int) $r['id'],
+        ];
+    }
+
+    /** Фильтр списка из запроса: неизвестный статус/дата — ошибка, а не «показать всё». */
+    private static function list_filter(array $query): array
+    {
+        $status = trim((string) ($query['status'] ?? ''));
+        if ($status !== '' AND ! in_array($status, self::STATUSES, TRUE)) throw new Prx400_Error('invalid_filter', 400);
+        $filter = ['status' => $status, 'q' => mb_substr(trim((string) ($query['q'] ?? '')), 0, 200)];
+        foreach (['from', 'to'] as $k)
+        {
+            $v = trim((string) ($query[$k] ?? ''));
+            if ($v !== '' AND ! (preg_match('/\A(\d{4})-(\d{2})-(\d{2})\z/', $v, $m) AND checkdate((int) $m[2], (int) $m[3], (int) $m[1])))
+            {
+                throw new Prx400_Error('invalid_filter', 400);
+            }
+            $filter[$k] = $v;
         }
 
-        return $rows;
+        return $filter;
     }
 
     /** Карточка: спецификация (действующий статус), позиции, этап воркера, журнал правок. */
@@ -247,17 +334,27 @@ final class Service_Prx400_Specs
             }
         }
 
+        $provider = Service_Prx400_Catalog::provider();
+        $rows = Model_Prx400_Row::for_spec($id);
+        $edits = Model_Prx400_Edit::for_spec($id, 100);
+
         return [
             'spec' => $spec,
-            'rows' => Model_Prx400_Row::for_spec($id),
-            'edits' => Model_Prx400_Edit::for_spec($id, 50),
+            'rows' => $rows,
+            'files' => Model_Prx400_File::for_spec($id),
+            'duplicates' => $this->duplicates($principal, $id),
+            'edits' => $edits,
+            'catalog_provider' => $provider->name(),
+            'catalog_writable' => $provider->writable(),
+            'bulk_verify_min' => Service_Prx400_Limits::bulk_verify_min(),
             'templates' => Service_Prx400_Templates::options(),
             'parse_modes' => Service_Prx400_Limits::parse_modes(),
-            'catalog_count' => Model_Prx400_Catalog::count(),
+            'catalog_count' => $provider->count(),
             'job_stage' => $job_stage,
             'math' => is_string($spec['math'] ?? NULL) ? json_decode($spec['math'], TRUE) : NULL,
             'file_ok' => (int) ($spec['file_id'] ?? 0) > 0 && Storage::metadata((int) $spec['file_id']) !== NULL,
             'can_edit' => $principal instanceof Prx_Actor && $principal->can(Policy_Prx400_Spec::EDIT_ACL),
+            'actor_names' => self::actor_names(array_merge(array_column($edits, 'actor_id'), array_column($rows, 'verified_by'))),
         ];
     }
 
@@ -277,6 +374,9 @@ final class Service_Prx400_Specs
             'parse_mode' => (string) $spec['parse_mode'],
             'attempt' => (int) ($job['attempts'] ?? 0),
             'status_url' => '/api/v1/spec-extractions/'.$id,
+            'files' => array_map(static fn (array $f): array => [
+                'file_no' => $f['file_no'], 'original_name' => $f['original_name'], 'sha256' => $f['file_sha256'],
+            ], Model_Prx400_File::for_spec($id)),
         ];
         if ($status === 'failed')
         {
@@ -285,6 +385,7 @@ final class Service_Prx400_Specs
         elseif (in_array($status, ['review', 'done'], TRUE))
         {
             $out['awaiting_operator'] = $status === 'review';
+            $out['counts'] = Service_Prx400_Rows::filter_counts(Model_Prx400_Row::counts($id));
             $out['result'] = Service_Prx400_Export::json($spec, Model_Prx400_Row::for_spec($id));
         }
 
@@ -300,11 +401,14 @@ final class Service_Prx400_Specs
         return [$spec, Model_Prx400_Row::for_spec($id)];
     }
 
-    /** Исходный PDF для сверки оператором. */
-    public function pdf(Prx_Principal $principal, int $id): string
+    /** Исходный PDF (файл $file_no спецификации) для сверки оператором. */
+    public function pdf(Prx_Principal $principal, int $id, int $file_no = 1): string
     {
         $spec = Policy_Prx400_Spec::require_view($principal, Model_Prx400_Spec::get($id));
-        $bytes = self::pdf_bytes($spec);
+        $files = Model_Prx400_File::for_spec($id);
+        // Нет такого номера — 404; номер есть, но файл удалён сроком хранения — 410.
+        if ($file_no !== 1 AND ! in_array($file_no, array_column($files, 'file_no'), TRUE)) throw new Prx400_Error('not_found', 404);
+        $bytes = self::pdf_bytes($spec, $file_no);
         if ($bytes === NULL) throw new Prx400_Error('file_unavailable', 410);
 
         return $bytes;
@@ -316,9 +420,14 @@ final class Service_Prx400_Specs
      * 26.11) привязывали файл к пользователю — их читает bytes(): file_id
      * взят из авторизованной записи (контракт фасада), подмену ловит хеш.
      */
-    public static function pdf_bytes(array $spec): ?string
+    public static function pdf_bytes(array $spec, int $file_no = 1): ?string
     {
-        $file_id = (int) ($spec['file_id'] ?? 0);
+        $files = Model_Prx400_File::for_spec((int) $spec['id']);
+        [$file_id, $sha] = $files === [] && $file_no === 1 ? [(int) ($spec['file_id'] ?? 0), (string) $spec['file_sha256']] : [0, ''];
+        foreach ($files as $f)
+        {
+            if ($f['file_no'] === $file_no) [$file_id, $sha] = [$f['file_id'], $f['file_sha256']];
+        }
         if ($file_id <= 0) return NULL;
 
         $max = Service_Prx400_Limits::get('max_pdf_bytes');
@@ -328,7 +437,7 @@ final class Service_Prx400_Specs
             $bytes = Storage::bytes($file_id);
             if ($bytes !== NULL) Log_Plain::event(Log::WARNING, 'prx400 spec=:s stage=pdf legacy_user_file file_id=:f', [':s' => (int) $spec['id'], ':f' => $file_id]);
         }
-        if ($bytes === NULL OR strlen($bytes) > $max OR ! hash_equals((string) $spec['file_sha256'], hash('sha256', $bytes)))
+        if ($bytes === NULL OR strlen($bytes) > $max OR ! hash_equals($sha, hash('sha256', $bytes)))
         {
             return NULL;
         }
@@ -340,129 +449,90 @@ final class Service_Prx400_Specs
     // Работа оператора (HITL)
     // ------------------------------------------------------------------
 
-    /** Подтвердить строку (переключатель) или назначить код НСИ вручную. */
+    /** Подтвердить строку (переключатель) или назначить код НСИ (Service_Prx400_Rows). */
     public function verify_row(Prx_Principal $principal, int $row_id, string $manual_code = ''): int
     {
-        $actor_id = self::editor_id($principal);
-        return Prx_Db::transaction(function () use ($principal, $actor_id, $row_id, $manual_code): int {
-            [$row] = $this->editable_row($principal, $row_id);
-            $manual_code = trim($manual_code);
-            if ($manual_code !== '')
-            {
-                $item = Model_Prx400_Catalog::by_code($manual_code);
-                if ($item === NULL) throw new Prx400_Error('catalog_code_not_found', 400);
-                Model_Prx400_Row::set_manual_match($row_id, $actor_id, [
-                    'catalog_id' => (int) $item['id'], 'code' => (string) $item['code'],
-                    'name' => (string) $item['name'], 'unit' => (string) $item['unit'],
-                    'okei_code' => (string) ($item['okei_code'] ?? ''), 'score' => 1.0, 'manual' => TRUE,
-                    'alternatives' => (array) ($row['match']['alternatives'] ?? []),
-                ]);
-                return (int) $row['spec_id'];
-            }
+        $rows = new Service_Prx400_Rows;
 
-            // «Проверено» — переключатель; снятие возвращает статус из данных строки.
-            $verified = ! $row['verified'];
-            Model_Prx400_Row::set_verified($row_id, $actor_id, $verified);
-            return (int) $row['spec_id'];
-        });
+        return trim($manual_code) !== '' ? $rows->assign_code($principal, $row_id, $manual_code) : $rows->verify($principal, $row_id);
     }
 
-    /**
-     * Правка полей строки: каждое изменённое поле — в журнал prx_400_edits;
-     * затем пересчёт арифметики, повторный матчинг (если сопоставление не
-     * ручное) и статуса. Возвращает spec_id.
-     */
+    /** Правка полей строки (Service_Prx400_Rows::edit). */
     public function row_edit(Prx_Principal $principal, int $row_id, array $post): int
     {
-        $actor_id = self::editor_id($principal);
-        $fields = self::edit_fields($post);
-
-        return Prx_Db::transaction(function () use ($principal, $actor_id, $row_id, $fields): int {
-            [$row] = $this->editable_row($principal, $row_id);
-            $changed = [];
-            foreach ($fields as $field => $value)
-            {
-                $old = $row[$field] === NULL ? NULL : (string) $row[$field];
-                $new = $value === NULL ? NULL : (string) $value;
-                if ($field === 'qty' AND $old !== NULL AND $new !== NULL AND (float) $old === (float) $new) continue;
-                if ($old === $new) continue;
-                Model_Prx400_Edit::add($row_id, (int) $row['spec_id'], $field, $old, $new, $actor_id);
-                Model_Prx400_Row::set_field($row_id, $field, $value);
-                $row[$field] = $value;
-                $changed[] = $field;
-            }
-            if ($changed === []) return (int) $row['spec_id'];
-
-            $flags = array_values(array_filter($row['flags'], static fn ($f): bool =>
-                ! in_array(is_array($f) ? ($f['type'] ?? '') : '', ['math_row', 'unit_fractional'], TRUE)));
-            $flags = array_merge($flags, Service_Prx400_Checks::row_flags($row));
-
-            $match = $row['match'];
-            if (empty($match['manual']) AND array_intersect($changed, ['raw_name', 'code_doc']))
-            {
-                $query = Service_Prx400_Match::query((string) $row['raw_name'], (string) $row['code_doc']);
-                $match = Service_Prx400_Match::apply((string) $row['raw_name'], (string) $row['code_doc'],
-                    (Service_Prx400_Match::catalog_source())($query))['match'];
-            }
-            $status = ! empty($match['manual']) && ! in_array('math_row', array_column($flags, 'type'), TRUE)
-                ? 'ok' : Service_Prx400_Match::row_status($flags, $match);
-            Model_Prx400_Row::set_assessment($row_id, $flags, $match, $status);
-
-            return (int) $row['spec_id'];
-        });
+        return (new Service_Prx400_Rows)->edit($principal, $row_id, $post);
     }
 
-    /** Завершение проверки оператором (HITL): review → done; расхождения — только осознанно. */
+    /** Завершение проверки (HITL): review → done; расхождения — только осознанно. */
     public function finish(Prx_Principal $principal, int $spec_id, bool $accept_issues): void
     {
-        self::editor_id($principal);
-        Prx_Db::transaction(function () use ($principal, $spec_id, $accept_issues): void {
+        $actor = Policy_Prx400_Spec::require_review($principal);
+        Prx_Db::transaction(function () use ($principal, $spec_id, $accept_issues, $actor): void {
             $spec = Policy_Prx400_Spec::require_view($principal, Model_Prx400_Spec::lock($spec_id));
             if ($spec['status'] !== 'review') throw new Prx400_Error('wrong_state', 409);
             $issues = Model_Prx400_Row::pending_count($spec_id);
             if ($issues > 0 AND ! $accept_issues) throw new Prx400_Error('issues_pending', 409, ['issues' => $issues]);
             Model_Prx400_Spec::set_status($spec_id, 'done');
+            Model_Prx400_Edit::add(NULL, $spec_id, 'finish', 'review', $issues > 0 ? 'done (расхождений: '.$issues.')' : 'done', $actor);
+            Service_Prx400_Notify::queue($spec_id, (int) $spec['owner_id'], 'done');
         });
+        Service_Prx400_Notify::publish($spec_id, 'done', NULL, $actor < 0 ? -$actor : NULL);
     }
 
     /**
      * Удалить спецификацию: живая задача отменяется, строки и правки — каскадом,
-     * файл — после COMMIT (осиротевший файл добирает prx400:purge).
+     * файлы — после COMMIT (осиротевший файл добирает prx400:purge).
      */
     public function delete(Prx_Principal $principal, int $id): void
     {
-        self::editor_id($principal);
-        $file_id = Prx_Db::transaction(function () use ($principal, $id): int {
+        Policy_Prx400_Spec::require_review($principal);
+        $file_ids = Prx_Db::transaction(function () use ($principal, $id): array {
             $spec = Policy_Prx400_Spec::require_view($principal, Model_Prx400_Spec::lock($id));
+            $files = self::file_ids($spec);
             self::cancel_job((int) ($spec['job_id'] ?? 0));
             Model_Prx400_Spec::delete($id);
-            return (int) ($spec['file_id'] ?? 0);
+            return $files;
         });
-        if ($file_id > 0) self::discard($file_id);
+        foreach ($file_ids as $file_id) self::discard($file_id);
         Log_Plain::event(Log::INFO, 'prx400 spec=:s stage=deleted', [':s' => $id]);
     }
 
-    /** Добавить/обновить позицию справочника НСИ. */
+    /** Добавить/обновить позицию локального справочника НСИ. */
     public function catalog_add(Prx_Principal $principal, array $post): void
     {
-        self::editor_id($principal);
-        $code = mb_substr(trim((string) ($post['code'] ?? '')), 0, 64);
-        $name = mb_substr(trim((string) ($post['name'] ?? '')), 0, 4000);
-        if ($code === '' OR $name === '') throw new Prx400_Error('catalog_fields_required', 400);
-
-        Model_Prx400_Catalog::insert([
-            'code' => $code,
-            'name' => $name,
-            'unit' => mb_substr(trim((string) ($post['unit'] ?? '')), 0, 16) ?: 'шт.',
-            'okei_code' => mb_substr(trim((string) ($post['okei_code'] ?? '')), 0, 8),
-            'keywords' => mb_substr(trim((string) ($post['keywords'] ?? '')), 0, 500),
-        ]);
+        Policy_Prx400_Spec::require_review($principal);
+        Service_Prx400_Catalog::save(Service_Prx400_Catalog::fields($post));
     }
 
     public function catalog_delete(Prx_Principal $principal, int $id): void
     {
-        self::editor_id($principal);
-        if (Model_Prx400_Catalog::delete($id) < 1) throw new Prx400_Error('not_found', 404);
+        Policy_Prx400_Spec::require_review($principal);
+        Service_Prx400_Catalog::delete($id);
+    }
+
+    /** Все артефакты prx212 спецификации (spec_files + совместимый file_id). */
+    public static function file_ids(array $spec): array
+    {
+        $ids = array_column(Model_Prx400_File::for_spec((int) $spec['id']), 'file_id');
+        if ((int) ($spec['file_id'] ?? 0) > 0) $ids[] = (int) $spec['file_id'];
+
+        return array_values(array_unique(array_map('intval', $ids)));
+    }
+
+    /** Имена действующих лиц журнала: сотрудники (< 0) через prx102, ключи — «API-ключ #N». */
+    public static function actor_names(array $actor_ids): array
+    {
+        $users = [];
+        foreach ($actor_ids as $id) if ((int) $id < 0) $users[] = -(int) $id;
+        $names = $users !== [] ? Service_Prx102_Users::display_names(array_values(array_unique($users))) : [];
+        $out = [];
+        foreach ($actor_ids as $id)
+        {
+            $id = (int) $id;
+            $out[$id] = $id < 0 ? ($names[-$id] ?? 'сотрудник #'.(-$id)) : ($id > 0 ? 'API-ключ #'.$id : 'система');
+        }
+
+        return $out;
     }
 
     // ------------------------------------------------------------------
@@ -539,6 +609,43 @@ final class Service_Prx400_Specs
         return in_array($stored, Service_Prx400_Limits::parse_modes(), TRUE) ? $stored : Service_Prx400_Limits::default_mode();
     }
 
+    /**
+     * Загрузка → список проверенных файлов: одиночный элемент $_FILES,
+     * multiple (name[]/tmp_name[]) или список элементов. Число файлов —
+     * max_files, сумма — max_total_bytes, каждый — max_pdf_bytes.
+     *
+     * @return array<int, array{0: array, 1: string}>
+     */
+    private static function validated_uploads($upload): array
+    {
+        $list = [];
+        if (is_array($upload) AND isset($upload['tmp_name']) AND is_array($upload['tmp_name']))
+        {
+            foreach (array_keys($upload['tmp_name']) as $k)
+            {
+                $item = [];
+                foreach (['name', 'type', 'tmp_name', 'error', 'size'] as $f) $item[$f] = $upload[$f][$k] ?? NULL;
+                if (($item['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) $list[] = $item;
+            }
+        }
+        elseif (is_array($upload) AND array_is_list($upload))
+        {
+            $list = array_values(array_filter($upload, static fn ($f): bool => is_array($f) && ($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE));
+        }
+        elseif (is_array($upload))
+        {
+            $list = [$upload];
+        }
+        if ($list === []) throw new Prx400_Error('file_required', 400);
+        if (count($list) > Service_Prx400_Limits::get('max_files')) throw new Prx400_Error('too_many_files', 413);
+
+        $out = array_map([self::class, 'validated_upload'], $list);
+        $total = array_sum(array_map(static fn (array $f): int => (int) $f[0]['size'], $out));
+        if ($total > Service_Prx400_Limits::get('max_total_bytes')) throw new Prx400_Error('file_too_large', 413);
+
+        return $out;
+    }
+
     /** @return array{0: array, 1: string} [файл для Storage::save, отображаемое имя] */
     private static function validated_upload($file): array
     {
@@ -569,6 +676,41 @@ final class Service_Prx400_Specs
         if ($sha === FALSE) throw new Prx400_Error('upload_unavailable', 503);
 
         return $sha;
+    }
+
+    /**
+     * Сохранить все файлы; сбой на середине — уже сохранённые убираются.
+     *
+     * @return array<int, array{file_id: int, sha: string, name: string, size: int}>
+     */
+    private static function store_all(array $files): array
+    {
+        $stored = [];
+        try {
+            foreach ($files as [$file, $name])
+            {
+                $sha = self::sha256($file['tmp_name']);
+                $stored[] = ['file_id' => self::store($file), 'sha' => $sha, 'name' => $name, 'size' => (int) $file['size']];
+            }
+        } catch (Throwable $e) {
+            self::discard_all($stored);
+            throw $e;
+        }
+
+        return $stored;
+    }
+
+    private static function discard_all(array $stored): void
+    {
+        foreach ($stored as $f) self::discard((int) $f['file_id']);
+    }
+
+    /** Отображаемое имя спецификации: первый файл (+N). */
+    private static function title(array $stored): string
+    {
+        $name = (string) $stored[0]['name'];
+
+        return count($stored) > 1 ? mb_substr($name, 0, 240).' (+'.(count($stored) - 1).')' : $name;
     }
 
     /** Артефакт модуля (user_id NULL): read_owned/delete_owned/owned_ids_before. */
@@ -620,6 +762,10 @@ final class Service_Prx400_Specs
             'templates' => $templates,
             'parse_mode' => $mode,
             'template_id' => $template, // '' = авто-детекция по якорям
+            // Части спецификации по порядку: воркер скачивает /file/<file_no>.
+            'files' => array_map(static fn (array $f): array => [
+                'file_no' => $f['file_no'], 'sha256' => $f['file_sha256'], 'name' => $f['original_name'],
+            ], Model_Prx400_File::for_spec($spec_id)),
         ], $options);
         if ($job_id < 1) throw new RuntimeException('prx400: очередь не вернула ID задачи');
 
@@ -659,44 +805,5 @@ final class Service_Prx400_Specs
         }
 
         return $out;
-    }
-
-    private static function editor_id(Prx_Principal $principal): int
-    {
-        Policy_Prx400_Spec::require_edit($principal);
-        if ( ! $principal instanceof Prx_Actor) throw new Prx400_Error('forbidden', 403);
-
-        return $principal->id();
-    }
-
-    /** Строка под блокировкой + её спецификация в статусе, где строки принадлежат оператору. */
-    private function editable_row(Prx_Principal $principal, int $row_id): array
-    {
-        $row = Model_Prx400_Row::lock($row_id);
-        if ($row === NULL) throw new Prx400_Error('not_found', 404);
-        $spec = Policy_Prx400_Spec::require_view($principal, Model_Prx400_Spec::get((int) $row['spec_id']));
-        if (in_array($spec['status'], self::PIPELINE_STATUSES, TRUE)) throw new Prx400_Error('wrong_state', 409);
-
-        return [$row, $spec];
-    }
-
-    /** Поля правки из формы: только белый список, qty — число или пусто. */
-    private static function edit_fields(array $post): array
-    {
-        $limits = ['raw_name' => 4000, 'code_doc' => 255, 'unit' => 16];
-        $fields = [];
-        foreach ($limits as $field => $max)
-        {
-            if (array_key_exists($field, $post)) $fields[$field] = mb_substr(trim((string) $post[$field]), 0, $max);
-        }
-        if (array_key_exists('qty', $post))
-        {
-            $qty = str_replace([' ', "\u{00A0}", ','], ['', '', '.'], trim((string) $post['qty']));
-            if ($qty === '') $fields['qty'] = NULL;
-            elseif (preg_match('/\A-?\d{1,10}(?:\.\d{1,4})?\z/', $qty)) $fields['qty'] = (float) $qty;
-            else throw new Prx400_Error('qty_invalid', 400);
-        }
-
-        return $fields;
     }
 }

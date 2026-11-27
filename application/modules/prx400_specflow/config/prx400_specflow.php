@@ -37,6 +37,10 @@ return [
     // Пределы приёмки и протокола воркера. PRX400_MAX_PDF_BYTES/PRX400_MAX_ROWS
     // читает и воркер (handlers/prx400_specflow/limits.py) — одно значение.
     'max_pdf_bytes'    => $integer(getenv('PRX400_MAX_PDF_BYTES'), 20 * $mib, $mib, 100 * $mib),
+    // Многофайловая спецификация (лист + приложения, BOM по частям): файлов в
+    // одной спецификации и их общий объём. Воркер разбирает их по порядку.
+    'max_files'        => $integer(getenv('PRX400_MAX_FILES'), 10, 1, 50),
+    'max_total_bytes'  => $integer(getenv('PRX400_MAX_TOTAL_BYTES'), 60 * $mib, $mib, 500 * $mib),
     'max_rows'         => $integer(getenv('PRX400_MAX_ROWS'), 2000, 10, 100000),
     'max_result_bytes' => $integer(getenv('PRX400_MAX_RESULT_BYTES'), 8 * $mib, $mib, 64 * $mib),
     'task_timeout_sec' => $integer(getenv('PRX400_TASK_TIMEOUT_SEC'), 1800, 60, 7200),
@@ -56,4 +60,29 @@ return [
     // для ERP); N > 0 — prx400:purge удаляет завершённые (done/failed)
     // старше N дней вместе с файлом.
     'retention_days'   => $integer(getenv('PRX400_RETENTION_DAYS'), 0, 0, 3650),
+
+    // Справочник НСИ — подключаемый источник (Prx400_Catalog_Provider):
+    //  local — таблица prx_400_catalog (импорт CSV/XLSX, правка в UI);
+    //  http  — внешний справочник по REST-контракту (README, «Внешний НСИ»):
+    //          только чтение; память сопоставлений и матчинг — те же.
+    'catalog' => [
+        // Неизвестное значение не подменяется на local: фабрика ответит catalog_config.
+        'provider'   => trim((string) getenv('PRX400_CATALOG_PROVIDER')) ?: 'local',
+        'url'        => trim((string) getenv('PRX400_CATALOG_URL')),
+        'token'      => trim((string) getenv('PRX400_CATALOG_TOKEN')),
+        'timeout_ms' => $integer(getenv('PRX400_CATALOG_TIMEOUT_MS'), 3000, 200, 30000),
+    ],
+
+    // Webhook API-ключа (prx_400_hooks): доставка — bin/console prx400:hooks
+    // каждую минуту, подпись HMAC-SHA256. Адрес — только https и только
+    // публичный IP (SSRF); http/частные сети — явным флагом для стендов.
+    'hooks' => [
+        'timeout_ms'    => $integer(getenv('PRX400_HOOK_TIMEOUT_MS'), 5000, 500, 30000),
+        'max_attempts'  => $integer(getenv('PRX400_HOOK_MAX_ATTEMPTS'), 8, 1, 20),
+        'allow_http'    => getenv('PRX400_HOOK_ALLOW_HTTP') === '1',
+        'allow_private' => getenv('PRX400_HOOK_ALLOW_PRIVATE') === '1',
+    ],
+
+    // Массовое подтверждение: строки с кодом НСИ и скором не ниже порога.
+    'bulk_verify_min' => 0.80,
 ];

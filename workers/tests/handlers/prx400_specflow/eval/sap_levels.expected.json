@@ -1,0 +1,6 @@
+{"template_id": "spec_generic_v1", "rows": [
+ {"pos_path": "1", "name": "Вентилятор радиальный ВР-80-75", "qty": 1, "unit": "шт", "level": 0},
+ {"pos_path": "2", "name": "Электродвигатель АИР100L4", "qty": 1, "unit": "шт", "level": 1},
+ {"pos_path": "3", "name": "Виброизолятор ДО-42", "qty": 4, "unit": "шт", "level": 1},
+ {"pos_path": "4", "name": "Клапан обратный Ду315", "qty": 1, "unit": "шт", "level": 0}
+]}

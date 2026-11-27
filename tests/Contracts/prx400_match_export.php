@@ -3,7 +3,9 @@
  * Контракт prx400_specflow без БД: библиотека шаблонов и их валидация,
  * матчинг с НСИ (пороги доверия), правило статуса строки, построчные
  * проверки, приём результата воркера (clean_row/clean_math), коды ошибок
- * очереди и API, экспорт JSON/CSV. PHP CLI: php tests/Contracts/prx400_match_export.php
+ * очереди и API, экспорт JSON/CSV/XLSX и закупочная ведомость, дерево BOM,
+ * нормализация и перенос решений между разборами.
+ * PHP CLI: php tests/Contracts/prx400_match_export.php
  */
 if (!defined('SYSPATH')) define('SYSPATH', dirname(__DIR__, 2).'/system/');
 
@@ -57,7 +59,9 @@ foreach (['JobQueue/Maintenance', 'JobQueue/Monitor', 'JobQueue'] as $part) {
 require $root.'/application/modules/prx120_jobs/classes/Prx120/JobOutcome.php';
 require $module.'/classes/Prx400/Error.php';
 require $module.'/classes/Prx400/Messages.php';
-foreach (['Limits', 'Templates', 'Match', 'Checks', 'Pipeline', 'Specs', 'Export'] as $class) {
+require $module.'/classes/Prx400/Xlsx.php';
+require $root.'/application/classes/Prx/Spreadsheet.php';
+foreach (['Limits', 'Templates', 'Match', 'Checks', 'Pipeline', 'Specs', 'Export', 'Rows'] as $class) {
     require $module.'/classes/Service/Prx400/'.$class.'.php';
 }
 Kohana::$config = new ContractConfig(require $module.'/config/prx400_specflow.php');
@@ -69,7 +73,9 @@ check(in_array(Service_Prx400_Limits::default_mode(), Service_Prx400_Limits::par
 check(Service_Prx400_Limits::get('max_pdf_bytes') >= 1024 ** 2, 'лимит PDF не «тихий ноль»');
 check(Service_Prx400_Limits::get('max_rows') >= 10);
 check(Service_Prx400_Limits::get('max_result_bytes') > 0, 'лимит тела результата воркера задан');
-check_error(static fn () => Service_Prx400_Limits::assert_request_size(Service_Prx400_Limits::get('max_pdf_bytes') + 10 ** 6), 'file_too_large', 413);
+$request_cap = max(Service_Prx400_Limits::get('max_pdf_bytes'), Service_Prx400_Limits::get('max_total_bytes'));
+check_error(static fn () => Service_Prx400_Limits::assert_request_size($request_cap + 10 ** 6), 'file_too_large', 413);
+check(Service_Prx400_Limits::get('max_files') >= 1 && Service_Prx400_Limits::get('max_total_bytes') >= Service_Prx400_Limits::get('max_pdf_bytes'), 'многофайловая загрузка: общий предел не меньше одного файла');
 Service_Prx400_Limits::assert_request_size(1000);
 
 // ---- Шаблоны: валидные JSON, минимум один универсальный, поля разбора на месте
@@ -99,7 +105,9 @@ unset($no_pos['table_rules']['columns']['pos']);
 check_error(static fn () => Service_Prx400_Templates::validate($no_pos), 'template_invalid_column', 400);
 
 // ---- Нормализация: регистр, ё, пунктуация
-check(Service_Prx400_Match::normalize('Гайка М12, ГОСТ 5915-70 (цинк)') === 'гайка м12 гост 5915 70 цинк');
+// Токены с цифрами (марки, типоразмеры) сводятся к латинице: «М12» из скана
+// бывает и кириллицей, и латиницей — для НСИ это одна позиция.
+check(Service_Prx400_Match::normalize('Гайка М12, ГОСТ 5915-70 (цинк)') === 'гайка m12 гост 5915 70 цинк');
 check(Service_Prx400_Match::normalize('Ёлка-палка') === 'елка палка');
 
 // ---- Скор: идентичное = 1, unrelated = низкий, опечатки/сокращения — высокий
@@ -259,5 +267,89 @@ check(strpos($csv, 'Наименование') !== FALSE);
 check(strpos($csv, 'NSI-0001') !== FALSE);
 check(strpos($csv, 'проверено') !== FALSE, 'подтверждённая строка помечена');
 check(strpos($csv, ';=HYPERLINK') === FALSE && strpos($csv, "'=HYPERLINK") !== FALSE, 'CSV-инъекция нейтрализована');
+
+
+// ---- Нормализация НСИ: кириллица/латиница, х/x, запятая, ø, единицы
+check(Service_Prx400_Match::normalize('Болт М16х60') === Service_Prx400_Match::normalize('Болт M16x60'), 'М/M и х/x — одно и то же');
+check(Service_Prx400_Match::unit_key('Шт.') === Service_Prx400_Match::unit_key('шт'), 'Шт. = шт');
+check(Service_Prx400_Match::unit_key('пог.м') === 'м' && Service_Prx400_Match::unit_key('м²') === 'м2');
+
+// ---- clean_row: иерархия BOM, файл, страница
+$r = Service_Prx400_Pipeline::clean_row(0, ['pos_path' => '1.2.3', 'raw_name' => 'Болт', 'file_no' => 2, 'page' => 4], 3);
+check($r['pos_path'] === '1.2.3' && $r['pos'] === 3 && $r['level'] === 2 && $r['file_no'] === 2 && $r['page'] === 4, json_encode($r));
+$r = Service_Prx400_Pipeline::clean_row(0, ['pos_path' => '1..2', 'pos' => 5, 'file_no' => 9, 'page' => -1], 2);
+check($r['pos_path'] === '5' && $r['file_no'] === 1 && $r['page'] === NULL, 'мусорный путь/файл/страница отброшены');
+$r = Service_Prx400_Pipeline::clean_row(0, ['pos' => 1, 'level' => 2, 'flags' => [['type' => 'gap', 'after_pos' => '1.2']]]);
+check($r['level'] === 2 && $r['explicit_level'] === TRUE && $r['flags'][0]['after_pos'] === '1.2', 'явный уровень и пропуск «1.2»');
+
+// ---- link_tree: родитель по номеру в том же файле, иначе по явному уровню
+$tree = Service_Prx400_Pipeline::link_tree([
+    ['pos_path' => '1', 'level' => 0, 'file_no' => 1],
+    ['pos_path' => '1.1', 'level' => 1, 'file_no' => 1],
+    ['pos_path' => '1.1.1', 'level' => 2, 'file_no' => 1],
+    ['pos_path' => '2', 'level' => 0, 'file_no' => 1],
+    ['pos_path' => '1.2', 'level' => 1, 'file_no' => 2], // другой файл — свой «1» не найден
+    ['pos_path' => '', 'level' => 0, 'explicit_level' => TRUE, 'file_no' => 3],
+    ['pos_path' => '', 'level' => 1, 'explicit_level' => TRUE, 'file_no' => 3],
+]);
+check(array_column($tree, 'parent_seq') === [NULL, 0, 1, NULL, NULL, NULL, 5], 'дерево: '.json_encode(array_column($tree, 'parent_seq')));
+check( ! array_key_exists('explicit_level', $tree[6]), 'служебный ключ убран');
+
+// ---- merge_decisions: подтверждение и ручной код переезжают, ручные строки сохраняются
+$base = ['raw_name' => 'Болт М16х60', 'code_doc' => 'ГОСТ 7798', 'qty' => 4.0, 'unit' => 'шт', 'unit_price' => NULL, 'total_price' => NULL,
+    'flags' => [], 'match' => NULL, 'status' => 'new', 'verified' => FALSE, 'origin' => 'parsed', 'verified_by' => NULL];
+$old = [
+    array_merge($base, ['verified' => TRUE, 'verified_by' => -5, 'match' => ['code' => 'NSI-1', 'manual' => TRUE, 'score' => 1.0]]),
+    array_merge($base, ['raw_name' => 'Шайба 16', 'verified' => TRUE, 'verified_by' => -5]),
+    array_merge($base, ['raw_name' => 'Добавлено вручную', 'origin' => 'manual']),
+];
+$merged = Service_Prx400_Pipeline::merge_decisions([array_merge($base, ['raw_name' => 'Болт  M16x60'])], $old);
+check($merged['inherited'] === 1 && $merged['lost'] === 1 && $merged['kept'] === 1, json_encode(array_diff_key($merged, ['rows' => 1])));
+check($merged['rows'][0]['verified'] === TRUE && $merged['rows'][0]['match']['code'] === 'NSI-1' && $merged['rows'][0]['status'] === 'ok');
+check($merged['rows'][1]['raw_name'] === 'Добавлено вручную');
+
+// ---- Экспорт иерархии и закупочная ведомость: сборки не закупаются, per_parent умножает
+$bom = [
+    ['id' => 10, 'seq' => 0, 'pos' => 1, 'pos_path' => '1', 'level' => 0, 'parent_id' => NULL, 'raw_name' => 'Узел', 'code_doc' => 'КБ20.01',
+     'qty' => 2.0, 'unit' => 'шт', 'unit_price' => NULL, 'total_price' => NULL, 'flags' => [], 'match' => NULL, 'status' => 'new', 'verified' => FALSE, 'section' => ''],
+    ['id' => 11, 'seq' => 1, 'pos' => 1, 'pos_path' => '1.1', 'level' => 1, 'parent_id' => 10, 'raw_name' => 'Болт М16х60', 'code_doc' => '',
+     'qty' => 4.0, 'unit' => 'шт.', 'unit_price' => 10.0, 'total_price' => 40.0, 'flags' => [],
+     'match' => ['code' => 'NSI-1', 'name' => 'Болт М16х60 ГОСТ 7798', 'unit' => 'шт', 'score' => 0.97], 'status' => 'ok', 'verified' => FALSE, 'section' => ''],
+    ['id' => 12, 'seq' => 2, 'pos' => 2, 'pos_path' => '2', 'level' => 0, 'parent_id' => NULL, 'raw_name' => 'Болт M16x60', 'code_doc' => '',
+     'qty' => 1.0, 'unit' => 'шт', 'unit_price' => 10.0, 'total_price' => 10.0, 'flags' => [],
+     'match' => ['code' => 'NSI-1', 'name' => 'Болт М16х60 ГОСТ 7798', 'unit' => 'шт', 'score' => 1.0, 'manual' => TRUE], 'status' => 'ok', 'verified' => TRUE, 'section' => ''],
+];
+$agg = Service_Prx400_Export::aggregate($bom);
+check(count($agg) === 1 && $agg[0]['catalog_code'] === 'NSI-1' && $agg[0]['quantity'] === 5.0 && $agg[0]['rows'] === 2, json_encode($agg, JSON_UNESCAPED_UNICODE));
+check($agg[0]['positions'] === ['1.1', '2'] && $agg[0]['total_price'] === 50.0 && $agg[0]['warnings'] === []);
+$agg = Service_Prx400_Export::aggregate($bom, 'per_parent');
+check($agg[0]['quantity'] === 9.0, 'per_parent: 4 × 2 узла + 1');
+check_error(static fn () => Service_Prx400_Export::aggregate($bom, 'x'), 'invalid_bom_mode', 400);
+$pos = Service_Prx400_Export::json($spec, $bom)['positions'];
+check($pos[1]['position'] === '1.1' && $pos[1]['level'] === 1 && $pos[1]['parent_row_id'] === 10 && $pos[2]['match_via'] === 'manual');
+$hitl = Service_Prx400_Export::position($bom[1], TRUE);
+check($hitl['status'] === 'ok' && $hitl['verified'] === FALSE && is_array($hitl['candidates']));
+
+// ---- XLSX: три листа, читается общим ридером, формулы из скана — текст
+$xlsx = Service_Prx400_Export::xlsx($spec, $bom);
+$tmp = tempnam(sys_get_temp_dir(), 'prx400x');
+file_put_contents($tmp, $xlsx);
+$sheet = Prx_Spreadsheet::read($tmp, 100);
+unlink($tmp);
+$cells = json_encode($sheet, JSON_UNESCAPED_UNICODE);
+check(strpos($cells, 'Наименование') !== FALSE && strpos($cells, 'Узел') !== FALSE, 'лист «Позиции» читается');
+check(substr($xlsx, 0, 2) === 'PK', 'zip-контейнер');
+
+// ---- Пакетные/строковые правила HITL без БД
+check(Service_Prx400_Rows::passes(['status' => 'review', 'verified' => FALSE], 'disputed'));
+check( ! Service_Prx400_Rows::passes(['status' => 'review', 'verified' => TRUE], 'disputed'), 'подтверждённая — не спорная');
+check(Service_Prx400_Rows::label(['pos_path' => '1.2', 'raw_name' => 'Болт']) === '1.2 · Болт');
+check(Service_Prx400_Rows::fields(['qty' => '1 234,5', 'unit_price' => ''])['qty'] === 1234.5);
+check_error(static fn () => Service_Prx400_Rows::fields(['qty' => 'abc']), 'qty_invalid', 400);
+check_error(static fn () => Service_Prx400_Rows::fields(['total_price' => '1e5']), 'price_invalid', 400);
+check(Service_Prx400_Rows::subtree_end(array_map(static fn (array $r): array => $r + ['parent_id' => NULL], [
+    ['id' => 1, 'seq' => 0], ['id' => 2, 'seq' => 1, 'parent_id' => 1], ['id' => 3, 'seq' => 2, 'parent_id' => 2], ['id' => 4, 'seq' => 3],
+]), ['id' => 1, 'seq' => 0]) === 2, 'вставка «после сборки» — за всем её составом');
+check(Prx400_Messages::warning('file_2_header_not_found') !== 'file_2_header_not_found', 'пропущенный файл объяснён');
 
 echo "OK prx400_match_export\n";

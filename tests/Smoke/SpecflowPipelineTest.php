@@ -115,7 +115,7 @@ class SpecflowPipelineTest extends TestCase
             $this->assertSame('queued', json_decode($response->body(), TRUE)['status']);
             $this->assertSame('queued', $service->card($admin, $spec_id)['spec']['status']);
             $this->expect_error(static fn () => $service->card($plain, $spec_id), 'forbidden', 403);
-            $listed = array_column($service->listing($admin), 'owner_name', 'id');
+            $listed = array_column($service->listing($admin, ['per' => 200])['rows'], 'owner_name', 'id');
             $this->assertSame('API-ключ #'.$key, $listed[$spec_id] ?? NULL);
 
             // ---- GET не пишет: отменённая задача видна как failed/job_canceled, запись не тронута

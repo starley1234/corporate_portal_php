@@ -9,9 +9,15 @@
  * Импорт CSV/XLSX — Service_Prx400_CatalogImport; отчёт последнего импорта
  * ($import_report) приходит одноразово из сессии после PRG.
  *
+ * Внешний НСИ (PRX400_CATALOG_URL, провайдер только для чтения): страница
+ * ищет в нём по запросу, формы добавления/импорта/удаления скрыты — справочник
+ * ведётся в своей системе, здесь только подбор кодов.
+ *
  * Переменные: $catalog (страница), $total, $query, $page_no, $pages, $per,
- * $per_options, $import_report, $max_import, $max_import_rows, $can_edit, $flash, $csrf.
+ * $per_options, $import_report, $max_import, $max_import_rows, $can_edit, $flash, $csrf,
+ * $catalog_provider, $catalog_writable, $catalog_count (NULL — неизвестно).
  */
+$editable = $can_edit && $catalog_writable;
 $field_ru = ['code' => 'код', 'name' => 'наименование', 'unit' => 'ед. изм.', 'okei_code' => 'ОКЕИ', 'keywords' => 'ключевые слова'];
 ?>
 <div class="prx-ds w-full px-3.5 pt-4 pb-16 sm:px-6 lg:px-8">
@@ -20,7 +26,14 @@ $field_ru = ['code' => 'код', 'name' => 'наименование', 'unit' =>
         'title' => 'Справочник НСИ',
         'pill' => ['prx400 · номенклатура', 'fa-book'],
         'lead' => 'Коды номенклатуры для матчинга позиций: чем полнее справочник, тем больше строк зелёных без вашего участия. Совпадение по наименованию и ключевым словам — нечёткое.',
+        'actions' => [['label' => 'Запомненные сопоставления', 'href' => '/prx400_specflow/aliases', 'icon' => 'fa-link', 'role' => 'secondary']],
     ]); ?>
+<?php if ( ! $catalog_writable): ?>
+    <div class="prx-card mt-5 border-l-4 border-blue-500" role="note">
+        <h2 class="prx-h3"><i class="fas fa-plug text-blue-600"></i> Подключён внешний справочник НСИ: <span class="font-mono"><?php echo HTML::chars($catalog_provider); ?></span></h2>
+        <p class="prx-hint mt-2">Матчинг и подбор кодов идут по внешней системе<?php echo $catalog_count !== NULL ? ' ('.number_format((int) $catalog_count, 0, ',', ' ').' позиций)' : ''; ?>. Справочник ведётся там: добавление, импорт и удаление здесь отключены. Новую позицию заведите во внешнем НСИ — следующий разбор её увидит; решения операторов «наименование → код» по-прежнему запоминаются здесь.</p>
+    </div>
+<?php endif; ?>
 
     <?php echo View::factory('partials/flash', ['flash' => $flash]); ?>
 
@@ -70,19 +83,21 @@ $field_ru = ['code' => 'код', 'name' => 'наименование', 'unit' =>
     <div class="mt-5 gap-5 space-y-5 lg:grid lg:grid-cols-3 lg:items-start lg:space-y-0">
         <section class="prx-card lg:col-span-2 overflow-x-auto p-0">
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-3.5 dark:border-gray-700/60">
-                <h2 class="prx-h3">Позиции справочника <span class="prx-count ml-1"><?php echo (int) $total; ?></span></h2>
+                <h2 class="prx-h3"><?php echo $catalog_writable ? 'Позиции справочника' : 'Поиск во внешнем НСИ'; ?> <span class="prx-count ml-1"><?php echo (int) $total; ?></span></h2>
                 <div class="flex flex-wrap items-center gap-2">
                     <form method="get" action="/prx400_specflow/catalog" class="flex gap-2" role="search">
                         <input class="prx-input w-56" type="search" name="q" value="<?php echo HTML::chars($query); ?>" placeholder="Код, наименование, слово" aria-label="Поиск по справочнику">
                         <button class="prx-btn-secondary prx-btn-sm" type="submit"><i class="fas fa-magnifying-glass"></i><span class="sr-only">Найти</span></button>
                     </form>
+<?php if ($catalog_writable): ?>
                     <a class="prx-btn-secondary prx-btn-sm" href="/prx400_specflow/catalog_export" title="CSV в формате импорта"><i class="fas fa-download"></i>CSV</a>
+<?php endif; ?>
                 </div>
             </div>
 <?php if (empty($catalog)): ?>
             <p class="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400"><?php echo $query !== ''
                 ? 'По запросу ничего не найдено.'
-                : 'Справочник пуст — все позиции спецификаций будут помечены «новая». Загрузите выгрузку НСИ (CSV/XLSX) или добавьте запись формой справа.'; ?></p>
+                : ( ! $catalog_writable ? 'Введите код или слова наименования — поиск идёт во внешнем справочнике.' : 'Справочник пуст — все позиции спецификаций будут помечены «новая». Загрузите выгрузку НСИ (CSV/XLSX) или добавьте запись формой справа.'); ?></p>
 <?php else: ?>
             <table class="prx-table">
                 <thead><tr><th>Код</th><th>Наименование</th><th>Ед.</th><th>ОКЕИ</th><th>Ключевые слова</th><th></th></tr></thead>
@@ -91,11 +106,11 @@ $field_ru = ['code' => 'код', 'name' => 'наименование', 'unit' =>
                 <tr>
                     <td class="font-mono text-xs font-semibold text-gray-900 dark:text-white"><?php echo HTML::chars($c['code']); ?></td>
                     <td class="max-w-[360px]"><span class="block text-sm text-gray-900 dark:text-white"><?php echo HTML::chars($c['name']); ?></span></td>
-                    <td><?php echo HTML::chars($c['unit']); ?></td>
-                    <td class="font-mono text-xs text-gray-500 dark:text-gray-400"><?php echo HTML::chars((string) $c['okei_code']); ?></td>
-                    <td class="max-w-[200px]"><span class="block truncate text-xs text-gray-400" title="<?php echo HTML::chars((string) $c['keywords']); ?>"><?php echo HTML::chars((string) $c['keywords']); ?></span></td>
+                    <td><?php echo HTML::chars((string) ($c['unit'] ?? '')); ?></td>
+                    <td class="font-mono text-xs text-gray-500 dark:text-gray-400"><?php echo HTML::chars((string) ($c['okei_code'] ?? '')); ?></td>
+                    <td class="max-w-[200px]"><span class="block truncate text-xs text-gray-400" title="<?php echo HTML::chars((string) ($c['keywords'] ?? '')); ?>"><?php echo HTML::chars((string) ($c['keywords'] ?? '')); ?></span></td>
                     <td class="text-right">
-<?php if ($can_edit): ?>
+<?php if ($editable AND isset($c['id'])): ?>
                         <form method="post" action="/prx400_specflow/catalog_delete/<?php echo (int) $c['id']; ?>" class="inline">
                             <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
                             <button type="submit" class="prx-btn-danger prx-btn-sm" data-prx-arm="Удалить запись справочника? Двойное нажатие."><i class="fas fa-trash"></i><span class="sr-only">Удалить</span></button>
@@ -116,7 +131,7 @@ $field_ru = ['code' => 'код', 'name' => 'наименование', 'unit' =>
         </section>
 
         <aside class="space-y-5">
-<?php if ($can_edit): ?>
+<?php if ($editable): ?>
         <div class="prx-card">
             <h2 class="prx-h3">Загрузить выгрузку НСИ</h2>
             <form method="post" action="/prx400_specflow/catalog_import" enctype="multipart/form-data" class="mt-4 space-y-3">
@@ -136,6 +151,7 @@ $field_ru = ['code' => 'код', 'name' => 'наименование', 'unit' =>
             </form>
         </div>
 <?php endif; ?>
+<?php if ($catalog_writable): ?>
         <div class="prx-card">
             <h2 class="prx-h3">Добавить позицию</h2>
 <?php if ( ! $can_edit): ?>
@@ -171,6 +187,7 @@ $field_ru = ['code' => 'код', 'name' => 'наименование', 'unit' =>
 <?php endif; ?>
             <p class="prx-hint mt-3">Матчинг нечёткий: «Гайка М12 ГОСТ 5915-70 цинк» найдёт «Гайка шестигранная М12…». ≥92% — автоматическая привязка, 65–92% — на подтверждение оператору.</p>
         </div>
+<?php endif; ?>
         </aside>
     </div>
 </div>

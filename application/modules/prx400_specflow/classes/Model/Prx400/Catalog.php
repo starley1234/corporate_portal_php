@@ -14,19 +14,37 @@ class Model_Prx400_Catalog {
     }
 
     /**
-     * Страница справочника для UI: поиск подстроки по коду/наименованию/ключевым словам.
+     * Страница справочника: каждое слово запроса — подстрока кода,
+     * наименования или ключевых слов (И по словам).
+     *
+     * @param string|array $words строка запроса или слова с написаниями
+     *        [[«м16х60», «m16x60»], …] (Service_Prx400_Catalog::words — латиница/кириллица)
      * @return array{rows: array, total: int}
      */
-    public static function page(string $query, int $limit, int $offset): array
+    public static function page($words, int $limit, int $offset): array
     {
         $where = '';
         $params = [];
-        $query = trim($query);
-        if ($query !== '')
+        if (is_string($words))
+        {
+            $words = array_map(static fn (string $w): array => [$w], array_slice(preg_split('/\s+/u', trim(mb_substr($words, 0, 200)), -1, PREG_SPLIT_NO_EMPTY) ?: [], 0, 6));
+        }
+        if ($words !== [])
         {
             // Обратная косая — экранирующий символ LIKE по умолчанию в PostgreSQL.
-            $where = ' WHERE code ILIKE :q OR name ILIKE :q OR keywords ILIKE :q';
-            $params[':q'] = '%'.addcslashes(mb_substr($query, 0, 200), '%_\\').'%';
+            $clauses = [];
+            foreach (array_values($words) as $i => $forms)
+            {
+                $any = [];
+                foreach (array_values((array) $forms) as $j => $form)
+                {
+                    $key = ':q'.$i.'_'.$j;
+                    $params[$key] = '%'.addcslashes($form, '%_\\').'%';
+                    $any[] = 'code ILIKE '.$key.' OR name ILIKE '.$key.' OR keywords ILIKE '.$key;
+                }
+                $clauses[] = '('.implode(' OR ', $any).')';
+            }
+            $where = ' WHERE '.implode(' AND ', $clauses);
         }
         $total = Prx_Db::one('SELECT count(*) AS c FROM prx_400_catalog'.$where, $params);
         $rows = Prx_Db::select('SELECT '.self::COLUMNS.' FROM prx_400_catalog'.$where

@@ -26,6 +26,26 @@ final class Prx400_Messages
         'qty_invalid' => 'Количество должно быть числом.',
         'catalog_fields_required' => 'Код и наименование обязательны.',
         'catalog_code_not_found' => 'Такого кода нет в справочнике НСИ.',
+        'catalog_unavailable' => 'Внешний справочник НСИ не отвечает — попробуйте позже.',
+        'catalog_config' => 'Внешний справочник НСИ настроен неверно (PRX400_CATALOG_URL).',
+        'catalog_readonly' => 'Справочник НСИ внешний — позиции меняются в самом справочнике.',
+        'price_invalid' => 'Цена и сумма должны быть неотрицательными числами.',
+        'row_name_required' => 'Укажите наименование позиции.',
+        'pos_path_invalid' => 'Номер позиции — числа через точку, например 2.1.3.',
+        'row_has_children' => 'У позиции есть вложенные строки — сначала удалите их.',
+        'split_invalid' => 'Разделение: от 2 до 50 положительных количеств.',
+        'split_sum_mismatch' => 'Сумма частей должна равняться исходному количеству.',
+        'min_score_invalid' => 'Порог уверенности — от порога ручной проверки до 1.',
+        'invalid_filter' => 'Неверный фильтр списка.',
+        'too_many_files' => 'Слишком много файлов или их общий размер больше допустимого.',
+        'invalid_bom_mode' => 'Режим количества BOM: as_is или per_parent.',
+        'invalid_format' => 'Формат выгрузки: json, csv, xlsx или aggregate.',
+        'invalid_json' => 'Тело запроса — JSON-объект.',
+        'request_too_large' => 'Запрос больше допустимого размера.',
+        'method_not_allowed' => 'Метод не поддерживается.',
+        'unauthorized' => 'Требуется авторизация.',
+        'webhook_url_invalid' => 'Адрес webhook — https на публичный хост.',
+        'webhook_events_invalid' => 'Неизвестное событие webhook (spec.review, spec.done, spec.failed).',
         // Импорт справочника НСИ (CSV/XLSX)
         'catalog_file_required' => 'Выберите файл справочника (CSV или XLSX).',
         'catalog_file_too_large' => 'Файл справочника слишком большой — разделите его на части.',
@@ -85,6 +105,7 @@ final class Prx400_Messages
         'vision_pages_truncated' => 'Vision разобрал не все страницы (лимит PRX400_MAX_VISION_PAGES) — сверьте хвост документа.',
         'vision_page_failed' => 'Часть страниц vision не распознал — сверьте позиции с PDF.',
         'empty_page' => 'В PDF есть страницы без текста.',
+        'verified_rows_lost' => 'После перезапуска часть подтверждённых строк не нашлась в новом разборе — сверьте журнал правок.',
     ];
 
     public static function text(string $code): string
@@ -103,6 +124,7 @@ final class Prx400_Messages
     {
         if (isset(self::WARNINGS[$code])) return self::WARNINGS[$code];
         if (preg_match('/\Avision_page_(\d+)_failed\z/', $code, $m)) return 'Vision не распознал страницу '.$m[1].' — сверьте её с PDF.';
+        if (preg_match('/\Afile_(\d+)_([a-z_]+)\z/', $code, $m)) return 'Файл '.$m[1].' пропущен: '.self::text($m[2]);
 
         return $code;
     }
