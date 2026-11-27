@@ -5,7 +5,7 @@
  * перестал сообщать heartbeat дольше timeout_sec.
  *
  * Запуск — манифест schedule.maintenance, исполняет bin/console schedule:run
- * (prx103). Вручную: bin/console prx120:requeuestale
+ * (prx103). Вручную: bin/console Prx120:RequeueStale (имя чувствительно к регистру).
  */
 class Task_Prx120_RequeueStale extends Minion_Task {
 
