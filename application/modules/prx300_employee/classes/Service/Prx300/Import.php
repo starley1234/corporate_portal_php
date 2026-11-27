@@ -1006,7 +1006,7 @@ class Service_Prx300_Import extends Service_Prx300_Store
                              source_system, source_updated_at)
                             VALUES ('.$org_id.', '.self::_qi($department_id).', '.self::_qi($site_id).', '
                                 .':personnel_number, :last_name, :first_name, :middle_name, :position_title, :work_email, '
-                                .':work_phone, :status, :hired, :terminated, :source_system, '.$source_updated_sql.'
+                                .':work_phone, :status, :hired, :terminated, :source_system, '.$source_updated_sql.')
                             RETURNING id',
                             [':personnel_number' => (string) $row['personnel_number'],
                              ':last_name' => (string) $row['last_name'],

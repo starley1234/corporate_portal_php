@@ -104,6 +104,14 @@ fresh: ## ПЕРЕСОЗДАТЬ схему БД с нуля (drop schema + ми
 lint: ## проверка синтаксиса всех PHP-файлов
 	find application system modules public_html -name '*.php' -print0 | xargs -0 -n1 php -l
 
+lint-sql: ## SQL внутри PHP: разбор, PHP-код в запросе, скобки, LATERAL, дубли (pip install -r .tools/requirements.txt)
+	python3 .tools/php_parse_lint.py application
+	python3 .tools/php_dupe_lint.py application
+	python3 .tools/php_sql_lint.py application
+	python3 .tools/php_sql_paren_lint.py --selftest
+	python3 .tools/php_sql_paren_lint.py application
+	python3 .tools/php_lateral_lint.py application
+
 architecture: ## собрать документацию архитектуры из docs/architecture/model/*.yaml
 	@test -d node_modules/yaml || { echo "Нужны node-зависимости: npm ci"; exit 1; }
 	@npm run --silent architecture
@@ -188,7 +196,7 @@ check: ## все статические контракты: манифесты, 
 	fi
 	python3 -m unittest discover -s tests/Tooling -p 'test_*.py'
 
-.PHONY: test-contracts
+.PHONY: test-contracts lint-sql
 test-contracts: ## runtime-контракты основы без БД (нужен PHP)
 	bash bin/test --contracts
 

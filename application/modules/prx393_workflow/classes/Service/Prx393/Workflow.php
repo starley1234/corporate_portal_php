@@ -449,7 +449,7 @@ class Service_Prx393_Workflow
             {
                 self::_row("
                     INSERT INTO prx_393_escalations (deadline_id, document_id, level)
-                    VALUES (".(int) $row['id'].", ".(int) $row['document_id'].", :level
+                    VALUES (".(int) $row['id'].", ".(int) $row['document_id'].", :level)
                     RETURNING id
                 ", [':level' => $level]);
             }

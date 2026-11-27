@@ -906,7 +906,7 @@ class Service_Prx115_Semantic {
                     (collection_id, entity, entity_id, content, metadata, embedding, model, dims, content_hash)
                  VALUES (".(int) $collection_id.", :entity, :entity_id,
                          :content, :metadata::jsonb,
-                         ".$literal.$cast.", :model, ".(int) count($vector).",
+                         :embedding".$cast.", :model, ".(int) count($vector).",
                          :content_hash)
                  ON CONFLICT (collection_id, entity, entity_id) DO UPDATE SET
                     content   = EXCLUDED.content,
@@ -916,7 +916,9 @@ class Service_Prx115_Semantic {
                     dims      = EXCLUDED.dims,
                     content_hash = EXCLUDED.content_hash,
                     updated_at = now()",
-                [':entity' => (string) $entity, ':entity_id' => (string) $id,
+                // Литерал вектора — параметром (строка в кавычках + приведение):
+                // без кавычек «[1.0,…]::vector» — синтаксическая ошибка PG.
+                [':entity' => (string) $entity, ':entity_id' => (string) $id, ':embedding' => $literal,
                  ':content' => (string) $content, ':metadata' => (string) $metadata,
                  ':model' => (string) $model, ':content_hash' => self::content_hash($content)]);
 

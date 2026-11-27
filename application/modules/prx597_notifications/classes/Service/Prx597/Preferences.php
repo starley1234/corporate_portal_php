@@ -150,9 +150,12 @@ final class Service_Prx597_Preferences extends Service_Prx597_Base
 
         foreach ($values as $field => $value)
         {
-            // Булевы — числами 0/1: драйвер и PG читают их однозначно.
+            // Булевы — именно bool: Database::quote() даёт строковый литерал
+            // '1'/'0', который PG приводит к boolean. Число 0/1 в INSERT…VALUES
+            // PG к boolean НЕ приводит («is of type boolean but expression is
+            // of type integer») — сохранение настроек падало целиком.
             $insert[] = ':p_'.$field;
-            $params[':p_'.$field] = is_bool($value) ? (int) $value : $value;
+            $params[':p_'.$field] = $value;
             $update[] = $field.' = EXCLUDED.'.$field;
         }
 

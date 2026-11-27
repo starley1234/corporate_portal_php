@@ -23,6 +23,7 @@ jobs:
           extensions: mbstring, pgsql, curl
           coverage: none
       - run: make check && make env-check && make test-contracts && make lint
+      - run: python -m pip install -r .tools/requirements.txt && make lint-sql
       - run: npm ci && npm test && npm run architecture && npm run test:architecture
       - run: python -m pip install -r workers/requirements-dev.txt
       - run: PYTHONPATH=workers python -m pytest workers/tests -q

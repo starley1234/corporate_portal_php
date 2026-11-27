@@ -53,6 +53,12 @@ run "PHP: повторные объявления (php_dupe_lint)" \
 run "PHP: PHP-код внутри SQL (php_sql_lint)" \
     python3 .tools/php_sql_lint.py "$TARGET"
 
+# 2б'. Несбалансированные скобки в SQL-склейке. 27.11.2026: `VALUES (…, :level
+#     RETURNING id` — импорт сотрудников prx300 не применялся никогда, эскалации
+#     просроченных сроков prx393 молча не отправлялись (catch глушил syntax error).
+run "SQL: скобки в склейке запроса (php_sql_paren_lint)" \
+    python3 .tools/php_sql_paren_lint.py "$TARGET"
+
 # 2в. Ссылка на столбец, которого нет в подзапросе LATERAL. Живая авария
 #     28.09.2026: /prx120/monitor отдавал 500 «столбец ev.created_at не
 #     существует» — подзапрос отдавал только e.message, а снаружи читали ещё и
