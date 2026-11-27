@@ -17,7 +17,9 @@ class DocumentExtractionContractTest extends TestCase
     {
         $e = new Prx395_Error('idempotency_conflict', 409, ['key' => 'x']);
 
-        $this->assertTrue($e instanceof Prx150_Error);
+        // Controller_Prx150_Machine ловит Prx_DomainError: модуль не обязан зависеть от prx150.
+        $this->assertTrue($e instanceof Prx_DomainError);
+        $this->assertFalse($e instanceof Prx150_Error);
         $this->assertSame(['error' => ['code' => 'idempotency_conflict', 'details' => ['key' => 'x']]], $e->payload());
         $this->assertSame(409, $e->getCode());
     }

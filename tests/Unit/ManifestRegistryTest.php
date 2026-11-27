@@ -14,18 +14,31 @@ class ManifestRegistryTest extends TestCase {
 
     public function test_platform_channels_and_owners(): void
     {
+        // Каждый канал очереди — у одного владельца; новый канал вносится сюда
+        // явно (и в воркер), а не появляется молча.
+        $owners = [
+            'echo' => 'prx120_jobs', 'embeddings.index' => 'prx120_jobs',
+            'llm.summarize' => 'llm', 'semantic.index' => 'prx115_semantic',
+        ];
+        $optional = [
+            'prx390_intake' => ['doc.normalize'],
+            'prx392_analysis' => ['doc.analyze'],
+            'prx395_document_extract' => ['document.extract'],
+            'prx396_pdf_chunks' => ['pdf.chunks'],
+            'prx397_invoice' => ['invoice.extract'],
+            'prx398_doc_router' => ['doc.route'],
+            'prx399_docmerge' => ['doc.merge.audit', 'doc.merge.delta'],
+            'prx400_specflow' => ['specflow.parse'],
+        ];
+        foreach ($optional as $module => $names)
+        {
+            if ( ! isset(Kohana::modules()[$module])) continue;
+            foreach ($names as $name) $owners[$name] = $module;
+        }
+        ksort($owners);
         $channels = Manifest::channels();
-        $keys = array_keys($channels);
-        sort($keys);
-        $expected = ['document.extract', 'echo', 'embeddings.index', 'llm.summarize', 'semantic.index'];
-        $modules = Kohana::modules();
-        if (isset($modules['prx392_analysis'])) $expected[] = 'doc.analyze';
-        if (isset($modules['prx390_intake'])) $expected[] = 'doc.normalize';
-        sort($expected);
-        $this->assertSame($expected, $keys);
-        $this->assertSame('prx395_document_extract', $channels['document.extract']['module']);
-        $this->assertSame('prx115_semantic', $channels['semantic.index']['module']);
-        $this->assertSame('prx120_jobs', $channels['echo']['module']);
+        ksort($channels);
+        $this->assertSame($owners, array_map(static fn ($channel) => $channel['module'], $channels));
     }
 
     public function test_technical_rag_is_not_a_global_search_source(): void
@@ -56,12 +69,12 @@ class ManifestRegistryTest extends TestCase {
                 }
             }
         }
-        $this->assertCount(55, array_unique($services));
+        $this->assertCount(56, array_unique($services));
         $optional = ['prx390_intake', 'prx391_documents', 'prx392_analysis', 'prx393_workflow'];
         $loaded = array_intersect($optional, array_keys(Kohana::modules()));
         $enabled = $loaded !== [];
         $this->assertSame($enabled ? $optional : [], $loaded, 'Подключайте старый документооборот целым блоком');
-        $this->assertSame(array_merge(['prx300_employee'], $enabled ? $optional : []), $active);
+        $this->assertSame(array_merge(['prx300_employee'], $enabled ? $optional : [], ['prx399_docmerge']), $active);
         $this->assertSame(array_merge($enabled ? [] : $optional, ['prx394_drafts']), $archived);
         $this->assertArrayNotHasKey('prx398_vlm_demo', Kohana::modules());
     }

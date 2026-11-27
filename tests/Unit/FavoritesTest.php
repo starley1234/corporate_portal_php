@@ -63,9 +63,15 @@ class FavoritesTest extends TestCase
             $this->assertSame(['/account/security'], array_column(Service_Prx110_Favorites::items($first, $login), 'href'));
             $this->assertSame(['/prx560', '/account/security'], array_column(Service_Prx110_Favorites::items($first, $admin), 'href'));
             $this->assertFalse(Service_Prx110_Favorites::set($first, '/prx560', TRUE, $login));
-            foreach (['//evil.test', 'https://evil.test', '/not-a-service', '/employee', '/inbox', '/services', "/account/security\n"] as $href) {
+            // Чужие/внешние адреса и любые страницы невидимого сервиса (по префиксу
+            // /prxNNN… или по href/nav_paths манифеста) закрепить нельзя.
+            foreach (['//evil.test', 'https://evil.test', '/employee', '/inbox', '/services', "/account/security\n",
+                      '/prx560_knowledge', '/prx560_knowledge/admin', '/prx560_index', '/prx560/anything'] as $href) {
                 $this->assertFalse(Service_Prx110_Favorites::set($first, $href, TRUE, $login), $href);
             }
+            // Внутренняя страница вне сервисов (звезда в page_header) — можно: доступ проверит маршрут.
+            $this->assertTrue(Service_Prx110_Favorites::set($first, '/not-a-service', TRUE, $login));
+            $this->assertTrue(Service_Prx110_Favorites::set($first, '/not-a-service', FALSE, $login));
             // Удалить свою невидимую запись можно, но только по своему user_id.
             $this->assertTrue(Service_Prx110_Favorites::set($first, '/prx560', FALSE, $login));
             $this->assertSame(['/account/security'], array_column(Service_Prx110_Favorites::items($first, $admin), 'href'));
@@ -86,7 +92,7 @@ class FavoritesTest extends TestCase
             $this->with_users(function ($first) {
                 DB::query(Database::UPDATE, "INSERT INTO roles_users (user_id, role_id) SELECT :uid, id FROM roles WHERE name = 'login'")
                     ->param(':uid', $first)->execute();
-                $this->assertTrue(Service_Prx110_Favorites::set($first, '/architecture', TRUE, $this->login_context()));
+                $this->assertTrue(Service_Prx110_Favorites::set($first, '/kicked-check/page', TRUE, $this->login_context()));
                 $session = Session::instance();
                 $original = $session->as_array();
                 try {
@@ -97,7 +103,7 @@ class FavoritesTest extends TestCase
                         $session->set(Kohana::$config->load('auth.session_key'), $user);
                         $response = Request::factory($uri)->execute();
                         $this->assertSame($expected, $response->status(), $uri);
-                        $this->assertStringNotContainsString('href="/architecture"', $response->body());
+                        $this->assertStringNotContainsString('href="/kicked-check/page"', $response->body());
                         if ($expected === 401) $this->assertSame('auth', json_decode($response->body(), TRUE)['error'] ?? NULL);
                     }
                 } finally {

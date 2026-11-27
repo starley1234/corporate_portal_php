@@ -9,10 +9,15 @@ class StoragePathsProbe extends Service_Prx212_Storage
     public function delete_for_test($backend, $path) { $this->_physical_delete($backend, $path); }
 }
 
-class StorageDoctorProbe extends Task_Dev_Doctor
+/** Проверки dev:doctor живут в Service_Prx103_Doctor (их же выполняет /prx100/selfcheck). */
+class StorageDoctorProbe extends Service_Prx103_Doctor
 {
-    public function __construct() { parent::__construct(); }
-    public function check_for_test() { $this->_report = []; $this->_check_dirs(); return $this->_report; }
+    public function check_for_test(): array
+    {
+        $rows = [];
+        static::_check_dirs($rows);
+        return array_map(static fn (array $row) => [$row['status'], $row['message']], $rows);
+    }
 }
 
 class StoragePathsBackend

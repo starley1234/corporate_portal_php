@@ -6,7 +6,7 @@
 $docflow_status = isset(Kohana::modules()['prx390_intake']) ? 'active' : 'archived';
 return ['domains' => [
     'hr' => ['title' => 'HR и развитие персонала', 'services' => [
-        ['module' => 'prx300_employee', 'title' => 'Мой профиль сотрудника', 'status' => 'pilot'],
+        ['module' => 'prx300_employee', 'title' => 'Мой профиль сотрудника', 'status' => 'active'],
         ['module' => 'prx301_onboarding', 'title' => 'Онбординг-трек', 'status' => 'planned'],
         ['module' => 'prx302_career', 'title' => 'Карьерный трек', 'status' => 'planned'],
         ['module' => 'prx303_performance', 'title' => 'Управление эффективностью', 'status' => 'planned'],
@@ -61,7 +61,8 @@ return ['domains' => [
         ['module' => 'prx392_analysis', 'title' => 'ИИ-анализ входящих', 'status' => $docflow_status],
         ['module' => 'prx393_workflow', 'title' => 'Сроки и маршруты', 'status' => $docflow_status],
         ['module' => 'prx394_drafts', 'title' => 'Ответы на письма', 'status' => 'archived'],
-        ['module' => 'prx399_docmerge', 'title' => 'Слияние договоров и ДС (ИИ)', 'status' => $docflow_status],
+        // prx399 подключается всегда (modules.php), независимо от старого документооборота 390–393.
+        ['module' => 'prx399_docmerge', 'title' => 'Слияние договоров и ДС (ИИ)', 'status' => 'active'],
     ]],
     'projects' => ['title' => 'Управление проектами', 'services' => [
         // prx400 занят prx400_specflow (единый префикс классов/таблиц/прав) — доска проектов на prx405.

@@ -26,6 +26,25 @@ namespace PHPUnit\Framework {
 			throw new AssertionFailedError($message);
 		}
 
+		/** Ожидаемое исключение теста (как в phpunit): класс и подстрока сообщения. */
+		public ?string $__expected_exception = NULL;
+		public ?string $__expected_message = NULL;
+
+		public function expectException(string $class): void
+		{
+			$this->__expected_exception = $class;
+		}
+
+		public function expectExceptionMessage(string $message): void
+		{
+			$this->__expected_message = $message;
+		}
+
+		public function assertIsArray($actual, string $message = ''): void
+		{
+			$this->_ok(is_array($actual), 'assertIsArray', $message, 'получено '.get_debug_type($actual));
+		}
+
 		protected function _ok(bool $condition, string $kind, string $message, string $detail = ''): void
 		{
 			if ( ! $condition)
@@ -231,8 +250,23 @@ namespace {
 		}
 
 		$instance = $r->newInstance();
+
+		// Хуки уровня класса (как phpunit): поднять фикстуру один раз на класс.
+		$class_error = NULL;
+		if ($r->hasMethod('setUpBeforeClass'))
+		{
+			try { $r->getMethod('setUpBeforeClass')->invoke(NULL); }
+			catch (Throwable $e) { $class_error = $e; }
+		}
+
 		foreach ($r->getMethods(ReflectionMethod::IS_PUBLIC) as $method)
 		{
+			if ($class_error !== NULL AND strpos($method->name, 'test') === 0)
+			{
+				$failed++;
+				echo "  ✘ {$base}::{$method->name}: setUpBeforeClass: ".get_class($class_error).': '.$class_error->getMessage()."\n";
+				continue;
+			}
 			if (strpos($method->name, 'test') !== 0)
 			{
 				continue;
@@ -244,7 +278,27 @@ namespace {
 
 				try
 				{
-					$instance->{$method->name}();
+					$instance->__expected_exception = $instance->__expected_message = NULL;
+					try
+					{
+						$instance->{$method->name}();
+					}
+					catch (Throwable $thrown)
+					{
+						// Ожидаемое исключение — успех; остальные идут дальше как падение.
+						$want = $instance->__expected_exception;
+						if ($want === NULL OR ! ($thrown instanceof $want)) throw $thrown;
+						if ($instance->__expected_message !== NULL
+							AND strpos($thrown->getMessage(), $instance->__expected_message) === FALSE)
+						{
+							PHPUnit\Framework\TestCase::fail('сообщение исключения: '.$thrown->getMessage());
+						}
+						$instance->__expected_exception = NULL;
+					}
+					if ($instance->__expected_exception !== NULL)
+					{
+						PHPUnit\Framework\TestCase::fail('ожидалось исключение '.$instance->__expected_exception);
+					}
 					$passed++;
 					echo "  ✔ {$base}::{$method->name}\n";
 				}
@@ -268,6 +322,12 @@ namespace {
 					: ' ['.basename($e->getFile()).':'.$e->getLine().']';
 				echo "  ✘ {$base}::{$method->name}: ".get_class($e).': '.$e->getMessage()."{$at}\n";
 			}
+		}
+
+		if ($r->hasMethod('tearDownAfterClass'))
+		{
+			try { $r->getMethod('tearDownAfterClass')->invoke(NULL); }
+			catch (Throwable $e) { echo "  ! {$base}::tearDownAfterClass: ".$e->getMessage()."\n"; }
 		}
 	}
 

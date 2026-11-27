@@ -50,7 +50,9 @@ class Service_Prx110_Favorites
             }
             // Подстраница (звезда в page_header): метаданные — сохранённые
             // при закреплении; доступ проверит сам маршрут при переходе.
-            if ( ! self::valid_href($href)) continue;
+            // Но не страница сервиса, который стал невидим (сняли роль/архив):
+            // иначе сохранённое название и ссылка продолжали бы показываться.
+            if ( ! self::valid_href($href) OR self::hidden_service($href, $catalog)) continue;
             $items[] = [
                 'href' => $href,
                 'title' => $own_title ?? $href,
@@ -138,6 +140,10 @@ class Service_Prx110_Favorites
                 $title = $catalog[$href]['title'];
                 $icon = $catalog[$href]['icon'];
             }
+            elseif (self::hidden_service($href, $catalog))
+            {
+                return FALSE; // страница сервиса, которого пользователь не видит
+            }
 
             try
             {
@@ -203,6 +209,65 @@ class Service_Prx110_Favorites
         return is_string($href) AND $href !== '' AND strlen($href) <= 512
             AND $href !== '/services' AND $href[0] === '/' AND substr($href, 0, 2) !== '//'
             AND strpos($href, '\\') === FALSE AND preg_match('/[\x00-\x20\x7f]/', $href) !== 1;
+    }
+
+    /**
+     * Адрес принадлежит сервису каталога, НЕвидимому в $visible (catalog_map).
+     *
+     * Владелец страницы (инвариант единого префикса модуля):
+     *   1. первый сегмент /prxNNN, /prxNNN_index, /prxNNN_slug, /prxNNN/...;
+     *   2. имя совпавшего маршрута prxNNN_* (короткие адреса /employee, /inbox);
+     *   3. самый длинный совпавший href/nav_paths манифеста.
+     * Страница без владельца (общий маршрут) — не сервис: доступ проверит маршрут.
+     */
+    protected static function hidden_service(string $href, array $visible): bool
+    {
+        $owner = self::owner_module($href);
+
+        return $owner !== NULL AND ! isset($visible[(string) $owner['href']]);
+    }
+
+    protected static function owner_module(string $href): ?array
+    {
+        $path = rtrim((string) strtok($href, '?#'), '/') ?: '/';
+        $modules = Service_Prx110_Catalog::modules();
+
+        $id = preg_match('~^/prx(\d{3})(?:[_/]|$)~', $path, $m) ? (int) $m[1] : NULL;
+        if ($id === NULL)
+        {
+            try
+            {
+                // new Request (не factory): без побочного Request::$initial.
+                $found = Request::process(new Request(ltrim($path, '/')));
+                if ($found AND preg_match('~^prx(\d{3})_~', (string) Route::name($found['route']), $m)) $id = (int) $m[1];
+            }
+            catch (Throwable $e)
+            {
+                // Неразбираемый адрес — дальше по манифестам.
+            }
+        }
+        if ($id !== NULL)
+        {
+            foreach ($modules as $module)
+            {
+                if ((int) ($module['id'] ?? 0) === $id) return $module;
+            }
+            return NULL;
+        }
+
+        $owner = NULL;
+        $length = -1;
+        foreach ($modules as $module)
+        {
+            foreach (array_merge([(string) $module['href']], (array) ($module['nav_paths'] ?? [])) as $candidate)
+            {
+                $target = rtrim((string) $candidate, '/');
+                if ($target === '' OR ! ($path === $target OR strpos($path, $target.'/') === 0)) continue;
+                if (strlen($target) > $length) { $owner = $module; $length = strlen($target); }
+            }
+        }
+
+        return $owner;
     }
 
     /** Только минимальные данные для sidebar, отфильтрованные каталогом. */

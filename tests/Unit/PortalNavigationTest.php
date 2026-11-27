@@ -24,8 +24,9 @@ class PortalNavigationTest extends TestCase
 
     public function test_sidebar_contains_only_catalog_even_when_module_navigation_is_supplied(): void
     {
+        // Каталог и управление Избранным (prx113); пункты модулей в меню не попадают.
         $items = Service_Prx110_Catalog::menu_items();
-        $this->assertSame(['/services'], array_column($items, 'href'));
+        $this->assertSame(['/services', '/favorites'], array_column($items, 'href'));
 
         $sidebar = View::factory('partials/sidebar', [
             'site_name' => 'PRX',
@@ -34,8 +35,8 @@ class PortalNavigationTest extends TestCase
         ])->render();
         $this->assertStringContainsString('href="/services"', $sidebar);
         $this->assertStringNotContainsString('href="/inbox"', $sidebar);
-        $this->assertStringNotContainsString('href="/architecture"', $sidebar);
-        $this->assertStringNotContainsString('href="/account/security"', $sidebar);
+        $this->assertStringNotContainsString('href="/prx101_architecture"', $sidebar);
+        $this->assertStringNotContainsString('href="/prx599_account"', $sidebar);
     }
 
     public function test_catalog_shows_only_approved_services_and_keeps_wip_for_preview(): void
@@ -44,16 +45,17 @@ class PortalNavigationTest extends TestCase
         $items = Service_Prx110_Catalog::search_json($admin)['items'];
         $hrefs = array_column($items, 'href');
         foreach ([
-            '/prx560', '/prx597', '/account/security',
+            '/prx560_knowledge', '/prx597_notifications', '/prx599_account',
         ] as $href) {
             $this->assertContains($href, $hrefs, $href);
         }
         // beta/draft — «в работе»: на /services и в палитру не попадают даже админу.
-        foreach (['/architecture', '/prx395_document_extract', '/inbox',
-                  '/prx391_documents', '/analysis', '/sla'] as $href) {
+        // Адреса канонические (/<префикс_слаг>): по старым коротким проверка была бы пустой.
+        foreach (['/prx101_architecture', '/prx395_document_extract', '/prx390_intake',
+                  '/prx391_documents', '/prx392_analysis', '/prx393_workflow'] as $href) {
             $this->assertNotContains($href, $hrefs, $href);
         }
-        foreach (['/replies', '/vlm-demo', '/employee'] as $href) {
+        foreach (['/replies', '/vlm-demo', '/prx300_employee'] as $href) {
             $this->assertNotContains($href, $hrefs, $href);
         }
         foreach ($items as $item) {
@@ -64,34 +66,34 @@ class PortalNavigationTest extends TestCase
         // с учётом аудитории: beta-модули снова видны, архив — нет.
         $preview = $admin + ['preview' => TRUE];
         $preview_hrefs = array_column(Service_Prx110_Catalog::search_json($preview)['items'], 'href');
-        foreach (['/architecture', '/prx395_document_extract'] as $href) {
+        foreach (['/prx101_architecture', '/prx395_document_extract'] as $href) {
             $this->assertContains($href, $preview_hrefs, $href);
         }
         $modules = Kohana::modules();
-        foreach (['/inbox' => 'prx390_intake', '/prx391_documents' => 'prx391_documents', '/analysis' => 'prx392_analysis', '/sla' => 'prx393_workflow'] as $href => $module) {
+        foreach (['/prx390_intake' => 'prx390_intake', '/prx391_documents' => 'prx391_documents', '/prx392_analysis' => 'prx392_analysis', '/prx393_workflow' => 'prx393_workflow'] as $href => $module) {
             $this->assertSame(isset($modules[$module]), in_array($href, $preview_hrefs, TRUE), $href);
         }
-        foreach (['/replies', '/vlm-demo', '/employee'] as $href) {
+        foreach (['/replies', '/vlm-demo', '/prx300_employee'] as $href) {
             $this->assertNotContains($href, $preview_hrefs, $href);
         }
 
         $login = ['guest' => FALSE, 'logged' => TRUE, 'user_id' => 1, 'roles' => ['login'], 'admin' => FALSE, 'agent' => FALSE, 'preview' => FALSE];
         $login_hrefs = array_column(Service_Prx110_Catalog::search_json($login)['items'], 'href');
-        $this->assertNotContains('/employee', $login_hrefs);
-        foreach (['/prx560', '/prx395_document_extract', '/inbox', '/prx391_documents', '/analysis', '/sla', '/architecture'] as $href) {
+        $this->assertNotContains('/prx300_employee', $login_hrefs);
+        foreach (['/prx560_knowledge', '/prx395_document_extract', '/prx390_intake', '/prx391_documents', '/prx392_analysis', '/prx393_workflow', '/prx101_architecture'] as $href) {
             $this->assertNotContains($href, $login_hrefs);
         }
 
         // Обычный сотрудник не открывает «в работе» одним query-параметром.
         $login_preview = $login + ['preview' => TRUE];
         $login_preview_hrefs = array_column(Service_Prx110_Catalog::search_json($login_preview)['items'], 'href');
-        $this->assertNotContains('/architecture', $login_preview_hrefs);
+        $this->assertNotContains('/prx101_architecture', $login_preview_hrefs);
         $this->assertNotContains('/prx395_document_extract', $login_preview_hrefs);
 
         $guest = ['guest' => TRUE, 'logged' => FALSE, 'roles' => [], 'admin' => FALSE, 'agent' => FALSE, 'preview' => FALSE];
         $guest_hrefs = array_column(Service_Prx110_Catalog::search_json($guest)['items'], 'href');
-        $this->assertNotContains('/employee', $guest_hrefs);
-        $this->assertNotContains('/prx560', $guest_hrefs);
+        $this->assertNotContains('/prx300_employee', $guest_hrefs);
+        $this->assertNotContains('/prx560_knowledge', $guest_hrefs);
         $this->assertSame([], $guest_hrefs);
     }
 
