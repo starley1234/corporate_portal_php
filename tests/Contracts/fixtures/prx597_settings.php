@@ -176,7 +176,15 @@ Service_Prx597_Base::forget_settings();
 foreach (['TELEGRAM_BOT_TOKEN', 'TELEGRAM_BOT_NICK', 'MAX_BOT_TOKEN', 'MAX_BOT_NICK', 'MAX_BUSINESS_KEY', 'MAX_BUSINESS_ENDPOINT'] as $key) { putenv('PRX597_NOTIFICATIONS_'.$key); }
 
 // Настоящая вьюха и POST-контроллер; формы проверяем и с активным ботом.
-class View { public static function factory($view, $vars = []) { return ''; } }
+class View
+{
+    /** Общая шапка страницы рендерит заголовок (как partials/page_header); прочие partial — пусто. */
+    public static function factory($view, $vars = [])
+    {
+        if ($view === 'partials/page_header') return '<h1 class="prx-h1">'.htmlspecialchars((string) ($vars['title'] ?? ''), ENT_QUOTES, 'UTF-8').'</h1>';
+        return '';
+    }
+}
 class Controller_Prx102_Base
 {
     public $request; public $location; public static $allowed = TRUE;

@@ -21,6 +21,7 @@ class Database
     public static $db;
     public static function instance() { return self::$db; }
 }
+require __DIR__.'/fixtures/db_bridge.php';
 class Test_Result
 {
     public $rows;

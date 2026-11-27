@@ -131,6 +131,7 @@ class ContractResponse {
 class Log { const ERROR = 1; }
 class Log_Plain { public static function event(...$args) {} }
 require $root.'/application/classes/Prx/Gate.php';
+require_once $root.'/application/classes/Prx/DomainError.php';
 require $root.'/application/modules/prx150_api_hub/classes/Prx150/Error.php';
 require $root.'/application/modules/prx395_document_extract/classes/Prx395/Error.php';
 require $root.'/application/modules/prx395_document_extract/classes/Controller/Prx395/Worker.php';

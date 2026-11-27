@@ -14,16 +14,18 @@ class Database {
  static $db;
  public $insert_id=1, $existing, $queries=[], $commits=0, $rollbacks=0;
  static function instance() { return self::$db ?? (self::$db=new self); }
- function begin() { $this->queries=[]; }
- function commit() { $this->commits++; }
- function rollback() { $this->rollbacks++; }
+ function begin() { $this->queries=[]; return TRUE; }
+ function commit() { $this->commits++; return TRUE; }
+ function rollback() { $this->rollbacks++; return TRUE; }
  function quote($value) { return "'".str_replace("'","''",$value)."'"; }
  function query($type,$sql,$objects) {
   $this->queries[]=$sql;
+  if ($type !== self::SELECT) return 1; // драйвер: число строк для UPDATE/DELETE
   $row = strpos($sql,'SELECT * FROM prx_392_runs') !== false ? $this->existing : ['id'=>$this->insert_id];
   return new class($row) { private $row; function __construct($row) {$this->row=$row;} function current() {return $this->row;} };
  }
 }
+require __DIR__.'/fixtures/db_bridge.php';
 class Service_Prx120_JobQueue {
  static $job, $pushes=0, $fail=false;
  static function instance() {return new self;}

@@ -3,6 +3,7 @@
 define('SYSPATH', TRUE);
 $root = dirname(__DIR__, 2);
 $module = $root.'/application/modules/prx395_document_extract';
+require_once $root.'/application/classes/Prx/DomainError.php';
 require $root.'/application/modules/prx150_api_hub/classes/Prx150/Error.php';
 require $module.'/classes/Prx395/Error.php';
 require $module.'/classes/Service/Prx395/Limits.php';
@@ -31,17 +32,20 @@ class Controller_Prx150_Machine
 {
     public Request $request;
     public array $error;
-    protected function respond(callable $action) { try { $action(); } catch (Prx150_Error $e) { $this->error = [$e->getCode(), $e->getMessage()]; } }
+    protected function respond(callable $action) { try { $action(); } catch (Prx_DomainError $e) { $this->error = [$e->getCode(), $e->getMessage()]; } }
     protected function principal() { return new Prx_Actor; }
 }
 class Database
 {
-    const INSERT = 1;
+    const SELECT = 1;
+    const INSERT = 2;
+    const UPDATE = 3;
     public static string $sql;
-    public static function instance($group) { return new self; }
+    public static function instance($group = NULL) { return new self; }
     public function quote($value) { return "'".$value."'"; }
-    public function query($type, $sql, $as_object) { self::$sql = $sql; }
+    public function query($type, $sql, $as_object) { self::$sql = $sql; return $type === self::SELECT ? [] : 1; }
 }
+require __DIR__.'/fixtures/db_bridge.php';
 class Service_Prx120_JobQueue
 {
     public static array $options;
@@ -62,7 +66,7 @@ class Prx_Idempotency
     public static function finish(...$args) {}
     public static function abort(...$args) {}
 }
-class Log { const INFO = 1; }
+class Log { const ERROR = 3; const WARNING = 4; const INFO = 6; }
 class Log_Plain { public static function event(...$args) {} }
 require $module.'/classes/Controller/Prx395/Api.php';
 

@@ -10,6 +10,7 @@ class Kohana { public static $config; }
 Kohana::$config = new ExtractionConfig;
 foreach (['Prx/Principal', 'Prx/Actor', 'Prx/Acl'] as $class) require $root.'/application/classes/'.$class.'.php';
 require $root.'/application/modules/prx150_api_hub/classes/Prx150/Principal.php';
+require_once $root.'/application/classes/Prx/DomainError.php';
 require $root.'/application/modules/prx150_api_hub/classes/Prx150/Error.php';
 require $root.'/application/modules/prx150_api_hub/classes/Service/Prx150/Keys.php';
 require $root.'/application/modules/prx395_document_extract/classes/Prx395/Error.php';
@@ -22,7 +23,7 @@ function extraction_check($actual, $expected) {
     $checks++;
 }
 function extraction_denied(callable $operation, $status) {
-    try { $operation(); } catch (Prx150_Error $e) { extraction_check($e->getCode(), $status); return; }
+    try { $operation(); } catch (Prx_DomainError $e) { extraction_check($e->getCode(), $status); return; }
     throw new RuntimeException('Expected denial');
 }
 $admin = new Prx_Actor(7, ['admin']);

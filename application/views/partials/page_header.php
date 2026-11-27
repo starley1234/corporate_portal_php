@@ -56,7 +56,10 @@ $ph_roles = [
 <?php if ($ph_pill): ?>
             <span class="prx-pill"><?php if ( ! empty($ph_pill[1])): ?><i class="fas <?php echo HTML::chars((string) $ph_pill[1]); ?> text-xs"></i><?php endif; ?><?php echo HTML::chars((string) $ph_pill[0]); ?></span>
 <?php endif; ?>
-<?php $ph_pin_href = '/'.ltrim((string) Request::current()->uri(), '/'); ?>
+<?php // Request::current() пуст вне HTTP-цикла (CLI, рендер из теста/задачи):
+      // тогда звёздочки нет — '/' ниже её отключает, Auth не трогаем. ?>
+<?php $ph_request = Request::current(); ?>
+<?php $ph_pin_href = $ph_request ? '/'.ltrim((string) $ph_request->uri(), '/') : '/'; ?>
 <?php if (($pin ?? TRUE) !== FALSE AND $ph_title !== '' AND $ph_pin_href !== '/' AND Auth::instance()->logged_in()): ?>
 <?php // Избранное для любой страницы (prx110): состояние и клик ведёт navpalette.js
       // (syncCards/delegation), серверу достаточно адреса и названия. ?>

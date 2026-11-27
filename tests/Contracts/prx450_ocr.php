@@ -1,6 +1,7 @@
 <?php
 if (!defined('SYSPATH')) define('SYSPATH', dirname(__DIR__,2).'/system/');
 $root=dirname(__DIR__,2);
+require_once $root.'/application/classes/Prx/DomainError.php';
 require $root.'/application/modules/prx150_api_hub/classes/Prx150/Error.php';
 require $root.'/application/modules/prx450_document_ocr/classes/Prx450/Error.php';
 require $root.'/application/modules/prx450_document_ocr/classes/Service/Prx450/Ocr.php';

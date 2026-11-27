@@ -62,7 +62,8 @@ class ORM
 class Prx_Db
 {
  public static array $rows = [];
- public static function select($sql) { return array_values(self::$rows); }
+ // Решения публикации; прочих таблиц (пункты меню prx_110_menu_items) в стенде нет.
+ public static function select($sql) { return str_contains($sql, 'prx_110_publications') ? array_values(self::$rows) : []; }
  public static function insert($sql, $params) {
   if (!str_contains($sql, 'ON CONFLICT (module_name) DO NOTHING')) throw new RuntimeException('Backfill must preserve decisions');
   return [NULL, isset(self::$rows[$params[':name']]) ? 0 : self::write($params)];
@@ -137,9 +138,11 @@ foreach (Manifest::all() as $name=>$manifest) {
  if (empty($visible[$name]['href'])) throw new RuntimeException('Missing catalog entry: '.$name);
  $count++;
 }
-$links=['prx103_platform'=>'/admin','prx110_catalog'=>'/services','prx111_migrations'=>'/migrate_pg',
- 'prx115_semantic'=>'/prx115','prx120_jobs'=>'/prx120/monitor','prx208_events'=>'/prx208_events',
- 'prx212_file_storage'=>'/prx212_file_storage','prx218_module_manager'=>'/prx218_module_manager','prx595_useradmin'=>'/prx595/admin'];
+// Канонический адрес карточки = /<префикс_слаг> (AGENTS.md, инвариант 1);
+// короткие адреса (/admin, /services, /prx120/monitor…) остаются алиасами маршрутов.
+$links=[];
+foreach (['prx103_platform','prx110_catalog','prx111_migrations','prx115_semantic','prx120_jobs','prx208_events',
+          'prx212_file_storage','prx218_module_manager','prx595_useradmin'] as $name) $links[$name]='/'.$name;
 foreach ($links as $name=>$href) {
  if ($visible[$name]['href']!==$href) throw new RuntimeException('Wrong catalog route: '.$name);
  if ($name!=='prx110_catalog' && isset($regular[$name])) throw new RuntimeException('Admin module leaked: '.$name);
@@ -187,7 +190,7 @@ if (Service_Prx110_Catalog::resolve_manifest_state($approved_pdf) !== 'wip'
 $approved_pdf['status'] = 'deprecated';
 if (Service_Prx110_Catalog::resolve_state($approved_pdf) !== 'archived' || Service_Prx110_Catalog::can_see($approved_pdf, $admin)) throw new RuntimeException('Archived module retained visibility');
 Service_Prx110_Publication::approve('prx300_employee', $publisher);
-if (!in_array('/employee', array_column(Service_Prx110_Catalog::search_json($user)['items'], 'href'), TRUE)) {
+if (!in_array('/prx300_employee', array_column(Service_Prx110_Catalog::search_json($user)['items'], 'href'), TRUE)) {
  throw new RuntimeException('Approved employee profile did not enter regular catalog');
 }
 echo "Publication: admin-only, connected services only, manifest and ACL intact\n";

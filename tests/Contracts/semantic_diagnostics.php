@@ -9,6 +9,7 @@ class Database {
     public function quote($value) { return "'".str_replace("'", "''", (string) $value)."'"; }
     public function query($type, $sql, $objects) { throw new RuntimeException('test database unavailable'); }
 }
+require __DIR__.'/fixtures/db_bridge.php';
 class Kohana { public static $config; }
 Kohana::$config = new class {
     public function load($key) {

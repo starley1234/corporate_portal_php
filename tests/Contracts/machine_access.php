@@ -4,6 +4,7 @@ if (!defined('SYSPATH')) define('SYSPATH', dirname(__DIR__, 2).'/system/');
 $root = dirname(__DIR__, 2);
 require $root.'/application/classes/Prx/Principal.php';
 require $root.'/application/modules/prx150_api_hub/classes/Prx150/Principal.php';
+require_once $root.'/application/classes/Prx/DomainError.php';
 require $root.'/application/modules/prx150_api_hub/classes/Prx150/Error.php';
 class Request { public function method() { return 'GET'; } public function uri() { return 'api/test'; } }
 class MachineResponse {

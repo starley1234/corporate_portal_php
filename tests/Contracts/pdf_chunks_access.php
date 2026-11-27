@@ -10,6 +10,7 @@ class Kohana { public static $config; }
 Kohana::$config = new PdfChunksAccessConfig;
 foreach (['Prx/Principal', 'Prx/Actor', 'Prx/Acl'] as $class) require $root.'/application/classes/'.$class.'.php';
 require $root.'/application/modules/prx150_api_hub/classes/Prx150/Principal.php';
+require_once $root.'/application/classes/Prx/DomainError.php';
 require $root.'/application/modules/prx150_api_hub/classes/Prx150/Error.php';
 require $root.'/application/modules/prx150_api_hub/classes/Service/Prx150/Keys.php';
 require $root.'/application/modules/prx396_pdf_chunks/classes/Prx396/Error.php';
@@ -22,7 +23,7 @@ function pdf_chunks_check($actual, $expected) {
     $checks++;
 }
 function pdf_chunks_denied(callable $operation, $status) {
-    try { $operation(); } catch (Prx150_Error $e) { pdf_chunks_check($e->getCode(), $status); return; }
+    try { $operation(); } catch (Prx_DomainError $e) { pdf_chunks_check($e->getCode(), $status); return; }
     throw new RuntimeException('Expected denial');
 }
 // Ключ prx396.ui объявлен в acl.php — иначе UI-доступ молча пропадает.

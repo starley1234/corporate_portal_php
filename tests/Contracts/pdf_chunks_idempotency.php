@@ -3,9 +3,12 @@
 define('SYSPATH', TRUE);
 $root = dirname(__DIR__, 2);
 $module = $root.'/application/modules/prx396_pdf_chunks';
+require_once $root.'/application/classes/Prx/DomainError.php';
 require $root.'/application/modules/prx150_api_hub/classes/Prx150/Error.php';
 require $module.'/classes/Prx396/Error.php';
 require $module.'/classes/Service/Prx396/Limits.php';
+require $module.'/classes/Model/Prx396/Batches.php';
+require $module.'/classes/Model/Prx396/Parts.php';
 require $module.'/classes/Service/Prx396/Extraction.php';
 require $root.'/application/classes/Storage.php';
 require $root.'/application/classes/Storage/Exception.php';
@@ -29,10 +32,14 @@ class Database
     const SELECT = 2;
     const UPDATE = 3;
     public static array $statements = [];
-    public static function instance($group) { return new self; }
+    public static function instance($group = NULL) { return new self; }
+    public function begin() { return TRUE; }
+    public function commit() { return TRUE; }
+    public function rollback() { return TRUE; }
     public function quote($value) { return "'".addslashes((string) $value)."'"; }
-    public function query($type, $sql, $as_object) { self::$statements[] = $sql; return new PdfChunksIdemResult($sql); }
+    public function query($type, $sql, $as_object) { self::$statements[] = $sql; return $type === self::SELECT ? new PdfChunksIdemResult($sql) : 1; }
 }
+require __DIR__.'/fixtures/db_bridge.php';
 class PdfChunksIdemResult
 {
     public function __construct(private string $sql) {}
@@ -47,7 +54,7 @@ class PdfChunksIdemResult
             return ['id' => 1, 'job_id' => 7, 'owner_id' => 1, 'file_id' => 5, 'file_sha256' => str_repeat('a', 64),
                     'pages_total' => 5, 'status' => PdfChunksCanned::$batch_status, 'error_code' => NULL,
                     'config_snapshot' => '{"max_text_bytes":1024}'];
-        if (str_contains($sql, 'SELECT status FROM prx_396_batches')) return ['status' => PdfChunksCanned::$batch_status];
+        if (str_contains($sql, 'FROM prx_396_batches')) return ['pages_total' => 5, 'text_bytes' => 0, 'error_code' => NULL, 'status' => PdfChunksCanned::$batch_status];
         return FALSE;
     }
     public function as_array() { $row = $this->current(); return $row ? [$row] : []; }

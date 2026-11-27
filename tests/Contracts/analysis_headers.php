@@ -6,11 +6,13 @@ class Database {
     public static array $calls = [];
     public static array $rows = [];
     public static function instance() { return new self; }
+    public function quote($value) { return "'".str_replace("'", "''", (string) $value)."'"; }
     public function query($type, $sql, $objects) {
         self::$calls[] = $sql;
         return new ArrayIterator(self::$rows);
     }
 }
+require __DIR__.'/fixtures/db_bridge.php';
 $root = dirname(__DIR__, 2);
 require $root.'/application/modules/prx391_documents/classes/Service/Prx391/Registry.php';
 require $root.'/application/modules/prx391_documents/classes/Service/Prx391/Documents.php';

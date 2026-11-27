@@ -136,6 +136,7 @@ class Database
 		throw new RuntimeException('База в стенде не нужна: чистые функции');
 	}
 }
+require __DIR__.'/fixtures/db_bridge.php';
 
 // Настоящий код модуля.
 require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Base.php';

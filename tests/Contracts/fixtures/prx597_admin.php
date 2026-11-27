@@ -37,7 +37,8 @@ class Prx597_Admin_Db extends Prx597_Settings_Db
                 if ((string) $row['key'] === $key) { $this->settings[$i]['value'] = $value; $found = TRUE; }
             }
             if ( ! $found) { $this->settings[] = ['key' => $key, 'value' => $value]; }
-            return new Prx597_Settings_Result([['key' => $key, 'value' => $value]]);
+            // Prx_Db::execute (UPDATE-тип): драйвер отдаёт число строк, а не результат.
+            return $type === Database::SELECT ? new Prx597_Settings_Result([['key' => $key, 'value' => $value]]) : 1;
         }
         if (strpos($sql, 'SELECT * FROM "prx_597_events"') !== FALSE) { return new Prx597_Settings_Result($this->events); }
         if (strpos($sql, 'SELECT * FROM "prx_597_templates"') !== FALSE) { return new Prx597_Settings_Result($this->templates); }

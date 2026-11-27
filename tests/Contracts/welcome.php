@@ -38,7 +38,27 @@ class View
     public static function factory($name, $data) { return $data; }
 }
 
+class Arr
+{
+    public static function get($array, $key, $default = NULL) { return is_array($array) && array_key_exists($key, $array) ? $array[$key] : $default; }
+}
+
+require __DIR__.'/../../application/classes/Prx/Hooks.php';
 require __DIR__.'/../../application/classes/Controller/Welcome.php';
+
+/** Хуки — как их регистрируют init.php модулей prx110/prx120/prx599 (ядро слагов не знает). */
+function welcome_modules(bool $account = FALSE): void
+{
+    Prx_Hooks::reset();
+    Prx_Hooks::on('nav.catalog_plan', fn () => Service_Prx110_Catalog::plan_modules());
+    Prx_Hooks::on('nav.welcome_plan', fn () => [
+        'work'  => ['prx395_document_extract', 'prx597_notifications'],
+        'stand' => ['prx390_intake', 'prx391_documents', 'prx392_analysis', 'prx393_workflow'],
+    ]);
+    Prx_Hooks::on('nav.monitor_acl', fn () => 'prx120.monitor');
+    if ($account) Prx_Hooks::on('account.security_link', fn () => '/account/security');
+}
+welcome_modules();
 
 $controller = new Controller_Welcome();
 $controller->template = new stdClass();
@@ -60,3 +80,26 @@ foreach ([
         exit(1);
     }
 }
+
+// Модуль аккаунта подключён — ссылка «Мой аккаунт» в рабочей колонке.
+welcome_modules(TRUE);
+$controller->permissions = [];
+$controller->action_index();
+if (array_column($controller->template->content['work'], 'href') !== ['/services', '/account/security'])
+{
+    fwrite(STDERR, 'Account link from hook is missing'.PHP_EOL);
+    exit(1);
+}
+
+// Ни одного модуля: только «Все сервисы», без стенда и монитора даже с правом.
+Prx_Hooks::reset();
+$controller->permissions = ['prx395.ui', 'prx391.view', 'prx120.monitor'];
+$controller->action_index();
+$page = $controller->template->content;
+if (array_column($page['work'], 'href') !== ['/services'] || $page['stand'] !== [] || $page['can_monitor'] !== FALSE)
+{
+    fwrite(STDERR, 'Core home depends on modules that are not connected'.PHP_EOL);
+    exit(1);
+}
+
+echo "Welcome: links by ACL and extension points OK\n";

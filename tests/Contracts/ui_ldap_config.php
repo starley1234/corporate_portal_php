@@ -7,6 +7,18 @@ class Session { public static $default = 'native'; }
 class HTML { public static function chars($s) { return htmlspecialchars((string) $s, ENT_QUOTES, 'UTF-8'); } }
 class Security { public static function token() { return 'test-token'; } }
 class Date { public static function formatted_time($value, $format) { return $value; } }
+/** Настоящие общие partial (шапка страницы, flash) — без Kohana; запроса нет, как в CLI. */
+class View
+{
+    public static function factory($name, array $props = [])
+    {
+        extract($props, EXTR_SKIP);
+        ob_start();
+        require APPPATH.'views/'.$name.'.php';
+        return ob_get_clean();
+    }
+}
+class Request { public static function current() { return NULL; } }
 function __($key) { static $tr; if ($tr === NULL) $tr = require APPPATH.'modules/prx595_useradmin/i18n/ru.php'; return $tr[$key] ?? $key; }
 $checks = 0;
 function check_ui($label, $actual, $expected) {

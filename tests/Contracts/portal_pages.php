@@ -19,6 +19,8 @@ class HTML
     }
 }
 class Security { public static function token(): string { return 'fixture-token'; } }
+/** Рендер вне HTTP-цикла: текущего запроса нет — page_header обязан это пережить. */
+class Request { public static function current() { return NULL; } }
 class View
 {
     public static function factory(string $name, array $props): string
