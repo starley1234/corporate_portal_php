@@ -56,7 +56,7 @@ Authorization: Bearer &lt;ключ&gt;
             <?php echo $code('review'); ?> — позиции извлечены, оператор ещё сверяет их с документом (результат предварительный);
             <?php echo $code('done'); ?> — проверка завершена. Рекомендуемый интервал опроса — 5–10 секунд.
         </p>
-        <p class="prx-hint mt-2">Коды ошибок разбора: <?php echo implode(', ', array_map($code, ['no_text', 'header_not_found', 'no_rows', 'vision_unavailable', 'invalid_pdf', 'page_limit', 'result_too_large', 'job_timeout', 'job_failed'])); ?>.</p>
+        <p class="prx-hint mt-2">Коды ошибок разбора: <?php echo implode(', ', array_map($code, ['no_text', 'header_not_found', 'no_rows', 'vision_unavailable', 'invalid_pdf', 'page_limit', 'result_too_large', 'job_timeout', 'worker_lost', 'worker_crash_loop', 'job_failed'])); ?>.</p>
     </section>
 
     <section class="prx-card mt-5">

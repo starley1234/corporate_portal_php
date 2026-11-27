@@ -115,9 +115,8 @@ actor-aware методы. `AnalysisHeadersIntegrationTest` и `analysis_headers.
 
 ## Автоматизация (25.11.2026): `bin/console documents:auto`
 
-Задача для Crontab (раз в минуту, рядом с `portal:maintain`):
-
-    * * * * * cd /путь/к/платформе && php bin/console documents:auto >> application/logs/documents-auto.log 2>&1
+Раз в минуту по манифесту (`schedule.documents_auto`), исполняет
+`bin/console portal:maintain` (prx103) — отдельная строка cron больше не нужна.
 
 Шаги включаются флагами `.env` (по умолчанию ВЫКЛ — включение = решение владельца):
 

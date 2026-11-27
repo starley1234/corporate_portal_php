@@ -70,9 +70,20 @@ class Model_Prx400_Spec {
     public static function queue(int $id, int $job_id, string $mode): int
     {
         return Prx_Db::execute(
-            'UPDATE prx_400_specs SET job_id = :job, parse_mode = :mode, status = \'queued\', error = NULL, updated_at = now()
+            'UPDATE prx_400_specs SET job_id = :job, parse_mode = :mode, status = \'queued\', error = NULL,
+                    recoveries = 0, updated_at = now()
               WHERE id = :id',
             [':id' => $id, ':job' => $job_id, ':mode' => $mode]);
+    }
+
+    /** Автоповтор после падения воркера: только если запись ждёт ту же задачу. */
+    public static function requeue_recovered(int $id, int $lost_job_id, int $job_id): int
+    {
+        return Prx_Db::execute(
+            'UPDATE prx_400_specs SET job_id = :job, status = \'queued\', error = NULL,
+                    recoveries = recoveries + 1, updated_at = now()
+              WHERE id = :id AND coalesce(job_id, 0) = :lost AND status IN (\'queued\', \'running\')',
+            [':id' => $id, ':job' => $job_id, ':lost' => $lost_job_id]);
     }
 
     /** Замена файла (перезаливка). */

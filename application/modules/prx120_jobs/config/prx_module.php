@@ -39,9 +39,11 @@ return [
         // авто-стоп молчащих → failed по исчерпанным попыткам).
         'maintenance' => [
                 'label'   => 'Обслуживание очереди prx120 (requeue stale)',
-                'every'   => '10 minutes',
+                'every'   => '1 minute', // как прежний portal:maintain из cron
                 'enabled' => TRUE,
                 'url'     => '/prx120/api/maintain',
+                // Исполняет bin/console schedule:run (prx103); url — для внешнего пинка.
+                'command' => 'bin/console Prx120:RequeueStale',
                 'payload' => [],
         ],
     ],

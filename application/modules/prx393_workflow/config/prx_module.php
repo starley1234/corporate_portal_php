@@ -45,4 +45,12 @@ return [
             ],
         ],
     ],
+
+    // Эскалации сроков T−24/T−4/overdue (Service_Prx393_Workflow::maybe_escalate).
+    // Исполняет bin/console schedule:run (prx103); /prx393_workflow тоже зовёт обход.
+    'schedule' => ['docflow_escalate' => [
+        'label'   => 'Эскалации сроков документооборота prx393',
+        'every'   => '10 minutes',
+        'command' => 'bin/console prx393:escalate',
+    ]],
 ];

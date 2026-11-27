@@ -15,7 +15,7 @@
  *
  * Задача идемпотентна: скан переименовывает принятые файлы, прогон фиксирует
  * advisory-локом и input_hash — повторный вызов не плодит дублей.
- * Крон: раз в минуту, рядом с portal:maintain (см. AGENTS модуля).
+ * Раз в минуту по манифесту (schedule.documents_auto) — исполняет portal:maintain.
  */
 class Task_Documents_Auto extends Minion_Task {
 

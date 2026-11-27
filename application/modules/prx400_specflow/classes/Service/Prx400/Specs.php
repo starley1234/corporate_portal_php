@@ -29,6 +29,7 @@ final class Service_Prx400_Specs
         'header_not_found', 'template_missing', 'template_not_found', 'template_invalid',
         'no_rows', 'vision_config', 'vision_unavailable', 'bad_payload',
         'job_failed', 'job_timeout', 'job_unavailable', 'job_canceled', 'result_missing',
+        'worker_lost', 'worker_crash_loop',
     ];
 
     /** Статусы, в которых строки ещё не принадлежат оператору. */
@@ -125,6 +126,46 @@ final class Service_Prx400_Specs
             throw self::queue_error($e);
         }
         Log_Plain::event(Log::INFO, 'prx400 spec=:s job_id=:j stage=relaunch mode=:m', [':s' => $id, ':j' => $job_id, ':m' => $mode]);
+    }
+
+    /**
+     * Системный перезапуск после падения воркера (prx400:purge → Pipeline::maintain).
+     *
+     * Только если запись всё ещё ждёт ИМЕННО эту задачу, её остановило
+     * обслуживание очереди с причиной «воркер замолчал» и лимит автоповторов
+     * не исчерпан. Режим и шаблон — из упавшей задачи: оператор их не менял.
+     *
+     * @return bool TRUE — поставлена новая задача
+     */
+    public function recover(int $id, int $lost_job_id): bool
+    {
+        $lost = self::job($lost_job_id);
+        if (Service_Prx120_JobQueue::stop_reason($lost) !== Service_Prx120_JobQueue::STOP_WORKER_LOST) return FALSE;
+        $payload = is_array($lost['payload'] ?? NULL) ? $lost['payload'] : (array) json_decode((string) ($lost['payload'] ?? ''), TRUE);
+        $templates = Service_Prx400_Templates::for_payload();
+
+        try {
+            $job_id = Prx_Db::transaction(function () use ($id, $lost_job_id, $payload, $templates): int {
+                $spec = Model_Prx400_Spec::lock($id);
+                if ($spec === NULL OR (int) ($spec['job_id'] ?? 0) !== $lost_job_id
+                    OR ! in_array($spec['status'], ['queued', 'running'], TRUE)
+                    OR (int) ($spec['recoveries'] ?? 0) >= Service_Prx400_Limits::get('crash_retries')
+                    OR (int) ($spec['file_id'] ?? 0) <= 0) return 0;
+                $mode = in_array((string) ($payload['parse_mode'] ?? ''), Service_Prx400_Limits::parse_modes(), TRUE)
+                    ? (string) $payload['parse_mode'] : self::retry_mode($spec, []);
+                $template = is_string($payload['template_id'] ?? NULL) ? $payload['template_id'] : '';
+                $job_id = self::push(NULL, $id, $mode, $template, $templates, (int) $spec['owner_id']);
+                Model_Prx400_Spec::requeue_recovered($id, $lost_job_id, $job_id);
+
+                return $job_id;
+            });
+        } catch (Prx120_Budget_Exception $e) {
+            return FALSE; // бюджет очереди исчерпан — запись упадёт с worker_lost
+        }
+        if ($job_id <= 0) return FALSE;
+        Log_Plain::event(Log::WARNING, 'prx400 spec=:s lost_job=:l job_id=:j stage=recover', [':s' => $id, ':l' => $lost_job_id, ':j' => $job_id]);
+
+        return TRUE;
     }
 
     /**
@@ -440,6 +481,9 @@ final class Service_Prx400_Specs
 
         $job_id = (int) ($spec['job_id'] ?? 0);
         if ($job_id <= 0 OR $job === NULL) return ['failed', 'job_unavailable'];
+        // Остановило обслуживание очереди, а не человек: «отменено» здесь — ложь.
+        $stop = Service_Prx120_JobQueue::stop_reason($job);
+        if ($stop !== NULL) return ['failed', $stop];
         switch ((string) $job['status'])
         {
             case 'pending': return ['queued', NULL];
@@ -553,7 +597,11 @@ final class Service_Prx400_Specs
         }
     }
 
-    private static function push(Prx_Principal $principal, int $spec_id, string $mode, string $template, array $templates): int
+    /**
+     * @param Prx_Principal|NULL $principal NULL — системный перезапуск (prx400:purge):
+     *        задача остаётся за сотрудником-владельцем, если запись из UI.
+     */
+    private static function push(?Prx_Principal $principal, int $spec_id, string $mode, string $template, array $templates, int $owner_id = 0): int
     {
         $options = [
             'module' => self::MODULE,
@@ -566,6 +614,10 @@ final class Service_Prx400_Specs
             $options['created_by'] = $principal->id();
             // Правило prx120: без visitor_id задача не попадает в «Мои задачи».
             $options['visitor_id'] = Visitor::uid();
+        }
+        elseif ($principal === NULL AND $owner_id < 0)
+        {
+            $options['created_by'] = -$owner_id;
         }
         $job_id = (int) Service_Prx120_JobQueue::push(self::CHANNEL, [
             'spec_id' => $spec_id,

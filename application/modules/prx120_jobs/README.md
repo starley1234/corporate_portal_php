@@ -3,6 +3,17 @@
 Асинхронный механизм платформы: PHP-модули ставят задачи, python-воркеры
 (`workers/`) их выполняют. Подробный гайд — `docs/WORKERS.md`.
 
+<!-- context-index:begin -->
+<!-- Индекс разделов. Генерируется: python3 .tools/context_pack.py index application/modules/prx120_jobs/README.md --write. Руками не править. -->
+| Раздел | Строка | Размер |
+|---|---|---|
+|   Зачем | 17 | 0,5 КБ |
+|   Компоненты | 25 | 0,5 КБ |
+|   Таблицы | 34 | 0,3 КБ |
+|   Использование (PHP) | 41 | 0,3 КБ |
+|   HTTP API (для воркеров) | 54 | 0,6 КБ |
+|   Обслуживание | 68 | 0,3 КБ |
+<!-- context-index:end -->
 ## Зачем
 
 * HTTP-запрос не должен ждать LLM, эмбеддинг-сервер, конвертацию файлов и пр.
@@ -57,6 +68,6 @@ GET  /prx120/api/stats
 ## Обслуживание
 
 ```bash
-bin/console Prx120:RequeueStale    # cron * * * * *
+bin/console Prx120:RequeueStale    # манифест schedule.maintenance, раз в минуту — исполняет portal:maintain
 bin/console db:migrate             # создание таблиц (миграция 120_001)
 ```

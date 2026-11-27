@@ -46,6 +46,7 @@ class Service_Prx103_Doctor {
 		{
 			self::_check_migrations($rows);
 			self::_check_queue($rows);
+			self::_check_schedules($rows);
 		}
 
 		self::_check_modules_docs($rows);
@@ -193,6 +194,35 @@ class Service_Prx103_Doctor {
 		catch (Exception $e)
 		{
 			self::_add($rows, 'WARN', 'База данных', 'таблицы очереди prx_120_* отсутствуют — bin/console db:migrate');
+		}
+	}
+
+	/**
+	 * Расписания манифестов исполняются (bin/console schedule:run из cron).
+	 * Без него не работают requeue_stale очереди, доставка уведомлений и уборки
+	 * модулей — а снаружи это выглядит как «зависло» и «не пришло письмо».
+	 */
+	protected static function _check_schedules(array &$rows): void
+	{
+		try
+		{
+			$service = new Service_Prx103_Schedule;
+			$problems = $service->problems();
+		}
+		catch (Exception $e)
+		{
+			self::_add($rows, 'WARN', 'Расписания', 'таблица prx_103_schedule_runs отсутствует — bin/console db:migrate');
+			return;
+		}
+
+		foreach ($problems as [$status, $message])
+		{
+			self::_add($rows, $status, 'Расписания', $message);
+		}
+		if ( ! $problems)
+		{
+			$count = count(array_filter($service->entries(), static fn (array $entry) => $entry['kind'] === 'command'));
+			self::_add($rows, 'OK', 'Расписания', 'schedule:run исполняет расписания манифестов: '.$count);
 		}
 	}
 

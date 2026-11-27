@@ -234,6 +234,7 @@ class Log
 // Настоящий контроллер API уведомлений.
 require dirname(__DIR__, 2).'/application/classes/Prx/Gate.php';
 require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Controller/Prx597/Api.php';
+require dirname(__DIR__, 2).'/application/modules/prx597_notifications/classes/Service/Prx597/Outbox.php';
 
 // ---------------------------------------------------------------- проверки
 $ok  = 0;

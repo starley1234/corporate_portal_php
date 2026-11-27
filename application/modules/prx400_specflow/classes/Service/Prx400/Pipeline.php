@@ -111,7 +111,7 @@ final class Service_Prx400_Pipeline
      */
     public function maintain(): array
     {
-        $report = ['reconciled' => 0, 'purged' => 0, 'orphans' => 0, 'errors' => 0];
+        $report = ['reconciled' => 0, 'recovered' => 0, 'purged' => 0, 'orphans' => 0, 'errors' => 0];
 
         foreach (Model_Prx400_Spec::in_flight() as $spec)
         {
@@ -120,6 +120,14 @@ final class Service_Prx400_Pipeline
             // Свежая запись без задачи — ещё в транзакции постановки, не трогаем.
             if ((int) ($spec['job_id'] ?? 0) <= 0 AND strtotime((string) $spec['updated_at']) > time() - 600) continue;
             try {
+                // Воркер замолчал посреди разбора — сначала автоповтор (PRX400_CRASH_RETRIES),
+                // и только когда он исчерпан, запись получает ошибку worker_lost.
+                if ($code === Service_Prx120_JobQueue::STOP_WORKER_LOST
+                    AND (new Service_Prx400_Specs)->recover((int) $spec['id'], (int) $spec['job_id']))
+                {
+                    $report['recovered']++;
+                    continue;
+                }
                 if (Model_Prx400_Spec::fail_in_flight((int) $spec['id'], (int) ($spec['job_id'] ?? 0), (string) $code) > 0) $report['reconciled']++;
             } catch (Throwable $e) {
                 $report['errors']++;

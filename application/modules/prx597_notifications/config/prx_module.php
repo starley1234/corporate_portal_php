@@ -31,9 +31,11 @@ return [
 	'schedule' => [
 		'notifications' => [
 			'label'   => 'Центр уведомлений (prx597): очередь доставки, сводки, опрос ботов',
-			'every'   => '5 minutes',
+			'every'   => '1 minute', // как прежний portal:maintain из cron
 			'enabled' => TRUE,
 			'url'     => '/prx597/api/outbox',
+			// Исполняет bin/console schedule:run (prx103); url — для воркера с токеном.
+			'command' => 'bin/console prx597:outbox',
 			'payload' => [],
 		],
 	],

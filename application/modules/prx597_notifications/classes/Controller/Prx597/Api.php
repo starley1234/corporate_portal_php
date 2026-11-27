@@ -140,8 +140,9 @@ class Controller_Prx597_Api extends Controller {
     /**
      * POST /prx597/api/outbox — один проход центра уведомлений.
      *
-     * Зовёт «Пиналка» (prx603) по расписанию или python-воркер с токеном
-     * (X-Worker-Token). Что делает за проход:
+     * Зовёт python-воркер или внешний планировщик с токеном (X-Worker-Token);
+     * по расписанию тот же проход исполняет bin/console prx597:outbox
+     * (Service_Prx597_Outbox::tick). Что делает за проход:
      *   * догоняет завершённые задачи очереди (sweep_jobs) — уведомления о
      *     готовых отчётах и ошибках;
      *   * разбирает очередь доставки: почта, Telegram, MAX, в том числе
@@ -153,31 +154,7 @@ class Controller_Prx597_Api extends Controller {
     {
         if ($this->_halt) return;
 
-        $jobs  = Service_Prx597_Notify::sweep_jobs(100);
-        $run   = Service_Prx597_Engine::run(50);
-        $digest = Service_Prx597_Engine::flush_digests(50);
-
-        // Старые письма, поставленные в очередь до появления движка.
-        $legacy = Service_Prx597_Notify::send_digests(50, 30);
-
-        $poll = [];
-
-        foreach (['telegram', 'max'] as $bot)
-        {
-            if (Service_Prx597_Bind::mode($bot) === 'poll')
-            {
-                $poll[$bot] = Service_Prx597_Bind::poll($bot, 20);
-            }
-        }
-
-        $this->response->body(json_encode([
-            'ok'     => TRUE,
-            'jobs'   => (int) $jobs,
-            'run'    => $run,
-            'digest' => $digest,
-            'legacy' => ['sent' => (int) Arr::get($legacy, 'sent', 0), 'failed' => (int) Arr::get($legacy, 'failed', 0)],
-            'poll'   => $poll,
-        ], JSON_UNESCAPED_UNICODE));
+        $this->response->body(json_encode(Service_Prx597_Outbox::tick(), JSON_UNESCAPED_UNICODE));
     }
 
     /** POST /prx597/api/read. */

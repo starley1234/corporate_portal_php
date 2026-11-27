@@ -102,27 +102,38 @@ side effects не объединены в транзакцию с переход
 
 ## Обслуживание и уведомления
 
-Старый прикладной планировщик удалён. Новый платформенный CLI:
+Периодическую работу объявляют модули — секция `schedule` манифеста
+(`config/prx_module.php`): ключ, `every`, `command` вида `bin/console <задача>`.
+Исполняет их одна платформенная команда (prx103, `Service_Prx103_Schedule`):
 
 ```bash
-bin/console portal:maintain
+bin/console portal:maintain        # = schedule:run: всё, чему пора
+bin/console schedule:list          # расписания, последний запуск, серия неудач
+bin/console schedule:run --only=specflow_purge --force=1   # одна запись вручную
 ```
 
-Один проход: reconcile/requeue stale, сбор результатов задач в уведомления,
-outbox, дайджесты и poll мессенджеров (если настроены). Ошибка завершает команду
-ненулевым кодом — оператор должен отслеживать его. Части доставки используют
-свои блокировки; дополнительно исключайте параллельный запуск всей команды.
-Пример cron от пользователя приложения (пути адаптировать):
+Сейчас это: обслуживание очереди prx120 (requeue/авто-стоп молчащих воркеров) и
+доставка уведомлений prx597 — раз в минуту; уборки prx395–400, эскалации prx393
+— раз в 10 минут; автоматизация prx391 (по флагам `.env`) — раз в минуту.
+
+Каждая запись — отдельным процессом PHP с потолком времени
+(`PRX103_SCHEDULE_TIMEOUT`, 600 с) и `pg_try_advisory_lock` на ключ: длинный
+запуск не стартует повторно и не задерживает соседей. Итог (код выхода,
+длительность, хвост вывода) — в `prx_103_schedule_runs`; `dev:doctor` и
+«Проверка сервера» предупреждают, если расписание не запускалось или падает
+подряд. Код выхода команды ненулевой, если хоть одна запись упала.
+Отключить запись без правки манифеста: `PRX103_SCHEDULE_DISABLED=ключ1,ключ2`.
+
+Таймер — одна строка cron от пользователя приложения (пути адаптировать):
 
 ```cron
-* * * * * cd /srv/portal && flock -n /srv/portal/application/cache/maintain.lock bin/console portal:maintain >> /srv/portal/application/logs/maintenance.log 2>&1
+* * * * * cd /srv/portal && bin/console portal:maintain >> /srv/portal/application/logs/maintenance.log 2>&1
 ```
 
-Альтернатива — HTTP `/prx120/api/maintain` и `/prx597/api/outbox` с
-`X-Worker-Token`. Не кладите токен в URL/cron-логи. Секции `schedule` манифестов
-сами по себе ничего не запускают. Docker worker не запускает PHP maintenance;
-таймер нужен отдельно. Общий HTTP-контроллер и опрос semantic status не
-обслуживают очередь: посещения пользователей не заменяют таймер.
+В docker-compose это сервис `scheduler` (поднимается вместе с ядром). Альтернатива
+для внешнего пинка — HTTP `/prx120/api/maintain` и `/prx597/api/outbox` с
+`X-Worker-Token` (не кладите токен в URL/cron-логи). Docker worker PHP-обслуживание
+не запускает; посещения страниц таймер не заменяют.
 
 По умолчанию email выключен, мессенджеры не привязаны и внешние токены пусты.
 Для email: `composer install`, `EMAIL_DSN`, `EMAIL_FROM`,

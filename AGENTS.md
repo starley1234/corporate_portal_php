@@ -6,10 +6,10 @@
 |---|---|---|
 |   Проект | 14 | 0,3 КБ |
 |   Вход в задачу | 19 | 2,0 КБ |
-|   Обязательные инварианты | 39 | 6,1 КБ |
-|   Словарь кода | 95 | 0,6 КБ |
-|   Окружение | 102 | 0,6 КБ |
-|   Проверки перед завершением | 110 | 1,2 КБ |
+|   Обязательные инварианты | 39 | 6,2 КБ |
+|   Словарь кода | 96 | 0,6 КБ |
+|   Окружение | 103 | 0,6 КБ |
+|   Проверки перед завершением | 111 | 1,2 КБ |
 <!-- context-index:end -->
 ## Проект
 PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind/jQuery,
@@ -54,7 +54,8 @@ PHP 8.4, Konine/Kohana HMVC, PostgreSQL, PHP views + локальный Tailwind
    `audience`, `acl`, `href` (или `kind: platform|library`). Проверка:
    `python3 .tools/manifest_check.py`. Манифест объявляет меню, каналы,
    recent/search/cleanup/health/schedule. Не добавлять списки бизнес-модулей
-   в ядро. `schedule` — описание, а не планировщик: настройте cron/службу.
+   в ядро. `schedule` исполняет `portal:maintain` (= `schedule:run`, prx103)
+   из одной строки cron: только `command: bin/console <задача>`, ошибка — код выхода.
 4. Deny by default. Контроллеры приложений наследуют `Controller_Base`.
    «Кто действует» — `$this->actor()` (`Prx_Actor`), «можно ли запись» —
    политика модуля (`Prx_Policy`); массивы прав в сервис не передавать.

@@ -41,6 +41,10 @@ return [
     'max_result_bytes' => $integer(getenv('PRX400_MAX_RESULT_BYTES'), 8 * $mib, $mib, 64 * $mib),
     'task_timeout_sec' => $integer(getenv('PRX400_TASK_TIMEOUT_SEC'), 1800, 60, 7200),
     'max_attempts'     => $integer(getenv('PRX400_MAX_ATTEMPTS'), 2, 1, 10),
+    // Воркер замолчал посреди разбора (упал, перезапущен, завис) — prx400:purge
+    // сам ставит разбор заново до N раз; 0 — сразу «ошибка worker_lost».
+    // Падение воркера на одном и том же файле (worker_crash_loop) не повторяется.
+    'crash_retries'    => $integer(getenv('PRX400_CRASH_RETRIES'), 1, 0, 3),
 
     // Хранение: 0 — спецификации живут бессрочно (это рабочие документы
     // для ERP); N > 0 — prx400:purge удаляет завершённые (done/failed)

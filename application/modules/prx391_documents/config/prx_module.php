@@ -58,4 +58,11 @@ return [
             ." ORDER BY d.created_at DESC LIMIT :per",
     ]],
 
+    // Автоматизация документооборота: шаги включаются флагами PRX390_AUTO_SCAN
+    // и PRX391_AUTO_AI (по умолчанию выключены — проход ничего не делает).
+    'schedule' => ['documents_auto' => [
+        'label'   => 'Автоскан входящих и автозапуск разбора ИИ (по флагам .env)',
+        'every'   => '1 minute',
+        'command' => 'bin/console documents:auto',
+    ]],
 ];

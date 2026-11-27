@@ -6,7 +6,7 @@
 #   docker compose logs -f php
 #
 # Профили:
-#   core     (по умолчанию) — postgres, redis, php, nginx
+#   core     (по умолчанию) — postgres, redis, php, scheduler, nginx
 #   tools    — adminer (БД GUI), mailpit (ловушка писем)
 #   workers  — python-воркеры (очередь prx120_jobs, LLM/эмбеддинги)
 # =============================================================================
@@ -70,6 +70,30 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+    init: true
+
+  # --- Планировщик: расписания манифестов (bin/console schedule:run) ----------
+  # Обслуживание очереди prx120 (задачи упавших воркеров), доставка уведомлений
+  # prx597, уборки prx395–400. Раз в минуту; срок каждой записи (`every`) и
+  # блокировки от двойного запуска — в Service_Prx103_Schedule.
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      KOHANA_ENV: ${KOHANA_ENV:-development}
+      DB_DEFAULT_HOST: postgres
+      DB_DEFAULT_PORT: "5432"
+      APP_INTERNAL_HOSTS: ${APP_INTERNAL_HOSTS:-nginx}
+    working_dir: /var/www
+    command: ["sh", "-c", "while :; do php public_html/index.php schedule:run || echo 'schedule:run: есть сбои — bin/console schedule:list' >&2; sleep 60; done"]
+    volumes:
+      - .:/var/www
+    depends_on:
+      postgres:
         condition: service_healthy
     init: true
 

@@ -50,6 +50,10 @@ class Log_Plain { public static array $events = []; public static function event
 class Model_Prx400_Template { public static function all(): array { return []; } }
 
 require $root.'/application/classes/Prx/DomainError.php';
+// Настоящий prx120: причину остановки задачи распознаёт владелец текстов очереди.
+foreach (['JobQueue/Maintenance', 'JobQueue/Monitor', 'JobQueue'] as $part) {
+    require $root.'/application/modules/prx120_jobs/classes/Service/Prx120/'.$part.'.php';
+}
 require $module.'/classes/Prx400/Error.php';
 require $module.'/classes/Prx400/Messages.php';
 foreach (['Limits', 'Templates', 'Match', 'Checks', 'Pipeline', 'Specs', 'Export'] as $class) {
@@ -195,6 +199,21 @@ check(Service_Prx400_Specs::effective($spec_q, ['status' => 'cancelled']) === ['
 check(Service_Prx400_Specs::effective($spec_q, ['status' => 'failed', 'error' => 'PermanentJobError: no_text']) === ['failed', 'no_text']);
 check(Service_Prx400_Specs::effective($spec_q, ['status' => 'done']) === ['failed', 'result_missing']);
 check(Service_Prx400_Specs::effective($spec_q, NULL) === ['failed', 'job_unavailable']);
+// Остановку «воркер замолчал» делает обслуживание очереди, а не человек — не «отменено».
+foreach ([
+    ['cancelled', 'Воркер не отвечал больше 4 мин — сбор остановлен автоматически. Найденное сохранено, запустите заново.', 'worker_lost'],
+    ['cancelled', 'Воркер не выходил на связь больше 30 мин — сбор остановлен автоматически.', 'worker_lost'],
+    ['failed', 'Воркер молчал дольше timeout — попытки исчерпаны', 'worker_lost'],
+    ['failed', 'Воркер перестал подавать признаки жизни — задача отказана (попытки исчерпаны)', 'worker_lost'],
+    ['failed', 'Воркер перезапускался на этой задаче, попытки исчерпаны. Проверьте входные данные.', 'worker_crash_loop'],
+    ['cancelled', 'Прервана администратором: пульс задачи молчит дольше 10 мин', 'job_canceled'],
+    ['cancelled', '', 'job_canceled'],
+    ['failed', 'Превышен таймаут задачи (1800 с)', 'job_timeout'],
+] as [$job_status, $error, $expected]) {
+    check(Service_Prx400_Specs::effective($spec_q, ['status' => $job_status, 'error' => $error]) === ['failed', $expected], $error.' → '.$expected);
+}
+check(Service_Prx120_JobQueue::stop_reason(['status' => 'processing', 'error' => 'Воркер не отвечал больше 4 мин']) === NULL, 'живая задача — не потеряна');
+check(Service_Prx400_Limits::get('crash_retries') === 1, 'автоповтор после падения воркера — один раз по умолчанию');
 check(Service_Prx400_Specs::effective(['status' => 'review', 'job_id' => 5, 'error' => NULL], NULL) === ['review', NULL], 'разобранная запись от очереди не зависит');
 
 // ---- Экспорт: схема приёмника (meta + positions + audit) и верификация

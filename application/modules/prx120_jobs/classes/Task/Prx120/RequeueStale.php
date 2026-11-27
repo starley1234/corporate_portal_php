@@ -4,8 +4,8 @@
  * Обслуживание очереди: вернуть в ожидание задачи, на которых воркер
  * перестал сообщать heartbeat дольше timeout_sec.
  *
- * Запуск по cron:
- *   * * * * * /usr/bin/php /path/to/index.php --task=Prx120:RequeueStale
+ * Запуск — манифест schedule.maintenance, исполняет bin/console schedule:run
+ * (prx103). Вручную: bin/console prx120:requeuestale
  */
 class Task_Prx120_RequeueStale extends Minion_Task {
 
@@ -23,7 +23,9 @@ class Task_Prx120_RequeueStale extends Minion_Task {
         }
         catch (Exception $e)
         {
-            Minion_CLI::write('Ошибка обслуживания очереди: '.$e->getMessage());
+            // Ненулевой код выхода: schedule:run и cron должны видеть сбой,
+            // иначе «обслуживание идёт» при мёртвом requeue_stale.
+            throw new Minion_Exception('Ошибка обслуживания очереди: :msg', [':msg' => $e->getMessage()], 0, $e);
         }
     }
 }
