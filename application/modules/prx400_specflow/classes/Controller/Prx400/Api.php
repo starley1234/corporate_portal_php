@@ -18,6 +18,7 @@
  *   POST   …/rows/<row>/verify {verified?}             подтвердить                    [review]
  *   POST   …/rows/<row>/code {code} | DELETE           код НСИ / снять ручной код    [review]
  *   POST   …/rows/<row>/split {quantities: [..]}       разделить по количествам      [review]
+ *   POST   /api/v1/spec-extractions/<id>/rows-batch    {operations: [{row_id, op, code?, fields?}]} ≤ 500 [review]
  *   POST   /api/v1/spec-extractions/<id>/verify-bulk   {min_score?}                  [review]
  *   POST   /api/v1/spec-extractions/<id>/rematch       пересопоставить с НСИ нерешённые строки [review]
  *   POST   /api/v1/spec-extractions/<id>/relaunch      {parse_mode?, template_id?}   [review после разбора]
@@ -51,6 +52,10 @@ class Controller_Prx400_Api extends Controller_Prx150_Machine
                 case 'rows': $this->rows($id); return;
                 case 'export': $this->export($id); return;
                 case 'files': $this->file($id); return;
+                case 'rows-batch':
+                    $this->require_method(Request::POST);
+                    $this->_json_response((new Service_Prx400_Rows)->batch($this->principal(), $id, $this->batch_input()));
+                    return;
                 case 'verify-bulk':
                     $this->require_method(Request::POST);
                     $this->_json_response((new Service_Prx400_Rows)->bulk_verify($this->principal(), $id, $this->input()['min_score'] ?? NULL));
@@ -274,6 +279,19 @@ class Controller_Prx400_Api extends Controller_Prx150_Machine
         }
 
         return Prx400_Input::scalars((array) $this->request->post(), self::LIST_FIELDS);
+    }
+
+    /** Тело пакета: только JSON {"operations": [...]}; форма вложенных объектов не передаёт. */
+    private function batch_input()
+    {
+        $type = strtolower((string) $this->request->headers('Content-Type'));
+        if ( ! str_starts_with($type, 'application/json')) throw new Prx400_Error('json_required', 415);
+        $raw = (string) $this->request->body();
+        if (strlen($raw) > 4194304) throw new Prx400_Error('request_too_large', 413);
+        $data = json_decode($raw, TRUE);
+        if ( ! is_array($data) OR ! array_key_exists('operations', $data)) throw new Prx400_Error('batch_invalid', 400);
+
+        return $data['operations'];
     }
 
     /** Параметры строки запроса — только скаляры (?q[]=… → 400, а не 500). */

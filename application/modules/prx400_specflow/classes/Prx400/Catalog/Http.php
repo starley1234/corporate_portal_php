@@ -10,7 +10,10 @@
  *
  * Сбой источника — доменная ошибка catalog_unavailable (503), а не «пустой
  * справочник»: разбор не должен молча пометить все позиции «новыми».
- * Ответы кешируются на время запроса (одна партия строк — один разбор).
+ * Ответы кешируются на время запроса (одна партия строк — один разбор) и в
+ * БД (prx_400_catalog_cache): свежий ответ — cache_ttl секунд, при сбое
+ * источника — ответ не старше stale_ttl (stale-if-error); сколько раз так
+ * выручил кеш, отдаёт take_stale() — разбор помечается catalog_stale.
  */
 final class Prx400_Catalog_Http implements Prx400_Catalog_Provider
 {
@@ -21,6 +24,9 @@ final class Prx400_Catalog_Http implements Prx400_Catalog_Provider
     private string $url;
     private string $token;
     private int $timeout_ms;
+    private int $cache_ttl;
+    private int $stale_ttl;
+    private int $stale = 0;
     /** @var callable|null тестовый транспорт: fn(string $url): array{0: int, 1: string} */
     private $transport;
 
@@ -29,6 +35,8 @@ final class Prx400_Catalog_Http implements Prx400_Catalog_Provider
         $this->url = rtrim((string) ($config['url'] ?? ''), '/');
         $this->token = (string) ($config['token'] ?? '');
         $this->timeout_ms = max(200, (int) ($config['timeout_ms'] ?? 3000));
+        $this->cache_ttl = max(0, (int) ($config['cache_ttl'] ?? 0));
+        $this->stale_ttl = max(0, (int) ($config['stale_ttl'] ?? 0));
         $this->transport = $transport;
         if ( ! preg_match('~\Ahttps?://[^\s/?#]+~i', $this->url)) throw new Prx400_Error('catalog_config', 503);
     }
@@ -63,11 +71,14 @@ final class Prx400_Catalog_Http implements Prx400_Catalog_Provider
         $key = 's:'.$limit.':'.$query;
         if ( ! isset($this->memo[$key]))
         {
-            [$status, $body] = $this->get('/search?'.http_build_query(['q' => $query, 'limit' => $limit]));
-            if ($status !== 200) throw new Prx400_Error('catalog_unavailable', 503);
-            $items = is_array($body['items'] ?? NULL) ? $body['items'] : NULL;
-            if ($items === NULL) throw new Prx400_Error('catalog_unavailable', 503);
-            $this->memo[$key] = array_slice(array_values(array_filter(array_map([self::class, 'item'], $items))), 0, $limit);
+            $this->memo[$key] = $this->cached($key, function () use ($query, $limit): array {
+                [$status, $body] = $this->get('/search?'.http_build_query(['q' => $query, 'limit' => $limit]));
+                if ($status !== 200) throw new Prx400_Error('catalog_unavailable', 503);
+                $items = is_array($body['items'] ?? NULL) ? $body['items'] : NULL;
+                if ($items === NULL) throw new Prx400_Error('catalog_unavailable', 503);
+
+                return ['items' => array_slice(array_values(array_filter(array_map([self::class, 'item'], $items))), 0, $limit)];
+            })['items'];
         }
 
         return $this->memo[$key];
@@ -80,23 +91,63 @@ final class Prx400_Catalog_Http implements Prx400_Catalog_Provider
         $key = 'c:'.$code;
         if ( ! array_key_exists($key, $this->memo))
         {
-            [$status, $body] = $this->get('/items/'.rawurlencode($code));
-            if ($status === 404)
-            {
-                $this->memo[$key] = NULL;
-            }
-            elseif ($status === 200 AND is_array($body))
-            {
+            $this->memo[$key] = $this->cached($key, function () use ($code): array {
+                [$status, $body] = $this->get('/items/'.rawurlencode($code));
+                if ($status === 404) return ['item' => NULL];
+                if ($status !== 200 OR ! is_array($body)) throw new Prx400_Error('catalog_unavailable', 503);
                 $item = self::item($body);
-                $this->memo[$key] = $item !== NULL && $item['code'] === $code ? $item : NULL;
-            }
-            else
-            {
-                throw new Prx400_Error('catalog_unavailable', 503);
-            }
+
+                return ['item' => $item !== NULL && $item['code'] === $code ? $item : NULL];
+            })['item'];
         }
 
         return $this->memo[$key];
+    }
+
+    /** Сколько ответов с прошлого вызова пришло из устаревшего кеша (сбой источника); счётчик обнуляется. */
+    public function take_stale(): int
+    {
+        $n = $this->stale;
+        $this->stale = 0;
+
+        return $n;
+    }
+
+    /**
+     * Ответ через кеш БД: свежий — без запроса; иначе запрос, а при сбое
+     * источника — ответ не старше stale_ttl. Сбой самого кеша (нет таблицы,
+     * БД занята) не мешает работе с источником.
+     */
+    private function cached(string $key, callable $fetch): array
+    {
+        if ($this->cache_ttl <= 0 AND $this->stale_ttl <= 0) return $fetch();
+        $db_key = hash('sha256', $this->url."\0".$key);
+        $hit = NULL;
+        try {
+            $hit = Model_Prx400_CatalogCache::get($db_key);
+        } catch (Throwable $e) {
+            Log_Plain::event(Log::WARNING, 'prx400 stage=catalog_cache op=get error_type=:t', [':t' => get_class($e)]);
+        }
+        if ($hit !== NULL AND $hit['age'] < $this->cache_ttl) return $hit['payload'];
+
+        try {
+            $payload = $fetch();
+        } catch (Prx400_Error $e) {
+            if ($e->getMessage() !== 'catalog_unavailable' OR $hit === NULL OR $hit['age'] >= $this->stale_ttl) throw $e;
+            $this->stale++;
+
+            return $hit['payload'];
+        }
+        if ($this->cache_ttl > 0 OR $this->stale_ttl > 0)
+        {
+            try {
+                Model_Prx400_CatalogCache::put($db_key, $payload);
+            } catch (Throwable $e) {
+                Log_Plain::event(Log::WARNING, 'prx400 stage=catalog_cache op=put error_type=:t', [':t' => get_class($e)]);
+            }
+        }
+
+        return $payload;
     }
 
     /** Позиция внешнего ответа → позиция prx400; без кода/наименования — NULL. */

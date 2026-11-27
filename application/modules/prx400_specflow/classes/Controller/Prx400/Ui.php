@@ -39,6 +39,7 @@ class Controller_Prx400_Ui extends Controller_Base
                 ['title' => 'Справочник НСИ', 'href' => '/prx400_specflow/catalog', 'icon' => 'fas fa-book'],
                 ['title' => 'Память сопоставлений', 'href' => '/prx400_specflow/aliases', 'icon' => 'fas fa-brain'],
                 ['title' => 'Шаблоны', 'href' => '/prx400_specflow/templates', 'icon' => 'fas fa-layer-group'],
+                ['title' => 'Качество', 'href' => '/prx400_specflow/quality', 'icon' => 'fas fa-chart-line'],
                 ['title' => 'API', 'href' => '/prx400_specflow/api-docs', 'icon' => 'fas fa-plug'],
             ]);
         }
@@ -259,6 +260,21 @@ class Controller_Prx400_Ui extends Controller_Base
     }
 
     /** Память сопоставлений: «как в документе» → код НСИ (решения операторов). */
+    /** Качество разбора в бою: исходы, откуда коды НСИ, правки операторов, кандидаты в НСИ. */
+    public function action_quality()
+    {
+        $this->allow(Request::GET);
+        $days = (int) $this->request->query('days');
+        if ( ! in_array($days, [7, 30, 90, 365], TRUE)) $days = 30;
+
+        $this->template->content = View::factory('prx400/quality', [
+            'days' => $days,
+            'report' => Service_Prx400_Quality::report($days),
+            'can_edit' => $this->can(Policy_Prx400_Spec::EDIT_ACL),
+            'catalog_writable' => $this->page(static fn (): bool => Service_Prx400_Catalog::provider()->writable()),
+        ]);
+    }
+
     public function action_aliases()
     {
         $this->allow(Request::GET);

@@ -71,6 +71,9 @@ return [
         'url'        => trim((string) getenv('PRX400_CATALOG_URL')),
         'token'      => trim((string) getenv('PRX400_CATALOG_TOKEN')),
         'timeout_ms' => $integer(getenv('PRX400_CATALOG_TIMEOUT_MS'), 3000, 200, 30000),
+        // Кеш ответов http-источника в БД: свежесть и «устаревшее при сбое».
+        'cache_ttl'  => $integer(getenv('PRX400_CATALOG_CACHE_TTL'), 3600, 0, 604800),
+        'stale_ttl'  => $integer(getenv('PRX400_CATALOG_STALE_TTL'), 604800, 0, 7776000),
     ],
 
     // Webhook API-ключа (prx_400_hooks): доставка — bin/console prx400:hooks

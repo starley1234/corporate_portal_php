@@ -258,7 +258,10 @@ $pos_label = static fn (array $r): string => $r['pos_path'] !== '' ? $r['pos_pat
                     <i class="fas fa-ruler text-amber-500" title="Единица строки не совпадает с единицей позиции НСИ<?php echo isset($f['expected']) ? ' ('.HTML::chars((string) $f['expected']).')' : ''; ?>"></i>
 <?php endif; endforeach; ?>
 <?php if ($r['page'] !== NULL AND ! empty($file_ok)): ?>
-                    <a class="block text-[11px] font-sans text-gray-400 hover:text-blue-600" href="/prx400_specflow/file/<?php echo $spec_id; ?>?n=<?php echo (int) $r['file_no']; ?>#page=<?php echo (int) $r['page']; ?>" target="_blank" rel="noopener" title="Открыть страницу в PDF"><?php echo $multi_file ? 'ф.'.(int) $r['file_no'].' · ' : ''; ?>стр. <?php echo (int) $r['page']; ?></a>
+                    <a class="block text-[11px] font-sans text-gray-400 hover:text-blue-600" href="/prx400_specflow/file/<?php echo $spec_id; ?>?n=<?php echo (int) $r['file_no']; ?>#page=<?php echo (int) $r['page']; ?><?php
+                        // Подсветка строки в PDF (pdf.js / Firefox): обозначение, иначе начало наименования; Chrome параметр игнорирует.
+                        $pdf_find = trim((string) ($r['code_doc'] ?? '')) !== '' ? (string) $r['code_doc'] : implode(' ', array_slice(preg_split('~\s+~u', trim((string) $r['raw_name'])) ?: [], 0, 2));
+                        echo $pdf_find !== '' ? '&amp;search='.rawurlencode(mb_substr($pdf_find, 0, 60)).'&amp;phrase=true' : ''; ?>" target="_blank" rel="noopener" title="Открыть страницу в PDF и найти позицию"><?php echo $multi_file ? 'ф.'.(int) $r['file_no'].' · ' : ''; ?>стр. <?php echo (int) $r['page']; ?></a>
 <?php endif; ?>
                 </td>
                 <td class="max-w-[360px]" style="padding-left: <?php echo number_format(0.75 + 1.25 * $level, 2, '.', ''); ?>rem">
@@ -384,7 +387,7 @@ $pos_label = static fn (array $r): string => $r['pos_path'] !== '' ? $r['pos_pat
     $label = (string) ($e['row_label'] ?? '') !== '' ? (string) $e['row_label'] : Service_Prx400_Rows::label(array_merge($e, ['raw_name' => ''])); ?>
             <tr>
                 <td class="whitespace-nowrap text-xs text-gray-500 dark:text-gray-400"><?php echo date('d.m.Y H:i', strtotime((string) $e['created_at'])); ?></td>
-                <td class="whitespace-nowrap text-xs text-gray-500 dark:text-gray-400"><?php echo $actor !== 0 ? HTML::chars((string) ($actor_names[$actor] ?? '#'.$actor)) : '—'; ?></td>
+                <td class="whitespace-nowrap text-xs text-gray-500 dark:text-gray-400"><?php echo $actor !== 0 ? HTML::chars((string) ($actor_names[$actor] ?? '#'.$actor)) : 'система'; ?></td>
                 <td class="max-w-[240px] truncate font-mono text-xs tabular-nums"><?php if ($e['row_id'] !== NULL): ?><a class="prx-link" href="#row-<?php echo (int) $e['row_id']; ?>"><?php echo HTML::chars(rtrim($label, ' ·')); ?></a><?php else: ?><span class="text-gray-400" title="<?php echo HTML::chars((string) ($e['row_label'] ?? '')); ?>"><?php echo HTML::chars((string) ($e['row_label'] ?? '') ?: '—'); ?></span><?php endif; ?></td>
                 <td class="text-xs"><?php echo HTML::chars($field_ru[(string) $e['field']] ?? (string) $e['field']); ?></td>
                 <td class="max-w-[260px] text-xs text-gray-500 line-through dark:text-gray-400"><?php echo HTML::chars((string) $e['old_value']); ?></td>

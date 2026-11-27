@@ -269,30 +269,7 @@ class SpecflowHardeningTest extends TestCase
      */
     public function test_catalog_outage_keeps_parse_and_rematch_fills_codes_later(): void
     {
-        $provider = new class implements Prx400_Catalog_Provider {
-            public bool $down = TRUE;
-            private array $items = [
-                ['id' => 0, 'code' => 'B-16', 'name' => 'Болт М16х60 ГОСТ 7798', 'unit' => 'шт', 'okei_code' => '796', 'keywords' => ''],
-                ['id' => 0, 'code' => 'N-16', 'name' => 'Гайка М16 ГОСТ 5915', 'unit' => 'шт', 'okei_code' => '796', 'keywords' => ''],
-            ];
-            public function name(): string { return 'flaky'; }
-            public function writable(): bool { return FALSE; }
-            public function count(): ?int { return NULL; }
-            public function batch(): callable
-            {
-                return function (string $query): array {
-                    if ($this->down) throw new Prx400_Error('catalog_unavailable', 503);
-                    return $this->items;
-                };
-            }
-            public function search(string $query, int $limit): array { return $this->down ? throw new Prx400_Error('catalog_unavailable', 503) : $this->items; }
-            public function by_code(string $code): ?array
-            {
-                if ($this->down) throw new Prx400_Error('catalog_unavailable', 503);
-                foreach ($this->items as $item) if ($item['code'] === $code) return $item;
-                return NULL;
-            }
-        };
+        $provider = $this->flaky_catalog();
         Service_Prx400_Catalog::use_provider($provider);
 
         $user = ORM::factory('User');
@@ -353,5 +330,151 @@ class SpecflowHardeningTest extends TestCase
 
         // Повтор без изменений справочника — ничего не меняет.
         $this->assertSame(0, $rows->rematch($admin, $spec_id)['changed']);
+    }
+
+    /** НСИ, который можно «уронить»: $provider->down = TRUE → catalog_unavailable. */
+    private function flaky_catalog(): Prx400_Catalog_Provider
+    {
+        return new class implements Prx400_Catalog_Provider {
+            public bool $down = TRUE;
+            private array $items = [
+                ['id' => 0, 'code' => 'B-16', 'name' => 'Болт М16х60 ГОСТ 7798', 'unit' => 'шт', 'okei_code' => '796', 'keywords' => ''],
+                ['id' => 0, 'code' => 'N-16', 'name' => 'Гайка М16 ГОСТ 5915', 'unit' => 'шт', 'okei_code' => '796', 'keywords' => ''],
+            ];
+            public function name(): string { return 'flaky'; }
+            public function writable(): bool { return FALSE; }
+            public function count(): ?int { return NULL; }
+            public function batch(): callable
+            {
+                return function (string $query): array {
+                    if ($this->down) throw new Prx400_Error('catalog_unavailable', 503);
+                    return $this->items;
+                };
+            }
+            public function search(string $query, int $limit): array { return $this->down ? throw new Prx400_Error('catalog_unavailable', 503) : $this->items; }
+            public function by_code(string $code): ?array
+            {
+                if ($this->down) throw new Prx400_Error('catalog_unavailable', 503);
+                foreach ($this->items as $item) if ($item['code'] === $code) return $item;
+                return NULL;
+            }
+        };
+    }
+
+    public function test_purge_rematches_after_catalog_returns(): void
+    {
+        $provider = $this->flaky_catalog();
+        Service_Prx400_Catalog::use_provider($provider);
+
+        $user = ORM::factory('User');
+        $suffix = bin2hex(random_bytes(6));
+        $user->username = 'specflow-auto-'.$suffix;
+        $user->email = $suffix.'@example.test';
+        $user->password = bin2hex(random_bytes(16));
+        $user->create();
+        $this->user_id = (int) $user->id;
+
+        $spec_id = $this->finished_spec('done', 0, -$this->user_id);
+        $job_id = (int) Service_Prx120_JobQueue::push(Service_Prx400_Specs::CHANNEL, ['spec_id' => $spec_id], ['module' => 'prx400']);
+        $this->job_ids[] = $job_id;
+        Model_Prx400_Spec::queue($spec_id, $job_id, 'ocr');
+        Prx_Db::execute('UPDATE prx_120_jobs SET status = \'processing\', attempts = 1, claimed_by = \'smoke\', claimed_at = now() WHERE id = :id', [':id' => $job_id]);
+        (new Service_Prx400_Pipeline)->store_result($job_id, 1, [
+            'template_id' => 'spec_generic_v1', 'template_title' => 'Спецификация', 'pages' => 1,
+            'rows' => [['pos_path' => '1', 'raw_name' => 'Болт М16х60 ГОСТ 7798', 'qty' => 4, 'unit' => 'шт', 'file_no' => 1, 'page' => 1]],
+            'math' => ['row_errors' => [], 'gaps' => [], 'totals' => [], 'summary' => ''],
+            'warnings' => [], 'stats' => ['via' => 'ocr', 'pages_processed' => 1],
+        ]);
+        $this->assertContains($spec_id, Model_Prx400_Spec::with_warning('catalog_unavailable', 1000));
+
+        // НСИ ещё лежит: обслуживание не падает и запись не трогает.
+        $report = (new Service_Prx400_Pipeline)->maintain();
+        $this->assertSame(0, $report['rematched']);
+        $this->assertContains($spec_id, Model_Prx400_Spec::with_warning('catalog_unavailable', 1000));
+
+        $provider->down = FALSE;
+        $report = (new Service_Prx400_Pipeline)->maintain();
+        $this->assertGreaterThanOrEqual(1, $report['rematched']);
+        $this->assertNotContains($spec_id, Model_Prx400_Spec::with_warning('catalog_unavailable', 1000), 'предупреждение снято');
+        $row = Model_Prx400_Row::for_spec($spec_id)[0];
+        $this->assertSame('B-16', $row['match']['code'] ?? NULL, 'код дозаполнен без оператора');
+        $this->assertSame('review', Model_Prx400_Spec::get($spec_id)['status'], 'статус меняет только оператор');
+        $journal = array_values(array_filter(Model_Prx400_Edit::for_spec($spec_id), static fn (array $e): bool => $e['field'] === 'rematch'));
+        $this->assertSame(0, (int) $journal[0]['actor_id'], 'в журнале — «система»');
+    }
+
+    /** Пакет решений по строкам: форма проверяется целиком, ошибки — по операции, остальное применяется. */
+    public function test_rows_batch_api_applies_each_operation_and_reports_failures(): void
+    {
+        $_SERVER['HTTP_HOST'] = 'localhost';
+        $_SERVER['SERVER_NAME'] = 'localhost';
+        $config = Kohana::$config->load('prx150_api_hub');
+        $previous_key = $config->get('ip_hash_key');
+        $config->set('ip_hash_key', 'test-only-hmac-key');
+        $provider = $this->flaky_catalog();
+        $provider->down = FALSE;
+        Service_Prx400_Catalog::use_provider($provider);
+        try {
+            $user = ORM::factory('User');
+            $suffix = bin2hex(random_bytes(6));
+            $user->username = 'specflow-batch-'.$suffix;
+            $user->email = $suffix.'@example.test';
+            $user->password = bin2hex(random_bytes(16));
+            $user->create();
+            $this->user_id = (int) $user->id;
+            [$key, $token] = Service_Prx150_Keys::create('specflow batch', [Service_Prx400_Specs::SCOPE, 'prx400.review'], 600, NULL, $this->user_id);
+            $this->key_ids[] = $key;
+            $this->owner_ids[] = $key;
+
+            $spec_id = $this->finished_spec('done', 0, $key);
+            $job_id = (int) Service_Prx120_JobQueue::push(Service_Prx400_Specs::CHANNEL, ['spec_id' => $spec_id], ['module' => 'prx400']);
+            $this->job_ids[] = $job_id;
+            Model_Prx400_Spec::queue($spec_id, $job_id, 'ocr');
+            Prx_Db::execute('UPDATE prx_120_jobs SET status = \'processing\', attempts = 1, claimed_by = \'smoke\', claimed_at = now() WHERE id = :id', [':id' => $job_id]);
+            (new Service_Prx400_Pipeline)->store_result($job_id, 1, [
+                'template_id' => 'spec_generic_v1', 'template_title' => 'Спецификация', 'pages' => 1,
+                'rows' => [
+                    ['pos_path' => '1', 'raw_name' => 'Болт М16х60 ГОСТ 7798', 'qty' => 4, 'unit' => 'шт', 'file_no' => 1, 'page' => 1],
+                    ['pos_path' => '2', 'raw_name' => 'Гайка М16', 'qty' => 4, 'unit' => 'шт', 'file_no' => 1, 'page' => 1],
+                    ['pos_path' => '3', 'raw_name' => 'Шайба 16', 'qty' => 8, 'unit' => 'шт', 'file_no' => 1, 'page' => 1],
+                ],
+                'math' => ['row_errors' => [], 'gaps' => [], 'totals' => [], 'summary' => ''],
+                'warnings' => [], 'stats' => ['via' => 'ocr', 'pages_processed' => 1],
+            ]);
+            $ids = array_map('intval', array_column(Model_Prx400_Row::for_spec($spec_id), 'id'));
+
+            $call = static function (?string $json, string $type = 'application/json') use ($token, $spec_id): array {
+                $request = Request::factory('api/v1/spec-extractions/'.$spec_id.'/rows-batch')->method('POST')
+                    ->headers('Authorization', 'Bearer '.$token)->headers('Content-Type', $type)->body((string) $json);
+                $response = $request->execute();
+                return [$response->status(), (array) json_decode($response->body(), TRUE)];
+            };
+
+            [$status, $body] = $call('operations=1', 'application/x-www-form-urlencoded');
+            $this->assertSame([415, 'json_required'], [$status, $body['error']['code'] ?? NULL]);
+            [$status, $body] = $call('{"operations": [{"row_id": '.$ids[0].', "op": "explode"}]}');
+            $this->assertSame([400, 'batch_invalid'], [$status, $body['error']['code'] ?? NULL]);
+            [$status, $body] = $call(json_encode(['operations' => array_fill(0, Service_Prx400_Rows::BATCH_MAX + 1, ['row_id' => $ids[0], 'op' => 'verify'])]));
+            $this->assertSame([413, 'batch_too_large'], [$status, $body['error']['code'] ?? NULL]);
+            $this->assertSame([], array_filter(array_column(Model_Prx400_Row::for_spec($spec_id), 'verified')), 'неверный пакет ничего не записал');
+
+            [$status, $body] = $call(json_encode(['operations' => [
+                ['row_id' => $ids[0], 'op' => 'verify'],
+                ['row_id' => $ids[1], 'op' => 'code', 'code' => 'N-16'],
+                ['row_id' => $ids[2], 'op' => 'edit', 'fields' => ['qty' => '10']],
+                ['row_id' => $ids[2], 'op' => 'code', 'code' => 'NO-SUCH-CODE'],
+                ['row_id' => 2147483647, 'op' => 'verify'],
+            ]]));
+            $this->assertSame(200, $status);
+            $this->assertSame([3, 2], [$body['applied'], $body['failed']]);
+            $this->assertSame([TRUE, TRUE, TRUE, FALSE, FALSE], array_column($body['results'], 'ok'));
+            $this->assertSame('not_found', $body['results'][4]['error']['code']);
+            $after = array_column(Model_Prx400_Row::for_spec($spec_id), NULL, 'id');
+            $this->assertTrue((bool) $after[$ids[0]]['verified']);
+            $this->assertSame('N-16', $after[$ids[1]]['match']['code'] ?? NULL);
+            $this->assertEquals(10, $after[$ids[2]]['qty']);
+        } finally {
+            $config->set('ip_hash_key', $previous_key);
+        }
     }
 }

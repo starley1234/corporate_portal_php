@@ -25,6 +25,12 @@ final class Service_Prx400_Catalog
         }
     }
 
+    /** Сколько ответов источника с прошлого вызова взято из устаревшего кеша (сбой НСИ). */
+    public static function take_stale(): int
+    {
+        return self::$provider instanceof Prx400_Catalog_Http ? self::$provider->take_stale() : 0;
+    }
+
     /** Подмена источника (тесты, CLI-оценка); NULL — снова из конфига. */
     public static function use_provider(?Prx400_Catalog_Provider $provider): void
     {

@@ -318,6 +318,71 @@ final class Service_Prx400_Rows
         });
     }
 
+    /** Операции пакета (batch API) и их предел за запрос. */
+    public const BATCH_OPS = ['verify', 'unverify', 'code', 'clear_code', 'edit'];
+    public const BATCH_MAX = 500;
+
+    /**
+     * Пакет решений по строкам одной спецификации — для интеграций (MDM/ERP
+     * присылает коды сотнями) и UI массовых действий. Каждая операция —
+     * отдельная транзакция с теми же проверками, что и одиночная ручка;
+     * ошибка одной не откатывает остальные (ответ — результат по каждой).
+     * Форма пакета проверяется целиком до первой записи.
+     *
+     * @param array $ops [{row_id, op: verify|unverify|code|clear_code|edit, code?, fields?}]
+     * @return array{spec_id: int, applied: int, failed: int, results: list<array>}
+     */
+    public function batch(Prx_Principal $principal, int $spec_id, $ops): array
+    {
+        Policy_Prx400_Spec::require_review($principal);
+        if ( ! is_array($ops) OR ! array_is_list($ops) OR $ops === []) throw new Prx400_Error('batch_invalid', 400);
+        if (count($ops) > self::BATCH_MAX) throw new Prx400_Error('batch_too_large', 413, ['max' => self::BATCH_MAX]);
+        $plan = [];
+        foreach ($ops as $i => $op)
+        {
+            $row_id = is_array($op) ? ($op['row_id'] ?? NULL) : NULL;
+            $kind = is_array($op) ? ($op['op'] ?? NULL) : NULL;
+            if ( ! is_int($row_id) OR $row_id <= 0 OR ! is_string($kind) OR ! in_array($kind, self::BATCH_OPS, TRUE))
+            {
+                throw new Prx400_Error('batch_invalid', 400, ['index' => $i]);
+            }
+            $code = $op['code'] ?? '';
+            $fields = $op['fields'] ?? [];
+            if (($kind === 'code' AND ( ! is_string($code) OR trim($code) === ''))
+                OR ($kind === 'edit' AND ( ! is_array($fields) OR array_is_list($fields) OR self::fields(Prx400_Input::scalars($fields)) === [])))
+            {
+                throw new Prx400_Error('batch_invalid', 400, ['index' => $i]);
+            }
+            $plan[] = ['row_id' => $row_id, 'op' => $kind, 'code' => (string) $code, 'fields' => (array) $fields];
+        }
+        $this->editable_spec($principal, $spec_id, FALSE);
+
+        $results = [];
+        $applied = 0;
+        foreach ($plan as $i => $p)
+        {
+            $result = ['index' => $i, 'row_id' => $p['row_id'], 'op' => $p['op']];
+            try {
+                self::require_in_spec($spec_id, $p['row_id']);
+                switch ($p['op'])
+                {
+                    case 'verify': $this->verify($principal, $p['row_id'], TRUE); break;
+                    case 'unverify': $this->verify($principal, $p['row_id'], FALSE); break;
+                    case 'code': $this->assign_code($principal, $p['row_id'], $p['code']); break;
+                    case 'clear_code': $this->clear_code($principal, $p['row_id']); break;
+                    case 'edit': $this->edit($principal, $p['row_id'], $p['fields']); break;
+                }
+                $results[] = $result + ['ok' => TRUE];
+                $applied++;
+            } catch (Prx400_Error $e) {
+                $results[] = $result + ['ok' => FALSE, 'error' => ['code' => $e->getMessage(), 'status' => (int) $e->getCode()]];
+            }
+        }
+        Log_Plain::event(Log::INFO, 'prx400 spec=:s stage=batch ops=:n applied=:a', [':s' => $spec_id, ':n' => count($plan), ':a' => $applied]);
+
+        return ['spec_id' => $spec_id, 'applied' => $applied, 'failed' => count($plan) - $applied, 'results' => $results];
+    }
+
     // ------------------------------------------------------------------
 
     /**
@@ -336,15 +401,45 @@ final class Service_Prx400_Rows
     {
         $actor = Policy_Prx400_Spec::require_review($principal);
         $this->editable_spec($principal, $spec_id, FALSE);
+
+        return $this->rematch_rows($spec_id, $actor, function (int $spec_id) use ($principal): void {
+            $this->editable_spec($principal, $spec_id);
+        });
+    }
+
+    /**
+     * Автоматическое пересопоставление после сбоя НСИ (prx400:purge): записи
+     * с предупреждением catalog_unavailable, когда источник снова отвечает.
+     * Действующее лицо — «система» (actor 0); статус записи не меняется.
+     *
+     * @return array{spec_id: int, checked: int, changed: int}|null NULL — запись уже не в review/done
+     */
+    public function rematch_system(int $spec_id): ?array
+    {
+        $spec = Model_Prx400_Spec::get($spec_id);
+        if ($spec === NULL OR ! in_array($spec['status'], ['review', 'done'], TRUE)) return NULL;
+
+        return $this->rematch_rows($spec_id, 0, static function (int $spec_id): void {
+            $spec = Model_Prx400_Spec::lock($spec_id);
+            if ($spec === NULL OR ! in_array($spec['status'], ['review', 'done'], TRUE)) throw new Prx400_Error('wrong_state', 409);
+        });
+    }
+
+    /** Ядро пересопоставления: $lock_spec — блокировка и проверка записи внутри транзакции. */
+    private function rematch_rows(int $spec_id, int $actor, callable $lock_spec): array
+    {
         $pending = array_values(array_filter(Model_Prx400_Row::for_spec($spec_id), [self::class, 'undecided']));
 
         $matcher = new Service_Prx400_Matcher;
+        Service_Prx400_Catalog::take_stale();
         $matcher->prime($pending);
         $assessed = [];
         foreach ($pending as $row) $assessed[(int) $row['id']] = ['row' => $row] + $matcher->assess($row);
+        // Ответы из устаревшего кеша (НСИ всё ещё лежит) — предупреждение не снимаем.
+        $fresh = Service_Prx400_Catalog::take_stale() === 0;
 
-        $result = Prx_Db::transaction(function () use ($principal, $actor, $spec_id, $assessed): array {
-            $this->editable_spec($principal, $spec_id);
+        $result = Prx_Db::transaction(static function () use ($lock_spec, $actor, $spec_id, $assessed, $fresh): array {
+            $lock_spec($spec_id);
             $checked = $changed = 0;
             foreach (Model_Prx400_Row::lock_for_spec($spec_id) as $row)
             {
@@ -359,7 +454,11 @@ final class Service_Prx400_Rows
                 $changed++;
             }
             Model_Prx400_Edit::add(NULL, $spec_id, 'rematch', NULL, $changed.' из '.$checked, $actor, 'строк: '.$checked);
-            Model_Prx400_Spec::drop_warning($spec_id, 'catalog_unavailable');
+            if ($fresh)
+            {
+                Model_Prx400_Spec::drop_warning($spec_id, 'catalog_unavailable');
+                Model_Prx400_Spec::drop_warning($spec_id, 'catalog_stale');
+            }
 
             return ['spec_id' => $spec_id, 'checked' => $checked, 'changed' => $changed];
         });

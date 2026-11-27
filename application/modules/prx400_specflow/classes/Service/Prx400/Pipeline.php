@@ -78,6 +78,7 @@ final class Service_Prx400_Pipeline
         // Матчинг — до транзакции: блокировка записи не ждёт перебор НСИ.
         $matcher = new Service_Prx400_Matcher;
         $catalog_down = FALSE;
+        Service_Prx400_Catalog::take_stale();
         try {
             $matcher->prime($rows);
             foreach ($rows as &$row)
@@ -106,6 +107,8 @@ final class Service_Prx400_Pipeline
         }
         $math = self::clean_math($body);
         if ($catalog_down) $math['warnings'] = array_values(array_unique(array_merge($math['warnings'], ['catalog_unavailable'])));
+        // НСИ лёг, но выручил кеш недавних ответов: коды есть, но могли устареть.
+        elseif (Service_Prx400_Catalog::take_stale() > 0) $math['warnings'] = array_values(array_unique(array_merge($math['warnings'], ['catalog_stale'])));
         $owner = (int) $spec['owner_id'];
 
         $outcome = $this->finish($job_id, $spec_id, static function () use ($spec_id, $owner, $rows, $body, $math): array {
@@ -153,9 +156,10 @@ final class Service_Prx400_Pipeline
      *  1. сверка queued/running с очередью — запись failed с кодом (UI это
      *     только показывает, на GET не пишет);
      *  2. срок хранения (PRX400_RETENTION_DAYS > 0) для done/failed;
-     *  3. файлы prx400 старше 48 ч без записи — сироты сбоев.
+     *  3. файлы prx400 старше 48 ч без записи — сироты сбоев;
+     *  4. автопересопоставление записей, принятых при сбое НСИ (catalog_unavailable).
      *
-     * @return array{reconciled: int, purged: int, orphans: int, errors: int}
+     * @return array{reconciled: int, recovered: int, purged: int, orphans: int, errors: int, rematched: int, deliveries_purged: int}
      */
     public function maintain(): array
     {
@@ -209,6 +213,32 @@ final class Service_Prx400_Pipeline
                     Log_Plain::event(Log::ERROR, 'prx400 spec=:s stage=purge error_type=:t', [':s' => (int) $spec['id'], ':t' => get_class($e)]);
                 }
             }
+        }
+
+        // НСИ вернулся — дозаполнить коды разборам, принятым во время сбоя
+        // (lesson 17), не дожидаясь, пока оператор нажмёт «Пересопоставить».
+        // Источник всё ещё лежит — останавливаемся на первой же записи.
+        $report['rematched'] = 0;
+        $pending = array_unique(array_merge(Model_Prx400_Spec::with_warning('catalog_unavailable'), Model_Prx400_Spec::with_warning('catalog_stale')));
+        foreach ($pending as $spec_id)
+        {
+            try {
+                if ((new Service_Prx400_Rows)->rematch_system($spec_id) !== NULL) $report['rematched']++;
+            } catch (Prx400_Error $e) {
+                if ($e->getMessage() === 'catalog_unavailable') break;
+                if ($e->getMessage() !== 'wrong_state') $report['errors']++;
+            } catch (Throwable $e) {
+                $report['errors']++;
+                Log_Plain::event(Log::ERROR, 'prx400 spec=:s stage=auto_rematch error_type=:t', [':s' => $spec_id, ':t' => get_class($e)]);
+            }
+        }
+
+        $stale_ttl = (int) (Service_Prx400_Limits::catalog()['stale_ttl'] ?? 0);
+        try {
+            $report['cache_purged'] = Model_Prx400_CatalogCache::purge(max($stale_ttl, (int) (Service_Prx400_Limits::catalog()['cache_ttl'] ?? 0)));
+        } catch (Throwable $e) {
+            $report['errors']++;
+            Log_Plain::event(Log::ERROR, 'prx400 stage=catalog_cache_purge error_type=:t', [':t' => get_class($e)]);
         }
 
         $sweep = Storage::sweep_orphans(Service_Prx400_Specs::MODULE, [Model_Prx400_Spec::class, 'referenced_files']);

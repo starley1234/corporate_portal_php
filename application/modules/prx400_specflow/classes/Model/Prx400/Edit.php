@@ -81,4 +81,26 @@ class Model_Prx400_Edit {
             'auto_code_overridden' => (int) ($overridden['n'] ?? 0),
         ];
     }
+
+    /**
+     * Кандидаты в НСИ за $days дней: позиции без кода, которые повторяются в
+     * разных спецификациях, — их выгоднее всего завести в справочник.
+     * Подтверждённые «как есть» тоже считаются: кода у них всё равно нет.
+     */
+    public static function catalog_gaps(int $days, int $limit = 20): array
+    {
+        return array_map(static fn (array $r): array => [
+            'name' => (string) $r['name'], 'unit' => (string) $r['unit'], 'rows' => (int) $r['rows'],
+            'specs' => (int) $r['specs'], 'last_spec_id' => (int) $r['last_spec_id'],
+        ], Prx_Db::select(
+            'SELECT min(r.raw_name) AS name, coalesce(min(r.unit), \'\') AS unit, count(*) AS rows,
+                    count(DISTINCT r.spec_id) AS specs, max(r.spec_id) AS last_spec_id
+               FROM prx_400_rows r JOIN prx_400_specs s ON s.id = r.spec_id
+              WHERE s.created_at >= now() - (CAST(:d AS int) * interval \'1 day\')
+                AND coalesce(r.match->>\'code\', \'\') = \'\' AND btrim(r.raw_name) <> \'\'
+              GROUP BY lower(regexp_replace(btrim(r.raw_name), \'\\s+\', \' \', \'g\'))
+              ORDER BY count(DISTINCT r.spec_id) DESC, count(*) DESC, 1
+              LIMIT '.max(1, min(100, $limit)),
+            [':d' => max(1, $days)]));
+    }
 }

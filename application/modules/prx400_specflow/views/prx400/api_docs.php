@@ -111,12 +111,17 @@ POST   /api/v1/spec-extractions/42/rows/501/code     {"code": "NSI-000123"}   DE
 POST   /api/v1/spec-extractions/42/rows/501/split    {"quantities": [4, 8]}   (сумма = количеству строки)
 POST   /api/v1/spec-extractions/42/rows              {"raw_name": "…", "qty": 1, "unit": "шт", "after_row_id"?, "parent_row_id"?, "pos_path"?}
 DELETE /api/v1/spec-extractions/42/rows/501          (строку с составом — 409 row_has_children)
+POST   /api/v1/spec-extractions/42/rows-batch        {"operations": [{"row_id": 501, "op": "code", "code": "NSI-1"},
+                                                  {"row_id": 502, "op": "verify"}, {"row_id": 503, "op": "edit", "fields": {"qty": "12"}}]}
+→ 200 {"applied": 2, "failed": 1, "results": [{"index": 0, "row_id": 501, "op": "code", "ok": true}, …,
+       {"index": 2, …, "ok": false, "error": {"code": "wrong_state", "status": 409}}]}   op: verify|unverify|code|clear_code|edit, ≤ 500
 POST   /api/v1/spec-extractions/42/verify-bulk       {"min_score": 0.9}  → {"verified": 17}
 POST   /api/v1/spec-extractions/42/rematch           → {"checked": 40, "changed": 12}  (строки без решения оператора — заново с НСИ)
 POST   /api/v1/spec-extractions/42/finish            {"accept_issues": false}
 POST   /api/v1/spec-extractions/42/relaunch          {"parse_mode"?, "template_id"?}  → 202
 GET    /api/v1/spec-catalog?q=болт м16&amp;limit=20     → {"provider": "<?php echo HTML::chars($catalog_provider); ?>", "items": [{"code", "name", "unit", "okei_code"}]}</pre>
         <p class="prx-hint mt-2">Действие над строкой отвечает её новым состоянием. Правки возможны в статусах <?php echo $code('review'); ?> и <?php echo $code('done'); ?>, каждая пишется в журнал.
+            Пакет <?php echo $code('rows-batch'); ?> (только JSON) проверяет форму целиком до записи; каждая операция — отдельная транзакция, ошибка одной не откатывает остальные.
             Ручной код запоминается: следующие разборы подставят его сами (<?php echo $code('match_via: memory'); ?>).
             Повторный разбор переносит подтверждения и ручные коды на совпавшие строки и сохраняет добавленные вручную; потерянные подтверждения — предупреждение <?php echo $code('verified_rows_lost'); ?>.</p>
     </section>

@@ -124,13 +124,17 @@ webhook) и `prx400.review` (работа с позициями); `Authorization
    `counts` (по фильтрам), `result {meta, positions, audit}`, `awaiting_operator`.
 3. Позиции: `GET …/<id>/rows?filter=`, `PATCH|DELETE …/rows/<row>`,
    `POST …/rows/<row>/verify|code|split`, `POST …/rows`, `POST
-   …/<id>/verify-bulk|rematch|finish|relaunch`; выгрузки `GET
+   …/<id>/rows-batch|verify-bulk|rematch|finish|relaunch`; выгрузки `GET
    …/<id>/export?format=json|csv|xlsx|aggregate&bom=`, исходники `GET
    …/<id>/files/<n>`; поиск в НСИ `GET /api/v1/spec-catalog?q=`.
    `rematch` — заново сопоставить с НСИ строки без решения оператора (после
    импорта/обновления справочника). Если НСИ не ответил во время разбора,
    строки принимаются без сопоставления с предупреждением `catalog_unavailable`
-   (без повторного OCR/vision) — далее `rematch`.
+   (без повторного OCR/vision); `prx400:purge` сам пересопоставит их, когда НСИ
+   ответит. `rows-batch` — до 500 решений `{row_id, op: verify|unverify|code|
+   clear_code|edit}` за запрос (JSON), результат по каждой операции. Ответы
+   http-НСИ кешируются в БД (`PRX400_CATALOG_CACHE_TTL`); при сбое — недавний
+   ответ (`…_STALE_TTL`) и предупреждение `catalog_stale`.
 4. Webhook: `PUT /api/v1/spec-extractions/webhook {url, events}` → `secret`;
    POST на адрес клиента с `X-PRX-Signature: t=<unix>,v1=HMAC-SHA256(secret,
    "t.тело")`, тело — только ссылка на статус; повторы 1 мин … 24 ч,

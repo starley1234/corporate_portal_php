@@ -192,6 +192,17 @@ class Model_Prx400_Spec {
             [':id' => $id, ':code' => $code]);
     }
 
+    /** Записи review/done с предупреждением (например, catalog_unavailable), старые — первыми. */
+    public static function with_warning(string $code, int $limit = 20): array
+    {
+        return array_map('intval', array_column(Prx_Db::select(
+            'SELECT id FROM prx_400_specs
+              WHERE status IN (\'review\', \'done\') AND jsonb_typeof(math->\'warnings\') = \'array\'
+                AND math->\'warnings\' @> jsonb_build_array(CAST(:code AS text))
+              ORDER BY updated_at, id LIMIT '.max(1, $limit),
+            [':code' => $code]), 'id'));
+    }
+
     /** queued/running — кандидаты сверки с очередью (уборка). */
     public static function in_flight(int $limit = 200): array
     {

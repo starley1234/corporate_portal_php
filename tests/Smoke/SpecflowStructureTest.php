@@ -331,11 +331,15 @@ class SpecflowStructureTest extends TestCase
             $this->assertSame('BOLT-W-'.$suffix, $again[2]['match']['code'], 'ручной код перенесён на новый разбор');
 
             // ---- prx400:eval: качество в бою по строкам и журналу
-            $report = Task_Prx400_Eval::report(1);
+            $report = Service_Prx400_Quality::report(1);
             $this->assertGreaterThanOrEqual(5, $report['rows']['total']);
             $this->assertGreaterThanOrEqual(1, $report['rows']['via_manual']);
             $this->assertGreaterThan(0, $report['rates']['auto_coded']);
             $this->assertContains('split', array_column($report['edited_fields'], 'field'));
+            $this->assertIsArray($report['catalog_gaps']);
+            $html = View::factory('prx400/quality', ['days' => 1, 'report' => $report, 'can_edit' => TRUE, 'catalog_writable' => TRUE])->render();
+            $this->assertStringContainsString('Кандидаты в НСИ', $html);
+            $this->assertStringContainsString('Откуда коды НСИ', $html);
         }
         finally
         {
@@ -400,7 +404,7 @@ class SpecflowStructureTest extends TestCase
             $html = View::factory('prx400/api_docs', ['scope' => Service_Prx400_Specs::SCOPE, 'parse_modes' => Service_Prx400_Limits::parse_modes(),
                 'templates' => Service_Prx400_Templates::options(), 'max_pdf' => '50 МиБ', 'max_files' => 20, 'max_total' => '200 МиБ',
                 'catalog_provider' => $provider->name(), 'can_keys' => FALSE])->render();
-            foreach (['files[]', '/rows?filter=', 'verify-bulk', 'X-PRX-Signature', 'bom=as_is', 'spec-catalog'] as $needle) $this->assertStringContainsString($needle, $html);
+            foreach (['files[]', '/rows?filter=', 'rows-batch', 'verify-bulk', 'X-PRX-Signature', 'bom=as_is', 'spec-catalog'] as $needle) $this->assertStringContainsString($needle, $html);
 
             $down = TRUE;
             $this->expect_error(static fn () => Service_Prx400_Catalog::search($admin, 'гайка', 10), 'catalog_unavailable', 503);
@@ -408,6 +412,54 @@ class SpecflowStructureTest extends TestCase
         finally
         {
             Service_Prx400_Catalog::use_provider(NULL);
+        }
+    }
+
+    /**
+     * Кеш внешнего НСИ в БД: повтор не ходит в источник, при сбое выручает
+     * недавний ответ (stale-if-error) и это видно счётчику; старше stale_ttl — 503.
+     */
+    public function test_external_catalog_cache_serves_fresh_and_stale_answers(): void
+    {
+        $calls = 0;
+        $down = FALSE;
+        $url = 'https://nsi-cache-'.bin2hex(random_bytes(4)).'.example/api';
+        $transport = static function (string $u) use (&$calls, &$down): array {
+            $calls++;
+            if ($down) return [503, ''];
+            if (str_contains($u, '/items/')) return [200, json_encode(['code' => 'EXT-7', 'name' => 'Гайка М16', 'unit' => 'шт'])];
+            return [200, json_encode(['items' => [['code' => 'EXT-7', 'name' => 'Гайка М16', 'unit' => 'шт']]])];
+        };
+        $config = ['url' => $url, 'cache_ttl' => 3600, 'stale_ttl' => 86400];
+        try
+        {
+            $first = new Prx400_Catalog_Http($config, $transport);
+            $this->assertSame('EXT-7', $first->search('гайка м16', 5)[0]['code']);
+            $this->assertSame('EXT-7', $first->by_code('EXT-7')['code']);
+            $this->assertSame(2, $calls);
+
+            // Новый процесс (новый объект) — ответ из БД, без запроса.
+            $second = new Prx400_Catalog_Http($config, $transport);
+            $this->assertSame('EXT-7', $second->search('гайка м16', 5)[0]['code']);
+            $this->assertSame(2, $calls);
+            $this->assertSame(0, $second->take_stale());
+
+            // Свежесть вышла, источник лежит — выручает устаревший ответ.
+            $down = TRUE;
+            $stale = new Prx400_Catalog_Http(['cache_ttl' => 0] + $config, $transport);
+            $this->assertSame('EXT-7', $stale->search('гайка м16', 5)[0]['code']);
+            $this->assertSame('EXT-7', $stale->by_code('EXT-7')['code']);
+            $this->assertSame(2, $stale->take_stale());
+            $this->assertSame(0, $stale->take_stale(), 'счётчик обнуляется');
+
+            // Устаревшее не разрешено — честная 503; неизвестный запрос — тоже.
+            $strict = new Prx400_Catalog_Http(['cache_ttl' => 0, 'stale_ttl' => 0] + $config, $transport);
+            $this->expect_error(static fn () => $strict->search('гайка м16', 5), 'catalog_unavailable', 503);
+            $this->expect_error(static fn () => $stale->search('шайба', 5), 'catalog_unavailable', 503);
+        }
+        finally
+        {
+            Prx_Db::execute('DELETE FROM prx_400_catalog_cache WHERE payload::text LIKE :p', [':p' => '%EXT-7%']);
         }
     }
 }
