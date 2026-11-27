@@ -31,7 +31,7 @@ class InvoiceRouteResultTest extends TestCase
             [':j' => $job_id, ':k' => hash('sha256', 'k'.$job_id), ':s' => hash('sha256', 's'.$job_id)]);
     }
 
-    private static function status(object $service, string $db_status, ?array $job): string
+    private static function public_status_of(object $service, string $db_status, ?array $job): string
     {
         $method = new ReflectionMethod($service, 'public_status');
         $method->setAccessible(TRUE);
@@ -87,9 +87,9 @@ class InvoiceRouteResultTest extends TestCase
 
             // Обслуживание остановило задачу умершего воркера.
             $lost = ['status' => 'cancelled', 'error' => 'Воркер не отвечал больше 240 с'];
-            $this->assertSame('failed', self::status($service, 'queued', $lost));
+            $this->assertSame('failed', self::public_status_of($service, 'queued', $lost));
             $this->assertSame('worker_lost', Service_Prx397_Extraction::error_code($lost));
-            $this->assertSame('canceled', self::status($service, 'queued', ['status' => 'cancelled', 'error' => 'Отменено']));
+            $this->assertSame('canceled', self::public_status_of($service, 'queued', ['status' => 'cancelled', 'error' => 'Отменено']));
         }
         finally
         {
@@ -122,7 +122,7 @@ class InvoiceRouteResultTest extends TestCase
             $this->assertSame('job_failed', $service->store_result($job_id, 1, ['error_code' => 'DROP TABLE'])['error_code']);
             $this->assertSame('graph_unavailable', $service->store_result($job_id, 1, ['error_code' => 'graph_unavailable'])['error_code']);
 
-            $this->assertSame('failed', self::status($service, 'running',
+            $this->assertSame('failed', self::public_status_of($service, 'running',
                 ['status' => 'failed', 'error' => 'Воркер перезапускался на этой задаче 3 раза']));
             $this->assertSame('worker_crash_loop', Service_Prx398_Route::error_code(
                 ['status' => 'failed', 'error' => 'Воркер перезапускался на этой задаче 3 раза']));

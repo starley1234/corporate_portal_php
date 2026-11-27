@@ -293,7 +293,7 @@ class Controller_Prx399_Ui extends Controller_Base {
             'pdf_required' => 'Файлы пакета — только PDF.',
             'file_too_large' => 'Файл слишком большой.',
             'upload_error' => 'Загрузка не удалась — повторите.',
-            'storage_unavailable' => 'Хранилище недоступно: не удалось создать каталог пакета. Проверьте права на storage/ на сервере или задайте PRX399_STORAGE_DIR в .env.',
+            'storage_unavailable' => 'Хранилище файлов недоступно (prx212). Проверьте /prx212 и права на storage/ на сервере.',
             'contract_not_found' => 'Пакет не найден.',
             'not_found' => 'Объект не найден.',
             'wrong_state' => 'Действие недоступно в текущем состоянии пайплайна.',

@@ -26,6 +26,11 @@ return [
     'acl' => 'prx399.view',
     'keywords' => 'договор допсоглашение слияние консолидация дельты редакция риски аудит llm docmerge',
     'api' => ['/prx399/api/health'],
+    'schedule' => ['docmerge_maintain' => [
+        'label' => 'Самолечение идущих пакетов и уборка сирот prx399',
+        'every' => '5 minutes',
+        'command' => 'bin/console prx399:maintain',
+    ]],
 
     'worker' => [
         'channels' => [

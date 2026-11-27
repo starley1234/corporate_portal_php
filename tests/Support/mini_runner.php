@@ -249,6 +249,23 @@ namespace {
 			continue;
 		}
 
+		// Имена, которые в PHPUnit 10 у TestCase объявлены final: хелпер теста
+		// с таким именем мини-раннер пропускает, а настоящий phpunit в CI падает
+		// фаталом на загрузке класса («Cannot override final method status()»).
+		$final_in_phpunit = ['status', 'name', 'size', 'groups', 'setGroups', 'result', 'setResult', 'output',
+			'run', 'runBare', 'count', 'toString', 'sortId', 'provides', 'requires', 'dataName', 'providedData',
+			'setData', 'nameWithDataSet', 'dataSetAsString', 'valueObjectForEvents', 'wasPrepared',
+			'numberOfAssertionsPerformed', 'addToAssertionCount', 'expectOutputString', 'expectOutputRegex',
+			'doesNotPerformAssertions', 'expectsOutput', 'usesDataProvider', 'dependencyInput', 'hasDependencyInput'];
+		$clashes = array_filter($final_in_phpunit, static fn ($m) => $r->hasMethod($m)
+			&& $r->getMethod($m)->getDeclaringClass()->getName() === $base);
+		if ($clashes)
+		{
+			echo '  ✘ '.$base.': метод(ы) '.implode(', ', $clashes).' в PHPUnit 10 final — переименуйте'.PHP_EOL;
+			$failed++;
+			continue;
+		}
+
 		$instance = $r->newInstance();
 
 		// Хуки уровня класса (как phpunit): поднять фикстуру один раз на класс.

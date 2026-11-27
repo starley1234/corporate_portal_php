@@ -52,7 +52,7 @@ class Model_Prx399_Contract {
         return Prx_Db::execute(
             'UPDATE prx_399_contracts
              SET deal_card = :card::jsonb, updated_at = now() WHERE id = :id',
-            [':id' => (int) $id, ':card' => json_encode($card, JSON_UNESCAPED_UNICODE)]);
+            [':id' => (int) $id, ':card' => json_encode($card, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR)]);
     }
 
     public static function set_built($id, array $tree, array $broken_links)
@@ -64,8 +64,8 @@ class Model_Prx399_Contract {
              WHERE id = :id',
             [
                 ':id' => (int) $id,
-                ':tree' => json_encode($tree, JSON_UNESCAPED_UNICODE),
-                ':links' => json_encode($broken_links, JSON_UNESCAPED_UNICODE),
+                ':tree' => json_encode($tree, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR),
+                ':links' => json_encode($broken_links, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR),
                 ':status' => 'built',
             ]);
     }
@@ -92,6 +92,25 @@ class Model_Prx399_Contract {
         return Prx_Db::execute(
             'UPDATE prx_399_contracts SET audit_job_id = :job, updated_at = now() WHERE id = :id',
             [':id' => (int) $id, ':job' => (int) $job_id]);
+    }
+
+    /**
+     * Сериализация сценариев одного пакета: advisory-лок (399, id) до конца
+     * транзакции. Сборка, запуск, повтор файла и приём аудита берут его —
+     * двойной клик не ставит задачи дважды, устаревший результат не пишет
+     * поверх нового цикла.
+     */
+    public static function lock($id)
+    {
+        return Prx_Db::execute('SELECT pg_advisory_xact_lock(399, :id)', [':id' => (int) $id]);
+    }
+
+    /** Пакеты с идущим пайплайном — для самолечения по расписанию (prx399:maintain). */
+    public static function active_ids($limit = 200)
+    {
+        return array_map('intval', array_column(Prx_Db::select(
+            "SELECT id FROM prx_399_contracts WHERE status IN ('parsing', 'auditing') ORDER BY updated_at LIMIT :limit",
+            [':limit' => max(1, (int) $limit)]), 'id'));
     }
 
     public static function delete($id)

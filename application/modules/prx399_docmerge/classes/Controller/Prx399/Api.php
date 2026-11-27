@@ -7,7 +7,7 @@
  *   GET  /prx399/api/health                  — ok/module/статистика
  *   GET  /prx399/api/delta_input/<file_id>   — задание (или done=TRUE)
  *   POST /prx399/api/delta_result/<file_id>  — {pages, text_sha256, ast|ops, …}
- *   GET  /prx399/api/file/<file_id>          — PDF пакета (application/pdf)
+ *   GET  /prx399/api/file/<file_id>          — PDF пакета (application/pdf, из Storage::)
  *   GET  /prx399/api/audit_input/<id>        — собранное дерево + контекст
  *   POST /prx399/api/audit_result/<id>       — {summary, risks[]}
  *
@@ -23,6 +23,20 @@ class Controller_Prx399_Api extends Controller {
     {
         parent::before();
         $this->response->headers('Cache-Control', 'no-store');
+
+        // Токен — ДО любого действия (кроме health). Отказ подменяет действие,
+        // а не делает exit: раньше exit обрывал запрос до отправки ответа, и
+        // клиент без токена получал 200 с пустым телом — воркер с неверным
+        // токеном принимал это за доставленный результат.
+        if ($this->request->action() !== 'health' AND ! $this->_authorized())
+        {
+            $this->request->action('unauthorized');
+        }
+    }
+
+    public function action_unauthorized()
+    {
+        $this->_json(['ok' => FALSE, 'error' => 'unauthorized'], 401);
     }
 
     public function action_index()
@@ -44,7 +58,6 @@ class Controller_Prx399_Api extends Controller {
 
     public function action_delta_input()
     {
-        $this->_guard();
         $pipeline = new Service_Prx399_Pipeline;
         $this->_run(function ($id) use ($pipeline)
         {
@@ -54,7 +67,6 @@ class Controller_Prx399_Api extends Controller {
 
     public function action_delta_result()
     {
-        $this->_guard();
         $pipeline = new Service_Prx399_Pipeline;
         $this->_run(function ($id, array $body) use ($pipeline)
         {
@@ -64,7 +76,6 @@ class Controller_Prx399_Api extends Controller {
 
     public function action_audit_input()
     {
-        $this->_guard();
         $pipeline = new Service_Prx399_Pipeline;
         $this->_run(function ($id) use ($pipeline)
         {
@@ -74,7 +85,6 @@ class Controller_Prx399_Api extends Controller {
 
     public function action_audit_result()
     {
-        $this->_guard();
         $pipeline = new Service_Prx399_Pipeline;
         $this->_run(function ($id, array $body) use ($pipeline)
         {
@@ -85,7 +95,6 @@ class Controller_Prx399_Api extends Controller {
     /** Отдача PDF пакета воркеру: stream + строгий content-type. */
     public function action_file()
     {
-        $this->_guard();
         $file = Model_Prx399_File::get((int) $this->request->param('id'));
         if ( ! $file)
         {
@@ -93,9 +102,26 @@ class Controller_Prx399_Api extends Controller {
 
             return;
         }
-        $raw = (string) $file['storage_path'];
-        $path = $raw === '' ? '' : Storage_Path::absolute($raw);
-        if ($path === '' OR ! is_file($path))
+        $bytes = NULL;
+        $path = '';
+        if ((int) ($file['file_id'] ?? 0) > 0)
+        {
+            try
+            {
+                $limit = (int) Kohana::$config->load('prx399_docmerge')->get('max_pdf_bytes');
+                $bytes = Storage::read_owned((int) $file['file_id'], Service_Prx399_Contracts::MODULE, $limit);
+            }
+            catch (Throwable $e)
+            {
+                Log_Plain::event(Log::ERROR, 'prx399 file=:id stage=read error_type=:type', [':id' => (int) $file['id'], ':type' => get_class($e)]);
+            }
+        }
+        elseif ((string) ($file['storage_path'] ?? '') !== '')
+        {
+            // Запись до перехода на Storage:: (миграция 399_004).
+            $path = Storage_Path::absolute((string) $file['storage_path']);
+        }
+        if ($bytes === NULL AND ($path === '' OR ! is_file($path)))
         {
             $this->_json(['ok' => FALSE, 'error' => 'file_unavailable'], 404);
 
@@ -110,20 +136,24 @@ class Controller_Prx399_Api extends Controller {
         $this->response->headers('Content-Disposition', 'attachment; filename="prx399-'.$file['id'].'.pdf"');
         $this->response->headers('X-Content-Type-Options', 'nosniff');
         $this->response->send_headers();
-        readfile($path);
+        if ($bytes !== NULL)
+        {
+            echo $bytes;
+        }
+        else
+        {
+            readfile($path);
+        }
         exit;
     }
 
     // ------------------------------------------------------------ helpers
 
-    private function _guard()
+    private function _authorized(): bool
     {
         $token = getenv('PRX399_SITE_TOKEN') ?: (getenv('WORKER_SITE_TOKEN') ?: getenv('WORKER_API_TOKEN'));
-        if ($token === FALSE OR (string) $token === '' OR ! Prx_Gate::worker_request($this->request, (string) $token))
-        {
-            $this->_json(['ok' => FALSE, 'error' => 'unauthorized'], 401);
-            exit;
-        }
+
+        return $token !== FALSE && (string) $token !== '' && Prx_Gate::worker_request($this->request, (string) $token);
     }
 
     private function _run(callable $action, $with_body = FALSE)

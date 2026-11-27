@@ -73,6 +73,14 @@ class Service_Prx399_Pipeline {
         {
             return ['ok' => TRUE, 'duplicate' => TRUE];
         }
+        if ($file['status'] === 'failed')
+        {
+            // Задача файла уже признана погибшей (самолечение увидело
+            // failed/cancelled в очереди), человек решает: «повторить» или
+            // «запустить пайплайн». Опоздавший воркер не воскрешает файл
+            // в обход этого решения; ответ ok — повторять доставку незачем.
+            return ['ok' => TRUE, 'stale' => TRUE];
+        }
 
         $pages = (int) ($body['pages'] ?? 0);
         $sha = (string) ($body['text_sha256'] ?? '');
@@ -114,7 +122,7 @@ class Service_Prx399_Pipeline {
             // Текст ДС — для side-by-side ревью на карточке (у сканов без
             // текстового слоя сайту его не достать); 1 МБ — страховка сверх
             // лимита воркера.
-            $ds_text = isset($body['text']) ? mb_substr((string) $body['text'], 0, 1048576) : NULL;
+            $ds_text = isset($body['text']) && is_string($body['text']) ? mb_substr($body['text'], 0, 1048576) : NULL;
 
             Prx_Db::transaction(function () use ($file, $pages, $sha, $rows, $ds_text)
             {
@@ -178,8 +186,8 @@ class Service_Prx399_Pipeline {
             return ['ok' => TRUE, 'duplicate' => TRUE];
         }
 
-        $summary = trim((string) ($body['summary'] ?? ''));
-        if ($summary === '')
+        $summary = is_string($body['summary'] ?? NULL) ? trim($body['summary']) : '';
+        if ($summary === '' OR ! is_array($body['risks'] ?? []))
         {
             throw new Prx399_Error('invalid_risks', 400);
         }
@@ -209,15 +217,31 @@ class Service_Prx399_Pipeline {
             ];
         }
 
-        Prx_Db::transaction(function () use ($contract_id, $risks, $summary)
+        // Под локом пакета и только для идущего аудита. Раньше llm-риски
+        // заменялись при ЛЮБОМ статусе, а set_audited просто не срабатывал:
+        // результат опоздавшего аудита (задачу уже сочли погибшей, пакет
+        // пересобран) переписывал карту рисков новой редакции рисками старой.
+        $stale = Prx_Db::transaction(function () use ($contract_id, $risks, $summary)
         {
+            Model_Prx399_Contract::lock($contract_id);
+            $current = Model_Prx399_Contract::get($contract_id);
+            if ( ! $current OR (string) $current['status'] !== 'auditing')
+            {
+                return TRUE;
+            }
             Model_Prx399_Risk::delete_llm($contract_id);
             foreach ($risks as $row)
             {
                 Model_Prx399_Risk::insert($row);
             }
             Model_Prx399_Contract::set_audited($contract_id, $summary);
+
+            return FALSE;
         });
+        if ($stale)
+        {
+            return ['ok' => TRUE, 'stale' => TRUE];
+        }
 
         Event::publish('prx399.contract.audited', [
             'contract_id' => $contract_id,
@@ -239,7 +263,7 @@ class Service_Prx399_Pipeline {
     {
         Prx_Db::transaction(function () use ($contract_id)
         {
-            Prx_Db::execute('SELECT pg_advisory_xact_lock(399, :id)', [':id' => $contract_id]);
+            Model_Prx399_Contract::lock($contract_id);
 
             $contract = Model_Prx399_Contract::get($contract_id);
             if ( ! $contract OR ! in_array($contract['status'], ['parsing'], TRUE))
@@ -277,7 +301,7 @@ class Service_Prx399_Pipeline {
 
         Prx_Db::transaction(function () use ($contract_id)
         {
-            Prx_Db::execute('SELECT pg_advisory_xact_lock(399, :id)', [':id' => $contract_id]);
+            Model_Prx399_Contract::lock($contract_id);
 
             $contract = Model_Prx399_Contract::get($contract_id);
             if ( ! $contract)

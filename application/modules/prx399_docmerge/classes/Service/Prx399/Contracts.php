@@ -9,6 +9,8 @@ class Service_Prx399_Contracts {
 
     /** @var array Класс ошибки, который контроллер показывает как flash. */
     const ERROR = 'Prx399_Error';
+    /** Префикс модуля в prx212 (Storage::). */
+    const MODULE = 'prx399';
 
     private $_limits;
 
@@ -148,7 +150,9 @@ class Service_Prx399_Contracts {
 
         if ($changed AND ! $pending AND (string) $contract['status'] === 'parsing')
         {
-            $names = implode(', ', array_map(static fn ($f) => (string) $f['original_name'], $files));
+            // В сообщении — только сбойные файлы (раньше перечислялись все).
+            $failed = array_filter($files, static fn ($f) => (string) $f['status'] === 'failed');
+            $names = implode(', ', array_map(static fn ($f) => (string) $f['original_name'], $failed));
             Model_Prx399_Contract::set_status((int) $id, 'failed', 'Не разобраны файлы: '.$names);
         }
     }
@@ -178,7 +182,7 @@ class Service_Prx399_Contracts {
             $failed = array_filter($files, static fn ($f) => (string) $f['status'] === 'failed');
             if ($failed)
             {
-                $names = implode(', ', array_map(static fn ($f) => (string) $f['original_name'], $files));
+                $names = implode(', ', array_map(static fn ($f) => (string) $f['original_name'], $failed));
                 Model_Prx399_Contract::set_status((int) $id, 'failed', 'Не разобраны файлы: '.$names);
 
                 return;
@@ -305,44 +309,54 @@ class Service_Prx399_Contracts {
             throw new Prx399_Error('too_many_files', 400);
         }
 
-        foreach (array_merge($base, $ds) as $upload)
+        $base = array_map(fn (array $upload) => $this->_assert_pdf($upload), $base);
+        $ds = array_map(fn (array $upload) => $this->_assert_pdf($upload), $ds);
+
+        // Файлы — через фасад Storage:: (prx212), приватные, без пользователя:
+        // доступ к ним даёт право на пакет, а не владение файлом. Сохраняем ДО
+        // транзакции (хранилище не откатывается); сбой записи пакета — файлы
+        // снимаем сразу, сироту после падения процесса уберёт prx399:maintain.
+        $stored = [];
+        try
         {
-            $this->_assert_pdf($upload);
-        }
-
-        // absolute(), а не relocate_legacy(): относительный путь оставался
-        // относительным и mkdir шёл от CWD процесса (на FPM — public_html,
-        // куда писать нельзя) — «Хранилище недоступно» при рабочем storage/.
-        // prx390 решает это тем же absolute() от корня проекта.
-        $storage = rtrim(Storage_Path::absolute(getenv('PRX399_STORAGE_DIR') ?: 'storage/docmerge'), '/');
-
-        return Prx_Db::transaction(function () use ($actor, $title, $focus, $policy_json, $base, $ds, $storage)
-        {
-            $contract = Model_Prx399_Contract::insert([
-                'title' => $title,
-                'focus' => $focus,
-                'policy' => $policy_json,
-                'created_by' => $actor->id(),
-            ]);
-
-            foreach ([['base', $base, 0], ['ds', $ds, 1]] as $kind_group)
+            foreach ([['base', $base], ['ds', $ds]] as [$kind, $uploads])
             {
-                [$kind, $uploads, $first] = $kind_group;
                 foreach ($uploads as $i => $upload)
                 {
-                    $path = $this->_store($storage, $contract['id'], $kind, $i, $upload);
-                    Model_Prx399_File::insert([
-                        'contract_id' => $contract['id'],
-                        'kind' => $kind,
-                        'ordinal' => $kind === 'ds' ? $first + $i : 0,
-                        'original_name' => $upload['name'],
-                        'storage_path' => $path,
-                    ]);
+                    $stored[] = [$kind, $i, $upload['name'], $this->_store($upload)];
                 }
             }
 
-            return $contract;
-        });
+            return Prx_Db::transaction(function () use ($actor, $title, $focus, $policy_json, $stored)
+            {
+                $contract = Model_Prx399_Contract::insert([
+                    'title' => $title,
+                    'focus' => $focus,
+                    'policy' => $policy_json,
+                    'created_by' => $actor->id(),
+                ]);
+                foreach ($stored as [$kind, $i, $name, $file_id])
+                {
+                    Model_Prx399_File::insert([
+                        'contract_id' => $contract['id'],
+                        'kind' => $kind,
+                        'ordinal' => $kind === 'ds' ? 1 + $i : 0,
+                        'original_name' => $name,
+                        'file_id' => $file_id,
+                    ]);
+                }
+
+                return $contract;
+            });
+        }
+        catch (Throwable $e)
+        {
+            foreach ($stored as [, , , $file_id])
+            {
+                $this->_discard($file_id);
+            }
+            throw $e;
+        }
     }
 
     // -------------------------------------------------------------- launch
@@ -355,35 +369,47 @@ class Service_Prx399_Contracts {
     public function launch($actor, $id)
     {
         ($actor ?? Prx_Actor::guest())->require('prx399.run');
-        $contract = Model_Prx399_Contract::get($id);
-        if ( ! $contract)
-        {
-            throw new Prx399_Error('contract_not_found', 404);
-        }
-        if ( ! in_array($contract['status'], ['draft', 'failed'], TRUE))
-        {
-            throw new Prx399_Error('wrong_state', 409);
-        }
 
-        $files = Model_Prx399_File::for_contract($id);
-        foreach ($files as $file)
+        // Под локом пакета и в одной транзакции с задачами очереди: двойной
+        // клик (или две вкладки) раньше ставил каждому файлу по две задачи.
+        Prx_Db::transaction(function () use ($actor, $id)
         {
-            $job_id = Service_Prx120_JobQueue::push('doc.merge.delta', [
-                'contract_id' => (int) $id,
-                'file_id' => (int) $file['id'],
-            ], [
-                'module' => 'prx399',
-                'priority' => $file['kind'] === 'base' ? 30 : 40,
-                'max_attempts' => 2,
-                'timeout_sec' => 1800,
-                'created_by' => $actor->id(),
-            ]);
-            Model_Prx399_File::set_job($file['id'], $job_id);
-            Model_Prx399_File::set_status($file['id'], 'queued');
-        }
+            Model_Prx399_Contract::lock($id);
+            $contract = Model_Prx399_Contract::get($id);
+            if ( ! $contract)
+            {
+                throw new Prx399_Error('contract_not_found', 404);
+            }
+            if ( ! in_array($contract['status'], ['draft', 'failed'], TRUE))
+            {
+                throw new Prx399_Error('wrong_state', 409);
+            }
 
-        Model_Prx399_Risk::delete_for_contract($id);
-        Model_Prx399_Contract::set_status($id, 'parsing', NULL);
+            foreach (Model_Prx399_File::for_contract($id) as $file)
+            {
+                $this->_queue_file($actor, $file);
+            }
+
+            Model_Prx399_Risk::delete_for_contract($id);
+            Model_Prx399_Contract::set_status($id, 'parsing', NULL);
+        });
+    }
+
+    /** Задача doc.merge.delta на один файл; вызывается под локом пакета. */
+    private function _queue_file($actor, array $file)
+    {
+        $job_id = Service_Prx120_JobQueue::push('doc.merge.delta', [
+            'contract_id' => (int) $file['contract_id'],
+            'file_id' => (int) $file['id'],
+        ], [
+            'module' => 'prx399',
+            'priority' => $file['kind'] === 'base' ? 30 : 40,
+            'max_attempts' => 2,
+            'timeout_sec' => 1800,
+            'created_by' => $actor->id(),
+        ]);
+        Model_Prx399_File::set_job($file['id'], $job_id);
+        Model_Prx399_File::set_status($file['id'], 'queued');
     }
 
     // ------------------------------------------------------------- reorder
@@ -398,7 +424,7 @@ class Service_Prx399_Contracts {
             throw new Prx399_Error('not_found', 404);
         }
         $contract = Model_Prx399_Contract::get($file['contract_id']);
-        if ( ! in_array($contract['status'], ['draft', 'failed'], TRUE))
+        if ( ! $contract OR ! in_array($contract['status'], ['draft', 'failed'], TRUE))
         {
             throw new Prx399_Error('wrong_state', 409);
         }
@@ -445,25 +471,27 @@ class Service_Prx399_Contracts {
         {
             throw new Prx399_Error('not_found', 404);
         }
-        $contract = Model_Prx399_Contract::get($file['contract_id']);
-        if ( ! in_array($contract['status'], ['failed', 'parsing'], TRUE))
-        {
-            throw new Prx399_Error('wrong_state', 409);
-        }
 
-        $job_id = Service_Prx120_JobQueue::push('doc.merge.delta', [
-            'contract_id' => (int) $file['contract_id'],
-            'file_id' => (int) $file_id,
-        ], [
-            'module' => 'prx399',
-            'priority' => $file['kind'] === 'base' ? 30 : 40,
-            'max_attempts' => 2,
-            'timeout_sec' => 1800,
-            'created_by' => $actor->id(),
-        ]);
-        Model_Prx399_File::set_job($file_id, $job_id);
-        Model_Prx399_File::set_status($file_id, 'queued');
-        Model_Prx399_Contract::set_status($file['contract_id'], 'parsing', NULL);
+        Prx_Db::transaction(function () use ($actor, $file_id, $file)
+        {
+            Model_Prx399_Contract::lock($file['contract_id']);
+            $contract = Model_Prx399_Contract::get($file['contract_id']);
+            $file = Model_Prx399_File::get($file_id);
+            if ( ! $contract OR ! $file OR ! in_array($contract['status'], ['failed', 'parsing'], TRUE))
+            {
+                throw new Prx399_Error('wrong_state', 409);
+            }
+            // Повторять можно только сбойный файл: повтор живого (queued/working)
+            // давал вторую задачу на тот же файл, разобранного — затирал дельты
+            // вместе с решениями человека «исключить/вернуть».
+            if ((string) $file['status'] !== 'failed')
+            {
+                throw new Prx399_Error('wrong_state', 409);
+            }
+
+            $this->_queue_file($actor, $file);
+            Model_Prx399_Contract::set_status($file['contract_id'], 'parsing', NULL);
+        });
     }
 
     public function delete($actor, $id)
@@ -475,24 +503,75 @@ class Service_Prx399_Contracts {
             throw new Prx399_Error('contract_not_found', 404);
         }
 
-        // Каскад очистит files/deltas/risks; файлы на диске убираем вручную.
-        Prx_Db::transaction(function () use ($id)
+        // Каскад очистит files/deltas/risks. Файлы — ПОСЛЕ фиксации: раньше
+        // они удалялись внутри транзакции, и сбой DELETE оставлял пакет без PDF.
+        // Не удалённый сейчас файл prx212 станет сиротой — его уберёт
+        // prx399:maintain (Storage::sweep_orphans).
+        $files = Prx_Db::transaction(function () use ($id)
         {
-            foreach (Model_Prx399_File::for_contract($id) as $file)
+            Model_Prx399_Contract::lock($id);
+            $files = Model_Prx399_File::for_contract($id);
+            Model_Prx399_Contract::delete($id);
+
+            return $files;
+        });
+        foreach ($files as $file)
+        {
+            if ((int) ($file['file_id'] ?? 0) > 0)
             {
-                $raw = (string) $file['storage_path'];
-                if ($raw === '')
+                $this->_discard((int) $file['file_id']);
+            }
+            elseif ((string) ($file['storage_path'] ?? '') !== '')
+            {
+                // Запись до перехода на Storage:: (миграция 399_004).
+                $path = Storage_Path::absolute((string) $file['storage_path']);
+                if (is_file($path) AND ! @unlink($path))
+                {
+                    Log_Plain::event(Log::ERROR, 'prx399 stage=delete legacy_file=:id', [':id' => (int) $file['id']]);
+                }
+            }
+        }
+    }
+
+    // -------------------------------------------------------- maintenance
+
+    /**
+     * Обслуживание по расписанию (prx399:maintain): самолечение идущих
+     * пакетов — раньше оно срабатывало, только если кто-то открыл карточку,
+     * и пакет с потерянным результатом последнего файла висел «идёт» без
+     * сборки, — и уборка сирот prx212.
+     *
+     * @return array{reconciled: int, orphans: int, errors: int}
+     */
+    public function maintain(): array
+    {
+        $report = ['reconciled' => 0, 'orphans' => 0, 'errors' => 0];
+        foreach (Model_Prx399_Contract::active_ids() as $id)
+        {
+            try
+            {
+                $contract = Model_Prx399_Contract::get($id);
+                if ( ! $contract)
                 {
                     continue;
                 }
-                $path = Storage_Path::absolute($raw);
-                if (is_file($path))
-                {
-                    @unlink($path);
-                }
+                $files = Model_Prx399_File::for_contract($id);
+                $this->_reconcile_files($id, $contract, $files);
+                $this->_reconcile_pipeline($id, Model_Prx399_Contract::get($id) ?? $contract, $files);
+                $report['reconciled']++;
             }
-            Model_Prx399_Contract::delete($id);
-        });
+            catch (Throwable $e)
+            {
+                $report['errors']++;
+                Log_Plain::event(Log::ERROR, 'prx399 contract=:id stage=maintain error_type=:type', [':id' => $id, ':type' => get_class($e)]);
+            }
+        }
+
+        $sweep = Storage::sweep_orphans(self::MODULE, [Model_Prx399_File::class, 'referenced_files']);
+        $report['orphans'] = $sweep['orphans'];
+        $report['errors'] += $sweep['errors'];
+
+        return $report;
     }
 
     // ------------------------------------------------------------ internal
@@ -523,49 +602,58 @@ class Service_Prx399_Contracts {
         return $out;
     }
 
+    /** Проверенная загрузка: настоящий PDF (сигнатура, не расширение) не больше лимита воркера. */
     private function _assert_pdf(array $upload)
     {
-        if ($upload['error'] !== UPLOAD_ERR_OK)
-        {
-            throw new Prx399_Error('upload_error', 400);
-        }
-        if ( ! is_uploaded_file($upload['tmp_name']))
-        {
-            throw new Prx399_Error('upload_error', 400);
-        }
-        if (strtolower(pathinfo($upload['name'], PATHINFO_EXTENSION)) !== 'pdf')
-        {
-            throw new Prx399_Error('pdf_required', 400);
-        }
-        // Размер сверяется воркером ещё раз при скачивании (limits.py) —
-        // здесь достаточно грубой отсечки, чтобы не тянуть гиганты в tmp.
-        if ($upload['size'] > 200 * 1024 * 1024)
+        if (in_array($upload['error'], [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], TRUE))
         {
             throw new Prx399_Error('file_too_large', 413);
         }
+        if ($upload['error'] !== UPLOAD_ERR_OK OR ! is_uploaded_file($upload['tmp_name']))
+        {
+            throw new Prx399_Error('upload_error', 400);
+        }
+        $size = filesize($upload['tmp_name']);
+        if ($size === FALSE)
+        {
+            throw new Prx399_Error('upload_error', 400);
+        }
+        // Тот же лимит, что у воркера (PRX399_MAX_PDF_BYTES, limits.py): больший
+        // файл воркер всё равно отверг бы — после часа в очереди.
+        if ($size > (int) $this->_limits['max_pdf_bytes'])
+        {
+            throw new Prx399_Error('file_too_large', 413);
+        }
+        if (strtolower(pathinfo($upload['name'], PATHINFO_EXTENSION)) !== 'pdf'
+            OR file_get_contents($upload['tmp_name'], FALSE, NULL, 0, 5) !== '%PDF-')
+        {
+            throw new Prx399_Error('pdf_required', 400);
+        }
+
+        return ['tmp_name' => $upload['tmp_name'], 'name' => $upload['name'], 'size' => $size, 'type' => 'application/pdf', 'error' => UPLOAD_ERR_OK];
     }
 
-    private function _store($storage, $contract_id, $kind, $index, array $upload)
+    /** PDF пакета в prx212: приватный, без пользователя, модуль prx399. */
+    private function _store(array $upload)
     {
-        // @ обязателен: Kohana превращает PHP-warning файловых операций в
-        // ErrorException (на проде это выглядело «Сервис недоступен» вместо
-        // честной ошибки). Паттерн — как в prx212/prx390: подавить предупреждение,
-        // решить по факту состояния и бросить чистую Prx399_Error.
-        $dir = rtrim($storage, '/').'/'.(int) $contract_id;
-        if ( ! is_dir($dir) AND ! @mkdir($dir, 0770, TRUE) AND ! is_dir($dir))
+        try
         {
+            return Storage::save($upload, self::MODULE, NULL, FALSE, (int) $this->_limits['max_pdf_bytes']);
+        }
+        catch (Throwable $e)
+        {
+            Log_Plain::event(Log::ERROR, 'prx399 stage=store error_type=:type', [':type' => get_class($e)]);
             throw new Prx399_Error('storage_unavailable', 503);
         }
-        $ext = strtolower(pathinfo($upload['name'], PATHINFO_EXTENSION));
-        $name = $kind.($kind === 'ds' ? '-'.($index + 1) : '').'-'.bin2hex(random_bytes(6)).'.'.$ext;
-        $target = $dir.'/'.$name;
+    }
 
-        if ( ! @move_uploaded_file($upload['tmp_name'], $target))
+    private function _discard($file_id)
+    {
+        try
         {
-            throw new Prx399_Error('storage_unavailable', 503);
+            if (Storage::delete_owned((int) $file_id, self::MODULE)) return;
         }
-
-        // В БД — путь относительно корня проекта (переносимость между машинами).
-        return 'storage/docmerge/'.(int) $contract_id.'/'.$name;
+        catch (Throwable $e) {}
+        Log_Plain::event(Log::ERROR, 'prx399 stage=discard file_id=:id', [':id' => (int) $file_id]);
     }
 }

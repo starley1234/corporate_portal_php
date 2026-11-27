@@ -14,6 +14,15 @@ return [
     'max_tokens' => 4000,
 
     'max_files' => 12, // базовый договор + до 11 ДС
+    // Тот же предел, что у воркера (limits.py: 25 МиБ по умолчанию, 1–200 МиБ):
+    // больший PDF воркер отверг бы после ожидания в очереди — отказываем сразу.
+    'max_pdf_bytes' => (static function (): int {
+        // Разбор — как limits._integer: только целое без знака, вне диапазона — умолчание.
+        $raw = trim((string) getenv('PRX399_MAX_PDF_BYTES'), " \t\r\n\v");
+        $value = preg_match('/\A[1-9][0-9]{0,8}\z/', $raw) === 1 ? (int) $raw : 0;
+
+        return $value >= 1048576 && $value <= 209715200 ? $value : 26214400;
+    })(),
     'max_title' => 200,
     'max_policy' => 4000,
 

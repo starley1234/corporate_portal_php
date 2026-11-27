@@ -18,14 +18,14 @@ class Model_Prx399_File {
     public static function insert(array $row)
     {
         return Prx_Db::one(
-            'INSERT INTO prx_399_files (contract_id, kind, ordinal, original_name, storage_path, status)
-             VALUES (:contract_id, :kind, :ordinal, :name, :path, :status) RETURNING *',
+            'INSERT INTO prx_399_files (contract_id, kind, ordinal, original_name, file_id, status)
+             VALUES (:contract_id, :kind, :ordinal, :name, :file_id, :status) RETURNING *',
             [
                 ':contract_id' => (int) $row['contract_id'],
                 ':kind' => (string) $row['kind'],
                 ':ordinal' => (int) $row['ordinal'],
                 ':name' => (string) $row['original_name'],
-                ':path' => (string) $row['storage_path'],
+                ':file_id' => (int) $row['file_id'],
                 ':status' => 'queued',
             ]);
     }
@@ -55,7 +55,7 @@ class Model_Prx399_File {
                 ':id' => (int) $id,
                 ':pages' => (int) $pages,
                 ':sha' => (string) $sha,
-                ':ast' => json_encode($ast, JSON_UNESCAPED_UNICODE),
+                ':ast' => json_encode($ast, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR),
             ]);
     }
 
@@ -71,6 +71,20 @@ class Model_Prx399_File {
                 ':sha' => (string) $sha,
                 ':text' => $text,
             ]);
+    }
+
+    /**
+     * Какие из файлов prx212 ещё нужны пакетам (уборка сирот Storage::sweep_orphans).
+     *
+     * @param int[] $file_ids
+     * @return int[]
+     */
+    public static function referenced_files(array $file_ids): array
+    {
+        if ($file_ids === []) return [];
+
+        return array_map('intval', array_column(Prx_Db::select(
+            'SELECT file_id FROM prx_399_files WHERE file_id IN ('.implode(', ', array_map('intval', $file_ids)).')'), 'file_id'));
     }
 
     public static function ready_count($contract_id)
