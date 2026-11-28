@@ -33,9 +33,12 @@ plan_entries = [(name, status.strip("'")) for name, status in plan_entries]
 planned = [name for name, _status in plan_entries]
 active_services = [name for name, status in plan_entries if status == 'active']
 archived_services = [name for name, status in plan_entries if status == 'archived']
-check(len(planned) == 56, 'План должен содержать 56 сервисов')
-check(len(set(planned)) == 56, 'Дубли в плане')
-check(len({re.search(r'\d+', name)[0] for name in planned}) == 56, 'Дубли ID в плане')
+# Число сервисов — осознанное решение по плану: меняется вместе с portal.php.
+# 28.11.2026: 56 → 63 (+домен «Инженерия и производство» из 8, +ИИ-ассистент; −2 слияния).
+PLAN_SIZE = 63
+check(len(planned) == PLAN_SIZE, f'План должен содержать {PLAN_SIZE} сервисов (сейчас {len(planned)})')
+check(len(set(planned)) == PLAN_SIZE, 'Дубли в плане')
+check(len({re.search(r'\d+', name)[0] for name in planned}) == PLAN_SIZE, 'Дубли ID в плане')
 for name, status in plan_entries:
     exists = (ROOT / 'application/modules' / name).exists()
     registered_service = name in {entry[0] for entry in registered}

@@ -38,7 +38,7 @@ class Service_Prx218_Scanner {
      * не удаляется — ручные поля и история остаются.
      *
      * @param int $user_id ID пользователя, инициировавшего сканирование
-     * @return array found, created, updated, skipped, missing, run_id
+     * @return array found, created, updated, skipped, missing, synced, no_agents, run_id
      * @throws Exception
      */
     public function scan_directory($user_id = 0)
@@ -59,7 +59,10 @@ class Service_Prx218_Scanner {
         }
 
         Prx_Db::execute('UPDATE prx_218_scan_runs SET status = :s, finished_at = now(),
-                found = :f, created = :c, updated = :u, skipped = :k, missing = :m WHERE id = :id', [
+                found = :f, created = :c, updated = :u, skipped = :k, missing = :m,
+                synced = :sy, no_agents = :na WHERE id = :id', [
+            ':sy' => $stats['synced'],
+            ':na' => $stats['no_agents'],
             ':s'  => $stats['skipped'] > 0 ? 'partial' : 'ok',
             ':f'  => $stats['found'],
             ':c'  => $stats['created'],
@@ -72,6 +75,76 @@ class Service_Prx218_Scanner {
         $stats['run_id'] = $run_id;
 
         return $stats;
+    }
+
+    /**
+     * Что о модуле говорит диск: title/short манифеста (`config/prx_module.php`),
+     * есть ли манифест и памятка AGENTS.md. Битый манифест — как отсутствующий.
+     *
+     * @return array{title:?string, short:?string, has_manifest:bool, has_agents:bool}
+     */
+    public static function manifest_meta(string $path): array
+    {
+        $file = $path.DIRECTORY_SEPARATOR.'config'.DIRECTORY_SEPARATOR.'prx_module.php';
+        $data = [];
+
+        if (is_file($file))
+        {
+            try
+            {
+                $data = (static fn (string $f) => include $f)($file);
+            }
+            catch (Throwable $e)
+            {
+                Kohana::$log->add(Log::WARNING, 'prx218: manifest :f unreadable: :e', [':f' => $file, ':e' => $e->getMessage()]);
+                $data = [];
+            }
+        }
+
+        $data = is_array($data) ? $data : [];
+        $title = trim((string) ($data['title'] ?? ''));
+        $short = trim(strip_tags((string) ($data['short'] ?? '')));
+
+        return [
+            'title'        => $title !== '' ? mb_substr($title, 0, 255) : NULL,
+            'short'        => $short !== '' ? $short : NULL,
+            'has_manifest' => $data !== [],
+            'has_agents'   => is_file($path.DIRECTORY_SEPARATOR.'AGENTS.md'),
+        ];
+    }
+
+    /**
+     * Какие поля скан вправе обновить из манифеста. Значение считается
+     * автоматическим (и обновляется), если оно пусто, равно системному имени,
+     * прошлому манифестному или — до первой сверки — тому, что взято из
+     * README. Иначе это правка человека (или LLM-описание) — не трогаем.
+     *
+     * @param  array $prev display_name, description, manifest_title, manifest_short
+     * @return array только изменяемые поля: display_name?, description?
+     */
+    public static function sync_values(array $prev, array $manifest, array $readme, string $system_name): array
+    {
+        $out = [];
+        $name = (string) ($prev['display_name'] ?? '');
+        $descr = (string) ($prev['description'] ?? '');
+
+        $auto_names = array_filter([$system_name, $prev['manifest_title'] ?? NULL,
+            ($prev['manifest_title'] ?? NULL) === NULL ? ($readme['name'] ?? NULL) : NULL]);
+        if ($manifest['title'] !== NULL AND $name !== $manifest['title']
+            AND ($name === '' OR in_array($name, $auto_names, TRUE)))
+        {
+            $out['display_name'] = $manifest['title'];
+        }
+
+        $auto_descr = array_filter([$prev['manifest_short'] ?? NULL,
+            ($prev['manifest_short'] ?? NULL) === NULL ? ($readme['description'] ?? NULL) : NULL]);
+        if ($manifest['short'] !== NULL AND $descr !== $manifest['short']
+            AND ($descr === '' OR in_array($descr, $auto_descr, TRUE)))
+        {
+            $out['description'] = $manifest['short'];
+        }
+
+        return $out;
     }
 
     /**
@@ -123,7 +196,7 @@ class Service_Prx218_Scanner {
         $modules_path = $config->get('scanner')['path'];
         $excluded = $config->get('excluded_directories');
 
-        $stats = ['created' => 0, 'updated' => 0, 'skipped' => 0, 'found' => 0, 'missing' => 0];
+        $stats = ['created' => 0, 'updated' => 0, 'skipped' => 0, 'found' => 0, 'missing' => 0, 'synced' => 0, 'no_agents' => 0];
         $seen  = [];
 
         if ( ! is_dir($modules_path))
@@ -148,10 +221,15 @@ class Service_Prx218_Scanner {
 
             $module_path = $fileinfo->getRealPath();
             $metadata = $this->_extract_metadata($module_path);
+            $manifest = self::manifest_meta($module_path);
+            if ( ! $manifest['has_agents'])
+            {
+                $stats['no_agents']++;
+            }
 
             try
             {
-                [$module, $is_new] = Prx_Db::transaction(function () use ($system_name, $module_path, $metadata, $user_id) {
+                [$module, $is_new, $synced] = Prx_Db::transaction(function () use ($system_name, $module_path, $metadata, $manifest, $user_id) {
                     $module = ORM::factory('Prx218_Module')
                         ->where('system_name', '=', $system_name)
                         ->find();
@@ -160,7 +238,8 @@ class Service_Prx218_Scanner {
 
                     $data = [
                         'system_name'  => $system_name,
-                        'display_name' => ($metadata['name'] ?? '') ?: $system_name,
+                        'display_name' => mb_substr(($manifest['title'] ?? '') ?: (($metadata['name'] ?? '') ?: $system_name), 0, 255),
+                        'description'  => ($manifest['short'] ?? '') ?: ($metadata['description'] ?? NULL),
                         'version'      => Arr::get($metadata, 'version', '1.0.0'),
                         'path'         => $module_path,
                         'created_by'   => $user_id,
@@ -175,17 +254,35 @@ class Service_Prx218_Scanner {
                     }
                     else
                     {
-                        // Обновляем только путь: ручные поля (название, описание) не трогаем
+                        // Путь — всегда; название/описание — см. sync_values() (ручные не трогаем).
                         $module->path = $module_path;
                         $module->save();
                     }
 
-                    Prx_Db::execute('UPDATE prx_218_modules SET dir_found = TRUE, last_seen_at = now() WHERE id = :id',
-                        [':id' => (int) $module->id]);
+                    $prev = Prx_Db::one('SELECT display_name, description, manifest_title, manifest_short
+                        FROM prx_218_modules WHERE id = :id', [':id' => (int) $module->id]);
+                    $sync = $is_new ? [] : self::sync_values($prev, $manifest, $metadata, $system_name);
 
-                    return [$module, $is_new];
+                    Prx_Db::execute('UPDATE prx_218_modules SET dir_found = TRUE, last_seen_at = now(),
+                            display_name = :name, description = :descr,
+                            manifest_title = :mt, manifest_short = :ms, has_manifest = :hm, has_agents = :ha
+                        WHERE id = :id', [
+                        ':name'  => $sync['display_name'] ?? $prev['display_name'],
+                        ':descr' => array_key_exists('description', $sync) ? $sync['description'] : $prev['description'],
+                        ':mt'    => $manifest['title'],
+                        ':ms'    => $manifest['short'],
+                        ':hm'    => $manifest['has_manifest'] ? 'true' : 'false',
+                        ':ha'    => $manifest['has_agents'] ? 'true' : 'false',
+                        ':id'    => (int) $module->id,
+                    ]);
+
+                    return [$module, $is_new, $sync !== []];
                 });
                 $stats[$is_new ? 'created' : 'updated']++;
+                if ($synced)
+                {
+                    $stats['synced']++;
+                }
 
                 // После коммита: подписчик читает уже сохранённый модуль.
                 if ($is_new)

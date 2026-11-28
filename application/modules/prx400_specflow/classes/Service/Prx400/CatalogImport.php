@@ -56,6 +56,9 @@ final class Service_Prx400_CatalogImport
             Log_Plain::event(Log::INFO, 'prx400 stage=catalog_import user=:u created=:c updated=:up total=:t', [
                 ':u' => $principal->id(), ':c' => $report['created'], ':up' => $report['updated'], ':t' => $report['total'],
             ]);
+            Prx400_Audit::log($principal, 'catalog_imported', NULL, [
+                'file' => $report['file'], 'created' => $report['created'], 'updated' => $report['updated'], 'total' => $report['total'],
+            ]);
         }
 
         return $report;

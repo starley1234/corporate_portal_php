@@ -136,6 +136,7 @@ final class Service_Prx400_Templates
             throw new Prx400_Error('template_code_reserved', 409);
         }
         self::$cache = NULL;
+        Prx400_Audit::log($actor, 'template_uploaded', $code, ['title' => $title]);
 
         return $title;
     }
@@ -148,6 +149,7 @@ final class Service_Prx400_Templates
         if ( ! $builtin AND Model_Prx400_Template::get($code) === NULL) throw new Prx400_Error('template_not_found', 404);
         Model_Prx400_Template::set_enabled($code, $enabled, $builtin);
         self::$cache = NULL;
+        Prx400_Audit::log($actor, $enabled ? 'template_enabled' : 'template_disabled', $code);
     }
 
     public static function delete(Prx_Actor $actor, string $code): void
@@ -155,6 +157,7 @@ final class Service_Prx400_Templates
         Policy_Prx400_Spec::require_edit($actor);
         if (Model_Prx400_Template::delete_custom(trim($code)) < 1) throw new Prx400_Error('template_not_found', 404);
         self::$cache = NULL;
+        Prx400_Audit::log($actor, 'template_deleted', trim($code));
     }
 
     /**

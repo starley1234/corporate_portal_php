@@ -486,14 +486,15 @@ final class Service_Prx400_Specs
     public function delete(Prx_Principal $principal, int $id): void
     {
         Policy_Prx400_Spec::require_review($principal);
-        $file_ids = Prx_Db::transaction(function () use ($principal, $id): array {
+        [$file_ids, $title] = Prx_Db::transaction(function () use ($principal, $id): array {
             $spec = Policy_Prx400_Spec::require_view($principal, Model_Prx400_Spec::lock($id));
             $files = self::file_ids($spec);
             self::cancel_job((int) ($spec['job_id'] ?? 0));
             Model_Prx400_Spec::delete($id);
-            return $files;
+            return [$files, (string) ($spec['original_name'] ?? '')];
         });
         foreach ($file_ids as $file_id) self::discard($file_id);
+        Prx400_Audit::log($principal, 'spec_deleted', $id, ['file' => $title, 'files' => count($file_ids)]);
         Log_Plain::event(Log::INFO, 'prx400 spec=:s stage=deleted', [':s' => $id]);
     }
 
@@ -508,6 +509,7 @@ final class Service_Prx400_Specs
     {
         Policy_Prx400_Spec::require_review($principal);
         Service_Prx400_Catalog::delete($id);
+        Prx400_Audit::log($principal, 'catalog_item_deleted', $id);
     }
 
     /** Все артефакты prx212 спецификации (spec_files + совместимый file_id). */

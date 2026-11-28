@@ -69,12 +69,13 @@ class ManifestRegistryTest extends TestCase {
                 }
             }
         }
-        $this->assertCount(56, array_unique($services));
+        // 28.11.2026: 56 → 63 — домен «Инженерия и производство» (prx400 + 7 planned), ИИ-ассистент, −2 слияния.
+        $this->assertCount(63, array_unique($services));
         $optional = ['prx390_intake', 'prx391_documents', 'prx392_analysis', 'prx393_workflow'];
         $loaded = array_intersect($optional, array_keys(Kohana::modules()));
         $enabled = $loaded !== [];
         $this->assertSame($enabled ? $optional : [], $loaded, 'Подключайте старый документооборот целым блоком');
-        $this->assertSame(array_merge(['prx300_employee'], $enabled ? $optional : [], ['prx399_docmerge']), $active);
+        $this->assertSame(array_merge(['prx300_employee'], $enabled ? $optional : [], ['prx399_docmerge', 'prx400_specflow']), $active);
         $this->assertSame(array_merge($enabled ? [] : $optional, ['prx394_drafts']), $archived);
         $this->assertArrayNotHasKey('prx398_vlm_demo', Kohana::modules());
     }

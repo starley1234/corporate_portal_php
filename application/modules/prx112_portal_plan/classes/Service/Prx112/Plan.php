@@ -54,6 +54,8 @@ class Service_Prx112_Plan
         $domains = [];
         $seen = [];
 
+        $titles = [];
+
         foreach ((array) Kohana::$config->load('portal')->get('domains') as $domain)
         {
             $title = $domain['title'];
@@ -61,6 +63,7 @@ class Service_Prx112_Plan
             {
                 $name = $service['module'];
                 $seen[$name] = TRUE;
+                $titles[$name] = isset($visible[$name]) ? (string) $visible[$name]['title'] : (string) $service['title'];
                 if (isset($visible[$name]))
                 {
                     $domains[$title][] = self::module_item($visible[$name],
@@ -94,6 +97,9 @@ class Service_Prx112_Plan
                 $domains[$phase['title']][] = [
                     'title' => $pipeline['title'], 'state' => 'planned', 'module' => NULL,
                     'description' => $pipeline['flow'], 'result' => $pipeline['result'],
+                    // Какие сервисы плана закрывают этап — названия из portal.php/манифеста.
+                    'services' => array_values(array_filter(array_map(
+                        static fn ($m) => $titles[$m] ?? NULL, (array) ($pipeline['services'] ?? []))))
                 ];
             }
         }

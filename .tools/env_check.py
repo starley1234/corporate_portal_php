@@ -8,8 +8,8 @@
   * находит ключи, задокументированные в `.env.example` (включая комментарии
     с примером `# KEY=`);
   * падает на устаревших именах (`LM_API_TOKEN`, `TOOLFORGE_DEFAULT_MODEL`);
-  * предупреждает о ключах, которых нет в примере (у части есть умолчания в
-    коде — это нормально, поэтому предупреждение, а не ошибка).
+  * падает на ключах, которых нет в примере и нет в DEFAULTS_IN_CODE
+    (с 28.11.2026; `--allow-undocumented` — вернуть мягкий режим локально).
 
 Запуск: `make env-check` или `python3 .tools/env_check.py`.
 """
@@ -106,6 +106,11 @@ def main() -> int:
         if name in docs or DEFAULTS_IN_CODE.match(name):
             continue
         warnings.append(f"{name} читается кодом ({code[name]}), но не описан в .env.example")
+
+    # 28.11.2026 хвост закрыт (31 → 0): новый неописанный ключ — ошибка, а не шум.
+    if "--allow-undocumented" not in sys.argv:
+        errors.extend(warnings)
+        warnings = []
 
     for line in warnings:
         print(f"WARN  {line}")

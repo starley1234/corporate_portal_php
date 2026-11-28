@@ -128,5 +128,6 @@ final class Service_Prx400_Catalog
     {
         Policy_Prx400_Spec::require_review($principal);
         if (Model_Prx400_Alias::revoke($id) < 1) throw new Prx400_Error('not_found', 404);
+        Prx400_Audit::log($principal, 'alias_revoked', $id);
     }
 }

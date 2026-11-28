@@ -112,7 +112,7 @@ usort($plan_rows, static function (array $a, array $b): int {
                     'module' => $service['publication_module'] ?? NULL, 'title' => $service['title'], 'return_state' => $state,
                 ];
                 ?>
-                <li data-portal-plan-item="<?php echo HTML::chars($service['title'].' '.($service['description'] ?? '').' '.($service['keywords'] ?? '')); ?>"
+                <li data-portal-plan-item="<?php echo HTML::chars($service['title'].' '.($service['description'] ?? '').' '.($service['keywords'] ?? '').' '.implode(' ', (array) ($service['services'] ?? []))); ?>"
                     class="relative min-h-10 rounded-md px-1.5 py-1 -mx-1.5"<?php if ($service_actions): ?> data-portal-plan-module="<?php echo HTML::chars($service['publication_module']); ?>" tabindex="-1"<?php endif; ?>>
                     <div class="flex min-h-9 items-center gap-1<?php echo $has_details ? ' pr-10' : ''; ?>">
                         <div class="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
@@ -142,6 +142,9 @@ usort($plan_rows, static function (array $a, array $b): int {
                                 <?php endif; ?>
                                 <?php if ( ! empty($service['result'])): ?>
                                     <p><strong>На выходе:</strong> <?php echo HTML::chars($service['result']); ?></p>
+                                <?php endif; ?>
+                                <?php if ( ! empty($service['services'])): ?>
+                                    <p data-portal-plan-services><strong>Сервисы:</strong> <?php echo HTML::chars(implode(', ', $service['services'])); ?></p>
                                 <?php endif; ?>
                                 <?php if ($has_decision): ?>
                                     <p><?php echo HTML::chars($decision_labels[$service_state]); ?>

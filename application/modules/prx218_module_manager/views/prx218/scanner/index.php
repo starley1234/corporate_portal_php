@@ -66,12 +66,14 @@
                 <tr class="text-left text-gray-400">
                     <th class="px-4 py-2">Запуск</th><th>Кто</th><th>Итог</th>
                     <th class="text-right">Найдено</th><th class="text-right">Добавлено</th><th class="text-right">Обновлено</th>
-                    <th class="text-right">Ошибок</th><th class="pr-4 text-right" title="Записи реестра, чьей папки на диске нет">Нет папки</th>
+                    <th class="text-right">Ошибок</th><th class="text-right" title="Записи реестра, чьей папки на диске нет">Нет папки</th>
+                    <th class="text-right" title="Название/описание обновлены из манифеста (ручные правки не трогаются)">Из манифеста</th>
+                    <th class="pr-4 text-right" title="Модули без памятки AGENTS.md">Без AGENTS</th>
                 </tr>
             </thead>
             <tbody class="text-gray-700 dark:text-gray-300">
             <?php if ( ! $runs): ?>
-                <tr><td colspan="8" class="px-4 py-4 text-sm text-gray-500 dark:text-gray-400">Сканер ещё не запускали (история ведётся с миграции prx218/003).</td></tr>
+                <tr><td colspan="10" class="px-4 py-4 text-sm text-gray-500 dark:text-gray-400">Сканер ещё не запускали (история ведётся с миграции prx218/003).</td></tr>
             <?php endif; ?>
             <?php foreach ($runs as $r): [$rl, $rc] = $run_status[$r['status']] ?? [$r['status'], 'prx-badge-wait']; ?>
                 <tr class="border-t border-gray-50 align-top dark:border-gray-700/50">
@@ -88,7 +90,9 @@
                     <td class="text-right tabular-nums"><?php echo (int) $r['created']; ?></td>
                     <td class="text-right tabular-nums"><?php echo (int) $r['updated']; ?></td>
                     <td class="text-right tabular-nums <?php echo (int) $r['skipped'] > 0 ? 'font-bold text-rose-600 dark:text-rose-400' : ''; ?>"><?php echo (int) $r['skipped']; ?></td>
-                    <td class="pr-4 text-right tabular-nums <?php echo (int) $r['missing'] > 0 ? 'font-bold text-amber-600 dark:text-amber-400' : ''; ?>"><?php echo (int) $r['missing']; ?></td>
+                    <td class="text-right tabular-nums <?php echo (int) $r['missing'] > 0 ? 'font-bold text-amber-600 dark:text-amber-400' : ''; ?>"><?php echo (int) $r['missing']; ?></td>
+                    <td class="text-right tabular-nums"><?php echo (int) ($r['synced'] ?? 0); ?></td>
+                    <td class="pr-4 text-right tabular-nums <?php echo (int) ($r['no_agents'] ?? 0) > 0 ? 'font-bold text-amber-600 dark:text-amber-400' : ''; ?>"><?php echo (int) ($r['no_agents'] ?? 0); ?></td>
                 </tr>
             <?php endforeach; ?>
             </tbody>
@@ -130,7 +134,8 @@ $(document).ready(function() {
                     showMessage(scanResult, response.message, response.skipped > 0 ? 'error' : 'success', [
                         `Найдено папок: ${response.found}`,
                         `Добавлено: ${response.added}. Обновлено: ${response.updated}. Пропущено с ошибкой: ${response.skipped}.`,
-                        `Папка не найдена (запись реестра сохранена): ${response.missing || 0}`
+                        `Папка не найдена (запись реестра сохранена): ${response.missing || 0}`,
+                        `Название/описание обновлено из манифеста: ${response.synced || 0}. Без памятки AGENTS.md: ${response.no_agents || 0}`
                     ]);
                     setTimeout(function () { location.reload(); }, 1500);
                 } else {

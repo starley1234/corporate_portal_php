@@ -3,6 +3,8 @@
 // Для подключённого модуля /portal-plan берёт состояние и заголовок из его
 // манифеста (stable = «одобрен», beta/draft = «в работе»). Поле status здесь
 // осмысленно только для записей без модуля: planned или archived.
+// prxNNN резервирует ID для module:scaffold: ID уникальны, снятый из плана
+// (слит/удалён) не переиспользовать. Сверка — tests/Contracts/portal_plan_config.php.
 $docflow_status = isset(Kohana::modules()['prx390_intake']) ? 'active' : 'archived';
 return ['domains' => [
     'hr' => ['title' => 'HR и развитие персонала', 'services' => [
@@ -19,12 +21,12 @@ return ['domains' => [
     ]],
     'communications' => ['title' => 'Корпоративные коммуникации и медиа', 'services' => [
         ['module' => 'prx320_news', 'title' => 'Лента новостей', 'status' => 'planned'],
-        ['module' => 'prx321_calendar', 'title' => 'Корпоративный календарь', 'status' => 'planned'],
+        // 28.11.2026: «Центр событий» (prx326) слит сюда — календарь и события одной лентой.
+        ['module' => 'prx321_calendar', 'title' => 'Календарь и события', 'status' => 'planned'],
         ['module' => 'prx322_video', 'title' => 'Видеотека', 'status' => 'planned'],
         ['module' => 'prx323_achievements', 'title' => 'Стена достижений', 'status' => 'planned'],
         ['module' => 'prx324_feedback', 'title' => 'Анонимная обратная связь', 'status' => 'planned'],
         ['module' => 'prx325_screens', 'title' => 'Корпоративное ТВ', 'status' => 'planned'],
-        ['module' => 'prx326_events', 'title' => 'Центр событий', 'status' => 'planned'],
         ['module' => 'prx327_partners', 'title' => 'Наши партнёры', 'status' => 'planned'],
     ]],
     'knowledge' => ['title' => 'База знаний и экспертиза', 'services' => [
@@ -35,6 +37,8 @@ return ['domains' => [
         ['module' => 'prx344_faq', 'title' => 'Часто задаваемые вопросы', 'status' => 'planned'],
         ['module' => 'prx345_standards', 'title' => 'Библиотека нормативной документации', 'status' => 'planned'],
         ['module' => 'prx346_materials', 'title' => 'Архив учебных материалов', 'status' => 'planned'],
+        // Ответы по регламентам и базе знаний со ссылкой на источник (prx560 + prx115).
+        ['module' => 'prx347_assistant', 'title' => 'ИИ-ассистент по регламентам и знаниям', 'status' => 'planned'],
     ]],
     'service' => ['title' => 'Сервисный центр', 'services' => [
         ['module' => 'prx360_helpdesk', 'title' => 'IT-поддержка', 'status' => 'planned'],
@@ -47,12 +51,12 @@ return ['domains' => [
         ['module' => 'prx367_equipment', 'title' => 'Выдача СИЗ и инструментов', 'status' => 'planned'],
     ]],
     'security' => ['title' => 'Безопасность, комплаенс и охрана труда', 'services' => [
-        ['module' => 'prx380_safety', 'title' => 'Обучение технике безопасности', 'status' => 'planned'],
+        // 28.11.2026: «Инструктажи по охране труда» (prx385) слиты сюда — один журнал допуска.
+        ['module' => 'prx380_safety', 'title' => 'Охрана труда: обучение и инструктажи', 'status' => 'planned'],
         ['module' => 'prx381_incidents', 'title' => 'Регистрация инцидентов', 'status' => 'planned'],
         ['module' => 'prx382_ethics', 'title' => 'Линия этики', 'status' => 'planned'],
         ['module' => 'prx383_policies', 'title' => 'Политики безопасности', 'status' => 'planned'],
         ['module' => 'prx384_certificates', 'title' => 'Трекер сертификации', 'status' => 'planned'],
-        ['module' => 'prx385_briefings', 'title' => 'Инструктажи по охране труда', 'status' => 'planned'],
         ['module' => 'prx386_zones', 'title' => 'Карта зон доступа', 'status' => 'planned'],
     ]],
     'docflow' => ['title' => 'Документооборот', 'status' => $docflow_status, 'services' => [
@@ -63,6 +67,17 @@ return ['domains' => [
         ['module' => 'prx394_drafts', 'title' => 'Ответы на письма', 'status' => 'archived'],
         // prx399 подключается всегда (modules.php), независимо от старого документооборота 390–393.
         ['module' => 'prx399_docmerge', 'title' => 'Слияние договоров и ДС (ИИ)', 'status' => 'active'],
+    ]],
+    // Инженерный контур: от НСИ и состава изделия до рекламаций. Этапы — enterprise_plan.php.
+    'engineering' => ['title' => 'Инженерия и производство', 'services' => [
+        ['module' => 'prx400_specflow', 'title' => 'Оцифровка спецификаций', 'status' => 'active'],
+        ['module' => 'prx440_nsi', 'title' => 'НСИ: номенклатура и справочники', 'status' => 'planned'],
+        ['module' => 'prx441_plm', 'title' => 'Состав изделия и ревизии', 'status' => 'planned'],
+        ['module' => 'prx442_eco', 'title' => 'Извещения об изменении (ECO)', 'status' => 'planned'],
+        ['module' => 'prx443_claims', 'title' => 'Рекламации и 8D', 'status' => 'planned'],
+        ['module' => 'prx444_traceability', 'title' => 'Прослеживаемость по серийным номерам', 'status' => 'planned'],
+        ['module' => 'prx445_tooling', 'title' => 'Оснастка и поверка средств измерений', 'status' => 'planned'],
+        ['module' => 'prx446_procurement', 'title' => 'Потребность и закупки', 'status' => 'planned'],
     ]],
     'projects' => ['title' => 'Управление проектами', 'services' => [
         // prx400 занят prx400_specflow (единый префикс классов/таблиц/прав) — доска проектов на prx405.

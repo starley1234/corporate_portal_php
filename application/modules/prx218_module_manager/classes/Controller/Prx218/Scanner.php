@@ -69,6 +69,7 @@ class Controller_Prx218_Scanner extends Controller_Prx218_Main {
             'updated' => (int) Arr::get($result, 'updated', 0),
             'skipped' => (int) Arr::get($result, 'skipped', 0),
             'missing' => (int) Arr::get($result, 'missing', 0),
+            'synced'  => (int) Arr::get($result, 'synced', 0),
         ], $this->_actor_id());
 
         $this->_json_response([
@@ -78,6 +79,8 @@ class Controller_Prx218_Scanner extends Controller_Prx218_Main {
             'updated' => (int) Arr::get($result, 'updated', 0),
             'skipped' => (int) Arr::get($result, 'skipped', 0),
             'missing' => (int) Arr::get($result, 'missing', 0),
+            'synced'  => (int) Arr::get($result, 'synced', 0),
+            'no_agents' => (int) Arr::get($result, 'no_agents', 0),
             'run_id'  => (int) Arr::get($result, 'run_id', 0),
             'message' => empty($result['skipped']) ? 'Сканирование завершено' : 'Сканирование завершено с ошибками. Проверьте журнал.'
         ]);

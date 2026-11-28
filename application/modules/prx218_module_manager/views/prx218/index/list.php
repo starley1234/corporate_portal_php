@@ -108,6 +108,13 @@
                                             </div>
                                             <div class="text-xs text-gray-500 dark:text-gray-400 truncate">
                                                 /<?php echo HTML::chars($module->system_name); ?>
+                                                <?php // Признаки последнего скана (prx218/003–004): ORM PG-булевы приходят как 't'/'f'.
+                                                $is_false = static fn ($v) => in_array($v, [FALSE, 'f', 'false', '0', 0], TRUE);
+                                                if ($is_false($module->dir_found ?? TRUE)): ?>
+                                                    <span class="prx-badge prx-badge-wait ml-1" data-prx218-flag="no-dir" title="Папки модуля нет на диске на момент последнего скана; запись реестра сохранена">нет папки</span>
+                                                <?php elseif ($is_false($module->has_agents ?? TRUE) AND ! $is_false($module->has_manifest ?? TRUE)): ?>
+                                                    <span class="prx-badge prx-badge-wait ml-1" data-prx218-flag="no-agents" title="Нет памятки AGENTS.md — её требуют правила репозитория">без AGENTS</span>
+                                                <?php endif; ?>
                                             </div>
                                             <?php if (!empty($module->description)): ?>
                                                 <div class="text-xs text-gray-500 dark:text-gray-400 mt-1 editable-field line-clamp-2" data-field="description" data-module-id="<?php echo $module->id; ?>">
