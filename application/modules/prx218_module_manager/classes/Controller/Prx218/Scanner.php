@@ -28,7 +28,8 @@ class Controller_Prx218_Scanner extends Controller_Prx218_Main {
         $this->template->content = View::factory('prx218/scanner/index')
             ->set('scan_path', $config->get('scanner')['path'])
             ->set('can_analyze', $this->can('module_manager.ai_analyze'))
-            ->set('last_activity', Model_Prx218_Module::get_last_activity_date());
+            ->set('last_activity', Model_Prx218_Module::get_last_activity_date())
+            ->set('runs', Service_Prx218_Scanner::runs(20));
     }
 
     /**
@@ -67,6 +68,7 @@ class Controller_Prx218_Scanner extends Controller_Prx218_Main {
             'created' => (int) Arr::get($result, 'created', 0),
             'updated' => (int) Arr::get($result, 'updated', 0),
             'skipped' => (int) Arr::get($result, 'skipped', 0),
+            'missing' => (int) Arr::get($result, 'missing', 0),
         ], $this->_actor_id());
 
         $this->_json_response([
@@ -75,6 +77,8 @@ class Controller_Prx218_Scanner extends Controller_Prx218_Main {
             'added'  => (int) Arr::get($result, 'created', 0),
             'updated' => (int) Arr::get($result, 'updated', 0),
             'skipped' => (int) Arr::get($result, 'skipped', 0),
+            'missing' => (int) Arr::get($result, 'missing', 0),
+            'run_id'  => (int) Arr::get($result, 'run_id', 0),
             'message' => empty($result['skipped']) ? 'Сканирование завершено' : 'Сканирование завершено с ошибками. Проверьте журнал.'
         ]);
     }

@@ -712,25 +712,12 @@ class Service_Prx115_Semantic {
 
             try
             {
-                $row = (array) Prx_Db::one(
-                    "SELECT COUNT(*) AS cnt
-                     FROM prx_115_vectors v
-                     JOIN prx_115_collections c ON c.id = v.collection_id
-                     WHERE ".$where, $params);
-
-                $cnt = (int) $row['cnt'];
-
-                if ($cnt === 0)
-                {
-                    continue;
-                }
-
-                Prx_Db::execute(
+                // Одним DELETE: счётчик — число реально удалённых строк, а не
+                // предварительный COUNT (между ними запись могла вернуться).
+                $gone += Prx_Db::execute(
                     "DELETE FROM prx_115_vectors v
                      USING prx_115_collections c
                      WHERE v.collection_id = c.id AND ".$where, $params);
-
-                $gone += $cnt;
             }
             catch (Throwable $e)
             {

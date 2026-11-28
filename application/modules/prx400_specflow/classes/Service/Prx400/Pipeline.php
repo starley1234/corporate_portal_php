@@ -159,7 +159,7 @@ final class Service_Prx400_Pipeline
      *  3. файлы prx400 старше 48 ч без записи — сироты сбоев;
      *  4. автопересопоставление записей, принятых при сбое НСИ (catalog_unavailable).
      *
-     * @return array{reconciled: int, recovered: int, purged: int, orphans: int, errors: int, rematched: int, deliveries_purged: int}
+     * @return array{reconciled: int, recovered: int, purged: int, orphans: int, errors: int, rematched: int, deliveries_purged: int, cache_purged: int}
      */
     public function maintain(): array
     {

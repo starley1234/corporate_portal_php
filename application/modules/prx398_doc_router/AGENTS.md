@@ -2,6 +2,9 @@
 
 Асинхронная маршрутизация PDF: OCR → classify → extract → validate → route/retry/manual; LangGraph checkpoint.
 
+## Состояние
+- Готовность: **рабочий**, аудит 27.11.2026 пройден; ручной разбор — статус `manual`.
+
 ## Границы
 - Доступ UI: сессия + ACL `prx398.ui`. API: Bearer + scope через prx150.
 - Очередь: prx120, канал `doc.route` (см. `config/prx_module.php`). Текст/PDF не хранить в очереди и БД модуля; файлы через `Storage::` (prx212). Задача ставится с `visitor_id` (правило prx120).

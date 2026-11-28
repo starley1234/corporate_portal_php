@@ -46,6 +46,54 @@
             <ul class="list-disc list-inside" id="analyzeResultDetails"></ul>
         </div>
     </div>
+
+    <?php
+    $runs = isset($runs) ? (array) $runs : [];
+    $run_status = [
+        'ok'      => ['Готово', 'prx-badge-ok'],
+        'partial' => ['С ошибками', 'prx-badge-run'],
+        'error'   => ['Сбой', 'prx-badge-err'],
+        'running' => ['Идёт', 'prx-badge-wait'],
+    ];
+    ?>
+    <div class="prx-card mt-4 overflow-x-auto p-0" id="scanRuns">
+        <div class="border-b border-gray-100 px-4 py-3 dark:border-gray-700/60">
+            <h2 class="prx-h3">История сканирований</h2>
+            <p class="prx-hint mt-0.5">Только запуски сканера: правки карточек и LLM-анализ сюда не попадают.</p>
+        </div>
+        <table class="prx-table">
+            <thead>
+                <tr class="text-left text-gray-400">
+                    <th class="px-4 py-2">Запуск</th><th>Кто</th><th>Итог</th>
+                    <th class="text-right">Найдено</th><th class="text-right">Добавлено</th><th class="text-right">Обновлено</th>
+                    <th class="text-right">Ошибок</th><th class="pr-4 text-right" title="Записи реестра, чьей папки на диске нет">Нет папки</th>
+                </tr>
+            </thead>
+            <tbody class="text-gray-700 dark:text-gray-300">
+            <?php if ( ! $runs): ?>
+                <tr><td colspan="8" class="px-4 py-4 text-sm text-gray-500 dark:text-gray-400">Сканер ещё не запускали (история ведётся с миграции prx218/003).</td></tr>
+            <?php endif; ?>
+            <?php foreach ($runs as $r): [$rl, $rc] = $run_status[$r['status']] ?? [$r['status'], 'prx-badge-wait']; ?>
+                <tr class="border-t border-gray-50 align-top dark:border-gray-700/50">
+                    <td class="whitespace-nowrap px-4 py-2 tabular-nums" title="<?php echo HTML::chars((string) $r['started_at']); ?>">
+                        <?php echo HTML::chars(date('d.m.Y H:i:s', strtotime((string) $r['started_at']))); ?>
+                        <?php if ( ! empty($r['finished_at'])): ?><span class="text-xs text-gray-400">· <?php echo max(0, strtotime((string) $r['finished_at']) - strtotime((string) $r['started_at'])); ?> с</span><?php endif; ?>
+                    </td>
+                    <td><?php echo HTML::chars((string) ($r['actor'] ?: 'система')); ?></td>
+                    <td>
+                        <span class="prx-badge <?php echo $rc; ?>"><?php echo HTML::chars($rl); ?></span>
+                        <?php if ( ! empty($r['error'])): ?><div class="mt-0.5 max-w-xs truncate text-xs text-rose-600 dark:text-rose-400" title="<?php echo HTML::chars((string) $r['error']); ?>"><?php echo HTML::chars((string) $r['error']); ?></div><?php endif; ?>
+                    </td>
+                    <td class="text-right tabular-nums"><?php echo (int) $r['found']; ?></td>
+                    <td class="text-right tabular-nums"><?php echo (int) $r['created']; ?></td>
+                    <td class="text-right tabular-nums"><?php echo (int) $r['updated']; ?></td>
+                    <td class="text-right tabular-nums <?php echo (int) $r['skipped'] > 0 ? 'font-bold text-rose-600 dark:text-rose-400' : ''; ?>"><?php echo (int) $r['skipped']; ?></td>
+                    <td class="pr-4 text-right tabular-nums <?php echo (int) $r['missing'] > 0 ? 'font-bold text-amber-600 dark:text-amber-400' : ''; ?>"><?php echo (int) $r['missing']; ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <script>
@@ -81,8 +129,10 @@ $(document).ready(function() {
                 if (response.status === 'ok') {
                     showMessage(scanResult, response.message, response.skipped > 0 ? 'error' : 'success', [
                         `Найдено папок: ${response.found}`,
-                        `Добавлено: ${response.added}. Обновлено: ${response.updated}. Пропущено с ошибкой: ${response.skipped}.`
+                        `Добавлено: ${response.added}. Обновлено: ${response.updated}. Пропущено с ошибкой: ${response.skipped}.`,
+                        `Папка не найдена (запись реестра сохранена): ${response.missing || 0}`
                     ]);
+                    setTimeout(function () { location.reload(); }, 1500);
                 } else {
                     showMessage(scanResult, response.message || '<?php echo __('Произошла ошибка при сканировании.'); ?>', 'error');
                 }

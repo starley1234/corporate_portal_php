@@ -31,26 +31,108 @@ class Service_Prx218_Scanner {
 
     /**
      * Запуск процесса сканирования директории модулей и синхронизация с БД.
-     * 
+     *
+     * Каждый запуск пишется в prx_218_scan_runs (время, кто, счётчики, итог),
+     * а у записей реестра обновляются dir_found/last_seen_at: модуль, чьей
+     * папки на диске больше нет, помечается «папка не найдена» (missing), но
+     * не удаляется — ручные поля и история остаются.
+     *
      * @param int $user_id ID пользователя, инициировавшего сканирование
-     * @return array Статистика сканирования [created, updated, skipped]
+     * @return array found, created, updated, skipped, missing, run_id
      * @throws Exception
      */
-    public function scan_directory($user_id = 0) // Добавлен параметр $user_id со значением по умолчанию
+    public function scan_directory($user_id = 0)
+    {
+        $run_id = (int) (Prx_Db::one('INSERT INTO prx_218_scan_runs (actor_id) VALUES (:a) RETURNING id',
+            [':a' => (int) $user_id > 0 ? (int) $user_id : NULL])['id'] ?? 0);
+
+        try
+        {
+            $stats = $this->_scan((int) $user_id);
+        }
+        catch (Throwable $e)
+        {
+            Prx_Db::execute("UPDATE prx_218_scan_runs SET status = 'error', finished_at = now(), error = :e WHERE id = :id",
+                [':e' => mb_substr($e->getMessage(), 0, 1000), ':id' => $run_id]);
+
+            throw $e;
+        }
+
+        Prx_Db::execute('UPDATE prx_218_scan_runs SET status = :s, finished_at = now(),
+                found = :f, created = :c, updated = :u, skipped = :k, missing = :m WHERE id = :id', [
+            ':s'  => $stats['skipped'] > 0 ? 'partial' : 'ok',
+            ':f'  => $stats['found'],
+            ':c'  => $stats['created'],
+            ':u'  => $stats['updated'],
+            ':k'  => $stats['skipped'],
+            ':m'  => $stats['missing'],
+            ':id' => $run_id,
+        ]);
+
+        $stats['run_id'] = $run_id;
+
+        return $stats;
+    }
+
+    /**
+     * Последние запуски сканера — для страницы сканирования.
+     *
+     * @return array[] id, started_at, finished_at, actor, status, found, created, updated, skipped, missing, error
+     */
+    public static function runs(int $limit = 20): array
+    {
+        return Prx_Db::select('SELECT r.*, u.username AS actor
+            FROM prx_218_scan_runs r LEFT JOIN users u ON u.id = r.actor_id
+            ORDER BY r.id DESC LIMIT '.max(1, min(200, $limit)));
+    }
+
+    /**
+     * Три независимых признака модуля — не выводим один из другого:
+     *  dir         — папка найдена на диске при последнем скане (реестр);
+     *  loaded      — модуль подключён в bootstrap (Kohana::modules(), сейчас);
+     *  publication — состояние в каталоге prx110 (approved/wip/archived/…)
+     *                или NULL, если у модуля нет манифеста каталога.
+     */
+    public static function flags(string $system_name, bool $dir_found): array
+    {
+        $publication = NULL;
+
+        if (class_exists('Service_Prx110_Catalog'))
+        {
+            try
+            {
+                $manifest    = Service_Prx110_Catalog::get($system_name);
+                $publication = $manifest === NULL ? NULL : (string) Service_Prx110_Catalog::resolve_state($manifest);
+            }
+            catch (Throwable $e)
+            {
+                $publication = NULL;
+            }
+        }
+
+        return [
+            'dir'         => $dir_found,
+            'loaded'      => array_key_exists($system_name, Kohana::modules()),
+            'publication' => $publication,
+        ];
+    }
+
+    protected function _scan(int $user_id): array
     {
         $config = Kohana::$config->load('prx218_module_manager');
         $modules_path = $config->get('scanner')['path'];
         $excluded = $config->get('excluded_directories');
-        
-        $stats = ['created' => 0, 'updated' => 0, 'skipped' => 0, 'found' => 0]; // Добавлен 'found'
-        
+
+        $stats = ['created' => 0, 'updated' => 0, 'skipped' => 0, 'found' => 0, 'missing' => 0];
+        $seen  = [];
+
         if ( ! is_dir($modules_path))
         {
             throw new Kohana_Exception('Directory :path not found', [':path' => $modules_path]);
         }
 
         $directories = new DirectoryIterator($modules_path);
-        
+
         foreach ($directories as $fileinfo)
         {
             if ($fileinfo->isDot() || ! $fileinfo->isDir())
@@ -61,12 +143,13 @@ class Service_Prx218_Scanner {
             if (in_array($system_name, $excluded))
                 continue;
 
-            $stats['found']++; // Увеличиваем счетчик найденных директорий
+            $stats['found']++;
+            $seen[] = $system_name;
 
             $module_path = $fileinfo->getRealPath();
             $metadata = $this->_extract_metadata($module_path);
-            
-            try 
+
+            try
             {
                 [$module, $is_new] = Prx_Db::transaction(function () use ($system_name, $module_path, $metadata, $user_id) {
                     $module = ORM::factory('Prx218_Module')
@@ -74,11 +157,10 @@ class Service_Prx218_Scanner {
                         ->find();
 
                     $is_new = ! $module->loaded();
-                
+
                     $data = [
                         'system_name'  => $system_name,
                         'display_name' => ($metadata['name'] ?? '') ?: $system_name,
-                        // 'description'  => Arr::get($metadata, 'description'),
                         'version'      => Arr::get($metadata, 'version', '1.0.0'),
                         'path'         => $module_path,
                         'created_by'   => $user_id,
@@ -87,17 +169,19 @@ class Service_Prx218_Scanner {
                     if ($is_new)
                     {
                         $module->values($data)->save();
-                    
+
                         // Создаем запись для LLM анализа
                         $this->_init_llm_analysis($module->id, Arr::get($metadata, 'raw_readme'), $user_id);
                     }
                     else
                     {
-                        // Обновляем только путь и описание, если оно изменилось
+                        // Обновляем только путь: ручные поля (название, описание) не трогаем
                         $module->path = $module_path;
-                        // if (empty($module->description)) $module->description = $data['description'];
                         $module->save();
                     }
+
+                    Prx_Db::execute('UPDATE prx_218_modules SET dir_found = TRUE, last_seen_at = now() WHERE id = :id',
+                        [':id' => (int) $module->id]);
 
                     return [$module, $is_new];
                 });
@@ -110,7 +194,7 @@ class Service_Prx218_Scanner {
                         'module_id'   => (int) $module->id,
                         'system_name' => $system_name,
                         'path'        => (string) $module_path,
-                    ], (int) $user_id ?: NULL);
+                    ], $user_id ?: NULL);
                 }
             }
             catch (Exception $e)
@@ -120,8 +204,23 @@ class Service_Prx218_Scanner {
             }
         }
 
+        // Записи, чьей папки на диске нет: отдельный признак, не удаление.
+        // Только записи из сканируемого каталога (по префиксу пути).
+        $root   = rtrim((string) (realpath($modules_path) ?: $modules_path), '/').'/';
+        $params = [':root' => $root];
+        $in     = [];
+
+        foreach (array_values($seen) as $i => $name)
+        {
+            $in[] = ':n'.$i;
+            $params[':n'.$i] = $name;
+        }
+
+        $stats['missing'] = Prx_Db::execute('UPDATE prx_218_modules SET dir_found = FALSE
+            WHERE dir_found AND is_deleted = 0 AND left(path, length(:root)) = :root'.($in ? ' AND system_name NOT IN ('.implode(', ', $in).')' : ''), $params);
+
         Audit::log('module_manager', 'scan_completed', NULL, $stats);
-        
+
         return $stats;
     }
 
