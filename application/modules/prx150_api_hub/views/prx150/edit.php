@@ -102,4 +102,26 @@
             <a href="/prx150_api_hub" class="prx-btn-secondary">Отмена</a>
         </div>
     </form>
+
+    <?php if (($key['status'] ?? '') === 'active'): ?>
+    <form method="post" action="/prx150_api_hub/rotate/<?php echo (int) $key['id']; ?>" class="prx-card mt-6 max-w-3xl p-4" data-key-rotate>
+        <input type="hidden" name="csrf" value="<?php echo HTML::chars($csrf); ?>">
+        <h2 class="prx-h3"><i class="fas fa-rotate mr-1.5 text-gray-400"></i>Перевыпустить ключ</h2>
+        <p class="prx-hint mt-1">Новое значение тому же ключу: права, лимиты и журнал сохраняются. Новый ключ покажем один раз.
+            Прежний может поработать ещё немного, чтобы потребитель успел заменить его; ответы на него несут заголовки <code>Deprecation</code> и <code>Sunset</code>.
+            <?php if ( ! empty($key['rotated_at'])): ?>Последний перевыпуск: <?php echo date('d.m.Y H:i', strtotime((string) $key['rotated_at'])); ?>.<?php endif; ?></p>
+        <div class="mt-3 flex flex-wrap items-end gap-3">
+            <label class="block">
+                <span class="prx-label">Прежний ключ работает ещё</span>
+                <select name="grace_hours" class="prx-input mt-1.5">
+                    <option value="0">нет — перестаёт сразу (утечка)</option>
+                    <option value="24" selected>24 часа</option>
+                    <option value="72">3 дня</option>
+                    <option value="168">7 дней</option>
+                </select>
+            </label>
+            <button type="submit" class="prx-btn-danger" data-prx-arm="Перевыпустить ключ?"><i class="fas fa-rotate mr-1.5"></i><span data-prx-arm-label>Перевыпустить</span></button>
+        </div>
+    </form>
+    <?php endif; ?>
 </div>

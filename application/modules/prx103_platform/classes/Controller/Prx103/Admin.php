@@ -28,6 +28,7 @@ class Controller_Prx103_Admin extends Controller_Prx102_Base {
 			['title' => 'Чистка данных', 'href' => '/prx100/cleanup', 'icon' => 'fas fa-broom'],
 			['title' => 'Хвост ошибок', 'href' => '/prx100/errors', 'icon' => 'fas fa-heart-crack'],
 			['title' => 'Логи', 'href' => '/prx100/logs', 'icon' => 'fas fa-terminal'],
+			['title' => 'Журнал администратора', 'href' => '/prx100/audit', 'icon' => 'fas fa-user-shield'],
 			['title' => 'Использование', 'href' => '/prx100/usage', 'icon' => 'fas fa-chart-simple'],
 			['title' => 'Проверка сервера', 'href' => '/prx100/selfcheck', 'icon' => 'fas fa-clipboard-check'],
 			['title' => 'События', 'href' => '/prx208_events', 'icon' => 'fas fa-bolt'],
@@ -45,6 +46,8 @@ class Controller_Prx103_Admin extends Controller_Prx102_Base {
 			$flash = Security::check((string) $this->request->post('csrf'))
 				? Service_Prx103_Health::run_action((string) $this->request->post('act'))
 				: 'Сессия устарела — попробуйте ещё раз';
+
+			Audit::log('prx103', 'admin_action', (string) $this->request->post('act'), ['result' => $flash]);
 
 			Session::instance()->set('prx100_admin_flash', $flash);
 			HTTP::redirect('/admin', 303);

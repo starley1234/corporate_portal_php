@@ -71,6 +71,7 @@ class Controller_Prx150_Admin extends Controller_Prx102_Base
             'scopes'        => Service_Prx150_Services::scopes(),
             'organizations' => Service_Prx150_Keys::organizations(),
             'created_key'   => Session::instance()->get_once('prx150_key_once', NULL),
+            'expiring'      => $this->_expiring(),
             'csrf'          => Security::token(),
             'flash'         => $flash,
             'rate_limit'    => (int) Kohana::$config->load('prx150_api_hub')->get('default_rate_limit'),
@@ -103,6 +104,10 @@ class Controller_Prx150_Admin extends Controller_Prx102_Base
 
             Session::instance()->set('prx150_key_once', [
                 'id' => $id, 'token' => $token, 'name' => (string) $this->request->post('name'),
+            ]);
+            Audit::log('prx150', 'key_created', $id, [
+                'name' => (string) $this->request->post('name'), 'scopes' => array_values(array_map('strval', $scopes)),
+                'expires_at' => $expires !== '' ? $expires : NULL,
             ]);
             Session::instance()->set('prx150_flash', ['type' => 'ok', 'text' => 'Ключ создан. Скопируйте его сейчас: повторно он не показывается.']);
         }
@@ -184,6 +189,12 @@ class Controller_Prx150_Admin extends Controller_Prx102_Base
                     preg_split('/[\s,;]+/u', (string) $this->request->post('allowed_formats'), -1, PREG_SPLIT_NO_EMPTY) ?: []
                 ));
 
+            Audit::log('prx150', 'key_updated', $id, [
+                'name' => (string) $this->request->post('name'),
+                'scopes' => array_values(array_map('strval', (array) $this->request->post('scopes'))),
+                'rate_limit' => (int) $this->request->post('rate_limit'),
+                'expires_at' => trim((string) $this->request->post('expires_at')) ?: NULL,
+            ]);
             Session::instance()->set('prx150_flash', ['type' => 'ok', 'text' => 'Ключ сохранён: значение и префикс не менялись, потребителю ничего обновлять не нужно.']);
         }
         catch (Prx150_Error $e)
@@ -238,6 +249,10 @@ class Controller_Prx150_Admin extends Controller_Prx102_Base
         try
         {
             $ok = Service_Prx150_Keys::revoke($id);
+            if ($ok)
+            {
+                Audit::log('prx150', 'key_revoked', $id);
+            }
             Session::instance()->set('prx150_flash', [
                 'type' => $ok ? 'ok' : 'err',
                 'text' => $ok ? 'Ключ отозван.' : 'Ключ не найден или уже отозван.',
@@ -246,6 +261,57 @@ class Controller_Prx150_Admin extends Controller_Prx102_Base
         catch (Throwable $e)
         {
             Session::instance()->set('prx150_flash', ['type' => 'err', 'text' => 'Не удалось отозвать ключ.']);
+        }
+
+        HTTP::redirect('/prx150_api_hub', 303);
+    }
+
+    /** Ключи, истекающие за 14 дней: id => expires_at (сбой — пусто). */
+    protected function _expiring(): array
+    {
+        try
+        {
+            return array_column(Service_Prx150_Keys::expiring(14), 'expires_at', 'id');
+        }
+        catch (Throwable $e)
+        {
+            return [];
+        }
+    }
+
+    /**
+     * POST /prx150_api_hub/rotate/<id> — перевыпустить ключ (CSRF — Prx_PostGuard).
+     * Новый ключ показывается один раз в списке; прежний работает grace_hours.
+     */
+    public function action_rotate()
+    {
+        if ($this->request->method() !== Request::POST)
+        {
+            throw HTTP_Exception::factory(405)->allowed('POST');
+        }
+
+        $id = (int) $this->request->param('id');
+        $grace = (int) $this->request->post('grace_hours');
+
+        try
+        {
+            [$token, $until] = Service_Prx150_Keys::rotate($id, $grace);
+            $name = (string) (Prx_Db::one('SELECT name FROM prx_150_api_clients WHERE id = :id', [':id' => $id])['name'] ?? '');
+
+            Session::instance()->set('prx150_key_once', ['id' => $id, 'token' => $token, 'name' => $name, 'rotated' => TRUE]);
+            Audit::log('prx150', 'key_rotated', $id, ['grace_hours' => max(0, min(Service_Prx150_Keys::ROTATE_GRACE_MAX_HOURS, $grace)), 'previous_valid_until' => $until]);
+            Session::instance()->set('prx150_flash', ['type' => 'ok', 'text' => $until !== NULL
+                ? 'Ключ перевыпущен. Прежний работает до '.date('d.m.Y H:i', strtotime($until)).' — передайте потребителю новый.'
+                : 'Ключ перевыпущен. Прежний перестал работать сразу.']);
+        }
+        catch (Prx150_Error $e)
+        {
+            Session::instance()->set('prx150_flash', ['type' => 'err', 'text' => 'Не удалось перевыпустить: '.$e->getMessage()]);
+        }
+        catch (Throwable $e)
+        {
+            Kohana::$log->add(Log::ERROR, 'prx150: rotate key failed: :e', [':e' => $e->getMessage()]);
+            Session::instance()->set('prx150_flash', ['type' => 'err', 'text' => 'Не удалось перевыпустить ключ: база не готова (`make migrate`).']);
         }
 
         HTTP::redirect('/prx150_api_hub', 303);

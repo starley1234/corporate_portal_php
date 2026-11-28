@@ -357,6 +357,13 @@ class Service_Prx212_Storage {
             throw new Exception('File size exceeds maximum allowed');
         }
 
+        // Антивирус до записи: заражённый файл не попадает ни на диск, ни в S3.
+        Service_Prx212_Antivirus::check($file_path, is_array($file) ? (string) $file['name'] : basename($file), [
+            'module'  => $module,
+            'user_id' => isset($metadata['user_id']) ? (int) $metadata['user_id'] : NULL,
+            'size'    => (int) $file_size,
+        ]);
+
         $backend_id = isset($metadata['backend_id']) ? (int)$metadata['backend_id'] : $this->_get_default_backend_id();
         $backend = ORM::factory('Prx212_Backend', $backend_id);
         

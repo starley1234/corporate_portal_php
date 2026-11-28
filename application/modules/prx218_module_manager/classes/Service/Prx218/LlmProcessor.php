@@ -181,7 +181,7 @@ class Service_Prx218_LlmProcessor {
 
                         if ($module_changed) {
                             $module->save();
-                            Audit::log('module_manager', 'module_updated_by_llm', $module_id);
+                            Kohana::$log->add(Log::INFO, 'prx218: module_updated_by_llm module_id=:id', [':id' => $module_id]);
                         }
                     } else {
                         Kohana::$log->add(Kohana::WARNING, 'LLM response is not valid JSON for module :id: :response', [
@@ -192,7 +192,7 @@ class Service_Prx218_LlmProcessor {
                 }
 
                 // 6. Логирование и события
-                Audit::log('module_manager', 'llm_analysis_success', $module_id);
+                Kohana::$log->add(Log::INFO, 'prx218: llm_analysis_success module_id=:id', [':id' => $module_id]);
                 Event::publish('prx218.module.llm_completed', [
                     'module_id'   => (int) $module_id,
                     'analysis_id' => (int) $analysis->id,
@@ -215,7 +215,7 @@ class Service_Prx218_LlmProcessor {
                 $analysis->save();
             }
 
-            Audit::log('module_manager', 'llm_analysis_failed', $module_id);
+            Kohana::$log->add(Log::INFO, 'prx218: llm_analysis_failed module_id=:id', [':id' => $module_id]);
             throw $e;
         }
     }
@@ -235,7 +235,7 @@ class Service_Prx218_LlmProcessor {
             if ($analysis->loaded())
             {
                 $analysis->delete();
-                Audit::log('module_manager', 'llm_analysis_reset', $module_id);
+                Kohana::$log->add(Log::INFO, 'prx218: llm_analysis_reset module_id=:id', [':id' => $module_id]);
             }
 
             return TRUE;
@@ -273,7 +273,7 @@ class Service_Prx218_LlmProcessor {
         if (empty($content_to_analyze))
         {
             // Если нет контента для анализа, можно пропустить или пометить как "нет данных"
-            Audit::log('module_manager', 'llm_analysis_skipped_no_content', $module_id);
+            Kohana::$log->add(Log::INFO, 'prx218: llm_analysis_skipped_no_content module_id=:id', [':id' => $module_id]);
             return null;
         }
 

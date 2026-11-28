@@ -47,6 +47,7 @@ class Controller_Prx103_Cleanup extends Controller_Prx102_Base {
                         ':old' => "interval '".$this->_days($items[$item])." days'",
                         ':limit' => 5000,
                     ]);
+                    Audit::log('prx103', 'cleanup_run', $item, ['deleted' => (int) $n, 'days' => $this->_days($items[$item])]);
                     $flash = $items[$item]['label'].' — удалено строк: '.(int) $n
                         .'. Если строк было больше — нажмите ещё раз (порция 5000).';
                 }

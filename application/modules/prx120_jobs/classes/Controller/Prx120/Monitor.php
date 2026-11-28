@@ -155,6 +155,11 @@ class Controller_Prx120_Monitor extends Controller_Prx102_Base {
                         default:
                             $flash = 'Неизвестное действие';
                     }
+
+                    if (in_array($act, ['clear', 'kill_stale', 'cancel', 'kill', 'retry', 'delete'], TRUE))
+                    {
+                        Audit::log('prx120', 'monitor_'.$act, $job_id > 0 ? $job_id : NULL, ['result' => $flash]);
+                    }
                 }
                 catch (Throwable $e)
                 {

@@ -32,6 +32,18 @@ return array(
 	'max_file_size' => 10485760,
 	
     
+    // Антивирус при записи файла (clamd, протокол INSTREAM). Режимы:
+    //   off      — не проверять (по умолчанию, пока clamd не поставлен);
+    //   soft     — заражённый файл отклонить, clamd недоступен — принять и записать WARNING;
+    //   required — заражённый отклонить, clamd недоступен — тоже отклонить (fail closed).
+    // Адрес: unix:///run/clamav/clamd.ctl или tcp://127.0.0.1:3310.
+    'antivirus' => array(
+        'mode'    => getenv('PRX_CLAMAV_MODE') ?: 'off',
+        'address' => getenv('PRX_CLAMAV_ADDRESS') ?: 'unix:///run/clamav/clamd.ctl',
+        'timeout' => 30,
+        'chunk'   => 65536,
+    ),
+
     // Настройки путей для локального хранилища
     'local_storage_paths' => array(
         'default' => dirname(APPPATH) . '/storage/prx212_file_storage/files',

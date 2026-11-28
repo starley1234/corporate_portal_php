@@ -67,6 +67,7 @@ request('/employee', 403)
 request('/prx208_events', 403)
 request('/prx208_events/list_subscribers', 403)
 request('/prx100/logs', 403)
+request('/prx100/audit', 403)
 request('/architecture/guide', 403)
 request('/prx212_file_storage/settings', 403)
 request('/prx218_module_manager/scanner', 403)
@@ -114,7 +115,7 @@ if not password:
     raise RuntimeError('ADMIN_PASSWORD is required for authenticated smoke; load local .env')
 request('/auth/login?return_url=%2F', 302, {'username': username, 'password': password, 'csrf': token[1]})
 pages = {}
-for path in ['/', '/services', '/dashboard', '/admin', '/prx595/admin', '/account/security', '/prx597', '/prx597/admin', '/prx560', '/prx115', '/tasks', '/prx120/monitor', '/prx395_document_extract', '/prx120/workers', '/prx400_specflow/quality', '/prx400_specflow/quality?days=7', '/prx120/channels', '/prx120/usage', '/health/metrics', '/migrate_pg', '/llm_admin', '/prx218_module_manager', '/prx100/errors', '/prx100/logs', '/architecture', '/architecture/guide', '/prx208_events', '/prx208_events/list_events', '/employee', '/employee/directory', '/prx300/admin', '/prx300/admin/employees', '/prx300/admin/employee/0', '/prx300/admin/import', '/prx300/admin/import_template']:
+for path in ['/', '/services', '/dashboard', '/admin', '/prx595/admin', '/account/security', '/prx597', '/prx597/admin', '/prx560', '/prx115', '/tasks', '/prx120/monitor', '/prx395_document_extract', '/prx120/workers', '/prx400_specflow/quality', '/prx400_specflow/quality?days=7', '/prx120/channels', '/prx120/usage', '/health/metrics', '/migrate_pg', '/llm_admin', '/prx218_module_manager', '/prx100/errors', '/prx100/logs', '/prx100/audit', '/architecture', '/architecture/guide', '/prx208_events', '/prx208_events/list_events', '/employee', '/employee/directory', '/prx300/admin', '/prx300/admin/employees', '/prx300/admin/employee/0', '/prx300/admin/import', '/prx300/admin/import_template']:
     pages[path] = request(path, 200)
 assert 'href="/portal-plan"' in pages['/services']
 request('/prx212', 302)

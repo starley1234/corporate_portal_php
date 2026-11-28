@@ -63,6 +63,14 @@ abstract class Controller_Prx150_Machine extends Controller_Base
         try
         {
             $client = Service_Prx150_Keys::authenticate($this->request);
+            if ( ! empty($client['via_previous']))
+            {
+                // Прежний ключ после перевыпуска (RFC 9745 / RFC 8594): работает
+                // до Sunset, потребителю пора заменить ключ.
+                $this->response->headers('Deprecation', 'true');
+                $this->response->headers('Sunset', gmdate('D, d M Y H:i:s', strtotime((string) $client['prev_valid_until'])).' GMT');
+                $this->response->headers('X-Prx-Key-Notice', 'rotated: replace the key before Sunset');
+            }
             Service_Prx150_Keys::require_scope($client, static::SCOPE);
             Service_Prx150_Keys::rate_limit($client, static::SCOPE);
             $this->api_client = $client;

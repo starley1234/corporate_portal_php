@@ -86,7 +86,7 @@ class Service_Prx597_Mail
 	 */
 	public static function send_direct($to, $subject, $body)
 	{
-		Audit::log('prx597_mail_direct', ['to' => $to]);
+		Audit::log('prx597', 'mail_direct', NULL, ['to' => $to, 'subject' => mb_substr((string) $subject, 0, 120)]);
 
 		$result = self::send($to, $subject, $body, TRUE);
 

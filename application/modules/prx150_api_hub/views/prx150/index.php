@@ -4,9 +4,10 @@
  * API-доступ: ключи внешних потребителей.
  *
  * Переменные: $keys, $scopes, $organizations, $created_key, $csrf, $flash,
- * $rate_limit, $ttl_days.
+ * $rate_limit, $ttl_days, $expiring (id => expires_at, ≤ 14 дней).
  */
 $tab = $tab ?? 'keys';
+$expiring = (array) ($expiring ?? []);
 $org_names = array_column((array) ($organizations ?? []), 'name', 'id');
 $scopes_json = function (string $json): array {
     $list = json_decode($json, TRUE);
@@ -40,7 +41,7 @@ $when = function ($value): string {
 
     <?php if ( ! empty($created_key)): ?>
         <section class="prx-card mt-5 border-emerald-300 dark:border-emerald-700" role="status">
-            <h2 class="prx-h3 text-emerald-700 dark:text-emerald-300"><i class="fas fa-circle-check mr-1.5"></i>Ключ создан — скопируйте сейчас</h2>
+            <h2 class="prx-h3 text-emerald-700 dark:text-emerald-300"><i class="fas fa-circle-check mr-1.5"></i><?php echo empty($created_key['rotated']) ? 'Ключ создан' : 'Ключ «'.HTML::chars((string) $created_key['name']).'» перевыпущен'; ?> — скопируйте сейчас</h2>
             <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Полный ключ показывается один раз и не хранится на сервере. Если потеряете — отзовите и создайте новый.</p>
             <div class="mt-3 flex flex-wrap items-center gap-2">
                 <code class="break-all rounded-lg bg-gray-900 px-3 py-2 font-mono text-xs text-emerald-200"><?php echo HTML::chars($created_key['token']); ?></code>
@@ -167,7 +168,11 @@ $when = function ($value): string {
                         <td>
                             <?php if ($key['status'] === 'active'): ?><span class="prx-badge prx-badge-ok"><span class="prx-dot"></span>активен</span>
                             <?php else: ?><span class="prx-badge prx-badge-err"><span class="prx-dot"></span>отозван</span><?php endif; ?>
-                            <?php if ($key['expires_at']): ?><span class="block text-xs text-gray-400 dark:text-gray-500">до <?php echo date('d.m.Y', strtotime((string) $key['expires_at'])); ?></span><?php endif; ?>
+                            <?php if ($key['expires_at']): ?>
+                                <?php if (isset($expiring[(int) $key['id']])): ?><span class="block text-xs font-semibold text-amber-600 dark:text-amber-400" data-key-expiring title="Истекает в ближайшие 14 дней — перевыпустите или продлите">до <?php echo date('d.m.Y', strtotime((string) $key['expires_at'])); ?> · скоро</span>
+                                <?php else: ?><span class="block text-xs text-gray-400 dark:text-gray-500">до <?php echo date('d.m.Y', strtotime((string) $key['expires_at'])); ?></span><?php endif; ?>
+                            <?php endif; ?>
+                            <?php if ( ! empty($key['prev_valid_until']) AND strtotime((string) $key['prev_valid_until']) > time()): ?><span class="block text-xs text-amber-600 dark:text-amber-400" data-key-prev>прежний <?php echo HTML::chars((string) $key['prev_key_prefix']); ?>… до <?php echo $when($key['prev_valid_until']); ?></span><?php endif; ?>
                         </td>
                         <td class="text-xs text-gray-500 dark:text-gray-400"><?php echo $when($key['last_used_at']); ?></td>
                         <td class="tabular-nums"><?php echo (int) $key['requests_24h']; ?></td>

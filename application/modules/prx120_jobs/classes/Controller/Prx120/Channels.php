@@ -61,6 +61,7 @@ class Controller_Prx120_Channels extends Controller_Prx102_Base {
                     $max = (int) $this->request->post('max_concurrent');
                     $gap = (int) $this->request->post('min_interval_sec');
                     Service_Prx120_Channels::set_limit($channel, $max, $gap, (int) $this->_current_user->id);
+                    Audit::log('prx120', 'channel_limits', $channel, ['max_concurrent' => $max, 'min_interval_sec' => $gap]);
 
                     return ($max === 0 AND $gap === 0)
                         ? 'Лимиты канала '.$channel.' сняты'
@@ -69,6 +70,10 @@ class Controller_Prx120_Channels extends Controller_Prx102_Base {
 
                 case 'retry_failed':
                     $ids = Service_Prx120_Channels::retry_failed($channel);
+                    if ($ids)
+                    {
+                        Audit::log('prx120', 'channel_retry_failed', $channel, ['jobs' => count($ids), 'ids' => array_slice($ids, 0, 50)]);
+                    }
 
                     return $ids
                         ? 'Канал '.$channel.': поставлено заново '.count($ids).' (#'.implode(', #', array_slice($ids, 0, 10)).(count($ids) > 10 ? '…' : '').')'

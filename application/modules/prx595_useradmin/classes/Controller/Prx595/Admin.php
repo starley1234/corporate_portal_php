@@ -108,6 +108,7 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
                 'UPDATE users SET active = :active, updated_at = now() WHERE id = :id',
                 [':active' => $activate ? 'true' : 'false', ':id' => $id]);
 
+            Audit::log('prx595', $activate ? 'user_activated' : 'user_deactivated', $id);
             Log_Plain::event(Log::NOTICE, 'prx595 user_id=:id state=:state by=:by', [
                 ':id' => $id, ':state' => $activate ? 'activated' : 'deactivated',
                 ':by' => (int) $this->_current_user->id,
@@ -179,11 +180,19 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
                          SELECT '.(int) $user->id.', id FROM roles WHERE name = \'admin\'');
                 }
 
+                Audit::log('prx595', 'user_created', (int) $user->id, [
+                    'username' => $username, 'email' => $email, 'roles' => $as_admin ? ['login', 'admin'] : ['login'],
+                ]);
+
                 $this->redirect('/prx595/admin?flash='.urlencode('Пользователь создан: '.$username.' (id '.$user->id.')'));
             }
             catch (ORM_Validation_Exception $e)
             {
                 $fail = implode('; ', Arr::flatten($e->errors('models', 'ru')));
+            }
+            catch (HTTP_Exception_Redirect $e)
+            {
+                throw $e; // редирект успеха — не ошибка (раньше показывал «Не удалось…»)
             }
             catch (Throwable $e)
             {
@@ -269,6 +278,14 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
                 throw new Exception('Себе нельзя снимать роль admin — иначе потеряете доступ');
             }
 
+            $before = [
+                'email'    => (string) $user->email,
+                'username' => (string) $user->username,
+                'roles'    => array_column(Prx_Db::select(
+                    'SELECT r.name FROM roles_users ru JOIN roles r ON r.id = ru.role_id
+                     WHERE ru.user_id = :id ORDER BY r.name', [':id' => $id]), 'name'),
+            ];
+
             $user->email    = $email;
             $user->username = $username;
 
@@ -295,6 +312,23 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
                  WHERE ru.user_id = '.$id.' AND r.name = \'admin\''))
             {
                 throw new Exception('Роль admin потеряна — возвращаю');
+            }
+
+            $after_roles = array_column(Prx_Db::select(
+                'SELECT r.name FROM roles_users ru JOIN roles r ON r.id = ru.role_id
+                 WHERE ru.user_id = :id ORDER BY r.name', [':id' => $id]), 'name');
+            $changes = array_filter([
+                'email'            => $before['email'] !== $email ? [$before['email'], $email] : NULL,
+                'username'         => $before['username'] !== $username ? [$before['username'], $username] : NULL,
+                'roles_added'      => array_values(array_diff($after_roles, $before['roles'])) ?: NULL,
+                'roles_removed'    => array_values(array_diff($before['roles'], $after_roles)) ?: NULL,
+                'password_changed' => $password !== '' ? TRUE : NULL,
+            ], fn ($v) => $v !== NULL);
+
+            if ($changes)
+            {
+                Audit::log('prx595', isset($changes['roles_added']) || isset($changes['roles_removed'])
+                    ? 'user_roles_changed' : 'user_updated', $id, $changes);
             }
         }
         catch (ORM_Validation_Exception $e)
@@ -328,7 +362,12 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
                 Prx_Db::execute(
                     'INSERT INTO roles (name, description) VALUES (:name, :desc)',
                     [':name' => $name, ':desc' => mb_substr($desc, 0, 200)]);
+                Audit::log('prx595', 'role_created', $name, ['description' => mb_substr($desc, 0, 200)]);
                 $this->redirect('/prx595/admin/roles?flash='.urlencode('Роль добавлена: '.$name));
+            }
+            catch (HTTP_Exception_Redirect $e)
+            {
+                throw $e; // редирект успеха — не ошибка (раньше показывал «Не удалось…»)
             }
             catch (Throwable $e)
             {
@@ -377,7 +416,12 @@ class Controller_Prx595_Admin extends Controller_Prx102_Base {
             }
 
             Prx_Db::execute('DELETE FROM roles WHERE id = '.$id);
+            Audit::log('prx595', 'role_deleted', $id, ['name' => (string) ($name_row['name'] ?? '')]);
             $this->redirect('/prx595/admin/roles?flash='.urlencode('Роль удалена'));
+        }
+        catch (HTTP_Exception_Redirect $e)
+        {
+            throw $e; // редирект успеха — не ошибка (раньше показывал «Не удалось…»)
         }
         catch (Throwable $e)
         {

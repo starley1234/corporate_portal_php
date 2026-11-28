@@ -89,6 +89,11 @@ class Service_Prx208_EventBus
  public function publish($name, $payload, $actor) { self::$events[] = [$name, $payload, $actor]; }
 }
 require APPPATH.'classes/Event.php';
+class Audit
+{
+ public static array $calls = [];
+ public static function log($category, $action = NULL, $object_id = NULL, $data = NULL): int { self::$calls[] = [$category, $action, $object_id, $data]; return count(self::$calls); }
+}
 require APPPATH.'modules/prx110_catalog/classes/Service/Prx110/Publication.php';
 $admin=['guest'=>FALSE,'logged'=>TRUE,'user_id'=>1,'admin'=>TRUE,'agent'=>TRUE,'roles'=>['admin']];
 $user=['guest'=>FALSE,'logged'=>TRUE,'user_id'=>1,'admin'=>FALSE,'agent'=>FALSE,'roles'=>['login']];
@@ -178,8 +183,13 @@ try {
 } catch (HTTP_Exception $e) {
  if ($e->getCode() !== 404 || Prx_Db::$rows !== $before) throw $e;
 }
+$audit_before = count(Audit::$calls);
 Service_Prx110_Publication::approve('prx395_document_extract', $publisher);
 Service_Prx110_Publication::approve('prx395_document_extract', new Prx_Actor(2, ['admin']));
+if (count(Audit::$calls) !== $audit_before + 1 || Audit::$calls[$audit_before][1] !== 'publication_changed'
+ || Audit::$calls[$audit_before][2] !== 'prx395_document_extract') {
+ throw new RuntimeException('Publication decision must be audited once (repeat without change — not)');
+}
 $approved_pdf = Service_Prx110_Catalog::get('prx395_document_extract');
 if (Service_Prx110_Catalog::resolve_manifest_state($approved_pdf) !== 'wip'
  || !Service_Prx110_Catalog::can_see($approved_pdf, $admin)

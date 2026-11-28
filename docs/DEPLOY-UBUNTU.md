@@ -29,6 +29,9 @@
    Мониторинг: `GET /health` (200/503, публично — балансировщику и uptime-роботу)
    и `GET /health/metrics` (Prometheus, `Authorization: Bearer $PRX_METRICS_TOKEN`):
    очередь по каналам, возраст старейшей задачи, токены и ₽ LLM, миграции.
+   Антивирус: `apt install clamav-daemon`, пользователь PHP — в группе `clamav`,
+   `PRX_CLAMAV_MODE=required` (или `soft` на время обкатки), при нестандартном
+   сокете — `PRX_CLAMAV_ADDRESS`. Аудит действий администратора — `/prx100/audit`.
 9. Утвердить юридические страницы, кадровые/анонимные политики и классификацию
    документов до приёма реальных данных. Имеющийся RAG-кэш для этого не подходит.
 10. Выполнить HTTP-проверки на staging; не гонять fresh-check на production.

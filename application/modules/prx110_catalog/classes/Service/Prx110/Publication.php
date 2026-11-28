@@ -137,6 +137,7 @@ final class Service_Prx110_Publication
         {
             self::$decisions = NULL;
             Event::publish('prx110.publication.changed', ['module' => $name, 'state' => $state], $actor->id());
+            Audit::log('prx110', 'publication_changed', $name, ['state' => $state, 'note' => mb_substr($note, 0, 200)]);
         }
     }
 }

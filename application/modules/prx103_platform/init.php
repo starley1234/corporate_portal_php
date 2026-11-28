@@ -76,6 +76,14 @@ Route::set('prx100_errors', 'prx100/errors')
         'action'     => 'index',
     ]);
 
+// Хранилище фасада Audit::log() — точка ядра audit.write (ядро модуль не знает).
+Prx_Hooks::on('audit.write', static fn (string $category, string $action, $object_id, array $data): int
+    => Service_Prx103_Audit::write($category, $action, $object_id, $data));
+
+// «Журнал администратора» — кто, когда, что изменил (фасад Audit::log, prx_103_audit_log)
+Route::set('prx100_audit', 'prx100/audit')
+    ->defaults(['controller' => 'Prx103_Audit', 'action' => 'index']);
+
 // «Логи» — управление: журнал сайта (Log_Plain) и php-лог Kohana по дням и уровням
 Route::set('prx100_usage', 'prx100/usage')
     ->defaults(['controller' => 'Prx103_Usage', 'action' => 'index']);

@@ -206,28 +206,45 @@ class Service_Prx150_Keys
             throw new Prx150_Error('unauthorized', 401);
         }
 
+        $hash = self::hash($m[1]);
+        $columns = 'SELECT id, name, key_prefix, scopes, rate_limit_per_min, status, expires_at, last_used_at, '
+            .'organization_id';
+
         try
         {
+            // Действующий ключ или прежний в льготный срок после перевыпуска.
             $row = Prx_Db::one(
-                'SELECT id, name, key_prefix, scopes, rate_limit_per_min, status, expires_at, last_used_at, '
-                .'organization_id '
-                .'FROM prx_150_api_clients WHERE key_hash = :hash',
-                [':hash' => self::hash($m[1])]
+                $columns.', (key_hash <> :hash) AS via_previous, prev_valid_until '
+                .'FROM prx_150_api_clients '
+                .'WHERE key_hash = :hash OR (prev_key_hash = :hash AND prev_valid_until > now()) '
+                .'ORDER BY (key_hash = :hash) DESC LIMIT 1',
+                [':hash' => $hash]
             );
         }
         catch (Throwable $e)
         {
-            if (Kohana::$log)
+            try
             {
-                Kohana::$log->add(Log::ERROR, 'prx150: authenticate failed: :e', [':e' => $e->getMessage()]);
+                // Миграция 150_005 ещё не применена: проверяем без перевыпуска,
+                // чтобы выкладка кода раньше миграции не уронила внешний API.
+                $row = Prx_Db::one($columns.' FROM prx_150_api_clients WHERE key_hash = :hash', [':hash' => $hash]);
             }
-            throw new Prx150_Error('service_unavailable', 503);
+            catch (Throwable $e2)
+            {
+                if (Kohana::$log)
+                {
+                    Kohana::$log->add(Log::ERROR, 'prx150: authenticate failed: :e', [':e' => $e2->getMessage()]);
+                }
+                throw new Prx150_Error('service_unavailable', 503);
+            }
         }
 
         if ($row === NULL)
         {
             throw new Prx150_Error('unauthorized', 401);
         }
+
+        $row['via_previous'] = in_array($row['via_previous'] ?? FALSE, [TRUE, 't', 'true', '1', 1], TRUE);
 
         if ($row['status'] !== 'active')
         {
@@ -371,11 +388,65 @@ class Service_Prx150_Keys
         return [(int) $id, $token];
     }
 
+    /** Льготный срок прежнего ключа при перевыпуске: 0 (сразу) … 7 суток. */
+    public const ROTATE_GRACE_MAX_HOURS = 168;
+
+    /**
+     * Перевыпустить ключ: новый секрет тому же клиенту — права, лимиты,
+     * организация и журнал использования сохраняются.
+     *
+     * Прежний ключ действует ещё $grace_hours (0 — перестаёт сразу): ответы на
+     * него несут `Deprecation`/`Sunset`, чтобы потребитель заметил. Повторный
+     * перевыпуск в льготный срок заменяет «прежний» — живут не больше двух.
+     *
+     * @return array{0:string,1:?string} [полный новый ключ, prev_valid_until]
+     */
+    public static function rotate(int $id, int $grace_hours = 0): array
+    {
+        $grace = max(0, min(self::ROTATE_GRACE_MAX_HOURS, $grace_hours));
+        $token = self::generate();
+
+        $row = Prx_Db::one(
+            "UPDATE prx_150_api_clients SET
+                prev_key_hash    = CASE WHEN :grace > 0 THEN key_hash END,
+                prev_key_prefix  = CASE WHEN :grace > 0 THEN key_prefix END,
+                prev_valid_until = CASE WHEN :grace > 0 THEN now() + make_interval(hours => :grace) END,
+                key_hash = :hash, key_prefix = :prefix,
+                rotated_at = now(), rotations = rotations + 1, updated_at = now()
+             WHERE id = :id AND status = 'active'
+             RETURNING id, prev_valid_until",
+            [':grace' => $grace, ':hash' => self::hash($token), ':prefix' => self::prefix($token), ':id' => $id]);
+
+        if ( ! $row)
+        {
+            $exists = Prx_Db::one('SELECT status FROM prx_150_api_clients WHERE id = :id', [':id' => $id]);
+            throw $exists ? new Prx150_Error('key_revoked', 409) : new Prx150_Error('not_found', 404);
+        }
+
+        return [$token, $row['prev_valid_until'] !== NULL ? (string) $row['prev_valid_until'] : NULL];
+    }
+
+    /**
+     * Активные ключи, истекающие в ближайшие $days дней (и уже истёкшие, но
+     * не отозванные) — для предупреждения в админке и метрик.
+     *
+     * @return array<int, array{id:int,name:string,expires_at:string}>
+     */
+    public static function expiring(int $days = 14): array
+    {
+        return Prx_Db::select(
+            "SELECT id, name, expires_at FROM prx_150_api_clients
+             WHERE status = 'active' AND expires_at IS NOT NULL
+               AND expires_at < now() + make_interval(days => :days)
+             ORDER BY expires_at", [':days' => max(1, $days)]);
+    }
+
     /** Отозвать ключ. Отозванный ключ не восстанавливается — создайте новый. */
     public static function revoke(int $id): bool
     {
         return Prx_Db::execute(
-            "UPDATE prx_150_api_clients SET status = 'revoked', revoked_at = now() "
+            "UPDATE prx_150_api_clients SET status = 'revoked', revoked_at = now(), "
+            ."prev_key_hash = NULL, prev_valid_until = NULL "
             ."WHERE id = :id AND status = 'active'",
             [':id' => $id]
         ) > 0;
