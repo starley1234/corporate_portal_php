@@ -20,11 +20,18 @@ class SemanticPruneIntegrationTest extends TestCase
             $other = Prx_Db::one("INSERT INTO prx_115_collections (name, model, dims, description)
                 VALUES (:n, 'test', 1, 'test') RETURNING id", [':n' => 'test_prune_'.bin2hex(random_bytes(4))]);
 
-            $vec = function (int $collection, string $entity_id, int $age_days) {
+            // Тип колонки зависит от окружения: vector(N) при pgvector (CI), real[] без него.
+            $type = (string) Prx_Db::one("SELECT format_type(atttypid, atttypmod) AS t FROM pg_attribute
+                WHERE attrelid = 'prx_115_vectors'::regclass AND attname = 'embedding'")['t'];
+            $embedding = preg_match('/^vector\((\d+)\)/', $type, $m)
+                ? '['.implode(',', array_fill(0, (int) $m[1], '0.1')).']'
+                : (str_starts_with($type, 'vector') ? '[0.1]' : '{0.1}');
+
+            $vec = function (int $collection, string $entity_id, int $age_days) use ($embedding) {
                 return (int) Prx_Db::one("INSERT INTO prx_115_vectors
                         (collection_id, entity, entity_id, content, metadata, embedding, model, dims, content_hash, updated_at)
-                    VALUES (:c, 'doc', :e, 'x', '{}'::jsonb, '{0.1}', 'test', 1, 'h', now() - make_interval(days => :d))
-                    RETURNING id", [':c' => $collection, ':e' => $entity_id, ':d' => $age_days])['id'];
+                    VALUES (:c, 'doc', :e, 'x', '{}'::jsonb, :emb, 'test', 1, 'h', now() - make_interval(days => :d))
+                    RETURNING id", [':c' => $collection, ':e' => $entity_id, ':d' => $age_days, ':emb' => $embedding])['id'];
             };
 
             $old_orphan   = $vec((int) $col['id'], '-900001', 10);
